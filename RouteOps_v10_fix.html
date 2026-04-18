@@ -3283,25 +3283,40 @@ window.addEventListener('load', () => {
 async function doLogin(){
   const email = document.getElementById('login-email').value.trim()
   const pass  = document.getElementById('login-password').value
-  const err   = document.getElementById('login-error')
-  err.classList.remove('visible')
   if(!email||!pass){showLoginError('Remplissez tous les champs.');return}
   
-  sb.auth.signInWithPassword({email, password:pass}).then(({data, error}) => {
-    if(error){showLoginError('Email ou mot de passe incorrect.');return}
-    if(data?.user){
-      currentUser = data.user
-      sb.from('profiles').select('*').eq('id', data.user.id).single().then(({data:profile}) => {
-        if(!profile||!profile.active){showLoginError('Compte inactif.');return}
-        currentProfile = profile
-        document.getElementById('badge-name').textContent = profile.full_name
-        document.getElementById('badge-role').textContent = profile.role
-        document.getElementById('menu-name').textContent = profile.full_name
-        document.getElementById('menu-email').textContent = data.user.email
-        document.getElementById('login-screen').classList.remove('visible')
-        loadFromSupabase()
-      })
+  const btn = document.getElementById('login-btn')
+  btn.textContent = 'Connexion...'
+  btn.disabled = true
+
+  fetch('https://trdhtlcenmjlcvzuplid.supabase.co/auth/v1/token?grant_type=password', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'apikey': SUPABASE_ANON
+    },
+    body: JSON.stringify({email, password:pass})
+  })
+  .then(r => r.json())
+  .then(data => {
+    if(data.error || !data.access_token){
+      showLoginError('Email ou mot de passe incorrect.')
+      btn.textContent = 'Se connecter'
+      btn.disabled = false
+      return
     }
+    localStorage.setItem('sb-trdhtlcenmjlcvzuplid-auth-token', JSON.stringify({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      expires_at: data.expires_at,
+      user: data.user
+    }))
+    location.reload()
+  })
+  .catch(() => {
+    showLoginError('Erreur de connexion.')
+    btn.textContent = 'Se connecter'
+    btn.disabled = false
   })
 }
 function showLoginError(msg){
