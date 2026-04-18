@@ -6,7 +6,6 @@
 <title>RouteOps — RDZ Security Management SA</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.0/dist/umd/supabase.min.js"></script>
 <style>
 :root{
   --bg:#f2f2f4;--surface:#ffffff;--surface2:#f7f7f9;--surface3:#ebebee;
@@ -3261,26 +3260,25 @@ let currentUser = null
 let currentProfile = null
 
 window.addEventListener('load', () => {
-  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
-  sb.auth.onAuthStateChange(async(event,session)=>{
-    if(session?.user){
-      currentUser=session.user
-      const {data:profile}=await sb.from('profiles').select('*').eq('id',session.user.id).single()
-      if(!profile||!profile.active){await sb.auth.signOut();showLoginError('Compte inactif.');return}
-      currentProfile=profile
-      document.getElementById('badge-name').textContent=profile.full_name
-      document.getElementById('badge-role').textContent=profile.role
-      document.getElementById('menu-name').textContent=profile.full_name
-      document.getElementById('menu-email').textContent=session.user.email
-      document.getElementById('login-screen').classList.remove('visible')
-      loadFromSupabase()
-    } else {
-      document.getElementById('login-screen').classList.add('visible')
-    }
-  })
+  const stored = localStorage.getItem('rdz_session')
+  if(stored){
+    try {
+      const session = JSON.parse(stored)
+      if(session.expires_at > Math.floor(Date.now()/1000)){
+        currentUser = session.user
+        currentProfile = session.profile
+        document.getElementById('badge-name').textContent = session.profile.full_name
+        document.getElementById('badge-role').textContent = session.profile.role
+        document.getElementById('menu-name').textContent = session.profile.full_name
+        document.getElementById('menu-email').textContent = session.user.email
+        document.getElementById('login-screen').classList.remove('visible')
+        loadFromSupabase(session.access_token)
+      }
+    } catch(e) {}
+  }
 })
 
-async function doLogin(){
+function doLogin(){
   const email = document.getElementById('login-email').value.trim()
   const pass  = document.getElementById('login-password').value
   if(!email||!pass){showLoginError('Remplissez tous les champs.');return}
@@ -3299,19 +3297,36 @@ async function doLogin(){
   })
   .then(r => r.json())
   .then(data => {
-    if(data.error || !data.access_token){
+    if(!data.access_token){
       showLoginError('Email ou mot de passe incorrect.')
       btn.textContent = 'Se connecter'
       btn.disabled = false
       return
     }
-    localStorage.setItem('sb-trdhtlcenmjlcvzuplid-auth-token', JSON.stringify({
-      access_token: data.access_token,
-      refresh_token: data.refresh_token,
-      expires_at: data.expires_at,
-      user: data.user
-    }))
-    location.reload()
+    fetch('https://trdhtlcenmjlcvzuplid.supabase.co/rest/v1/profiles?id=eq.' + data.user.id + '&select=*', {
+      headers: {
+        'apikey': SUPABASE_ANON,
+        'Authorization': 'Bearer ' + data.access_token
+      }
+    })
+    .then(r => r.json())
+    .then(profiles => {
+      const profile = profiles[0]
+      if(!profile || !profile.active){
+        showLoginError('Compte inactif.')
+        btn.textContent = 'Se connecter'
+        btn.disabled = false
+        return
+      }
+      localStorage.setItem('rdz_session', JSON.stringify({
+        access_token: data.access_token,
+        refresh_token: data.refresh_token,
+        expires_at: data.expires_at,
+        user: data.user,
+        profile: profile
+      }))
+      location.reload()
+    })
   })
   .catch(() => {
     showLoginError('Erreur de connexion.')
