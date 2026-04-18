@@ -258,14 +258,19 @@ td input:focus{background:var(--accent-light);border:1px solid var(--accent);out
   box-shadow:0 8px 30px rgba(0,0,0,.2);z-index:500;border:1px solid #e2e2e6;
 }
 .user-menu.open{display:block}
-.um-name{font-weight:600;font-size:13px;color:#2d2d2d;padding:8px 10px 2px}
-.um-email{font-size:11px;color:#9ca3af;padding:0 10px 8px;border-bottom:1px solid #e2e2e6;margin-bottom:6px}
+.um-header{padding:10px 12px;border-bottom:1px solid #e2e2e6;margin-bottom:6px}
+.um-name{font-weight:600;font-size:13px;color:#2d2d2d;margin-bottom:2px}
+.um-email{font-size:11px;color:#9ca3af;margin-bottom:4px}
+.um-role-badge{display:inline-block;padding:1px 8px;border-radius:20px;font-size:10px;font-weight:600;background:#fdf2f2;color:#c0272d;border:1px solid #fecaca}
 .um-btn{
-  width:100%;text-align:left;padding:7px 10px;background:none;
+  width:100%;text-align:left;padding:7px 12px;background:none;
   border:none;border-radius:6px;font-size:13px;cursor:pointer;color:#4b5563;
+  font-family:'DM Sans',sans-serif;display:flex;align-items:center;gap:8px;
 }
 .um-btn:hover{background:#f7f7f9}
 .um-btn.danger{color:#dc2626}
+.um-btn.danger:hover{background:#fef2f2}
+.um-separator{height:1px;background:#e2e2e6;margin:4px 0}
 </style>
 </head>
 <body>
@@ -335,9 +340,18 @@ td input:focus{background:var(--accent-light);border:1px solid var(--accent);out
         <div class="urole" id="badge-role">…</div>
       </div>
       <div class="user-menu" id="user-menu">
-        <div class="um-name" id="menu-name"></div>
-        <div class="um-email" id="menu-email"></div>
-        <button class="um-btn danger" onclick="event.stopPropagation();signOut()">↩</button>
+        <div class="um-header">
+          <div class="um-name" id="menu-name"></div>
+          <div class="um-email" id="menu-email"></div>
+          <span class="um-role-badge" id="menu-role">admin</span>
+        </div>
+        <a href="https://rdz-2026.github.io/routeops/RDZ_index.html" class="um-btn" onclick="document.getElementById('user-menu').classList.remove('open')" style="text-decoration:none">
+          🏠 Suite RDZ
+        </a>
+        <div class="um-separator"></div>
+        <button class="um-btn danger" onclick="event.stopPropagation();signOut()">
+          ↩ Se déconnecter
+        </button>
       </div>
     </div>
   </div>
@@ -3341,6 +3355,7 @@ function _applySession(user, profile){
   document.getElementById('badge-role').textContent=profile.role
   document.getElementById('menu-name').textContent=profile.full_name
   document.getElementById('menu-email').textContent=user.email
+  if(document.getElementById('menu-role')) document.getElementById('menu-role').textContent=profile.role
   document.getElementById('login-screen').classList.remove('visible')
 }
 
