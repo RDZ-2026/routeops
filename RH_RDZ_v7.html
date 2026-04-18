@@ -807,6 +807,16 @@ tbody tr:last-child td{border-bottom:none;}
 
 <script>
 // ── Constantes globales (déclarées en premier) ────────────
+
+// ── Toast notifications ───────────────────────────────────
+function showToast(msg, success) {
+  var t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:340px;line-height:1.5;color:white;background:' + (success ? '#166534' : '#1a1917') + ';';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.remove(); }, 4000);
+}
+
 const SUPA_URL  = 'https://trdhtlcenmjlcvzuplid.supabase.co';
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
 const SK = 'rdz_session';
