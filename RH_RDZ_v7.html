@@ -305,41 +305,39 @@ tbody tr:last-child td{border-bottom:none;}
 <body>
 
 <!-- LOGIN SCREEN -->
-<div id="login-screen" style="display:none;position:fixed;inset:0;background:#2d2d2d;z-index:9999;align-items:center;justify-content:center;flex-direction:column;">
-  <div style="background:var(--white);border-radius:16px;padding:40px 44px;width:400px;max-width:94vw;box-shadow:0 24px 64px rgba(0,0,0,.45);">
+<div id="rh-login" style="display:flex;position:fixed;inset:0;background:#2d2d2d;z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:42px 46px;width:420px;max-width:94vw;box-shadow:0 24px 64px rgba(0,0,0,.5);">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:30px;">
-      <div style="width:48px;height:48px;background:var(--red);border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:16px;flex-shrink:0;">RDZ</div>
-      <div><div style="font-size:16px;font-weight:700;color:#1a1917;">RH_RDZ</div><div style="font-size:11px;color:#9a9794;text-transform:uppercase;letter-spacing:.5px;">Ressources Humaines</div></div>
+      <div style="width:48px;height:48px;background:var(--red);border-radius:10px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:15px;flex-shrink:0;font-family:monospace;">RDZ</div>
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#1a1917;">RH_RDZ</div>
+        <div style="font-size:11px;color:#9a9794;text-transform:uppercase;letter-spacing:.5px;">Ressources Humaines</div>
+      </div>
     </div>
-    <div style="font-size:18px;font-weight:700;color:#1a1917;margin-bottom:4px;">Connexion</div>
-    <div style="font-size:13px;color:#9a9794;margin-bottom:22px;">Accès réservé aux administrateurs RDZ.</div>
-    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px;">
-      <label style="font-size:11px;font-weight:700;color:#5a5753;text-transform:uppercase;letter-spacing:.5px;">Adresse e-mail</label>
-      <input type="email" id="login-email" placeholder="prenom.nom@rdz-security-management.ch" autocomplete="email"
-        style="background:#f5f4f2;border:1.5px solid var(--border2);border-radius:8px;padding:10px 13px;font-size:14px;color:var(--text);width:100%;font-family:'DM Sans';outline:none;transition:all .15s;"
-        onfocus="this.style.borderColor='var(--red)';this.style.background='var(--white)'" onblur="this.style.borderColor='var(--border2)';this.style.background='#f5f4f2'">
-    </div>
-    <div style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px;">
-      <label style="font-size:11px;font-weight:700;color:#5a5753;text-transform:uppercase;letter-spacing:.5px;">Mot de passe</label>
-      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"
-        style="background:#f5f4f2;border:1.5px solid var(--border2);border-radius:8px;padding:10px 13px;font-size:14px;color:var(--text);width:100%;font-family:'DM Sans';outline:none;transition:all .15s;"
-        onfocus="this.style.borderColor='var(--red)';this.style.background='var(--white)'" onblur="this.style.borderColor='var(--border2)';this.style.background='#f5f4f2'"
-        onkeydown="if(event.key==='Enter')doLogin()">
-    </div>
-    <button id="login-btn" onclick="doLogin()"
-      style="width:100%;padding:12px;background:var(--red);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-top:14px;font-family:'DM Sans';transition:background .15s;"
-      onmouseenter="this.style.background='var(--red-d)'" onmouseleave="this.style.background='var(--red)'">
+    <div style="font-size:20px;font-weight:700;color:#1a1917;margin-bottom:4px;">Connexion</div>
+    <div style="font-size:13px;color:#9a9794;margin-bottom:24px;">Accès réservé aux administrateurs RDZ.</div>
+    <label style="font-size:11px;font-weight:700;color:#5a5753;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">Adresse e-mail</label>
+    <input type="email" id="rh-email" placeholder="prenom.nom@rdz-security-management.ch" autocomplete="email"
+      style="width:100%;background:#f5f4f2;border:1.5px solid #d0cec9;border-radius:8px;padding:11px 14px;font-size:14px;font-family:'DM Sans';outline:none;margin-bottom:16px;display:block;"
+      onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='#d0cec9'">
+    <label style="font-size:11px;font-weight:700;color:#5a5753;text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px;">Mot de passe</label>
+    <input type="password" id="rh-pass" placeholder="••••••••" autocomplete="current-password"
+      style="width:100%;background:#f5f4f2;border:1.5px solid #d0cec9;border-radius:8px;padding:11px 14px;font-size:14px;font-family:'DM Sans';outline:none;margin-bottom:4px;display:block;"
+      onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='#d0cec9'"
+      onkeydown="if(event.key==='Enter') rhLogin()">
+    <button id="rh-login-btn" onclick="rhLogin()"
+      style="width:100%;margin-top:14px;padding:12px;background:var(--red);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans';">
       Se connecter
     </button>
-    <div id="login-error" style="display:none;background:#fdf0f2;border:1px solid var(--red-m);border-radius:8px;padding:10px 13px;font-size:12.5px;color:var(--red-d);margin-top:12px;"></div>
-    <div style="margin-top:18px;padding-top:14px;border-top:1px solid var(--border);text-align:center;">
-      <a href="RDZ_index.html" style="font-size:12px;color:var(--text3);text-decoration:none;">← Retour à la Suite RDZ</a>
+    <div id="rh-login-err" style="display:none;background:#fdf0f2;border:1px solid #f5c6ce;border-radius:8px;padding:10px 13px;font-size:13px;color:#a50d25;margin-top:12px;"></div>
+    <div style="margin-top:18px;padding-top:14px;border-top:1px solid #e2e0dd;text-align:center;">
+      <a href="RDZ_index.html" style="font-size:12px;color:#9a9794;text-decoration:none;">← Retour à la Suite RDZ</a>
     </div>
   </div>
 </div>
 
 <!-- HEADER -->
-<header class="hdr">
+<header class="hdr" id="rh-app" style="display:none;">
   <div class="logo">
     <div class="logo-mark">RDZ</div>
     <div><div class="logo-text">RH_RDZ</div><div class="logo-sub">Ressources Humaines</div></div>
@@ -347,38 +345,39 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="hdr-div"></div>
   <div class="hdr-date" id="hdrDate"></div>
   <div class="hdr-right">
-    <!-- SYNC SUPABASE DOT -->
-    <div style="position:relative;display:inline-block;">
-      <button onclick="toggleSyncPopover()" title="Statut Supabase"
-        style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:8px;color:var(--text2);font-size:12.5px;font-weight:500;"
+    <!-- SYNC DOT -->
+    <div style="position:relative;">
+      <button onclick="toggleSyncPopover()" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:7px;padding:6px 10px;border-radius:8px;"
         onmouseenter="this.style.background='var(--bg)'" onmouseleave="this.style.background='none'">
-        <span id="sync-dot" style="width:9px;height:9px;border-radius:50%;background:#9ca3af;display:inline-block;flex-shrink:0;transition:all .3s;"></span>
-        <span id="sync-label" style="font-size:11.5px;color:var(--text3);">Connexion…</span>
+        <span id="sync-dot" style="width:9px;height:9px;border-radius:50%;background:#9ca3af;display:inline-block;transition:all .3s;"></span>
+        <span id="sync-label" style="font-size:11.5px;color:var(--text3);">—</span>
       </button>
-      <div id="sync-popover" style="display:none;position:absolute;top:40px;right:0;width:310px;background:var(--white);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);z-index:500;padding:16px;">
-        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;">☁️ Synchronisation Supabase</div>
+      <div id="sync-popover" style="display:none;position:absolute;top:40px;right:0;width:280px;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);z-index:500;padding:14px;">
+        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Synchronisation</div>
         <div id="sync-popover-body"></div>
-        <div style="display:flex;gap:8px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:8px;">
           <button class="btn btn-primary btn-sm" style="flex:1;" onclick="pushToSupabase();closeSyncPopover()">☁️ Sauvegarder</button>
-          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportDataJSON();closeSyncPopover()">📤 Export JSON</button>
+          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportDataJSON();closeSyncPopover()">📤 Export</button>
         </div>
       </div>
     </div>
     <div class="hdr-div"></div>
-    <!-- BADGE UTILISATEUR -->
-    <div id="user-badge" onclick="toggleUserMenu()"
-      style="display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;cursor:pointer;position:relative;">
-      <div>
-        <div style="font-size:12px;font-weight:600;color:var(--text);" id="badge-name">…</div>
-        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;" id="badge-role">…</div>
-      </div>
-      <div id="user-menu" style="display:none;position:absolute;top:48px;right:0;background:white;border-radius:10px;padding:8px;min-width:215px;box-shadow:var(--shadow-lg);z-index:600;border:1px solid var(--border);">
-        <div style="font-weight:700;font-size:13px;padding:8px 10px 2px;" id="menu-name"></div>
+    <!-- USER BADGE -->
+    <div style="position:relative;">
+      <button onclick="toggleUserMenu()" style="display:flex;align-items:center;gap:8px;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;cursor:pointer;font-family:'DM Sans';">
+        <div style="text-align:left;">
+          <div style="font-size:12px;font-weight:600;color:var(--text);" id="badge-name">—</div>
+          <div style="font-size:10px;color:var(--text3);text-transform:uppercase;" id="badge-role">—</div>
+        </div>
+        <span style="color:var(--text3);font-size:10px;">▾</span>
+      </button>
+      <div id="user-menu" style="display:none;position:absolute;top:48px;right:0;background:white;border-radius:10px;padding:8px;min-width:210px;box-shadow:var(--shadow-lg);z-index:600;border:1px solid var(--border);">
+        <div style="font-weight:700;font-size:13px;padding:8px 10px 3px;" id="menu-name"></div>
         <div style="font-size:11px;color:var(--text3);padding:0 10px 9px;border-bottom:1px solid var(--border);margin-bottom:6px;" id="menu-email"></div>
-        <a href="RDZ_index.html" style="display:flex;align-items:center;gap:6px;padding:7px 10px;border-radius:6px;font-size:13px;color:var(--text2);text-decoration:none;cursor:pointer;"
+        <a href="RDZ_index.html" style="display:block;padding:7px 10px;border-radius:6px;font-size:13px;color:var(--text2);text-decoration:none;"
            onmouseenter="this.style.background='var(--bg)'" onmouseleave="this.style.background='none'">🏠 Suite RDZ</a>
         <button style="width:100%;text-align:left;padding:7px 10px;background:none;border:none;border-radius:6px;font-size:13px;cursor:pointer;color:#dc2626;font-family:'DM Sans';"
-          onclick="event.stopPropagation();signOut()">↩ Se déconnecter</button>
+          onclick="rhLogout()">↩ Se déconnecter</button>
       </div>
     </div>
     <div class="hdr-div"></div>
@@ -386,6 +385,8 @@ tbody tr:last-child td{border-bottom:none;}
     <button class="hdr-btn hdr-btn-ghost" onclick="addMCEntry()">+ Main courante</button>
   </div>
 </header>
+<!-- APP CONTENT wrapper — hidden until login -->
+<div id="rh-content" style="display:none;">
 
 <div class="layout">
 <!-- SIDEBAR -->
@@ -793,6 +794,9 @@ tbody tr:last-child td{border-bottom:none;}
   </div>
 </div>
 
+
+</div><!-- /rh-content -->
+
 <script>
 // ═══════════════════════════════════════
 // DEFAULTS & DB
@@ -1009,10 +1013,8 @@ function loadDB() {
   return initDB();
 }
 function saveDB() {
-  // 1. Toujours sauvegarder localement (cache offline)
   try { localStorage.setItem('rdz_rh_v7', JSON.stringify(DB)); } catch(e){}
-  // 2. Push vers Supabase si connecté (non-bloquant)
-  if(currentUser) pushToSupabase();
+  if (window.currentToken) pushToSupabase();
   updateSyncDot();
 }
 
@@ -3504,117 +3506,150 @@ function printBASPETable(){
 // ═══════════════════════════════════════════════════
 
 // ═══════════════════════════════════════════════════════════
-// SUPABASE CONFIG & AUTH
+// CONFIG SUPABASE
 // ═══════════════════════════════════════════════════════════
-const SUPA_URL  = 'https://trdhtlcenmjlcvzuplid.supabase.co'
-const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU'
-let currentUser    = null
-let currentProfile = null
+const SUPA_URL  = 'https://trdhtlcenmjlcvzuplid.supabase.co';
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
+const SK = 'rdz_session';
 
-// ── Session localStorage ──────────────────────────────────
-function _saveSession(d){ localStorage.setItem('rdz_auth_v2', JSON.stringify(d)) }
-function _loadSession(){ try{ return JSON.parse(localStorage.getItem('rdz_auth_v2')||'null') }catch(){ return null } }
-function _clearSession(){ localStorage.removeItem('rdz_auth_v2') }
-function _sessionValid(s){ return s && s.access_token && s.expires_at > Math.floor(Date.now()/1000) }
+window.currentToken   = null;
+window.currentSession = null;
 
-function _h(token){
+function loadSession()  { try { return JSON.parse(localStorage.getItem(SK)) || JSON.parse(sessionStorage.getItem(SK)); } catch(e) { return null; } }
+function clearSession() { localStorage.removeItem(SK); sessionStorage.removeItem(SK); }
+function isValid(s)     { return s && s.token && s.expires_at > Math.floor(Date.now() / 1000); }
+
+// ── Auth headers ──────────────────────────────────────────
+function authHeaders(token) {
   return {
     'apikey': SUPA_ANON,
-    'Authorization': 'Bearer '+token,
+    'Authorization': 'Bearer ' + token,
     'Content-Type': 'application/json',
     'Prefer': 'resolution=merge-duplicates'
-  }
+  };
 }
 
 // ── Login ─────────────────────────────────────────────────
-async function doLogin(){
-  const email = document.getElementById('login-email').value.trim()
-  const pass  = document.getElementById('login-password').value
-  if(!email||!pass){ showLoginError('Remplissez tous les champs.'); return }
-  const btn = document.getElementById('login-btn')
-  btn.textContent = 'Connexion…'; btn.disabled = true
-  document.getElementById('login-error').style.display = 'none'
+async function rhLogin() {
+  const email = document.getElementById('rh-email').value.trim();
+  const pass  = document.getElementById('rh-pass').value;
+  const btn   = document.getElementById('rh-login-btn');
+  const err   = document.getElementById('rh-login-err');
+  err.style.display = 'none';
+
+  if (!email || !pass) {
+    err.textContent = 'Veuillez remplir tous les champs.';
+    err.style.display = 'block';
+    return;
+  }
+
+  btn.textContent = 'Connexion…';
+  btn.disabled = true;
+
   try {
-    const r = await fetch(SUPA_URL+'/auth/v1/token?grant_type=password',{
-      method:'POST',
-      headers:{'Content-Type':'application/json','apikey':SUPA_ANON},
-      body:JSON.stringify({email,password:pass})
-    })
-    const data = await r.json()
-    if(!data.access_token){ showLoginError('Email ou mot de passe incorrect.'); btn.textContent='Se connecter'; btn.disabled=false; return }
-    const pr = await fetch(SUPA_URL+'/rest/v1/profiles?id=eq.'+data.user.id+'&select=*',{
-      headers:{'apikey':SUPA_ANON,'Authorization':'Bearer '+data.access_token}
-    })
-    const profiles = await pr.json()
-    const profile = profiles[0]
-    if(!profile||!profile.active){ showLoginError('Compte inactif ou accès refusé.'); btn.textContent='Se connecter'; btn.disabled=false; return }
-    _saveSession({access_token:data.access_token,refresh_token:data.refresh_token,expires_at:data.expires_at,user:data.user,profile})
-    await _applySession(data.user, profile, data.access_token)
-  } catch(e){ showLoginError('Erreur réseau. Vérifiez votre connexion.'); btn.textContent='Se connecter'; btn.disabled=false }
+    const r1 = await fetch(SUPA_URL + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON },
+      body: JSON.stringify({ email, password: pass })
+    });
+    const auth = await r1.json();
+    if (!auth.access_token) throw new Error('Email ou mot de passe incorrect.');
+
+    const r2 = await fetch(
+      SUPA_URL + '/rest/v1/profiles?id=eq.' + auth.user.id + '&select=*', {
+      headers: { 'apikey': SUPA_ANON, 'Authorization': 'Bearer ' + auth.access_token }
+    });
+    const profiles = await r2.json();
+    const profile = Array.isArray(profiles) ? profiles[0] : null;
+    if (!profile || !profile.active) throw new Error('Compte inactif ou accès refusé.');
+
+    const session = {
+      token:      auth.access_token,
+      refresh:    auth.refresh_token,
+      expires_at: auth.expires_at,
+      user_id:    auth.user.id,
+      email:      auth.user.email,
+      full_name:  profile.full_name,
+      role:       profile.role
+    };
+    localStorage.setItem(SK, JSON.stringify(session));
+    applySession(session);
+    await loadFromSupabase(session.token);
+
+  } catch(e) {
+    err.textContent = e.message || 'Erreur réseau.';
+    err.style.display = 'block';
+    btn.textContent = 'Se connecter';
+    btn.disabled = false;
+  }
 }
 
-function showLoginError(msg){
-  const el = document.getElementById('login-error')
-  el.textContent = msg; el.style.display = 'block'
+// ── Apply session (show app) ──────────────────────────────
+function applySession(s) {
+  window.currentToken   = s.token;
+  window.currentSession = s;
+  document.getElementById('rh-login').style.display   = 'none';
+  document.getElementById('rh-app').style.display     = 'flex';
+  document.getElementById('rh-content').style.display = 'block';
+  document.getElementById('badge-name').textContent   = s.full_name || s.email;
+  document.getElementById('badge-role').textContent   = s.role || 'admin';
+  document.getElementById('menu-name').textContent    = s.full_name || s.email;
+  document.getElementById('menu-email').textContent   = s.email;
+  setSyncState('ok', 'Connecté');
 }
 
-// ── Apply session ─────────────────────────────────────────
-async function _applySession(user, profile, token){
-  currentUser = user; currentProfile = profile
-  document.getElementById('badge-name').textContent = profile.full_name || user.email
-  document.getElementById('badge-role').textContent = profile.role || 'admin'
-  document.getElementById('menu-name').textContent  = profile.full_name || user.email
-  document.getElementById('menu-email').textContent = user.email
-  document.getElementById('login-screen').style.display = 'none'
-  // Log accès RGPD
-  _logAccess(token, 'login', null, null)
-  // Charger depuis Supabase
-  await loadFromSupabase(token)
+// ── Logout ────────────────────────────────────────────────
+function rhLogout() {
+  const s = loadSession();
+  clearSession();
+  window.currentToken   = null;
+  window.currentSession = null;
+  if (s && s.token) {
+    fetch(SUPA_URL + '/auth/v1/logout', {
+      method: 'POST',
+      headers: { 'apikey': SUPA_ANON, 'Authorization': 'Bearer ' + s.token }
+    }).catch(() => {});
+  }
+  document.getElementById('rh-login').style.display   = 'flex';
+  document.getElementById('rh-app').style.display     = 'none';
+  document.getElementById('rh-content').style.display = 'none';
+  document.getElementById('user-menu').style.display  = 'none';
 }
 
-// ── Sign out ──────────────────────────────────────────────
-function signOut(){
-  const s = _loadSession()
-  _clearSession()
-  currentUser = null; currentProfile = null
-  DB = initDB()
-  buildDashboard(); renderAgents()
-  document.getElementById('login-screen').style.display = 'flex'
-  document.getElementById('user-menu').style.display = 'none'
-  if(s) fetch(SUPA_URL+'/auth/v1/logout',{method:'POST',
-    headers:{'apikey':SUPA_ANON,'Authorization':'Bearer '+s.access_token}}).catch(()=>{})
+function toggleUserMenu() {
+  const m = document.getElementById('user-menu');
+  m.style.display = m.style.display === 'block' ? 'none' : 'block';
 }
-
-function toggleUserMenu(){
-  const m = document.getElementById('user-menu')
-  m.style.display = m.style.display === 'block' ? 'none' : 'block'
-}
-document.addEventListener('click', e=>{
-  const b = document.getElementById('user-badge')
-  const m = document.getElementById('user-menu')
-  if(b && !b.contains(e.target) && m) m.style.display = 'none'
-})
+document.addEventListener('click', function(e) {
+  const m = document.getElementById('user-menu');
+  const t = e.target;
+  if (m && m.style.display === 'block' && !m.contains(t) && !t.closest('button[onclick="toggleUserMenu()"]')) {
+    m.style.display = 'none';
+  }
+});
 
 // ═══════════════════════════════════════════════════════════
-// CHARGEMENT DEPUIS SUPABASE (tables structurées)
+// CHARGEMENT DEPUIS SUPABASE
 // ═══════════════════════════════════════════════════════════
-async function loadFromSupabase(token){
-  const h = {'apikey':SUPA_ANON,'Authorization':'Bearer '+token}
-  const base = SUPA_URL+'/rest/v1'
-  setSyncState('loading')
+async function loadFromSupabase(token) {
+  setSyncState('loading', 'Chargement…');
+  const h = { 'apikey': SUPA_ANON, 'Authorization': 'Bearer ' + token };
+  const base = SUPA_URL + '/rest/v1';
   try {
-    const [agentsR, mcR, procTypesR, procR, paramsR] = await Promise.all([
-      fetch(base+'/rh_agents?order=nom&select=*', {headers:h}).then(r=>r.json()),
-      fetch(base+'/rh_main_courante?order=date.desc&select=*', {headers:h}).then(r=>r.json()),
-      fetch(base+'/rh_process_types?order=position&select=*', {headers:h}).then(r=>r.json()),
-      fetch(base+'/rh_process?order=date.desc&select=*', {headers:h}).then(r=>r.json()),
-      fetch(base+'/rh_params?select=*', {headers:h}).then(r=>r.json()),
-    ])
+    const [agR, mcR, ptR, prR, paR] = await Promise.all([
+      fetch(base + '/rh_agents?order=nom&select=*',               {headers:h}).then(r=>r.json()),
+      fetch(base + '/rh_main_courante?order=date.desc&select=*',  {headers:h}).then(r=>r.json()),
+      fetch(base + '/rh_process_types?order=position&select=*',   {headers:h}).then(r=>r.json()),
+      fetch(base + '/rh_process?order=date.desc&select=*',        {headers:h}).then(r=>r.json()),
+      fetch(base + '/rh_params?select=*',                         {headers:h}).then(r=>r.json()),
+    ]);
 
-    // Agents
-    if(Array.isArray(agentsR) && agentsR.length > 0){
-      DB.agents = agentsR.map(a=>({
-        id: a.id, nom: a.nom, prenom: a.prenom, statut: a.statut,
+    let loaded = false;
+
+    if (Array.isArray(agR) && agR.length > 0) {
+      loaded = true;
+      DB.agents = agR.map(a => ({
+        id: a.id, nom: a.nom, prenom: a.prenom, statut: a.statut || 'actif',
         dob: a.dob, nationalite: a.nationalite, avs: a.avs,
         fonction: a.fonction, telephone: a.telephone, email: a.email,
         adresse: a.adresse, cp: a.cp, ville: a.ville, pays: a.pays,
@@ -3622,241 +3657,182 @@ async function loadFromSupabase(token){
         date_embauche: a.date_embauche, date_depart: a.date_depart,
         taux_horaire: a.taux_horaire, categorie_salaire: a.categorie_salaire,
         taux_emploi: a.taux_emploi, contrat: a.contrat,
-        contrat_heures: a.contrat_heures, statut_marital: a.statut_marital,
+        contrat_heures: a.contrat_heures,
+        statut_marital: a.statut_marital || 'Célibataire',
         nb_enfants: a.nb_enfants || 0,
-        matr_denonc_carte: a.matr_denonc_carte,
-        matr_denonc_ppa: a.matr_denonc_ppa,
+        matr_denonc_carte: a.matr_denonc_carte, matr_denonc_ppa: a.matr_denonc_ppa,
         docs: a.docs || {carte:{},ppa:{},permis:{},pi1:{},pi2:{},permis_conduire:{}},
-        conjoint: a.conjoint || {},
-        baspe: a.baspe || {},
+        conjoint: a.conjoint || {}, baspe: a.baspe || {},
         formations: a.formations || []
-      }))
+      }));
     }
-
-    // Main courante
-    if(Array.isArray(mcR)){
-      DB.main_courante = mcR.map(m=>({
+    if (Array.isArray(mcR) && mcR.length > 0) {
+      DB.main_courante = mcR.map(m => ({
         id: m.id, date: m.date, agent: m.agent_id, site: m.site,
         categorie: m.categorie, mesure: m.mesure, fait: m.fait, suivi: m.suivi
-      }))
+      }));
     }
-
-    // Process types
-    if(Array.isArray(procTypesR) && procTypesR.length > 0){
-      DB.process_types = procTypesR.map(pt=>({
+    if (Array.isArray(ptR) && ptR.length > 0) {
+      DB.process_types = ptR.map(pt => ({
         id: pt.id, name: pt.name, icon: pt.icon, color: pt.color,
         badge_class: pt.badge_class, marks_depart: pt.marks_depart,
-        steps_template: pt.steps_template || [],
-        is_builtin: pt.is_builtin
-      }))
+        steps_template: pt.steps_template || [], is_builtin: pt.is_builtin
+      }));
     }
-
-    // Process instances
-    if(Array.isArray(procR)){
-      DB.process = procR.map(p=>({
+    if (Array.isArray(prR) && prR.length > 0) {
+      DB.process = prR.map(p => ({
         id: p.id, agent_id: p.agent_id, type: p.type_id,
         date: p.date, notes: p.notes, steps: p.steps || [], checks: {}
-      }))
+      }));
+    }
+    if (Array.isArray(paR) && paR.length > 0) {
+      const obj = {};
+      paR.forEach(p => { obj[p.key] = p.value; });
+      DB.params = Object.assign({}, JSON.parse(JSON.stringify(DEFAULTS)), obj);
     }
 
-    // Params
-    if(Array.isArray(paramsR) && paramsR.length > 0){
-      const paramsObj = {}
-      paramsR.forEach(p=>{ paramsObj[p.key] = p.value })
-      DB.params = {...JSON.parse(JSON.stringify(DEFAULTS)), ...paramsObj}
+    try { localStorage.setItem('rdz_rh_v7', JSON.stringify(DB)); } catch(e) {}
+    populateSelects(); populateFormSelects(); renderProcTabs();
+    buildDashboard(); renderAgents();
+
+    if (loaded) {
+      setSyncState('ok', 'Synchronisé');
+      showToast('✅ Données Supabase chargées', true);
+    } else {
+      setSyncState('ok', 'Données locales');
+      showToast('ℹ️ Pas de données Supabase — affichage local', false);
     }
-
-    // Cache local
-    try { localStorage.setItem('rdz_rh_v7', JSON.stringify(DB)) } catch(e){}
-
-    // Refresh UI
-    populateSelects(); populateFormSelects(); renderProcTabs()
-    buildDashboard(); renderAgents()
-    setSyncState('ok', 'Synchronisé')
-    showToast('✅ Données chargées depuis Supabase', true)
-
-  } catch(err){
-    console.error('loadFromSupabase error:', err)
-    // Fallback sur cache localStorage
-    const cached = localStorage.getItem('rdz_rh_v7')
-    if(cached){ try{ DB = JSON.parse(cached); populateSelects(); populateFormSelects(); renderProcTabs(); buildDashboard(); renderAgents() }catch(e){} }
-    setSyncState('error', 'Hors ligne')
-    showToast('⚠️ Mode hors ligne — données locales', false)
+  } catch(e) {
+    console.error('loadFromSupabase:', e);
+    setSyncState('error', 'Hors ligne');
+    populateSelects(); populateFormSelects(); renderProcTabs();
+    buildDashboard(); renderAgents();
+    showToast('⚠️ Mode hors ligne — données locales', false);
   }
 }
 
 // ═══════════════════════════════════════════════════════════
-// SAUVEGARDE VERS SUPABASE (tables structurées)
+// SAUVEGARDE VERS SUPABASE
 // ═══════════════════════════════════════════════════════════
-async function pushToSupabase(){
-  const s = _loadSession(); if(!s) return
-  const token = s.access_token
-  const h = _h(token)
-  const base = SUPA_URL+'/rest/v1'
-  setSyncState('saving')
-
+async function pushToSupabase() {
+  if (!window.currentToken) { showToast('❌ Non connecté à Supabase', false); return; }
+  const h    = authHeaders(window.currentToken);
+  const base = SUPA_URL + '/rest/v1';
+  setSyncState('saving', 'Sauvegarde…');
   try {
-    // ── Agents ──────────────────────────────────────────────
-    if(DB.agents.length){
-      const agPayload = DB.agents.map(a=>({
-        id: a.id, nom: a.nom, prenom: a.prenom, statut: a.statut,
-        dob: a.dob||null, nationalite: a.nationalite||null, avs: a.avs||null,
-        fonction: a.fonction||null, telephone: a.telephone||null, email: a.email||null,
-        adresse: a.adresse||null, cp: a.cp||null, ville: a.ville||null, pays: a.pays||null,
-        contact_urgence: a.contact_urgence||null,
-        date_embauche: a.date_embauche||null, date_depart: a.date_depart||null,
-        taux_horaire: a.taux_horaire||null, categorie_salaire: a.categorie_salaire||null,
-        taux_emploi: a.taux_emploi||null, contrat: a.contrat||null,
-        contrat_heures: a.contrat_heures||null,
-        statut_marital: a.statut_marital||'Célibataire',
-        nb_enfants: a.nb_enfants||0,
-        matr_denonc_carte: a.matr_denonc_carte||null,
-        matr_denonc_ppa: a.matr_denonc_ppa||null,
-        docs: a.docs||{}, conjoint: a.conjoint||{},
-        baspe: a.baspe||{}, formations: a.formations||[],
-        updated_by: currentUser?.id||null
-      }))
-      await fetch(base+'/rh_agents', {method:'POST', headers:h, body:JSON.stringify(agPayload)})
+    if (DB.agents.length) {
+      await fetch(base + '/rh_agents', { method:'POST', headers:h,
+        body: JSON.stringify(DB.agents.map(a => ({
+          id:a.id, nom:a.nom, prenom:a.prenom, statut:a.statut||'actif',
+          dob:a.dob||null, nationalite:a.nationalite||null, avs:a.avs||null,
+          fonction:a.fonction||null, telephone:a.telephone||null, email:a.email||null,
+          adresse:a.adresse||null, cp:a.cp||null, ville:a.ville||null, pays:a.pays||null,
+          contact_urgence:a.contact_urgence||null,
+          date_embauche:a.date_embauche||null, date_depart:a.date_depart||null,
+          taux_horaire:a.taux_horaire||null, categorie_salaire:a.categorie_salaire||null,
+          taux_emploi:a.taux_emploi||null, contrat:a.contrat||null,
+          contrat_heures:a.contrat_heures||null,
+          statut_marital:a.statut_marital||'Célibataire',
+          nb_enfants:a.nb_enfants||0,
+          matr_denonc_carte:a.matr_denonc_carte||null,
+          matr_denonc_ppa:a.matr_denonc_ppa||null,
+          docs:a.docs||{}, conjoint:a.conjoint||{},
+          baspe:a.baspe||{}, formations:a.formations||[],
+          updated_by:window.currentSession?.user_id||null
+        })))
+      });
     }
-
-    // ── Main courante ────────────────────────────────────────
-    if(DB.main_courante.length){
-      const mcPayload = DB.main_courante.map(m=>({
-        id: m.id, date: m.date, agent_id: m.agent||null,
-        site: m.site||null, categorie: m.categorie||null,
-        mesure: m.mesure||null, fait: m.fait||'',
-        suivi: m.suivi||null, created_by: currentUser?.id||null
-      }))
-      await fetch(base+'/rh_main_courante', {method:'POST', headers:h, body:JSON.stringify(mcPayload)})
+    if (DB.main_courante.length) {
+      await fetch(base + '/rh_main_courante', { method:'POST', headers:h,
+        body: JSON.stringify(DB.main_courante.map(m => ({
+          id:m.id, date:m.date, agent_id:m.agent||null, site:m.site||null,
+          categorie:m.categorie||null, mesure:m.mesure||null,
+          fait:m.fait||'', suivi:m.suivi||null,
+          created_by:window.currentSession?.user_id||null
+        })))
+      });
     }
-
-    // ── Process types ────────────────────────────────────────
-    const ptPayload = DB.process_types.map((pt,i)=>({
-      id: pt.id, name: pt.name, icon: pt.icon||'📋',
-      color: pt.color||'#6b7280', badge_class: pt.badge_class||'b-gray',
-      marks_depart: !!pt.marks_depart, is_builtin: !!pt.is_builtin,
-      position: i, steps_template: pt.steps_template||[]
-    }))
-    if(ptPayload.length) await fetch(base+'/rh_process_types', {method:'POST', headers:h, body:JSON.stringify(ptPayload)})
-
-    // ── Process instances ────────────────────────────────────
-    if(DB.process.length){
-      const pPayload = DB.process.map(p=>({
-        id: p.id, agent_id: p.agent_id||null, type_id: p.type||null,
-        date: p.date||null, notes: p.notes||null,
-        steps: p.steps||[], updated_by: currentUser?.id||null
-      }))
-      await fetch(base+'/rh_process', {method:'POST', headers:h, body:JSON.stringify(pPayload)})
+    if (DB.process_types.length) {
+      await fetch(base + '/rh_process_types', { method:'POST', headers:h,
+        body: JSON.stringify(DB.process_types.map((pt,i) => ({
+          id:pt.id, name:pt.name, icon:pt.icon||'📋', color:pt.color||'#6b7280',
+          badge_class:pt.badge_class||'b-gray', marks_depart:!!pt.marks_depart,
+          is_builtin:!!pt.is_builtin, position:i, steps_template:pt.steps_template||[]
+        })))
+      });
     }
-
-    // ── Params ───────────────────────────────────────────────
-    const pKeys = Object.keys(DB.params||{})
-    if(pKeys.length){
-      const parPayload = pKeys.map(k=>({
-        key: k, value: DB.params[k], updated_by: currentUser?.id||null
-      }))
-      await fetch(base+'/rh_params', {method:'POST', headers:h, body:JSON.stringify(parPayload)})
+    if (DB.process.length) {
+      await fetch(base + '/rh_process', { method:'POST', headers:h,
+        body: JSON.stringify(DB.process.map(p => ({
+          id:p.id, agent_id:p.agent_id||null, type_id:p.type||null,
+          date:p.date||null, notes:p.notes||null, steps:p.steps||[],
+          updated_by:window.currentSession?.user_id||null
+        })))
+      });
     }
-
-    // Cache local
-    try { localStorage.setItem('rdz_rh_v7', JSON.stringify(DB)) } catch(e){}
-    setSyncState('ok', 'Sauvegardé ' + new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'}))
-    showToast('☁️ Données sauvegardées dans Supabase', true)
-
-    // Log RGPD
-    _logAccess(token, 'push_all', null, null)
-
-  } catch(err){
-    console.error('pushToSupabase error:', err)
-    setSyncState('error', 'Erreur sync')
-    showToast('❌ Erreur de synchronisation Supabase', false)
+    try { localStorage.setItem('rdz_rh_v7', JSON.stringify(DB)); } catch(e) {}
+    const t = new Date().toLocaleTimeString('fr-CH', {hour:'2-digit',minute:'2-digit'});
+    setSyncState('ok', 'Sauvegardé ' + t);
+    showToast('☁️ Données sauvegardées dans Supabase', true);
+  } catch(e) {
+    console.error('pushToSupabase:', e);
+    setSyncState('error', 'Erreur sync');
+    showToast('❌ Erreur de synchronisation', false);
   }
-}
-
-// ── Log accès RGPD ────────────────────────────────────────
-async function _logAccess(token, action, targetId, targetType, meta){
-  try {
-    await fetch(SUPA_URL+'/rest/v1/rh_access_log',{
-      method:'POST',
-      headers:{'apikey':SUPA_ANON,'Authorization':'Bearer '+token,'Content-Type':'application/json'},
-      body:JSON.stringify({
-        user_id: currentUser?.id||null,
-        user_email: currentUser?.email||null,
-        action, target_id: targetId||null, target_type: targetType||null,
-        metadata: meta||null
-      })
-    })
-  } catch(e){}
 }
 
 // ═══════════════════════════════════════════════════════════
 // VOYANT SYNC
 // ═══════════════════════════════════════════════════════════
-function setSyncState(state, label){
-  const dot = document.getElementById('sync-dot')
-  const lbl = document.getElementById('sync-label')
-  if(!dot) return
+function setSyncState(state, label) {
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  if (!dot) return;
   const cfg = {
-    ok:      {color:'#16a34a', shadow:'0 0 5px #16a34a88', text: label||'À jour'},
-    loading: {color:'#2563eb', shadow:'0 0 5px #2563eb88', text:'Chargement…'},
-    saving:  {color:'#d97706', shadow:'0 0 5px #d9770688', text:'Sauvegarde…'},
-    error:   {color:'#dc2626', shadow:'0 0 5px #dc262688', text:'Hors ligne'},
-    idle:    {color:'#9ca3af', shadow:'none',               text:'Non connecté'},
-  }[state] || {color:'#9ca3af',shadow:'none',text:''};
-  dot.style.background   = cfg.color
-  dot.style.boxShadow    = cfg.shadow
-  if(lbl) lbl.textContent = label||cfg.text
+    ok:      {c:'#16a34a', s:'0 0 5px #16a34a88'},
+    loading: {c:'#2563eb', s:'0 0 5px #2563eb88'},
+    saving:  {c:'#d97706', s:'0 0 5px #d9770688'},
+    error:   {c:'#dc2626', s:'0 0 5px #dc262688'},
+    idle:    {c:'#9ca3af', s:'none'},
+  }[state] || {c:'#9ca3af', s:'none'};
+  dot.style.background = cfg.c;
+  dot.style.boxShadow  = cfg.s;
+  if (lbl && label) lbl.textContent = label;
+}
+function updateSyncDot() {} // legacy stub
+
+function toggleSyncPopover() {
+  const p = document.getElementById('sync-popover');
+  if (!p) return;
+  if (p.style.display !== 'none') { p.style.display = 'none'; return; }
+  const s = window.currentSession;
+  let html = s
+    ? `<div style="padding:8px 10px;background:var(--green-l);border-radius:7px;font-size:12px;color:var(--green);font-weight:600;margin-bottom:8px;">🟢 Connecté — ${s.email}</div>`
+    : `<div style="padding:8px 10px;background:var(--bg);border-radius:7px;font-size:12px;color:var(--text3);margin-bottom:8px;">⚪ Non connecté</div>`;
+  html += `<div style="font-size:11px;color:var(--text3);padding:7px 10px;background:var(--bg);border-radius:6px;">🔒 Données RGPD protégées par RLS Supabase</div>`;
+  document.getElementById('sync-popover-body').innerHTML = html;
+  p.style.display = 'block';
+  setTimeout(() => document.addEventListener('click', closeSyncPopover, {once:true}), 50);
+}
+function closeSyncPopover() {
+  const p = document.getElementById('sync-popover');
+  if (p) p.style.display = 'none';
 }
 
-function toggleSyncPopover(){
-  const pop = document.getElementById('sync-popover')
-  if(!pop) return
-  if(pop.style.display !== 'none'){ pop.style.display='none'; return }
-  // Render popover content
-  const s = _loadSession()
-  const lastSync = localStorage.getItem('rdz_rh_last_sync')
-  let html = ''
-  if(currentUser){
-    html += `<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;padding:8px 10px;background:var(--green-l);border-radius:8px;">
-      <span>🟢</span><div><div style="font-size:12px;font-weight:600;color:var(--green);">Connecté</div>
-      <div style="font-size:11px;color:var(--text3);">${currentUser.email}</div></div></div>`
-  } else {
-    html += `<div style="padding:8px 10px;background:var(--bg);border-radius:8px;font-size:12px;color:var(--text3);margin-bottom:10px;">Non connecté à Supabase</div>`
-  }
-  if(lastSync) html += `<div style="font-size:11.5px;color:var(--text2);margin-bottom:8px;">⏱ Dernière sync : <strong>${lastSync}</strong></div>`
-  html += `<div style="font-size:11px;color:var(--text3);background:var(--bg);border-radius:6px;padding:7px 10px;">
-    🔒 Accès chiffré — données RGPD protégées par RLS Supabase</div>`
-  document.getElementById('sync-popover-body').innerHTML = html
-  pop.style.display = 'block'
-  setTimeout(()=>document.addEventListener('click', closeSyncPopover, {once:true}), 50)
+// ── Export JSON (backup) ──────────────────────────────────
+function exportDataJSON() {
+  const payload = { version:'rdz_hr_v7', exportedAt:new Date().toISOString(), data:DB };
+  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url;
+  a.download = 'rdz_rh_' + new Date().toISOString().slice(0,10) + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('📤 Export JSON téléchargé', true);
 }
-function closeSyncPopover(){ const p=document.getElementById('sync-popover'); if(p) p.style.display='none' }
-
-// ═══════════════════════════════════════════════════════════
-// EXPORT JSON (backup hors-ligne)
-// ═══════════════════════════════════════════════════════════
-function exportDataJSON(){
-  const payload = {
-    version:'rdz_hr_v7', exportedAt: new Date().toISOString(),
-    exportedBy: currentUser?.email||'unknown', data: DB
-  }
-  const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'})
-  const url  = URL.createObjectURL(blob)
-  const a    = document.createElement('a')
-  a.href     = url
-  a.download = `rdz_rh_${new Date().toISOString().slice(0,10)}.json`
-  a.click()
-  URL.revokeObjectURL(url)
-  showToast('📤 Export JSON téléchargé', true)
-  if(currentUser){ const s=_loadSession(); if(s) _logAccess(s.access_token,'export_json',null,null) }
-}
-
-// Legacy — garde la compatibilité avec les boutons qui appelaient exportData()
-function exportData(){ exportDataJSON() }
-
-// Sync dot function for legacy calls
-function updateSyncDot(){ /* géré par setSyncState */ }
-function syncTrackChange(){ /* géré par saveDB + pushToSupabase */ }
+function exportData() { exportDataJSON(); } // legacy compat
+function syncTrackChange() {}               // legacy stub
 
 // ═══════════════════════════════════════════════════════════
 // INIT
@@ -3867,25 +3843,24 @@ renderProcTabs();
 buildDashboard();
 renderAgents();
 
-// Restaurer session ou afficher login
-;(function(){
-  // Essayer d'abord sessionStorage (venant du hub RDZ_index.html)
-  let s = null
-  try { s = JSON.parse(sessionStorage.getItem('rdz_auth_v2')||'null') } catch(e){}
-  if(s){ sessionStorage.removeItem('rdz_auth_v2'); _saveSession(s) }
-  else { try { s = JSON.parse(localStorage.getItem('rdz_auth_v2')||'null') } catch(e){} }
+;(function() {
+  // Chercher la session : d'abord sessionStorage (venant du hub), puis localStorage
+  let s = null;
+  try { s = JSON.parse(sessionStorage.getItem(SK)); } catch(e) {}
+  if (s) { sessionStorage.removeItem(SK); localStorage.setItem(SK, JSON.stringify(s)); }
+  else { try { s = JSON.parse(localStorage.getItem(SK)); } catch(e) {} }
 
-  if(s && s.access_token && s.expires_at > Math.floor(Date.now()/1000)){
-    _applySession(s.user, s.profile, s.access_token)
+  if (s && s.token && s.expires_at > Math.floor(Date.now() / 1000)) {
+    applySession(s);
+    loadFromSupabase(s.token);
   } else {
-    _clearSession()
-    document.getElementById('login-screen').style.display = 'flex'
-    setSyncState('idle')
+    clearSession();
+    document.getElementById('rh-login').style.display = 'flex';
+    setSyncState('idle', 'Non connecté');
   }
-})()
+})();
 
 </script>
-
 <!-- IMPORT CONFIRM MODAL -->
 <div id="import-confirm" style="display:none;position:fixed;inset:0;background:rgba(26,25,23,.45);z-index:2000;align-items:center;justify-content:center;backdrop-filter:blur(3px);">
   <div style="background:var(--white);border-radius:16px;width:100%;max-width:480px;box-shadow:var(--shadow-lg);padding:24px 26px;">
@@ -3903,7 +3878,6 @@ renderAgents();
     </div>
   </div>
 </div>
-
 <div id="print-zone"></div>
 </body>
 </html>
