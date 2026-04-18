@@ -3429,7 +3429,7 @@ async function pushToSupabase(){
     }
     if(S.missions.length){
       await fetch(base+'/missions', {method:'POST', headers:h,
-        body:JSON.stringify(S.missions.map(m=>({id:m.id,name:m.name,site_id:m.siteId||null,duration:m.duree||m.duration||30,description:m.desc||m.description||null,time_start:m.timeStart||null,time_end:m.timeEnd||null,color:m.color||null,description:m.description||null,note:m.note||null,secteur:m.secteur||null,active:true})))
+        body:JSON.stringify(S.missions.map(m=>({id:m.id,name:m.name,site_id:m.siteId||null,duration:(()=>{const d=m.duree||m.duration;if(!d)return 30;if(typeof d==='number')return d;if(d.includes(':')){ const[h,min]=d.split(':').map(Number);return h*60+min;}return parseInt(d)||30})(),description:m.desc||m.description||null,time_start:m.timeStart||null,time_end:m.timeEnd||null,color:m.color||null,description:m.description||null,note:m.note||null,secteur:m.secteur||null,active:true})))
       })
     }
     if(S.sheets.length){
