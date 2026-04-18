@@ -3447,10 +3447,9 @@ async function pushToSupabase(){
     if(travelPayload.length){
       await fetch(base+'/travel', {method:'POST', headers:h, body:JSON.stringify(travelPayload)})
     }
-    showToast('✓ Synchronisé avec Supabase', 'ok')
+   showSaved()
   } catch(err){
     console.error('pushToSupabase error:', err)
-    showToast('⚠️ Erreur synchronisation', 'warn')
   }
 }
 </script>
