@@ -3852,19 +3852,7 @@ function importDataJSON(input) {
       const nAg = (newData.agents || []).length;
       const nMC = (newData.main_courante || []).length;
       const nPr = (newData.process || []).length;
-      if (!confirm(
-        'Importer ce fichier ?
-
-' +
-        '• ' + nAg + ' agent(s)
-' +
-        '• ' + nMC + ' entrée(s) main courante
-' +
-        '• ' + nPr + ' process RH
-
-' +
-        'Cela remplacera toutes les données actuelles.'
-      )) { input.value = ''; return; }
+      if (!confirm('Importer ? ' + nAg + ' agents, ' + nMC + ' main courante, ' + nPr + ' process. Les donnees actuelles seront remplacees.')) { input.value = ''; return; }
 
       // Appliquer
       DB = newData;
