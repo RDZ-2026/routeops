@@ -359,6 +359,14 @@ tbody tr:last-child td{border-bottom:none;}
           <button class="btn btn-primary btn-sm" style="flex:1;" onclick="pushToSupabase();closeSyncPopover()">☁️ Sauvegarder</button>
           <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportDataJSON();closeSyncPopover()">📤 Export</button>
         </div>
+        <div style="margin-top:8px;">
+          <label class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;cursor:pointer;display:flex;align-items:center;gap:6px;">
+            📥 Importer un fichier JSON
+            <input type="file" accept=".json" style="display:none;" onchange="importDataJSON(this);closeSyncPopover()">
+          </label>
+        </div>
+        <div style="display:none;"><!-- placeholder to keep structure -->
+        </div>
       </div>
     </div>
     <div class="hdr-div"></div>
@@ -3823,6 +3831,74 @@ function closeSyncPopover() {
 }
 
 // ── Export JSON (backup) ──────────────────────────────────
+function importDataJSON(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const payload = JSON.parse(e.target.result);
+      const newData = payload.data || payload;
+      if (!newData.agents) {
+        alert("Fichier invalide — ce n'est pas un export RDZ RH.");
+        input.value = ''; return;
+      }
+      // Compter ce qu'on va importer
+      const nAg = (newData.agents || []).length;
+      const nMC = (newData.main_courante || []).length;
+      const nPr = (newData.process || []).length;
+      if (!confirm(
+        'Importer ce fichier ?
+
+' +
+        '• ' + nAg + ' agent(s)
+' +
+        '• ' + nMC + ' entrée(s) main courante
+' +
+        '• ' + nPr + ' process RH
+
+' +
+        'Cela remplacera toutes les données actuelles.'
+      )) { input.value = ''; return; }
+
+      // Appliquer
+      DB = newData;
+      if (!DB.params)        DB.params = JSON.parse(JSON.stringify(DEFAULTS));
+      if (!DB.agents)        DB.agents = [];
+      if (!DB.process)       DB.process = [];
+      if (!DB.process_types) DB.process_types = JSON.parse(JSON.stringify(BUILT_IN_PROC_TYPES));
+      if (!DB.main_courante) DB.main_courante = [];
+
+      // Migrations manquantes
+      DB.agents.forEach(a => {
+        if (!a.formations)    a.formations = [];
+        if (!a.conjoint)      a.conjoint = {};
+        if (!a.baspe)         a.baspe = {};
+        if (!a.docs)          a.docs = {carte:{},ppa:{},permis:{},pi1:{},pi2:{},permis_conduire:{}};
+      });
+
+      // Sauvegarder localement
+      try { localStorage.setItem('rdz_rh_v7', JSON.stringify(DB)); } catch(ex) {}
+
+      // Rafraîchir l'UI
+      populateSelects();
+      populateFormSelects();
+      renderProcTabs();
+      buildDashboard();
+      renderAgents();
+
+      input.value = '';
+      showToast('✅ ' + nAg + ' agents importés — cliquez Sauvegarder pour envoyer dans Supabase', true);
+      setSyncState('ok', 'Importé — à sauvegarder');
+
+    } catch(err) {
+      alert('Erreur de lecture du fichier : ' + err.message);
+      input.value = '';
+    }
+  };
+  reader.readAsText(file);
+}
+
 function exportDataJSON() {
   const payload = { version:'rdz_hr_v7', exportedAt:new Date().toISOString(), data:DB };
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
