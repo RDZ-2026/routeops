@@ -3437,21 +3437,25 @@ async function pushToSupabase(){
         body:JSON.stringify(S.sheets.map(sh=>({id:sh.id,name:sh.name,cat:sh.cat||'Semaine',is_template:!!sh.isTemplate,date:sh.date||null,start_time:sh.startTime||'06:00',end_time:sh.endTime||null,tasks:sh.tasks||[],note:sh.note||null,active:true})))
       })
     }
-    const travelPayload=[]
+   const travelPayload=[]
+    const travelSeen=new Set()
     Object.entries(S.travel||{}).forEach(([a,bMap])=>{
       Object.entries(bMap).forEach(([b,mins])=>{
-        const [sa,sb2]=[a,b].sort()
-        travelPayload.push({site_a:sa,site_b:sb2,minutes:mins})
+        const pair=[a,b].sort()
+        const key=pair[0]+'|'+pair[1]
+        if(!travelSeen.has(key)){
+          travelSeen.add(key)
+          travelPayload.push({site_a:pair[0],site_b:pair[1],minutes:mins})
+        }
       })
     })
     if(travelPayload.length){
       await fetch(base+'/travel', {method:'POST', headers:h, body:JSON.stringify(travelPayload)})
     }
-   showSaved()
+    showSaved()
   } catch(err){
     console.error('pushToSupabase error:', err)
   }
-}
 </script>
 </body>
 </html>
