@@ -1002,6 +1002,7 @@ function getProcType(typeId){
 }
 
 function loadDB() {
+  try { localStorage.removeItem('rdz_rh_corrupt'); } catch(e) {}
   try {
     const s5 = localStorage.getItem('rdz_rh_v7') || localStorage.getItem('rdz_hr_v5');
     if(s5) {
@@ -3842,54 +3843,55 @@ function importDataJSON(input) {
   const reader = new FileReader();
   reader.onload = function(e) {
     try {
-      const payload = JSON.parse(e.target.result);
-      const newData = payload.data || payload;
+      const raw     = JSON.parse(e.target.result);
+      const newData = raw.data || raw;
       if (!newData.agents) {
         alert("Fichier invalide — ce n'est pas un export RDZ RH.");
         input.value = ''; return;
       }
-      // Compter ce qu'on va importer
-      const nAg = (newData.agents || []).length;
-      const nMC = (newData.main_courante || []).length;
-      const nPr = (newData.process || []).length;
-      if (!confirm('Importer ? ' + nAg + ' agents, ' + nMC + ' main courante, ' + nPr + ' process. Les donnees actuelles seront remplacees.')) { input.value = ''; return; }
-
-      // Appliquer
-      DB = newData;
-      if (!DB.params)        DB.params = JSON.parse(JSON.stringify(DEFAULTS));
-      if (!DB.agents)        DB.agents = [];
-      if (!DB.process)       DB.process = [];
-      if (!DB.process_types) DB.process_types = JSON.parse(JSON.stringify(BUILT_IN_PROC_TYPES));
-      if (!DB.main_courante) DB.main_courante = [];
-
-      // Migrations manquantes
-      DB.agents.forEach(a => {
-        if (!a.formations)    a.formations = [];
-        if (!a.conjoint)      a.conjoint = {};
-        if (!a.baspe)         a.baspe = {};
-        if (!a.docs)          a.docs = {carte:{},ppa:{},permis:{},pi1:{},pi2:{},permis_conduire:{}};
+      var nAg = (newData.agents        || []).length;
+      var nMC = (newData.main_courante || []).length;
+      var nPr = (newData.process       || []).length;
+      if (!confirm(nAg + ' agents, ' + nMC + ' main courante, ' + nPr + ' process. Importer et remplacer les donnees actuelles ?')) {
+        input.value = ''; return;
+      }
+      // Appliquer sur la variable globale DB
+      if (!newData.params)        newData.params        = JSON.parse(JSON.stringify(DEFAULTS));
+      if (!newData.agents)        newData.agents        = [];
+      if (!newData.process)       newData.process       = [];
+      if (!newData.process_types) newData.process_types = JSON.parse(JSON.stringify(BUILT_IN_PROC_TYPES));
+      if (!newData.main_courante) newData.main_courante = [];
+      newData.agents.forEach(function(a) {
+        if (!a.formations) a.formations = [];
+        if (!a.conjoint)   a.conjoint   = {};
+        if (!a.baspe)      a.baspe      = {};
+        if (!a.docs)       a.docs       = {carte:{},ppa:{},permis:{},pi1:{},pi2:{},permis_conduire:{}};
       });
-
-      // Sauvegarder localement
+      // Écraser DB globalement
+      for (var k in DB) { try { delete DB[k]; } catch(ex) {} }
+      Object.assign(DB, newData);
+      // Cache local
       try { localStorage.setItem('rdz_rh_v7', JSON.stringify(DB)); } catch(ex) {}
-
-      // Rafraîchir l'UI
-      populateSelects();
-      populateFormSelects();
-      renderProcTabs();
-      buildDashboard();
-      renderAgents();
-
+      // Rafraîchir UI
+      if (typeof populateSelects       === 'function') populateSelects();
+      if (typeof populateFormSelects   === 'function') populateFormSelects();
+      if (typeof renderProcTabs        === 'function') renderProcTabs();
+      if (typeof buildDashboard        === 'function') buildDashboard();
+      if (typeof renderAgents          === 'function') renderAgents();
       input.value = '';
-      showToast('✅ ' + nAg + ' agents importés — cliquez Sauvegarder pour envoyer dans Supabase', true);
-      setSyncState('ok', 'Importé — à sauvegarder');
-
+      if (typeof showToast === 'function')
+        showToast('OK : ' + nAg + ' agents importes. Cliquez Sauvegarder pour envoyer dans Supabase.', true);
+      if (typeof setSyncState === 'function')
+        setSyncState('ok', 'Importe — a sauvegarder');
     } catch(err) {
-      alert('Erreur de lecture du fichier : ' + err.message);
+      alert('Erreur : ' + err.message);
       input.value = '';
     }
   };
   reader.readAsText(file);
+}
+// (ancienne version remplacee ci-dessus)
+function _importDataJSON_old(input) {
 }
 
 function exportDataJSON() {
