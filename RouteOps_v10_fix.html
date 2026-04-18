@@ -3286,8 +3286,26 @@ async function doLogin(){
   const err   = document.getElementById('login-error')
   err.classList.remove('visible')
   if(!email||!pass){showLoginError('Remplissez tous les champs.');return}
-  const {error} = await sb.auth.signInWithPassword({email,password:pass})
-  if(error){showLoginError('Email ou mot de passe incorrect.');return}
+  
+  const {data, error} = await sb.auth.signInWithPassword({email, password:pass})
+  
+  if(error){
+    showLoginError('Email ou mot de passe incorrect.')
+    return
+  }
+  
+  if(data?.user){
+    currentUser = data.user
+    const {data:profile} = await sb.from('profiles').select('*').eq('id', data.user.id).single()
+    if(!profile||!profile.active){showLoginError('Compte inactif.');return}
+    currentProfile = profile
+    document.getElementById('badge-name').textContent = profile.full_name
+    document.getElementById('badge-role').textContent = profile.role
+    document.getElementById('menu-name').textContent = profile.full_name
+    document.getElementById('menu-email').textContent = data.user.email
+    document.getElementById('login-screen').classList.remove('visible')
+    loadFromSupabase()
+  }
 }
 
 function showLoginError(msg){
