@@ -3371,49 +3371,39 @@ buildJournee();
 syncTrackChange();
 
 // Chargement depuis Supabase au démarrage
-async function loadFromSupabase(){
+async function loadFromSupabase(token){
+  if(!token) return
   try {
-    const [sitesRes, missionsRes, sheetsRes, travelRes] = await Promise.all([
-      sb.from('sites').select('*').eq('active',true).order('name'),
-      sb.from('missions').select('*').eq('active',true),
-      sb.from('sheets').select('*').eq('active',true),
-      sb.from('travel').select('*'),
-    ]);
+    const h = {'apikey': SUPABASE_ANON, 'Authorization': 'Bearer ' + token}
+    const base = 'https://trdhtlcenmjlcvzuplid.supabase.co/rest/v1'
+    
+    const [sitesR, missionsR, sheetsR, travelR] = await Promise.all([
+      fetch(base+'/sites?active=eq.true&order=name', {headers:h}).then(r=>r.json()),
+      fetch(base+'/missions?active=eq.true', {headers:h}).then(r=>r.json()),
+      fetch(base+'/sheets?active=eq.true', {headers:h}).then(r=>r.json()),
+      fetch(base+'/travel?select=*', {headers:h}).then(r=>r.json()),
+    ])
 
-    if(sitesRes.data && sitesRes.data.length){
-      S.sites = sitesRes.data.map(r=>({
-        id:r.id, name:r.name, code:r.code, color:r.color,
-        minSem:r.min_sem, minWE:r.min_we
-      }));
+    if(Array.isArray(sitesR) && sitesR.length){
+      S.sites = sitesR.map(r=>({id:r.id,name:r.name,code:r.code,color:r.color,minSem:r.min_sem,minWE:r.min_we}))
     }
-    if(missionsRes.data && missionsRes.data.length){
-      S.missions = missionsRes.data.map(r=>({
-        id:r.id, name:r.name, siteId:r.site_id,
-        duration:r.duration, description:r.description||'',
-        timeStart:r.time_start||'', timeEnd:r.time_end||'', color:r.color||''
-      }));
+    if(Array.isArray(missionsR) && missionsR.length){
+      S.missions = missionsR.map(r=>({id:r.id,name:r.name,siteId:r.site_id,duration:r.duration,description:r.description||'',timeStart:r.time_start||'',timeEnd:r.time_end||'',color:r.color||''}))
     }
-    if(sheetsRes.data){
-      S.sheets = sheetsRes.data.map(r=>({
-        id:r.id, name:r.name, cat:r.cat,
-        isTemplate:r.is_template, date:r.date,
-        startTime:r.start_time, endTime:r.end_time||'',
-        tasks:r.tasks||[], note:r.note||''
-      }));
+    if(Array.isArray(sheetsR)){
+      S.sheets = sheetsR.map(r=>({id:r.id,name:r.name,cat:r.cat,isTemplate:r.is_template,date:r.date,startTime:r.start_time,endTime:r.end_time||'',tasks:r.tasks||[],note:r.note||''}))
     }
-    if(travelRes.data){
-      S.travel={};
-      travelRes.data.forEach(t=>{
-        if(!S.travel[t.site_a]) S.travel[t.site_a]={};
-        S.travel[t.site_a][t.site_b]=t.minutes;
-      });
+    if(Array.isArray(travelR)){
+      S.travel={}
+      travelR.forEach(t=>{if(!S.travel[t.site_a])S.travel[t.site_a]={};S.travel[t.site_a][t.site_b]=t.minutes})
     }
 
-    localStorage.setItem('routeops_v6', JSON.stringify(S));
-    buildJournee();
-    showSaved();
+    localStorage.setItem('routeops_v6', JSON.stringify(S))
+    buildJournee()
   } catch(err){
-    console.error('Erreur chargement Supabase:', err);
+    console.error('Erreur chargement Supabase:', err)
+    loadState()
+    buildJournee()
   }
 }
 
