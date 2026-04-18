@@ -3424,12 +3424,12 @@ async function pushToSupabase(){
   try {
     if(S.sites.length){
       await fetch(base+'/sites', {method:'POST', headers:h,
-        body:JSON.stringify(S.sites.map(s=>({id:s.id,name:s.name,code:s.code,color:s.color,min_sem:s.minSem||0,min_we:s.minWE||0,active:true})))
+        body:JSON.stringify(S.sites.map(s=>({id:s.id,name:s.name,code:s.code,color:s.color,min_sem:s.minSem||0,min_we:s.minWE||0,note:s.note||null,secteur:s.secteur||null,address:s.address||null,active:true})))
       })
     }
     if(S.missions.length){
       await fetch(base+'/missions', {method:'POST', headers:h,
-        body:JSON.stringify(S.missions.map(m=>({id:m.id,name:m.name,site_id:m.siteId||null,duration:m.duration||30,description:m.description||null,time_start:m.timeStart||null,time_end:m.timeEnd||null,color:m.color||null,active:true})))
+        body:JSON.stringify(S.missions.map(m=>({id:m.id,name:m.name,site_id:m.siteId||null,duration:m.duration||30,description:m.description||null,time_start:m.timeStart||null,time_end:m.timeEnd||null,color:m.color||null,description:m.description||null,note:m.note||null,secteur:m.secteur||null,active:true})))
       })
     }
     if(S.sheets.length){
