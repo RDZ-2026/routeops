@@ -3256,9 +3256,29 @@ Réponds en français, de façon concise et opérationnelle.`;
 // ── Supabase ──
 const SUPABASE_URL  = 'https://trdhtlcenmjlcvzuplid.supabase.co'
 const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU'
-const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+let sb = null
 let currentUser = null
 let currentProfile = null
+
+window.addEventListener('load', () => {
+  sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+  sb.auth.onAuthStateChange(async(event,session)=>{
+    if(session?.user){
+      currentUser=session.user
+      const {data:profile}=await sb.from('profiles').select('*').eq('id',session.user.id).single()
+      if(!profile||!profile.active){await sb.auth.signOut();showLoginError('Compte inactif.');return}
+      currentProfile=profile
+      document.getElementById('badge-name').textContent=profile.full_name
+      document.getElementById('badge-role').textContent=profile.role
+      document.getElementById('menu-name').textContent=profile.full_name
+      document.getElementById('menu-email').textContent=session.user.email
+      document.getElementById('login-screen').classList.remove('visible')
+      loadFromSupabase()
+    } else {
+      document.getElementById('login-screen').classList.add('visible')
+    }
+  })
+})
 
 async function doLogin(){
   const email = document.getElementById('login-email').value.trim()
@@ -3298,22 +3318,7 @@ document.addEventListener('click',(e)=>{
   }
 })
 
-sb.auth.onAuthStateChange(async(event,session)=>{
-  if(session?.user){
-    currentUser=session.user
-    const {data:profile}=await sb.from('profiles').select('*').eq('id',session.user.id).single()
-    if(!profile||!profile.active){await sb.auth.signOut();showLoginError('Compte inactif.');return}
-    currentProfile=profile
-    document.getElementById('badge-name').textContent=profile.full_name
-    document.getElementById('badge-role').textContent=profile.role
-    document.getElementById('menu-name').textContent=profile.full_name
-    document.getElementById('menu-email').textContent=session.user.email
-    document.getElementById('login-screen').classList.remove('visible')
-    loadFromSupabase();
-  } else {
-    document.getElementById('login-screen').classList.add('visible')
-  }
-})
+
 loadState();
 document.getElementById('jour-date').value=todayStr();
 document.getElementById('gantt-date').value=todayStr();
