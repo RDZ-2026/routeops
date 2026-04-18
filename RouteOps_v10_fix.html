@@ -3408,42 +3408,49 @@ async function loadFromSupabase(token){
 }
 
 // Sauvegarde vers Supabase
-async function pushToSupabase(){
+aasync function pushToSupabase(){
+  const stored = localStorage.getItem('rdz_session')
+  if(!stored) return
+  const session = JSON.parse(stored)
+  const token = session.access_token
+  const h = {
+    'apikey': SUPABASE_ANON,
+    'Authorization': 'Bearer ' + token,
+    'Content-Type': 'application/json',
+    'Prefer': 'resolution=merge-duplicates'
+  }
+  const base = 'https://trdhtlcenmjlcvzuplid.supabase.co/rest/v1'
+
   try {
     if(S.sites.length){
-      await sb.from('sites').upsert(S.sites.map(s=>({
-        id:s.id, name:s.name, code:s.code, color:s.color,
-        min_sem:s.minSem||0, min_we:s.minWE||0, active:true
-      })),{onConflict:'id'});
+      await fetch(base+'/sites', {method:'POST', headers:h,
+        body:JSON.stringify(S.sites.map(s=>({id:s.id,name:s.name,code:s.code,color:s.color,min_sem:s.minSem||0,min_we:s.minWE||0,active:true})))
+      })
     }
     if(S.missions.length){
-      await sb.from('missions').upsert(S.missions.map(m=>({
-        id:m.id, name:m.name, site_id:m.siteId||null,
-        duration:m.duration||30, description:m.description||null,
-        time_start:m.timeStart||null, time_end:m.timeEnd||null,
-        color:m.color||null, active:true
-      })),{onConflict:'id'});
+      await fetch(base+'/missions', {method:'POST', headers:h,
+        body:JSON.stringify(S.missions.map(m=>({id:m.id,name:m.name,site_id:m.siteId||null,duration:m.duration||30,description:m.description||null,time_start:m.timeStart||null,time_end:m.timeEnd||null,color:m.color||null,active:true})))
+      })
     }
     if(S.sheets.length){
-      await sb.from('sheets').upsert(S.sheets.map(sh=>({
-        id:sh.id, name:sh.name, cat:sh.cat||'Semaine',
-        is_template:!!sh.isTemplate, date:sh.date||null,
-        start_time:sh.startTime||'06:00', end_time:sh.endTime||null,
-        tasks:sh.tasks||[], note:sh.note||null, active:true
-      })),{onConflict:'id'});
+      await fetch(base+'/sheets', {method:'POST', headers:h,
+        body:JSON.stringify(S.sheets.map(sh=>({id:sh.id,name:sh.name,cat:sh.cat||'Semaine',is_template:!!sh.isTemplate,date:sh.date||null,start_time:sh.startTime||'06:00',end_time:sh.endTime||null,tasks:sh.tasks||[],note:sh.note||null,active:true})))
+      })
     }
-    const travelPayload=[];
+    const travelPayload=[]
     Object.entries(S.travel||{}).forEach(([a,bMap])=>{
       Object.entries(bMap).forEach(([b,mins])=>{
-        const [sa,sb2]=[a,b].sort();
-        travelPayload.push({site_a:sa,site_b:sb2,minutes:mins});
-      });
-    });
+        const [sa,sb2]=[a,b].sort()
+        travelPayload.push({site_a:sa,site_b:sb2,minutes:mins})
+      })
+    })
     if(travelPayload.length){
-      await sb.from('travel').upsert(travelPayload,{onConflict:'site_a,site_b'});
+      await fetch(base+'/travel', {method:'POST', headers:h, body:JSON.stringify(travelPayload)})
     }
+    showToast('✓ Synchronisé avec Supabase', 'ok')
   } catch(err){
-    console.error('Erreur sauvegarde Supabase:',err);
+    console.error('pushToSupabase error:', err)
+    showToast('⚠️ Erreur synchronisation', 'warn')
   }
 }
 </script>
