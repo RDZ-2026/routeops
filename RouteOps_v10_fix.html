@@ -3347,7 +3347,7 @@ async function signOut(){
   currentProfile = null
   S = {sites:[],missions:[],sheets:[],travel:{},ganttSectors:{}}
   buildJournee()
-  await sb.auth.signOut()
+  localStorage.removeItem('rdz_session')
 }
 
 function toggleUserMenu(){
