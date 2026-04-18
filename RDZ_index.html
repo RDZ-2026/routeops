@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RDZ Security — Suite Applicative</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#c0272d;--red-d:#a31f24;--red-l:#fdf2f2;
+  --bg:#f2f2f4;--white:#fff;
+  --anthracite:#2d2d2d;--anthracite2:#3a3a3a;
+  --border:#e2e2e6;--border2:#c8c8cd;
+  --text:#2d2d2d;--text2:#4b5563;--text3:#9ca3af;
+  --green:#16a34a;--green-l:#f0fdf4;
+  --orange:#ea580c;
+  --shadow:0 1px 3px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.05);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.14),0 2px 8px rgba(0,0,0,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;}
+
+/* ── LOGIN ── */
+#login-screen{
+  display:none;position:fixed;inset:0;
+  background:var(--anthracite);
+  z-index:9999;align-items:center;justify-content:center;flex-direction:column;
+}
+#login-screen.visible{display:flex;}
+.login-card{
+  background:var(--white);border-radius:16px;padding:40px 44px;
+  width:400px;max-width:94vw;
+  box-shadow:0 24px 64px rgba(0,0,0,.45);
+}
+.lc-logo{display:flex;align-items:center;gap:14px;margin-bottom:32px;}
+.lc-mark{
+  width:50px;height:50px;background:var(--red);border-radius:12px;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'DM Mono';font-weight:600;font-size:16px;color:white;letter-spacing:-.5px;
+}
+.lc-brand{font-family:'DM Mono';font-size:15px;font-weight:600;color:var(--anthracite);}
+.lc-sub{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-top:2px;}
+.lc-h{font-size:18px;font-weight:600;color:var(--anthracite);margin-bottom:4px;}
+.lc-p{font-size:13px;color:var(--text3);margin-bottom:24px;}
+.lc-field{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.lc-field label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
+.lc-field input{
+  background:#f7f7f9;border:1.5px solid var(--border);border-radius:8px;
+  padding:10px 13px;font-size:14px;color:var(--anthracite);
+  width:100%;font-family:'DM Sans';outline:none;transition:all .15s;
+}
+.lc-field input:focus{border-color:var(--red);background:white;box-shadow:0 0 0 3px rgba(192,39,45,.1);}
+.lc-btn{
+  width:100%;padding:12px;background:var(--red);color:white;border:none;
+  border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;
+  font-family:'DM Sans';transition:background .15s;margin-top:8px;
+}
+.lc-btn:hover{background:var(--red-d);}
+.lc-btn:disabled{opacity:.55;cursor:not-allowed;}
+.lc-err{
+  display:none;background:#fef2f2;border:1px solid #fecaca;
+  border-radius:8px;padding:10px 13px;font-size:12.5px;
+  color:#991b1b;margin-top:12px;
+}
+.lc-err.on{display:block;}
+
+/* ── TOP BAR ── */
+.topbar{
+  background:var(--anthracite2);color:white;height:56px;
+  display:flex;align-items:center;padding:0 24px;gap:14px;
+  position:sticky;top:0;z-index:200;
+  box-shadow:0 2px 16px rgba(0,0,0,.3);
+  border-bottom:3px solid var(--red);
+  flex-shrink:0;
+}
+.tb-logo{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.tb-mark{
+  width:32px;height:32px;background:var(--red);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  font-family:'DM Mono';font-size:12px;font-weight:600;color:white;flex-shrink:0;
+}
+.tb-name{font-family:'DM Mono';font-size:13.5px;font-weight:600;color:white;}
+.tb-sub{font-size:9.5px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:10px;position:relative;}
+#user-badge{
+  display:flex;align-items:center;gap:9px;
+  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);
+  border-radius:8px;padding:6px 13px;cursor:pointer;
+}
+.ub-name{font-size:12px;font-weight:600;color:white;}
+.ub-role{font-size:10px;color:rgba(255,255,255,.45);text-transform:uppercase;letter-spacing:.3px;}
+.user-menu{
+  display:none;position:absolute;top:46px;right:0;
+  background:white;border-radius:10px;padding:8px;min-width:220px;
+  box-shadow:0 8px 30px rgba(0,0,0,.2);z-index:500;border:1px solid var(--border);
+}
+.user-menu.open{display:block;}
+.um-name{font-weight:700;font-size:13px;color:var(--anthracite);padding:8px 10px 2px;}
+.um-email{font-size:11px;color:var(--text3);padding:0 10px 9px;border-bottom:1px solid var(--border);margin-bottom:6px;}
+.um-item{
+  display:flex;align-items:center;gap:8px;
+  width:100%;text-align:left;padding:7px 10px;
+  background:none;border:none;border-radius:6px;
+  font-size:13px;cursor:pointer;color:var(--text2);font-family:'DM Sans';
+  text-decoration:none;
+}
+.um-item:hover{background:#f7f7f9;}
+.um-item.danger{color:#dc2626;}
+
+/* ── MAIN ── */
+.main{flex:1;padding:52px 28px 80px;max-width:1100px;margin:0 auto;width:100%;}
+
+.hero{margin-bottom:52px;}
+.hero-eyebrow{
+  font-size:10.5px;font-weight:700;color:var(--red);
+  text-transform:uppercase;letter-spacing:1.2px;margin-bottom:10px;
+}
+.hero-title{
+  font-family:'DM Mono';font-size:28px;font-weight:600;
+  color:var(--anthracite);margin-bottom:8px;line-height:1.2;
+}
+.hero-sub{font-size:14px;color:var(--text2);line-height:1.6;}
+.hero-date{font-size:12px;color:var(--text3);margin-top:6px;}
+.hero-user{
+  display:inline-flex;align-items:center;gap:6px;margin-top:14px;
+  background:var(--white);border:1px solid var(--border);
+  border-radius:8px;padding:7px 13px;font-size:12.5px;color:var(--text2);
+}
+
+/* ── SECTION ── */
+.section-head{
+  display:flex;align-items:center;gap:10px;
+  margin-bottom:18px;
+}
+.section-label{
+  font-size:10.5px;font-weight:700;color:var(--text3);
+  text-transform:uppercase;letter-spacing:1px;white-space:nowrap;
+}
+.section-line{flex:1;height:1px;background:var(--border);}
+
+/* ── MODULE GRID ── */
+.modules{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;margin-bottom:52px;}
+.mod-card{
+  background:var(--white);border:1.5px solid var(--border);border-radius:14px;
+  padding:28px;box-shadow:var(--shadow);
+  transition:all .18s;cursor:pointer;
+  position:relative;overflow:hidden;
+  display:flex;flex-direction:column;gap:14px;
+}
+.mod-card:hover:not(.disabled){
+  box-shadow:var(--shadow-lg);transform:translateY(-2px);
+  border-color:var(--card-color,var(--border2));
+}
+.mod-card.disabled{opacity:.5;cursor:not-allowed;}
+.mod-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:var(--card-color,var(--text3));border-radius:2px 2px 0 0;
+}
+.mc-head{display:flex;align-items:flex-start;gap:14px;}
+.mc-icon{
+  width:46px;height:46px;border-radius:11px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;flex-shrink:0;
+  background:color-mix(in srgb, var(--card-color,#6b7280) 12%, white);
+}
+.mc-titles{}
+.mc-name{font-family:'DM Mono';font-size:15.5px;font-weight:600;color:var(--anthracite);line-height:1.2;}
+.mc-version{font-size:10.5px;color:var(--text3);font-family:'DM Mono';margin-top:2px;}
+.mc-desc{font-size:13px;color:var(--text2);line-height:1.65;}
+.mc-foot{display:flex;align-items:center;gap:8px;margin-top:2px;}
+.mc-badge{font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;}
+.mb-live{background:var(--green-l);color:var(--green);}
+.mb-soon{background:#fff7ed;color:var(--orange);}
+.mb-plan{background:var(--bg);color:var(--text3);}
+.mb-admin{background:#eff6ff;color:#2563eb;}
+.mc-arrow{margin-left:auto;color:var(--text3);font-size:18px;transition:transform .15s;}
+.mod-card:hover:not(.disabled) .mc-arrow{transform:translateX(3px);color:var(--card-color,var(--text2));}
+
+/* ── FOOTER ── */
+.footer{
+  padding:18px 28px;border-top:1px solid var(--border);
+  background:var(--white);text-align:center;
+  font-size:11px;color:var(--text3);flex-shrink:0;
+}
+</style>
+</head>
+<body>
+
+<!-- ── LOGIN SCREEN ── -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="lc-logo">
+      <div class="lc-mark">RDZ</div>
+      <div>
+        <div class="lc-brand">RDZ Security</div>
+        <div class="lc-sub">Suite Applicative</div>
+      </div>
+    </div>
+    <div class="lc-h">Connexion</div>
+    <div class="lc-p">Accès réservé au personnel autorisé RDZ.</div>
+    <div class="lc-field">
+      <label>Adresse e-mail</label>
+      <input type="email" id="login-email" placeholder="prenom.nom@rdz-security-management.ch" autocomplete="email">
+    </div>
+    <div class="lc-field">
+      <label>Mot de passe</label>
+      <input type="password" id="login-password" placeholder="••••••••"
+        autocomplete="current-password"
+        onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="lc-btn" id="login-btn" onclick="doLogin()">Se connecter</button>
+    <div class="lc-err" id="login-error"></div>
+  </div>
+</div>
+
+<!-- ── TOP BAR ── -->
+<div class="topbar">
+  <div class="tb-logo">
+    <div class="tb-mark">RDZ</div>
+    <div>
+      <div class="tb-name">RDZ Security</div>
+      <div class="tb-sub">Suite Applicative</div>
+    </div>
+  </div>
+  <div class="tb-right">
+    <div id="user-badge" onclick="toggleUserMenu()">
+      <div>
+        <div class="ub-name" id="badge-name">…</div>
+        <div class="ub-role" id="badge-role">…</div>
+      </div>
+    </div>
+    <div class="user-menu" id="user-menu">
+      <div class="um-name" id="menu-name"></div>
+      <div class="um-email" id="menu-email"></div>
+      <button class="um-item danger" onclick="signOut()">↩ Se déconnecter</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── MAIN ── -->
+<div class="main">
+  <div class="hero">
+    <div class="hero-eyebrow">RDZ Security Management SA</div>
+    <div class="hero-title">Suite Applicative</div>
+    <div class="hero-sub">Sélectionnez un module pour commencer votre session.</div>
+    <div class="hero-date" id="hero-date"></div>
+    <div class="hero-user" id="hero-user" style="display:none;">
+      <span>👤</span><span id="hero-username"></span>
+    </div>
+  </div>
+
+  <!-- Modules actifs -->
+  <div class="section-head">
+    <span class="section-label">Modules actifs</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="modules">
+
+    <div class="mod-card" style="--card-color:#c0272d;" onclick="goTo('RouteOps_v11.html')">
+      <div class="mc-head">
+        <div class="mc-icon">📅</div>
+        <div class="mc-titles">
+          <div class="mc-name">RouteOps</div>
+          <div class="mc-version">v11 · Production</div>
+        </div>
+      </div>
+      <div class="mc-desc">Planification quotidienne des agents — feuilles de route, Gantt, contrôles horaires, impression.</div>
+      <div class="mc-foot">
+        <span class="mc-badge mb-live">✓ Actif</span>
+        <span class="mc-arrow">→</span>
+      </div>
+    </div>
+
+    <div class="mod-card" style="--card-color:#2563eb;" onclick="goTo('RH_RDZ_v7.html')">
+      <div class="mc-head">
+        <div class="mc-icon">👥</div>
+        <div class="mc-titles">
+          <div class="mc-name">RH_RDZ</div>
+          <div class="mc-version">v7 · Production</div>
+        </div>
+      </div>
+      <div class="mc-desc">Ressources humaines — fiches agents, documents & alertes, process RH, main courante, formations.</div>
+      <div class="mc-foot">
+        <span class="mc-badge mb-live">✓ Actif</span>
+        <span class="mc-badge mb-admin">🔒 Admin</span>
+        <span class="mc-arrow">→</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modules en développement -->
+  <div class="section-head">
+    <span class="section-label">Prochainement</span>
+    <div class="section-line"></div>
+  </div>
+  <div class="modules">
+
+    <div class="mod-card disabled" style="--card-color:#7c3aed;">
+      <div class="mc-head">
+        <div class="mc-icon">✅</div>
+        <div class="mc-titles">
+          <div class="mc-name">FlowTask</div>
+          <div class="mc-version">En développement</div>
+        </div>
+      </div>
+      <div class="mc-desc">Gestion des tâches administratives — suivi, attribution, rappels. Usage admin et superviseurs.</div>
+      <div class="mc-foot"><span class="mc-badge mb-soon">⏳ Bientôt</span></div>
+    </div>
+
+    <div class="mod-card disabled" style="--card-color:#0891b2;">
+      <div class="mc-head">
+        <div class="mc-icon">📊</div>
+        <div class="mc-titles">
+          <div class="mc-name">Reporting</div>
+          <div class="mc-version">Planifié</div>
+        </div>
+      </div>
+      <div class="mc-desc">Tableaux de bord consolidés — KPIs opérationnels, RH et financiers. Accessible à tous.</div>
+      <div class="mc-foot"><span class="mc-badge mb-plan">💬 Planifié</span></div>
+    </div>
+
+  </div>
+</div>
+
+<div class="footer">
+  RDZ Security Management SA — Suite Applicative interne — © 2026 — Usage exclusivement interne
+</div>
+
+<script>
+// ── CONFIG SUPABASE ──────────────────────────────────────────
+const SUPA_URL  = 'https://trdhtlcenmjlcvzuplid.supabase.co'
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU'
+let currentUser = null, currentProfile = null
+
+// ── SESSION ──────────────────────────────────────────────────
+function _save(d){ localStorage.setItem('rdz_auth_v2', JSON.stringify(d)) }
+function _load(){ try{ return JSON.parse(localStorage.getItem('rdz_auth_v2')||'null') }catch(){ return null } }
+function _clear(){ localStorage.removeItem('rdz_auth_v2') }
+function _valid(s){ return s && s.access_token && s.expires_at > Math.floor(Date.now()/1000) }
+
+// ── LOGIN ────────────────────────────────────────────────────
+async function doLogin(){
+  const email = document.getElementById('login-email').value.trim()
+  const pass  = document.getElementById('login-password').value
+  if(!email || !pass){ showErr('Remplissez tous les champs.'); return }
+
+  const btn = document.getElementById('login-btn')
+  btn.textContent = 'Connexion…'; btn.disabled = true
+  document.getElementById('login-error').classList.remove('on')
+
+  try {
+    const r = await fetch(SUPA_URL+'/auth/v1/token?grant_type=password',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','apikey':SUPA_ANON},
+      body:JSON.stringify({email, password:pass})
+    })
+    const data = await r.json()
+    if(!data.access_token){ showErr('Email ou mot de passe incorrect.'); reset(); return }
+
+    const pr = await fetch(SUPA_URL+'/rest/v1/profiles?id=eq.'+data.user.id+'&select=*',{
+      headers:{'apikey':SUPA_ANON,'Authorization':'Bearer '+data.access_token}
+    })
+    const profiles = await pr.json()
+    const profile = profiles[0]
+    if(!profile || !profile.active){ showErr('Compte inactif ou non autorisé.'); reset(); return }
+
+    _save({access_token:data.access_token, refresh_token:data.refresh_token,
+           expires_at:data.expires_at, user:data.user, profile})
+    _applySession(data.user, profile)
+
+  } catch(e){ showErr('Erreur de connexion. Vérifiez votre réseau.'); reset() }
+}
+
+function showErr(msg){ const e=document.getElementById('login-error'); e.textContent=msg; e.classList.add('on') }
+function reset(){ const b=document.getElementById('login-btn'); b.textContent='Se connecter'; b.disabled=false }
+
+// ── APPLIQUER SESSION ─────────────────────────────────────────
+function _applySession(user, profile){
+  currentUser = user; currentProfile = profile
+  document.getElementById('badge-name').textContent  = profile.full_name || user.email
+  document.getElementById('badge-role').textContent  = profile.role || 'user'
+  document.getElementById('menu-name').textContent   = profile.full_name || user.email
+  document.getElementById('menu-email').textContent  = user.email
+  document.getElementById('hero-username').textContent = profile.full_name || user.email
+  document.getElementById('hero-user').style.display = 'inline-flex'
+  document.getElementById('login-screen').classList.remove('visible')
+}
+
+// ── DÉCONNEXION ──────────────────────────────────────────────
+function signOut(){
+  const s = _load()
+  _clear()
+  currentUser = null; currentProfile = null
+  document.getElementById('login-screen').classList.add('visible')
+  document.getElementById('user-menu').classList.remove('open')
+  document.getElementById('hero-user').style.display = 'none'
+  if(s) fetch(SUPA_URL+'/auth/v1/logout',{method:'POST',
+    headers:{'apikey':SUPA_ANON,'Authorization':'Bearer '+s.access_token}}).catch(()=>{})
+}
+
+// ── USER MENU ─────────────────────────────────────────────────
+function toggleUserMenu(){ document.getElementById('user-menu').classList.toggle('open') }
+document.addEventListener('click', e=>{
+  const b = document.getElementById('user-badge')
+  const m = document.getElementById('user-menu')
+  if(b && !b.contains(e.target) && m && !m.contains(e.target)) m.classList.remove('open')
+})
+
+// ── NAVIGATION ───────────────────────────────────────────────
+function goTo(url){
+  if(!currentUser) return
+  // Partage la session avec le module cible via sessionStorage
+  const s = _load()
+  if(s) sessionStorage.setItem('rdz_auth_v2', JSON.stringify(s))
+  window.location.href = url
+}
+
+// ── INIT ─────────────────────────────────────────────────────
+document.getElementById('hero-date').textContent =
+  new Date().toLocaleDateString('fr-CH',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+
+;(function(){
+  const s = _load()
+  if(_valid(s)){
+    _applySession(s.user, s.profile)
+  } else {
+    _clear()
+    document.getElementById('login-screen').classList.add('visible')
+  }
+})()
+</script>
+</body>
+</html>
