@@ -3432,7 +3432,7 @@ async function pushToSupabase(){
         body:JSON.stringify(S.missions.map(m=>({id:m.id,name:m.name,site_id:m.siteId||null,duration:m.duration||30,description:m.description||null,time_start:m.timeStart||null,time_end:m.timeEnd||null,color:m.color||null,active:true})))
       })
     }
-</script>    if(S.sheets.length){
+    if(S.sheets.length){
       await fetch(base+'/sheets', {method:'POST', headers:h,
         body:JSON.stringify(S.sheets.map(sh=>({id:sh.id,name:sh.name,cat:sh.cat||'Semaine',is_template:!!sh.isTemplate,date:sh.date||null,start_time:sh.startTime||'06:00',end_time:sh.endTime||null,tasks:sh.tasks||[],note:sh.note||null,active:true})))
       })
