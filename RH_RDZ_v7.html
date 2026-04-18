@@ -324,8 +324,8 @@ tbody tr:last-child td{border-bottom:none;}
     <input type="password" id="rh-pass" placeholder="••••••••" autocomplete="current-password"
       style="width:100%;background:#f5f4f2;border:1.5px solid #d0cec9;border-radius:8px;padding:11px 14px;font-size:14px;font-family:'DM Sans';outline:none;margin-bottom:4px;display:block;"
       onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='#d0cec9'"
-      onkeydown="if(event.key==='Enter') rhLogin()">
-    <button id="rh-login-btn" onclick="rhLogin()"
+      onkeydown="if(event.key==='Enter') doRhLogin()">
+    <button id="rh-login-btn" onclick="doRhLogin()"
       style="width:100%;margin-top:14px;padding:12px;background:var(--red);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans';">
       Se connecter
     </button>
@@ -385,7 +385,7 @@ tbody tr:last-child td{border-bottom:none;}
         <a href="RDZ_index.html" style="display:block;padding:7px 10px;border-radius:6px;font-size:13px;color:var(--text2);text-decoration:none;"
            onmouseenter="this.style.background='var(--bg)'" onmouseleave="this.style.background='none'">🏠 Suite RDZ</a>
         <button style="width:100%;text-align:left;padding:7px 10px;background:none;border:none;border-radius:6px;font-size:13px;cursor:pointer;color:#dc2626;font-family:'DM Sans';"
-          onclick="rhLogout()">↩ Se déconnecter</button>
+          onclick="doRhLogout()">↩ Se déconnecter</button>
       </div>
     </div>
     <div class="hdr-div"></div>
@@ -811,6 +811,11 @@ const SUPA_URL  = 'https://trdhtlcenmjlcvzuplid.supabase.co';
 const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
 const SK = 'rdz_session';
 // ─────────────────────────────────────────────────────────
+
+// Wrapper synchrone pour le bouton login (évite le problème de hoisting async)
+function doRhLogin() { rhLogin(); }
+function doRhLogout() { rhLogout(); }
+
 // ═══════════════════════════════════════
 // DEFAULTS & DB
 // ═══════════════════════════════════════
