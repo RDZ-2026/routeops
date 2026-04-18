@@ -3408,7 +3408,7 @@ async function loadFromSupabase(token){
 }
 
 // Sauvegarde vers Supabase
-aasync function pushToSupabase(){
+async function pushToSupabase(){
   const stored = localStorage.getItem('rdz_session')
   if(!stored) return
   const session = JSON.parse(stored)
