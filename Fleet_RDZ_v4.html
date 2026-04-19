@@ -323,14 +323,14 @@ input,select,textarea,datalist{font-family:'DM Sans',sans-serif;}
     </div>
     <button class="login-btn" id="login-btn" onclick="doLogin()">Se connecter</button>
     <div class="login-error" id="login-err"></div>
-    <a href="../RDZ_index.html" class="login-back">← Retour à l'accueil RDZ</a>
+    <a href="https://rdz-2026.github.io/routeops/RDZ_index.html" class="login-back">← Retour à l'accueil RDZ</a>
   </div>
 </div>
 
 <!-- APP -->
 <div id="app">
   <div class="topbar">
-    <a href="../RDZ_index.html" class="tb-back">← Suite</a>
+    <a href="https://rdz-2026.github.io/routeops/RDZ_index.html" class="tb-back">← Suite</a>
     <div class="tb-mark">🚗</div>
     <div class="tb-info">
       <div class="tb-brand">Fleet_RDZ</div>
@@ -729,7 +729,7 @@ async function doLogin(){
   function showE(m){err.textContent=m;err.classList.add('visible');}
 }
 document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-function logout(){localStorage.removeItem(AUTH_KEY);session=null;showLogin();document.getElementById('login-email').value='';document.getElementById('login-pass').value='';}
+function logout(){localStorage.removeItem(AUTH_KEY);session=null;window.location.href='https://rdz-2026.github.io/routeops/RDZ_index.html';}
 
 function startApp(){
   document.getElementById('login-screen').classList.remove('visible');
@@ -1049,6 +1049,36 @@ function renderVehicleDetail(v){
     <!-- COL 2 -->
     <div class="fiche-col">
 
+      <!-- Conducteur -->
+      <div class="info-card">
+        <div class="ic-title" style="justify-content:space-between;"><span style="display:flex;align-items:center;gap:6px;"><span>👤</span> Conducteur</span>
+          ${canEdit()?`<button class="btn-icon" onclick="openDriverModal('${v.id}')">Changer</button>`:''}
+        </div>
+        ${curDriverEv?`<div class="driver-current">
+          <div class="driver-avatar">${(curDriverEv.description||'?').charAt(0).toUpperCase()}</div>
+          <div><div class="driver-name">${curDriverEv.description}</div><div class="driver-since">Depuis le ${formatDate(curDriverEv.date)}</div></div>
+        </div>`:v.driver?`<div class="driver-current">
+          <div class="driver-avatar">${v.driver.charAt(0).toUpperCase()}</div>
+          <div><div class="driver-name">${v.driver}</div><div class="driver-since">Conducteur principal</div></div>
+        </div>`:`<div style="font-size:12.5px;color:var(--text3);margin-bottom:10px;">Aucun conducteur renseigné.</div>`}
+        ${driverEvs.length>1?`
+        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">Historique</div>
+        <table class="data-table" style="font-size:11.5px;">
+          <thead><tr><th>Date</th><th>Conducteur</th><th>Motif</th>${canEdit()?'<th></th>':''}</tr></thead>
+          <tbody>
+            ${driverEvs.map(e=>`<tr>
+              <td>${formatDate(e.date)}</td>
+              <td style="font-weight:500;">${e.description||'—'}</td>
+              <td style="color:var(--text3);">${e.provider||'—'}</td>
+              ${canEdit()?`<td><div class="row-actions">
+                <button class="btn-icon" onclick="openEditEvent('${e.id}')">✏️</button>
+                <button class="btn-icon del" onclick="confirmDeleteEvent('${e.id}','conducteur ${e.description}')">🗑</button>
+              </div></td>`:''}
+            </tr>`).join('')}
+          </tbody>
+        </table>`:''}
+      </div>
+
       <!-- Kilométrage -->
       <div class="info-card">
         <div class="ic-title"><span>📍</span> Kilométrage</div>
@@ -1092,35 +1122,6 @@ function renderVehicleDetail(v){
           <div class="pneu-slot"><div class="ps-head"><span class="ps-icon">❄️</span><span class="ps-type">Hiver</span></div><div class="ps-status">${v.tires_winter||'—'}</div></div>
         </div>
         ${v.tires_size?`<div style="font-size:11px;color:var(--text3);margin-top:8px;">Dimension : ${v.tires_size}</div>`:''}
-      </div>
-
-      <!-- Conducteur -->
-      <div class="info-card">
-        <div class="ic-title" style="justify-content:space-between;"><span style="display:flex;align-items:center;gap:6px;"><span>👤</span> Conducteur</span>
-          ${canEdit()?`<button class="btn-icon" onclick="openDriverModal('${v.id}')">Changer</button>`:''}
-        </div>
-        ${curDriverEv?`<div class="driver-current">
-          <div class="driver-avatar">${(curDriverEv.description||'?').charAt(0).toUpperCase()}</div>
-          <div><div class="driver-name">${curDriverEv.description}</div><div class="driver-since">Depuis le ${formatDate(curDriverEv.date)}</div></div>
-        </div>`:v.driver?`<div class="driver-current">
-          <div class="driver-avatar">${v.driver.charAt(0).toUpperCase()}</div>
-          <div><div class="driver-name">${v.driver}</div><div class="driver-since">Conducteur principal</div></div>
-        </div>`:`<div style="font-size:12.5px;color:var(--text3);margin-bottom:10px;">Aucun conducteur renseigné.</div>`}
-        ${driverEvs.length>1?`
-        <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">Historique</div>
-        <table class="data-table" style="font-size:11.5px;">
-          <thead><tr><th>Date</th><th>Conducteur</th><th>Motif</th>${canEdit()?'<th></th>':''}</tr></thead>
-          <tbody>
-            ${driverEvs.map(e=>`<tr>
-              <td>${formatDate(e.date)}</td>
-              <td style="font-weight:500;">${e.description||'—'}</td>
-              <td style="color:var(--text3);">${e.provider||'—'}</td>
-              ${canEdit()?`<td><div class="row-actions">
-                <button class="btn-icon del" onclick="confirmDeleteEvent('${e.id}','conducteur ${e.description}')">🗑</button>
-              </div></td>`:''}
-            </tr>`).join('')}
-          </tbody>
-        </table>`:''}
       </div>
 
       <!-- Travaux & Notes -->
