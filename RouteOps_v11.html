@@ -3419,6 +3419,7 @@ function loadFromSupabase(token){
         id:r.id, name:r.name, cat:r.cat,
         isTemplate:r.is_template, date:r.date,
         startTime:r.start_time, endTime:r.end_time||'', endService:r.end_time||r.end_service||'',
+        days:r.days||'lun-ven', status:r.status||'actif',
         tasks:Array.isArray(r.tasks)?r.tasks:[], note:r.note||'',
         observations:r.observations||''
       }))
@@ -3477,6 +3478,7 @@ function pushToSupabase(){
       id:sh.id, name:sh.name, cat:sh.cat||'Semaine',
       is_template:!!sh.isTemplate, date:sh.date||null,
       start_time:sh.startTime||'06:00', end_time:sh.endService||sh.endTime||null,
+        days:sh.days||'lun-ven', status:sh.status||'actif',
       tasks:sh.tasks||[], note:sh.note||null,
       observations:sh.observations||null, active:true
     })))}).catch(e=>console.error('sheets push:',e))
