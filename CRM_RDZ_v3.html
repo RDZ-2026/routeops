@@ -1,0 +1,2278 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRM_RDZ v3 — RDZ Security Management</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#c0272d;--red-d:#a31f24;--red-l:#fdf2f2;--red-m:#f8dada;
+  --bg:#f2f2f4;--white:#fff;
+  --anth:#2d2d2d;--anth2:#3a3a3a;
+  --border:#e2e2e6;--border2:#d0d0d6;
+  --text:#2d2d2d;--text2:#4b5563;--text3:#9ca3af;
+  --green:#16a34a;--green-l:#f0fdf4;
+  --orange:#ea580c;--orange-l:#fff7ed;
+  --blue:#2563eb;--blue-l:#eff6ff;
+  --yellow:#ca8a04;--yellow-l:#fefce8;
+  --purple:#7c3aed;--purple-l:#f5f3ff;
+  --shadow:0 1px 3px rgba(0,0,0,.07),0 4px 12px rgba(0,0,0,.05);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.14);
+  --radius:14px;--radius-sm:8px;--radius-xs:5px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;font-size:13.5px;}
+button{font-family:'DM Sans',sans-serif;cursor:pointer;}
+input,select,textarea{font-family:'DM Sans',sans-serif;}
+
+/* ── LOGIN ── */
+#login-screen{display:none;position:fixed;inset:0;background:#2d2d2d;z-index:9999;align-items:center;justify-content:center;flex-direction:column;}
+#login-screen.visible{display:flex;}
+.login-card{background:white;border-radius:16px;padding:36px 40px;width:380px;max-width:94vw;box-shadow:0 20px 60px rgba(0,0,0,.4);}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px;}
+.login-mark{width:38px;height:38px;background:var(--red);border-radius:9px;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:15px;}
+.login-brand{font-family:'DM Mono';font-size:14px;font-weight:600;line-height:1.2;}
+.login-brand span{display:block;font-size:9px;color:var(--text3);font-weight:400;text-transform:uppercase;letter-spacing:.5px;margin-top:1px;}
+.login-card h2{font-size:16px;font-weight:600;margin-bottom:4px;}
+.login-card p{font-size:13px;color:#6b7280;margin-bottom:20px;}
+.lf{display:flex;flex-direction:column;gap:5px;margin-bottom:14px;}
+.lf label{font-size:11px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:.4px;}
+.lf input{background:#f7f7f9;border:1px solid #e2e2e6;border-radius:8px;padding:9px 12px;font-size:14px;color:#2d2d2d;width:100%;outline:none;}
+.lf input:focus{border-color:var(--red);background:white;}
+.login-btn{width:100%;padding:10px;background:var(--red);color:white;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;margin-top:4px;}
+.login-btn:hover{background:var(--red-d);}
+.login-err{background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:8px 12px;font-size:12px;color:#991b1b;margin-top:10px;display:none;}
+.login-err.visible{display:block;}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--anth2);color:white;height:56px;display:flex;align-items:center;padding:0 20px;gap:12px;border-bottom:3px solid var(--red);flex-shrink:0;position:sticky;top:0;z-index:200;}
+.tb-back{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);color:white;padding:6px 12px;border-radius:var(--radius-xs);font-size:12px;font-weight:500;text-decoration:none;display:flex;align-items:center;gap:6px;transition:background .15s;flex-shrink:0;}
+.tb-back:hover{background:rgba(255,255,255,.15);}
+.tb-mark{width:32px;height:32px;background:var(--red);border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.tb-info{flex:1;}
+.tb-brand{font-family:'DM Mono';font-size:13.5px;font-weight:600;color:white;line-height:1.1;}
+.tb-sub{font-size:9.5px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;}
+.tb-user{font-size:11.5px;color:rgba(255,255,255,.55);flex-shrink:0;}
+.tb-logout{background:transparent;border:1px solid rgba(255,255,255,.2);color:rgba(255,255,255,.6);padding:5px 11px;border-radius:var(--radius-xs);font-size:11px;transition:all .15s;cursor:pointer;}
+.tb-logout:hover{background:rgba(255,255,255,.1);color:white;}
+
+/* ── APP ── */
+#app{flex:1;display:none;flex-direction:column;}
+#app.visible{display:flex;}
+.app-body{display:flex;flex:1;min-height:0;}
+
+/* ── SIDEBAR ── */
+.sidebar{width:220px;flex-shrink:0;background:white;border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;}
+.nav-sec{font-size:9.5px;font-weight:700;color:var(--text3);letter-spacing:1.2px;text-transform:uppercase;padding:14px 14px 5px;}
+.nav-item{display:flex;align-items:center;gap:9px;padding:8px 14px;cursor:pointer;color:var(--text2);font-size:12.5px;font-weight:500;border-left:3px solid transparent;transition:all .12s;user-select:none;}
+.nav-item:hover{background:var(--bg);color:var(--text);}
+.nav-item.active{background:var(--red-l);color:var(--red);border-left-color:var(--red);font-weight:600;}
+.nav-icon{font-size:15px;width:20px;text-align:center;flex-shrink:0;}
+.nbadge{margin-left:auto;font-size:10px;font-weight:700;padding:1px 6px;border-radius:20px;min-width:18px;text-align:center;}
+.nb-red{background:var(--red);color:white;}
+.nb-orange{background:var(--orange);color:white;}
+
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;padding:26px 28px 60px;}
+.panel{display:none;}
+.panel.active{display:block;}
+
+/* ── PAGE HEAD ── */
+.ph{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:12px;}
+.ph-title{font-family:'DM Mono';font-size:22px;font-weight:600;line-height:1.1;color:var(--anth);}
+.ph-sub{font-size:12px;color:var(--text3);margin-top:3px;}
+.ph-right{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+
+/* ── KPI ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.kpi-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);}
+.kpi-label{font-size:10.5px;color:var(--text3);font-weight:700;letter-spacing:.5px;text-transform:uppercase;margin-bottom:8px;}
+.kpi-val{font-family:'DM Mono';font-size:28px;font-weight:600;line-height:1;color:var(--anth);}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:6px;}
+.kv-red{color:var(--red)!important;}.kv-green{color:var(--green)!important;}.kv-orange{color:var(--orange)!important;}.kv-blue{color:var(--blue)!important;}
+
+/* ── CARD ── */
+.card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:20px;box-shadow:var(--shadow);margin-bottom:16px;}
+.card-title{font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.9px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+
+/* ── INPUTS ── */
+.sbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center;}
+.sw{position:relative;flex:1;min-width:180px;}
+.sw-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;color:var(--text3);pointer-events:none;}
+.inp{background:var(--white);border:1px solid var(--border2);border-radius:8px;padding:8px 12px 8px 32px;color:var(--text);font-size:13px;font-family:'DM Sans';outline:none;transition:border-color .15s;width:100%;}
+.inp:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(192,39,45,.08);}
+.sel,.finp,.fsel,.ftxt{background:var(--white);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:'DM Sans';outline:none;transition:border-color .15s;width:100%;}
+.sel:focus,.finp:focus,.fsel:focus,.ftxt:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(192,39,45,.08);}
+.ftxt{resize:vertical;min-height:70px;}
+.finp:read-only{background:var(--bg);color:var(--text2);cursor:default;}
+.finp-sm{padding:6px 10px;font-size:12.5px;}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;font-family:'DM Sans';font-size:12.5px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;}
+.btn-primary{background:var(--red);color:white;}
+.btn-primary:hover{background:var(--red-d);}
+.btn-ghost{background:var(--white);color:var(--text2);border:1px solid var(--border2);}
+.btn-ghost:hover{background:var(--bg);}
+.btn-danger{background:#fef2f2;color:#dc2626;border:1px solid #fecaca;}
+.btn-danger:hover{background:#fee2e2;}
+.btn-success{background:var(--green-l);color:var(--green);border:1px solid #bbf7d0;}
+.btn-sm{padding:5px 10px;font-size:11.5px;}
+.btn-xs{padding:3px 8px;font-size:11px;}
+
+/* ── TABLE ── */
+.tbl-wrap{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+thead tr{border-bottom:2px solid var(--border);}
+th{text-align:left;padding:9px 12px;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;white-space:nowrap;}
+td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:middle;}
+tbody tr{cursor:pointer;transition:background .1s;}
+tbody tr:hover{background:var(--bg);}
+tbody tr:last-child td{border-bottom:none;}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:3px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;}
+.b-green{background:var(--green-l);color:var(--green);}
+.b-red{background:#fef2f2;color:#dc2626;}
+.b-orange{background:var(--orange-l);color:var(--orange);}
+.b-blue{background:var(--blue-l);color:var(--blue);}
+.b-gray{background:#f3f4f6;color:var(--text3);}
+.b-purple{background:var(--purple-l);color:var(--purple);}
+.b-yellow{background:var(--yellow-l);color:var(--yellow);}
+
+/* ── MODAL ── */
+.overlay{display:none;position:fixed;inset:0;background:rgba(26,25,23,.5);z-index:1000;align-items:center;justify-content:center;padding:20px;backdrop-filter:blur(3px);}
+.overlay.open{display:flex;}
+/* z-index stacking pour modals imbriquées */
+.overlay.on-top{z-index:1100;}
+.modal{background:var(--white);border-radius:16px;width:100%;max-width:860px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
+.modal-sm{max-width:560px;}
+.modal-lg{max-width:1060px;}
+.mhdr{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;position:sticky;top:0;background:var(--white);z-index:10;}
+.m-title{font-family:'DM Mono';font-size:18px;font-weight:600;}
+.m-sub{font-size:12px;color:var(--text3);margin-top:2px;}
+.m-close{background:var(--bg);border:none;border-radius:8px;width:30px;height:30px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--text3);flex-shrink:0;}
+.m-close:hover{background:var(--border);color:var(--text);}
+.mbody{padding:22px 24px 26px;}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;padding-top:18px;border-top:1px solid var(--border);}
+
+/* ── FORM ── */
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.fgrid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;}
+.fg{display:flex;flex-direction:column;gap:5px;}
+.fg.full{grid-column:1/-1;}
+.flabel{font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;}
+
+/* ── SECTION BLOCK ── */
+.sec-block{margin-bottom:22px;}
+.sec-title{font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:1px;margin-bottom:12px;padding-bottom:6px;border-bottom:1px solid var(--red-m);display:flex;align-items:center;justify-content:space-between;gap:6px;}
+
+/* ── FICHE ── */
+.fiche-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fiche-card{background:var(--bg);border:1px solid var(--border);border-radius:10px;padding:14px;}
+.fiche-card.full{grid-column:1/-1;}
+.frow{display:flex;justify-content:space-between;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);}
+.frow:last-child{border-bottom:none;}
+.fl{font-size:11.5px;color:var(--text3);flex-shrink:0;min-width:130px;}
+.fv{font-size:12.5px;color:var(--text);text-align:right;word-break:break-word;}
+.fv.mono{font-family:'DM Mono';font-size:12px;}
+
+/* ── TABS ── */
+.tabs{display:flex;gap:3px;margin-bottom:18px;background:#eee;padding:3px;border-radius:9px;width:fit-content;}
+.tab{padding:7px 14px;border-radius:7px;font-size:12.5px;font-weight:500;cursor:pointer;color:var(--text2);transition:all .12s;border:none;font-family:'DM Sans';background:transparent;}
+.tab.active{background:var(--white);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.1);font-weight:600;}
+
+/* ── KANBAN ── */
+.kanban{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:start;}
+.kb-col{background:var(--bg);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.kb-hdr{padding:10px 12px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--border);}
+.kb-count{font-size:10px;font-weight:700;padding:1px 7px;border-radius:20px;min-width:20px;text-align:center;}
+.kb-cards{padding:8px;display:flex;flex-direction:column;gap:8px;min-height:80px;}
+.kb-card{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:12px;cursor:pointer;transition:box-shadow .15s;box-shadow:var(--shadow);}
+.kb-card:hover{box-shadow:var(--shadow-lg);}
+.kb-card-title{font-size:12.5px;font-weight:600;margin-bottom:4px;line-height:1.3;}
+.kb-card-client{font-size:11px;color:var(--text3);margin-bottom:8px;}
+.kb-card-footer{display:flex;align-items:center;justify-content:space-between;}
+.kb-card-amount{font-family:'DM Mono';font-size:12px;font-weight:600;color:var(--green);}
+
+/* ── CONTACT CHIP ── */
+.contact-chip{background:var(--white);border:1px solid var(--border);border-radius:8px;padding:10px 12px;display:flex;align-items:flex-start;gap:10px;}
+.contact-chip-av{width:32px;height:32px;border-radius:8px;background:var(--red-m);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--red);flex-shrink:0;}
+.contact-chip-info{flex:1;min-width:0;}
+.contact-chip-name{font-size:13px;font-weight:600;}
+.contact-chip-role{font-size:11px;color:var(--text3);}
+.contact-chip-tel{font-family:'DM Mono';font-size:11.5px;color:var(--blue);}
+
+/* ── DOC INDICATOR ── */
+.doc-indicator{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:6px;font-size:11.5px;font-weight:600;border:1px solid;}
+.doc-ok{background:var(--green-l);color:var(--green);border-color:#bbf7d0;}
+.doc-missing{background:#f3f4f6;color:var(--text3);border-color:var(--border2);}
+
+/* ── PLANNING BADGE ── */
+.plan-badge{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--purple-l);color:var(--purple);}
+
+/* ── INTERLOCUTEURS MISSION ── */
+.interlo-list{display:flex;flex-direction:column;gap:6px;}
+.interlo-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border);}
+.interlo-av{width:28px;height:28px;border-radius:6px;background:var(--red-m);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--red);flex-shrink:0;}
+.interlo-info{flex:1;min-width:0;}
+.interlo-name{font-size:12.5px;font-weight:600;}
+.interlo-meta{font-size:11px;color:var(--text3);}
+.interlo-tel{font-family:'DM Mono';font-size:11px;color:var(--blue);}
+
+/* ── ECHEANCE ── */
+.ech-row{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid var(--border);font-size:12.5px;}
+.ech-row:last-child{border-bottom:none;}
+.ech-row:hover{background:var(--bg);}
+.ech-num{font-family:'DM Mono';font-size:11px;color:var(--text3);min-width:40px;}
+.ech-date{min-width:90px;color:var(--text2);}
+.ech-mt{font-family:'DM Mono';font-weight:600;min-width:100px;}
+.ech-spacer{flex:1;}
+
+/* ── ALERT ── */
+.alert-list{display:flex;flex-direction:column;gap:8px;}
+.alert-item{display:flex;align-items:center;gap:12px;padding:11px 14px;background:var(--white);border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--red);cursor:pointer;transition:box-shadow .12s;}
+.alert-item:hover{box-shadow:var(--shadow);}
+.alert-item.warn{border-left-color:var(--orange);}
+.alert-item.info{border-left-color:var(--blue);}
+.alert-name{font-weight:600;font-size:13px;flex:1;}
+.alert-desc{font-size:11.5px;color:var(--text3);}
+.alert-date{font-size:12px;font-weight:700;margin-left:auto;white-space:nowrap;}
+
+/* ── MAIN COURANTE ── */
+.mc-item{display:flex;gap:14px;padding:13px 0;border-bottom:1px solid var(--border);}
+.mc-item:last-child{border-bottom:none;}
+.mc-dot-col{display:flex;flex-direction:column;align-items:center;gap:0;flex-shrink:0;}
+.mc-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+.mc-line{width:1px;flex:1;background:var(--border);margin-top:4px;}
+.mc-body{flex:1;min-width:0;}
+.mc-head{display:flex;align-items:center;gap:8px;margin-bottom:3px;flex-wrap:wrap;}
+.mc-date{font-size:11px;color:var(--text3);font-weight:600;white-space:nowrap;}
+.mc-author{font-size:11px;color:var(--text3);}
+.mc-texte{font-size:13px;color:var(--text);line-height:1.6;white-space:pre-wrap;}
+.mc-mission-tag{font-size:10.5px;background:var(--bg);border:1px solid var(--border);color:var(--text2);padding:1px 7px;border-radius:4px;}
+.mc-actions{margin-left:auto;display:flex;gap:4px;flex-shrink:0;}
+
+/* ── LIGNES DE PRESTATION ── */
+.lp-row{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);}
+.lp-row:last-child{border-bottom:none;}
+.lp-head{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:8px;padding:6px 0;border-bottom:2px solid var(--border2);}
+.lp-head-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;}
+.lp-total-row{display:flex;justify-content:flex-end;gap:16px;padding:10px 0 0;font-size:13px;}
+.lp-total-label{color:var(--text3);}
+.lp-total-val{font-family:'DM Mono';font-weight:700;}
+
+/* ── PARAMÈTRES (catégories MC) ── */
+.param-section{margin-bottom:22px;}
+.param-title{font-size:12px;font-weight:700;color:var(--text);margin-bottom:10px;}
+.param-list{display:flex;flex-direction:column;gap:0;border:1px solid var(--border);border-radius:8px;overflow:hidden;}
+.param-item{display:flex;align-items:center;gap:10px;padding:9px 12px;background:var(--white);border-bottom:1px solid var(--border);}
+.param-item:last-child{border-bottom:none;}
+.param-color{width:12px;height:12px;border-radius:50%;flex-shrink:0;}
+.param-name{flex:1;font-size:13px;}
+.param-add{display:flex;gap:8px;margin-top:8px;}
+.param-add input{flex:1;background:var(--white);border:1px solid var(--border2);border-radius:8px;padding:8px 12px;font-family:'DM Sans';font-size:13px;outline:none;}
+.param-add input:focus{border-color:var(--red);}
+
+@media(max-width:600px){
+  .lp-row,.lp-head{grid-template-columns:1fr 1fr auto;}
+}
+
+.empty{text-align:center;padding:40px 20px;color:var(--text3);}
+.empty-icon{font-size:36px;margin-bottom:10px;}
+
+/* ── MISC ── */
+.sep{height:1px;background:var(--border);margin:18px 0;}
+.mono{font-family:'DM Mono';}
+.count{font-size:12px;color:var(--text3);margin-bottom:10px;}
+.checkbox-row{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;}
+.checkbox-row input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--red);}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;}
+.toast-msg{background:var(--anth);color:white;padding:10px 16px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);border-left:3px solid var(--red);animation:slideIn .2s ease;max-width:340px;}
+.toast-msg.ok{border-left-color:var(--green);}
+.toast-msg.err{border-left-color:#dc2626;}
+@keyframes slideIn{from{transform:translateX(60px);opacity:0;}to{transform:translateX(0);opacity:1;}}
+
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px;}
+
+@media(max-width:900px){
+  .kpi-grid{grid-template-columns:1fr 1fr;}
+  .kanban{grid-template-columns:1fr 1fr;}
+  .two-col,.fiche-grid{grid-template-columns:1fr;}
+  .sidebar{display:none;}
+}
+@media(max-width:600px){
+  .kpi-grid{grid-template-columns:1fr;}
+  .kanban{grid-template-columns:1fr;}
+  .main{padding:16px 14px 60px;}
+  .fgrid,.fgrid3{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-mark">RDZ</div>
+      <div class="login-brand">CRM_RDZ <span>Gestion commerciale & opérationnelle</span></div>
+    </div>
+    <h2>Connexion</h2>
+    <p>Accès réservé aux administrateurs RDZ</p>
+    <div class="lf"><label>Email</label><input id="login-email" type="email" placeholder="prenom@rdz.ch" autocomplete="username"></div>
+    <div class="lf"><label>Mot de passe</label><input id="login-pass" type="password" placeholder="••••••••" autocomplete="current-password"></div>
+    <button class="login-btn" onclick="doLogin()">Se connecter</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <a class="tb-back" href="https://rdz-2026.github.io/routeops/RDZ_index.html">← Hub</a>
+    <div class="tb-mark">💼</div>
+    <div class="tb-info">
+      <div class="tb-brand">CRM_RDZ <span style="font-size:9px;opacity:.5;font-weight:400">v3</span></div>
+      <div class="tb-sub">Gestion commerciale & opérationnelle</div>
+    </div>
+    <div class="tb-user" id="tb-user"></div>
+    <button class="tb-logout" onclick="logout()">Déconnexion</button>
+  </div>
+
+  <div class="app-body">
+    <div class="sidebar">
+      <div class="nav-sec">Vue</div>
+      <div class="nav-item active" onclick="nav('dashboard')" id="nav-dashboard"><span class="nav-icon">📊</span>Dashboard</div>
+      <div class="nav-item" onclick="nav('pipeline')" id="nav-pipeline"><span class="nav-icon">📈</span>Pipeline<span class="nbadge nb-orange" id="badge-pipeline">0</span></div>
+      <div class="nav-sec">Commercial</div>
+      <div class="nav-item" onclick="nav('clients')" id="nav-clients"><span class="nav-icon">🏢</span>Clients</div>
+      <div class="nav-item" onclick="nav('contacts')" id="nav-contacts"><span class="nav-icon">👤</span>Contacts</div>
+      <div class="nav-item" onclick="nav('missions')" id="nav-missions"><span class="nav-icon">🛡</span>Missions</div>
+      <div class="nav-sec">Finance</div>
+      <div class="nav-item" onclick="nav('facturation')" id="nav-facturation"><span class="nav-icon">🧾</span>Facturation<span class="nbadge nb-red" id="badge-fact">0</span></div>
+      <div class="nav-sec">Suivi</div>
+      <div class="nav-item" onclick="nav('maincourante')" id="nav-maincourante"><span class="nav-icon">📋</span>Main courante</div>
+      <div class="nav-sec">Admin</div>
+      <div class="nav-item" onclick="nav('parametres')" id="nav-parametres"><span class="nav-icon">⚙️</span>Paramètres</div>
+    </div>
+
+    <div class="main">
+
+      <!-- DASHBOARD -->
+      <div class="panel active" id="panel-dashboard">
+        <div class="ph">
+          <div><div class="ph-title">Dashboard</div><div class="ph-sub" id="dash-date"></div></div>
+        </div>
+        <div class="kpi-grid" id="kpi-grid"></div>
+        <div class="two-col">
+          <div>
+            <div class="card"><div class="card-title">⚠️ Alertes & échéances</div><div id="dash-alertes"></div></div>
+          </div>
+          <div>
+            <div class="card"><div class="card-title">🛡 Missions actives</div><div id="dash-missions"></div></div>
+          </div>
+        </div>
+        <div class="card"><div class="card-title">💰 À facturer — mois en cours</div><div id="dash-facturer"></div></div>
+      </div>
+
+      <!-- PIPELINE -->
+      <div class="panel" id="panel-pipeline">
+        <div class="ph">
+          <div><div class="ph-title">Pipeline commercial</div><div class="ph-sub">Suivi des opportunités</div></div>
+          <div class="ph-right"><button class="btn btn-primary" id="btn-new-opport">+ Opportunité</button></div>
+        </div>
+        <div class="kanban" id="kanban-board"></div>
+      </div>
+
+      <!-- CLIENTS -->
+      <div class="panel" id="panel-clients">
+        <div class="ph">
+          <div><div class="ph-title">Clients</div><div class="ph-sub" id="clients-count"></div></div>
+          <div class="ph-right"><button class="btn btn-primary" onclick="openNewClient()">+ Nouveau client</button></div>
+        </div>
+        <div class="sbar">
+          <div class="sw"><span class="sw-icon">🔍</span><input class="inp" id="search-clients" placeholder="Rechercher…" oninput="renderClients()"></div>
+          <select class="sel" style="width:auto;min-width:140px" id="filter-client-statut" onchange="renderClients()">
+            <option value="">Tous statuts</option>
+            <option value="actif">Actif</option>
+            <option value="prospect">Prospect</option>
+            <option value="inactif">Inactif</option>
+          </select>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Client</th><th>SIRET / IDE</th><th>Secteur</th><th>Missions</th><th>CA annuel</th><th>Statut</th><th></th></tr></thead>
+            <tbody id="tbody-clients"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- CONTACTS -->
+      <div class="panel" id="panel-contacts">
+        <div class="ph">
+          <div><div class="ph-title">Contacts</div><div class="ph-sub" id="contacts-count"></div></div>
+          <div class="ph-right"><button class="btn btn-primary" onclick="openNewContact(null)">+ Nouveau contact</button></div>
+        </div>
+        <div class="sbar">
+          <div class="sw"><span class="sw-icon">🔍</span><input class="inp" id="search-contacts" placeholder="Nom, téléphone, email…" oninput="renderContacts()"></div>
+          <select class="sel" style="width:auto;min-width:160px" id="filter-contact-client" onchange="renderContacts()">
+            <option value="">Tous les clients</option>
+          </select>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Nom</th><th>Rôle</th><th>Client</th><th>Téléphone</th><th>Email</th><th>Principal</th><th></th></tr></thead>
+            <tbody id="tbody-contacts"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- MISSIONS -->
+      <div class="panel" id="panel-missions">
+        <div class="ph">
+          <div><div class="ph-title">Missions</div><div class="ph-sub" id="missions-count"></div></div>
+          <div class="ph-right"><button class="btn btn-primary" onclick="openNewMission()">+ Nouvelle mission</button></div>
+        </div>
+        <div class="sbar">
+          <div class="sw"><span class="sw-icon">🔍</span><input class="inp" id="search-missions" placeholder="Mission, client, lieu…" oninput="renderMissions()"></div>
+          <select class="sel" style="width:auto;min-width:140px" id="filter-mission-statut" onchange="renderMissions()">
+            <option value="">Tous statuts</option>
+            <option value="devis">Devis</option>
+            <option value="signe">Signé</option>
+            <option value="en_cours">En cours</option>
+            <option value="termine">Terminé</option>
+            <option value="annule">Annulé</option>
+          </select>
+          <select class="sel" style="width:auto;min-width:160px" id="filter-mission-type" onchange="renderMissions()">
+            <option value="">Tous types</option>
+            <option value="rondes">Rondes</option>
+            <option value="surveillance">Surveillance</option>
+            <option value="parking">Contrôle Parking</option>
+            <option value="evenement">Événement</option>
+            <option value="filtrage">Filtrage</option>
+            <option value="interventions">Interventions</option>
+          </select>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Mission</th><th>Client</th><th>Type</th><th>Lieu</th><th>Planification</th><th>CA/mois</th><th>Docs</th><th>Statut</th><th></th></tr></thead>
+            <tbody id="tbody-missions"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- FACTURATION -->
+      <div class="panel" id="panel-facturation">
+        <div class="ph">
+          <div><div class="ph-title">Facturation</div><div class="ph-sub" id="fact-count"></div></div>
+          <div class="ph-right">
+            <button class="btn btn-ghost" onclick="openNewEcheanceManuelle()">+ Échéance manuelle</button>
+            <select class="sel" style="width:auto;min-width:140px" id="filter-fact-statut" onchange="renderFacturation()">
+              <option value="">Tous statuts</option>
+              <option value="a_emettre">À émettre</option>
+              <option value="emise">Émise</option>
+              <option value="payee">Payée</option>
+              <option value="litige">Litige</option>
+            </select>
+            <select class="sel" style="width:auto;min-width:120px" id="filter-fact-mois" onchange="renderFacturation()">
+              <option value="">Tous mois</option>
+            </select>
+          </div>
+        </div>
+        <div class="card" style="padding:0">
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Échéance</th><th>Mission</th><th>Client</th><th>Période</th><th>Montant HT</th><th>TVA</th><th>TTC</th><th>Statut</th><th></th></tr></thead>
+            <tbody id="tbody-facturation"></tbody>
+          </table></div>
+        </div>
+      </div>
+
+      <!-- MAIN COURANTE -->
+      <div class="panel" id="panel-maincourante">
+        <div class="ph">
+          <div><div class="ph-title">Main courante</div><div class="ph-sub" id="mc-count"></div></div>
+          <div class="ph-right">
+            <button class="btn btn-primary" onclick="openNewMC()">+ Nouvelle entrée</button>
+          </div>
+        </div>
+        <div class="sbar">
+          <div class="sw"><span class="sw-icon">🔍</span><input class="inp" id="search-mc" placeholder="Rechercher…" oninput="renderMC()"></div>
+          <select class="sel" style="width:auto;min-width:160px" id="filter-mc-client" onchange="renderMC()">
+            <option value="">Tous les clients</option>
+          </select>
+          <select class="sel" style="width:auto;min-width:160px" id="filter-mc-mission" onchange="renderMC()">
+            <option value="">Toutes les missions</option>
+          </select>
+          <select class="sel" style="width:auto;min-width:140px" id="filter-mc-cat" onchange="renderMC()">
+            <option value="">Toutes catégories</option>
+          </select>
+        </div>
+        <div class="card" id="mc-timeline" style="padding:20px 24px;"></div>
+      </div>
+
+      <!-- PARAMETRES -->
+      <div class="panel" id="panel-parametres">
+        <div class="ph">
+          <div><div class="ph-title">Paramètres</div><div class="ph-sub">Configuration du CRM</div></div>
+        </div>
+        <div class="two-col">
+          <div class="card">
+            <div class="card-title">🏷 Catégories main courante</div>
+            <div class="param-section">
+              <div class="param-list" id="param-mc-list"></div>
+              <div class="param-add">
+                <input id="param-mc-new-label" placeholder="Nouvelle catégorie…" onkeydown="if(event.key==='Enter')addMCCat()">
+                <input id="param-mc-new-color" type="color" value="#2563eb" style="width:44px;padding:4px;border:1px solid var(--border2);border-radius:8px;cursor:pointer;">
+                <button class="btn btn-primary btn-sm" onclick="addMCCat()">Ajouter</button>
+              </div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-title">💼 Types de prestations</div>
+            <div class="param-section">
+              <div class="param-list" id="param-prest-list"></div>
+              <div class="param-add">
+                <input id="param-prest-new" placeholder="Nouvelle prestation…" onkeydown="if(event.key==='Enter')addPrestType()">
+                <button class="btn btn-primary btn-sm" onclick="addPrestType()">Ajouter</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /app-body -->
+</div><!-- /app -->
+
+<!-- ══════════ MODALS ══════════ -->
+
+<!-- MODAL CLIENT -->
+<div class="overlay" id="modal-client">
+  <div class="modal">
+    <div class="mhdr">
+      <div><div class="m-title" id="client-modal-title">Nouveau client</div><div class="m-sub" id="client-modal-sub"></div></div>
+      <button class="m-close" onclick="closeModal('modal-client')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="fgrid">
+        <div class="fg full"><div class="flabel">Raison sociale *</div><input class="finp" id="c-raison" placeholder="Ex: ABC Holding SA"></div>
+        <div class="fg"><div class="flabel">SIRET / IDE</div><input class="finp" id="c-siret" placeholder="CHE-xxx.xxx.xxx"></div>
+        <div class="fg"><div class="flabel">Secteur d'activité</div><input class="finp" id="c-secteur" placeholder="Ex: Grande distribution"></div>
+        <div class="fg full"><div class="flabel">Adresse de facturation</div><input class="finp" id="c-adresse-fact" placeholder="Rue, code postal, ville"></div>
+        <div class="fg"><div class="flabel">Tarif horaire défaut (CHF)</div><input class="finp" id="c-tarif" type="number" step="0.5" placeholder="Ex: 45.00"></div>
+        <div class="fg"><div class="flabel">Délai de paiement (jours)</div><input class="finp" id="c-delai-pmt" type="number" placeholder="30"></div>
+        <div class="fg"><div class="flabel">TVA (%)</div><input class="finp" id="c-tva" type="number" step="0.1" value="8.1"></div>
+        <div class="fg"><div class="flabel">Statut</div>
+          <select class="fsel" id="c-statut">
+            <option value="prospect">Prospect</option>
+            <option value="actif">Actif</option>
+            <option value="inactif">Inactif</option>
+          </select>
+        </div>
+        <div class="fg full"><div class="flabel">Notes internes</div><textarea class="ftxt" id="c-notes" placeholder="Conditions particulières, contexte…"></textarea></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('modal-client')">Annuler</button>
+        <button class="btn btn-primary" onclick="saveClient()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONTACT -->
+<div class="overlay" id="modal-contact">
+  <div class="modal modal-sm">
+    <div class="mhdr">
+      <div><div class="m-title" id="contact-modal-title">Nouveau contact</div><div class="m-sub" id="contact-modal-sub"></div></div>
+      <button class="m-close" onclick="closeModal('modal-contact')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="fgrid">
+        <div class="fg"><div class="flabel">Prénom *</div><input class="finp" id="ct-prenom" placeholder="Jean"></div>
+        <div class="fg"><div class="flabel">Nom *</div><input class="finp" id="ct-nom" placeholder="Dupont"></div>
+        <div class="fg full"><div class="flabel">Client *</div><select class="fsel" id="ct-client-id"></select></div>
+        <div class="fg"><div class="flabel">Rôle / Fonction</div><input class="finp" id="ct-role" placeholder="Ex: Directeur sécurité"></div>
+        <div class="fg"><div class="flabel">Téléphone</div><input class="finp" id="ct-tel" placeholder="+41 xx xxx xx xx"></div>
+        <div class="fg full"><div class="flabel">Email</div><input class="finp" id="ct-email" type="email" placeholder="jean.dupont@client.ch"></div>
+        <div class="fg"><div class="flabel">Contact principal</div>
+          <select class="fsel" id="ct-principal">
+            <option value="true">Oui — contact principal</option>
+            <option value="false">Non</option>
+          </select>
+        </div>
+        <div class="fg full"><div class="flabel">Notes</div><textarea class="ftxt" id="ct-notes" style="min-height:50px" placeholder="Disponibilités, préférences…"></textarea></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('modal-contact')">Annuler</button>
+        <button class="btn btn-primary" onclick="saveContact()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MISSION -->
+<div class="overlay" id="modal-mission">
+  <div class="modal modal-lg">
+    <div class="mhdr">
+      <div><div class="m-title" id="mission-modal-title">Nouvelle mission</div><div class="m-sub" id="mission-modal-sub"></div></div>
+      <button class="m-close" onclick="closeModal('modal-mission')">✕</button>
+    </div>
+    <div class="mbody">
+
+      <!-- Identification -->
+      <div class="sec-block">
+        <div class="sec-title">📋 Identification</div>
+        <div class="fgrid">
+          <div class="fg full"><div class="flabel">Titre de la mission *</div><input class="finp" id="m-titre" placeholder="Ex: Surveillance Entrepôt Carouge"></div>
+          <div class="fg"><div class="flabel">Client *</div><select class="fsel" id="m-client-id" onchange="onMissionClientChange()"></select></div>
+          <div class="fg"><div class="flabel">Type de prestation</div>
+            <select class="fsel" id="m-type">
+              <option value="rondes">Rondes</option>
+              <option value="surveillance">Surveillance</option>
+              <option value="parking">Contrôle Parking</option>
+              <option value="evenement">Événement</option>
+              <option value="filtrage">Filtrage</option>
+              <option value="interventions">Interventions</option>
+            </select>
+          </div>
+          <div class="fg"><div class="flabel">Statut</div>
+            <select class="fsel" id="m-statut">
+              <option value="devis">Devis</option>
+              <option value="signe">Signé</option>
+              <option value="en_cours">En cours</option>
+              <option value="termine">Terminé</option>
+              <option value="annule">Annulé</option>
+            </select>
+          </div>
+          <div class="fg"><div class="flabel">N° contrat</div><input class="finp" id="m-n-contrat" placeholder="CTR-2026-001"></div>
+          <div class="fg"><div class="flabel">N° bon de commande</div><input class="finp" id="m-n-bc" placeholder="BC-XXXX"></div>
+        </div>
+      </div>
+
+      <!-- Interlocuteurs -->
+      <div class="sec-block">
+        <div class="sec-title">👤 Interlocuteurs mission <button class="btn btn-ghost btn-xs" id="btn-add-interlo" onclick="addInterloRow()">+ Ajouter</button></div>
+        <div id="interlo-form-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:6px;">Sélectionner parmi les contacts du client choisi</div>
+      </div>
+
+      <!-- Lieu -->
+      <div class="sec-block">
+        <div class="sec-title">📍 Lieu d'intervention</div>
+        <div class="fgrid">
+          <div class="fg full"><div class="flabel">Adresse du site</div><input class="finp" id="m-adresse" placeholder="Rue, code postal, ville"></div>
+          <div class="fg"><div class="flabel">Accès / Badge / Digicode</div><input class="finp" id="m-acces" placeholder="Infos d'accès"></div>
+          <div class="fg"><div class="flabel">Consignes particulières</div><input class="finp" id="m-consignes" placeholder="Ex: Ronde toutes les 2h"></div>
+        </div>
+      </div>
+
+      <!-- Documents -->
+      <div class="sec-block">
+        <div class="sec-title">📂 Documents & procédures</div>
+        <div class="fgrid">
+          <div class="fg"><div class="flabel">Consignes en ligne</div>
+            <select class="fsel" id="m-doc-consignes">
+              <option value="non">Non disponible</option>
+              <option value="oui">Disponible en ligne</option>
+            </select>
+          </div>
+          <div class="fg"><div class="flabel">Lien consignes (URL)</div><input class="finp" id="m-doc-consignes-url" placeholder="https://…"></div>
+          <div class="fg"><div class="flabel">Cahier des charges</div>
+            <select class="fsel" id="m-doc-cdc">
+              <option value="non">Non disponible</option>
+              <option value="oui">Disponible en ligne</option>
+            </select>
+          </div>
+          <div class="fg"><div class="flabel">Lien cahier des charges (URL)</div><input class="finp" id="m-doc-cdc-url" placeholder="https://…"></div>
+          <div class="fg"><div class="flabel">Procédures</div>
+            <select class="fsel" id="m-doc-proc">
+              <option value="non">Non disponible</option>
+              <option value="oui">Disponible en ligne</option>
+            </select>
+          </div>
+          <div class="fg"><div class="flabel">Lien procédures (URL)</div><input class="finp" id="m-doc-proc-url" placeholder="https://…"></div>
+        </div>
+      </div>
+
+      <!-- Planification -->
+      <div class="sec-block">
+        <div class="sec-title">📅 Planification</div>
+        <div class="fgrid">
+          <div class="fg"><div class="flabel">Date de début</div><input class="finp" id="m-date-debut" type="date"></div>
+          <div class="fg"><div class="flabel">Date de fin (vide = indéterminée)</div><input class="finp" id="m-date-fin" type="date"></div>
+          <div class="fg"><div class="flabel">Jours d'intervention</div>
+            <select class="fsel" id="m-jours">
+              <option value="7j">7j/7</option>
+              <option value="lv">Lundi → Vendredi</option>
+              <option value="ls">Lundi → Samedi</option>
+              <option value="sd">Samedi & Dimanche</option>
+              <option value="variable">Variable / À préciser</option>
+            </select>
+          </div>
+          <div class="fg"><div class="flabel">Unité de planification</div>
+            <select class="fsel" id="m-unite-plan" onchange="togglePlanFields()">
+              <option value="heures">Heures</option>
+              <option value="passages">Passages</option>
+            </select>
+          </div>
+          <!-- champs heures -->
+          <div class="fg" id="plan-heures-block">
+            <div class="flabel">Heures / semaine</div>
+            <input class="finp" id="m-heures" type="number" step="0.5" placeholder="Ex: 42" oninput="calcCaMission()">
+          </div>
+          <!-- champs passages -->
+          <div class="fg" id="plan-passages-block" style="display:none">
+            <div class="flabel">Nombre de passages</div>
+            <input class="finp" id="m-nb-passages" type="number" step="1" placeholder="Ex: 2" oninput="calcCaMission()">
+          </div>
+          <div class="fg" id="plan-freq-block" style="display:none">
+            <div class="flabel">Fréquence des passages</div>
+            <select class="fsel" id="m-freq-passages" onchange="calcCaMission()">
+              <option value="jour">Par jour</option>
+              <option value="semaine">Par semaine</option>
+              <option value="mois">Par mois</option>
+            </select>
+          </div>
+          <div class="fg">
+            <div class="flabel">Récurrence facturation</div>
+            <select class="fsel" id="m-recurrence">
+              <option value="mensuelle">Mensuelle</option>
+              <option value="bimensuelle">Bimensuelle</option>
+              <option value="trimestrielle">Trimestrielle</option>
+              <option value="ponctuelle">Ponctuelle (unique)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Financier -->
+      <div class="sec-block">
+        <div class="sec-title">💰 Financier</div>
+        <div class="fgrid">
+          <div class="fg"><div class="flabel">Mode de tarification</div>
+            <select class="fsel" id="m-mode-tarif" onchange="toggleTarifFields()">
+              <option value="horaire">Tarif horaire (CHF/h)</option>
+              <option value="passage">Tarif au passage (CHF/passage)</option>
+              <option value="forfait">Forfait mensuel (CHF/mois)</option>
+            </select>
+          </div>
+          <div class="fg" id="tarif-field">
+            <div class="flabel" id="tarif-label">Tarif horaire (CHF)</div>
+            <input class="finp" id="m-tarif" type="number" step="0.5" placeholder="Ex: 45.00" oninput="calcCaMission()">
+          </div>
+          <div class="fg"><div class="flabel">TVA (%)</div><input class="finp" id="m-tva" type="number" step="0.1" value="8.1" oninput="calcCaMission()"></div>
+          <div class="fg"><div class="flabel">CA mensuel estimé</div><input class="finp" id="m-ca-mensuel" readonly placeholder="Calculé auto."></div>
+          <div class="fg"><div class="flabel">CA total contrat estimé</div><input class="finp" id="m-ca-total" readonly placeholder="Calculé auto."></div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="sec-block">
+        <div class="sec-title">📝 Notes internes</div>
+        <textarea class="ftxt" id="m-notes" style="width:100%" placeholder="Historique, particularités, suivi…"></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn btn-danger btn-sm" id="btn-delete-mission" style="display:none;margin-right:auto" onclick="deleteMission()">🗑 Supprimer</button>
+        <button class="btn btn-ghost" onclick="closeModal('modal-mission')">Annuler</button>
+        <button class="btn btn-primary" onclick="saveMission()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL OPPORTUNITE -->
+<div class="overlay" id="modal-opportunite">
+  <div class="modal modal-sm">
+    <div class="mhdr">
+      <div><div class="m-title" id="opport-modal-title">Nouvelle opportunité</div></div>
+      <button class="m-close" onclick="closeModal('modal-opportunite')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="fgrid">
+        <div class="fg full"><div class="flabel">Titre *</div><input class="finp" id="op-titre" placeholder="Ex: Gardiennage Migros Carouge"></div>
+        <div class="fg full"><div class="flabel">Client existant</div><select class="fsel" id="op-client-id"><option value="">— Nouveau prospect —</option></select></div>
+        <div class="fg full"><div class="flabel">Nom prospect (si nouveau)</div><input class="finp" id="op-prospect" placeholder="Ex: Entreprise XYZ"></div>
+        <div class="fg"><div class="flabel">Montant estimé (CHF/an)</div><input class="finp" id="op-montant" type="number" placeholder="Ex: 50000"></div>
+        <div class="fg"><div class="flabel">Probabilité (%)</div><input class="finp" id="op-proba" type="number" min="0" max="100" value="50"></div>
+        <div class="fg full"><div class="flabel">Étape pipeline</div>
+          <select class="fsel" id="op-etape">
+            <option value="prospect">Prospect</option>
+            <option value="contact">Contact établi</option>
+            <option value="devis">Devis envoyé</option>
+            <option value="negociation">Négociation</option>
+            <option value="gagne">Gagné ✅</option>
+            <option value="perdu">Perdu ❌</option>
+          </select>
+        </div>
+        <div class="fg"><div class="flabel">Date de clôture visée</div><input class="finp" id="op-date-cloture" type="date"></div>
+        <div class="fg"><div class="flabel">Responsable</div>
+          <select class="fsel" id="op-responsable">
+            <option value="Guillaume">Guillaume</option>
+            <option value="Rodolphe">Rodolphe</option>
+            <option value="Laurent">Laurent</option>
+          </select>
+        </div>
+        <div class="fg full"><div class="flabel">Notes</div><textarea class="ftxt" id="op-notes" style="min-height:60px"></textarea></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('modal-opportunite')">Annuler</button>
+        <button class="btn btn-primary" onclick="saveOpportunite()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FICHE CLIENT -->
+<div class="overlay" id="modal-fiche-client">
+  <div class="modal modal-lg">
+    <div class="mhdr">
+      <div><div class="m-title" id="fc-title"></div><div class="m-sub" id="fc-sub"></div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-ghost btn-sm" id="btn-fc-mc" onclick="openMCClient(currentClientId)">📋 Main courante</button>
+        <button class="btn btn-ghost btn-sm" onclick="editCurrentClient()">✏️ Modifier</button>
+        <button class="m-close" onclick="closeModal('modal-fiche-client')">✕</button>
+      </div>
+    </div>
+    <div class="mbody" id="fc-body"></div>
+  </div>
+</div>
+
+<!-- MODAL FICHE MISSION -->
+<div class="overlay" id="modal-fiche-mission">
+  <div class="modal modal-lg">
+    <div class="mhdr">
+      <div><div class="m-title" id="fm-title"></div><div class="m-sub" id="fm-sub"></div></div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="editCurrentMission()">✏️ Modifier</button>
+        <button class="m-close" onclick="closeModal('modal-fiche-mission')">✕</button>
+      </div>
+    </div>
+    <div class="mbody" id="fm-body"></div>
+  </div>
+</div>
+
+<!-- MODAL ECHEANCE -->
+<div class="overlay" id="modal-echeance">
+  <div class="modal modal-sm">
+    <div class="mhdr">
+      <div><div class="m-title">Échéance</div><div class="m-sub" id="ech-modal-sub"></div></div>
+      <button class="m-close" onclick="closeModal('modal-echeance')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="fgrid">
+        <div class="fg"><div class="flabel">Mission</div><select class="fsel" id="ech-mission-id"></select></div>
+        <div class="fg"><div class="flabel">Période</div><input class="finp" id="ech-periode" type="month"></div>
+        <div class="fg"><div class="flabel">Montant HT (CHF)</div><input class="finp" id="ech-montant-ht" type="number" step="0.01" oninput="calcEchTtc()"></div>
+        <div class="fg"><div class="flabel">TVA (%)</div><input class="finp" id="ech-tva" type="number" step="0.1" value="8.1" oninput="calcEchTtc()"></div>
+        <div class="fg"><div class="flabel">Montant TTC</div><input class="finp" id="ech-montant-ttc" readonly></div>
+        <div class="fg"><div class="flabel">N° facture</div><input class="finp" id="ech-n-facture" placeholder="FA-2026-001"></div>
+        <div class="fg"><div class="flabel">Statut</div>
+          <select class="fsel" id="ech-statut">
+            <option value="a_emettre">À émettre</option>
+            <option value="emise">Émise</option>
+            <option value="payee">Payée</option>
+            <option value="litige">Litige</option>
+          </select>
+        </div>
+        <div class="fg"><div class="flabel">Date d'émission</div><input class="finp" id="ech-date-emission" type="date"></div>
+        <div class="fg"><div class="flabel">Date de paiement</div><input class="finp" id="ech-date-pmt" type="date"></div>
+        <div class="fg full"><div class="flabel">Notes</div><textarea class="ftxt" id="ech-notes" style="min-height:50px"></textarea></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-danger btn-sm" id="btn-delete-ech" style="display:none;margin-right:auto" onclick="deleteEcheance()">🗑 Supprimer</button>
+        <button class="btn btn-ghost" onclick="closeModal('modal-echeance')">Annuler</button>
+        <button class="btn btn-primary" onclick="saveEcheance()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL MAIN COURANTE -->
+<div class="overlay" id="modal-mc">
+  <div class="modal modal-sm">
+    <div class="mhdr">
+      <div><div class="m-title" id="mc-modal-title">Nouvelle entrée</div><div class="m-sub" id="mc-modal-sub"></div></div>
+      <button class="m-close" onclick="closeModal('modal-mc')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="fgrid">
+        <div class="fg"><div class="flabel">Date *</div><input class="finp" id="mc-date" type="date"></div>
+        <div class="fg"><div class="flabel">Catégorie *</div><select class="fsel" id="mc-categorie"></select></div>
+        <div class="fg full"><div class="flabel">Client *</div><select class="fsel" id="mc-client-id" onchange="updateMCMissionSelect()"></select></div>
+        <div class="fg full"><div class="flabel">Mission concernée</div><select class="fsel" id="mc-mission-id"><option value="">— Non spécifiée —</option></select></div>
+        <div class="fg full"><div class="flabel">Auteur</div>
+          <select class="fsel" id="mc-auteur">
+            <option value="Guillaume">Guillaume</option>
+            <option value="Rodolphe">Rodolphe</option>
+            <option value="Laurent">Laurent</option>
+          </select>
+        </div>
+        <div class="fg full"><div class="flabel">Texte *</div><textarea class="ftxt" id="mc-texte" style="min-height:100px" placeholder="Décrivez l'événement, l'échange, la modification…"></textarea></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-danger btn-sm" id="btn-delete-mc" style="display:none;margin-right:auto" onclick="deleteMC()">🗑 Supprimer</button>
+        <button class="btn btn-ghost" onclick="closeModal('modal-mc')">Annuler</button>
+        <button class="btn btn-primary" onclick="saveMC()">Enregistrer</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL LIGNES DE PRESTATION -->
+<div class="overlay" id="modal-prestations">
+  <div class="modal modal-lg">
+    <div class="mhdr">
+      <div><div class="m-title" id="prest-modal-title">Lignes de prestation</div><div class="m-sub" id="prest-modal-sub"></div></div>
+      <button class="m-close" onclick="closeModal('modal-prestations')">✕</button>
+    </div>
+    <div class="mbody">
+      <div style="background:var(--blue-l);border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--blue);margin-bottom:16px;">
+        💡 Ces lignes définissent ce qui est facturé chaque période. Le total HT est calculé automatiquement et utilisé pour les échéances.
+      </div>
+      <!-- En-tête colonnes -->
+      <div class="lp-head">
+        <div class="lp-head-label">Description</div>
+        <div class="lp-head-label">Type</div>
+        <div class="lp-head-label">Qté</div>
+        <div class="lp-head-label">PU HT (CHF)</div>
+        <div></div>
+      </div>
+      <div id="prest-lines-container"></div>
+      <div class="lp-total-row" id="prest-total-row"></div>
+      <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="addPrestLine()">+ Ajouter une ligne</button>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal('modal-prestations')">Annuler</button>
+        <button class="btn btn-primary" onclick="savePrestations()">Enregistrer les lignes</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- ══════════ SCRIPT ══════════ -->
+<script>
+// ════════════════════════════════════════
+//  CONSTANTS
+// ════════════════════════════════════════
+const SB_URL  = 'https://trdhtlcenmjlcvzuplid.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
+const AUTH_KEY  = 'crm_rdz_session';
+const CACHE_KEY = 'crm_rdz_cache_v3';
+const PARAMS_KEY = 'crm_rdz_params_v1';
+
+const TYPES_MISSION = {rondes:'Rondes',surveillance:'Surveillance',parking:'Contrôle Parking',evenement:'Événement',filtrage:'Filtrage',interventions:'Interventions'};
+
+// Paramètres par défaut (chargés depuis Supabase, fallback localStorage, fallback ces valeurs)
+const DEFAULT_PARAMS = {
+  mcCategories: [
+    {label:'Événement site',       color:'#ea580c'},
+    {label:'Incident',             color:'#dc2626'},
+    {label:'Visite client',        color:'#2563eb'},
+    {label:'Modification contrat', color:'#7c3aed'},
+    {label:'Échange tél / email',  color:'#16a34a'},
+    {label:'Compte-rendu',         color:'#ca8a04'},
+    {label:'Autre',                color:'#9ca3af'},
+  ],
+  prestTypes: ['Abonnement mensuel','Intervention','Heure supplémentaire','Forfait','Astreinte','Frais','Autre'],
+};
+const MISSION_STATUTS = {devis:{label:'Devis',cls:'b-yellow'},signe:{label:'Signé',cls:'b-blue'},en_cours:{label:'En cours',cls:'b-green'},termine:{label:'Terminé',cls:'b-gray'},annule:{label:'Annulé',cls:'b-red'}};
+const CLIENT_STATUTS  = {prospect:{label:'Prospect',cls:'b-yellow'},actif:{label:'Actif',cls:'b-green'},inactif:{label:'Inactif',cls:'b-gray'}};
+const FACT_STATUTS    = {a_emettre:{label:'À émettre',cls:'b-orange'},emise:{label:'Émise',cls:'b-blue'},payee:{label:'Payée',cls:'b-green'},litige:{label:'Litige',cls:'b-red'}};
+const JOURS_LABELS    = {'7j':'7j/7','lv':'Lun–Ven','ls':'Lun–Sam','sd':'Sam–Dim','variable':'Variable'};
+const FREQ_LABELS     = {mensuelle:'Mensuelle',bimensuelle:'Bimensuelle',trimestrielle:'Trimestrielle',ponctuelle:'Ponctuelle'};
+const PIPELINE_COLS   = [
+  {key:'prospect',  label:'Prospect',       color:'#9ca3af'},
+  {key:'contact',   label:'Contact établi', color:'#2563eb'},
+  {key:'devis',     label:'Devis envoyé',   color:'#ca8a04'},
+  {key:'negociation',label:'Négociation',   color:'#ea580c'},
+  {key:'gagne',     label:'Gagné ✅',        color:'#16a34a'},
+];
+
+// ════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════
+let session=null;
+let clients=[],contacts=[],missions=[],echeances=[],opportunites=[];
+let mainCourante=[], prestations=[];
+let editingClientId=null,editingContactId=null,editingMissionId=null;
+let editingOpportuniteId=null,editingEcheanceId=null,editingMCId=null;
+let currentClientId=null,currentMissionId=null,currentPrestMissionId=null;
+let missionInterlos=[];
+// Lignes de prestation en cours d'édition
+let editPrestLines=[];
+// Paramètres (initialisés avec les défauts, puis surchargés depuis Supabase au chargement)
+let params = {
+  mcCategories: [...DEFAULT_PARAMS?.mcCategories||[]],
+  prestTypes:   [...DEFAULT_PARAMS?.prestTypes||[]],
+};
+
+// ════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════
+const todayISO=()=>new Date().toISOString().slice(0,10);
+function uuid(){if(typeof crypto!=='undefined'&&crypto.randomUUID)return crypto.randomUUID();return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,c=>{const r=Math.random()*16|0;return(c==='x'?r:(r&0x3|0x8)).toString(16);});}
+function formatDate(d){if(!d)return'—';const p=d.split('-');return p.length>=2?`${p[2]||'??'}.${p[1]}.${p[0]}`:d;}
+function formatMois(d){if(!d)return'—';const p=(d+'').slice(0,7).split('-');const m=['','Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];return(m[parseInt(p[1]||0)]||'?')+' '+(p[0]||'');}
+function chf(v){if(v==null||v===''||isNaN(v))return'—';return parseFloat(v).toLocaleString('fr-CH',{minimumFractionDigits:2,maximumFractionDigits:2})+' CHF';}
+function chfNum(v){if(v==null||v===''||isNaN(v))return'—';return parseFloat(v).toLocaleString('fr-CH',{minimumFractionDigits:0,maximumFractionDigits:0})+' CHF';}
+function initials(n){if(!n)return'?';const w=n.trim().split(' ');return(w[0][0]+(w[1]?w[1][0]:'')).toUpperCase();}
+function badge(text,cls){return`<span class="badge ${cls}">${text}</span>`;}
+function docBadge(state,label,url){
+  if(state==='oui'&&url) return`<a href="${url}" target="_blank" class="doc-indicator doc-ok">✅ ${label}</a>`;
+  if(state==='oui')      return`<span class="doc-indicator doc-ok">✅ ${label}</span>`;
+  return`<span class="doc-indicator doc-missing">— ${label}</span>`;
+}
+
+function toast(msg,type='ok'){
+  const el=document.createElement('div');
+  el.className=`toast-msg ${type}`;el.textContent=msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(()=>el.remove(),3200);
+}
+
+// ════════════════════════════════════════
+//  SUPABASE
+// ════════════════════════════════════════
+async function sbFetch(path,opts={}){
+  const token=session?.access_token;
+  const headers={'apikey':SB_KEY,'Content-Type':'application/json',...(token?{'Authorization':`Bearer ${token}`}:{}),...opts.headers};
+  const res=await fetch(`${SB_URL}/rest/v1/${path}`,{...opts,headers});
+  if(!res.ok){const t=await res.text();throw new Error(t||`HTTP ${res.status}`);}
+  const ct=res.headers.get('content-type')||'';
+  if(res.status===204||!ct.includes('json'))return null;
+  const text=await res.text();
+  return text?.trim()?JSON.parse(text):null;
+}
+
+// ════════════════════════════════════════
+//  AUTH
+// ════════════════════════════════════════
+window.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('login-pass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+  document.getElementById('dash-date').textContent=new Date().toLocaleDateString('fr-CH',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+  document.getElementById('btn-new-opport').addEventListener('click',openNewOpportunite);
+  // close overlay on backdrop click
+  document.querySelectorAll('.overlay').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)closeModal(el.id);}));
+  const saved=localStorage.getItem(AUTH_KEY);
+  if(saved){try{session=JSON.parse(saved);if(session.expires_at&&Date.now()/1000<session.expires_at){startApp();return;}}catch(_){}}
+  showLogin();
+});
+function showLogin(){document.getElementById('login-screen').classList.add('visible');document.getElementById('app').classList.remove('visible');}
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-pass').value;
+  const btn=document.querySelector('.login-btn');
+  const err=document.getElementById('login-err');
+  err.classList.remove('visible');
+  if(!email||!pass){showE('Veuillez remplir tous les champs.');return;}
+  btn.disabled=true;btn.textContent='Connexion…';
+  try{
+    const r=await fetch(`${SB_URL}/auth/v1/token?grant_type=password`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},body:JSON.stringify({email,password:pass})});
+    const d=await r.json();
+    if(!r.ok)throw new Error(d.error_description||d.msg||'Identifiants invalides');
+    const pr=await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${d.user.id}&select=*`,{headers:{'apikey':SB_KEY,'Authorization':`Bearer ${d.access_token}`}});
+    const profiles=await pr.json();
+    session={...d,profile:profiles[0]||{role:'admin'},expires_at:Math.floor(Date.now()/1000)+d.expires_in};
+    localStorage.setItem(AUTH_KEY,JSON.stringify(session));
+    startApp();
+  }catch(e){showE(e.message);btn.disabled=false;btn.textContent='Se connecter';}
+  function showE(m){err.textContent=m;err.classList.add('visible');}
+}
+function logout(){localStorage.removeItem(AUTH_KEY);session=null;window.location.href='https://rdz-2026.github.io/routeops/RDZ_index.html';}
+function startApp(){
+  document.getElementById('login-screen').classList.remove('visible');
+  document.getElementById('app').classList.add('visible');
+  document.getElementById('tb-user').textContent=session?.profile?.full_name||session?.user?.email||'';
+  loadData();
+}
+
+// ════════════════════════════════════════
+//  DATA
+// ════════════════════════════════════════
+async function loadData(){
+  // Charger les paramètres en premier (catégories MC, types prestations)
+  await loadParams();
+  try{
+    const[cl,ct,ms,ec,op,mc,pr]=await Promise.all([
+      sbFetch('crm_clients?select=*&order=raison_sociale.asc'),
+      sbFetch('crm_contacts?select=*&order=nom.asc'),
+      sbFetch('crm_missions?select=*&order=date_debut.desc'),
+      sbFetch('crm_echeances?select=*&order=date_echeance.asc'),
+      sbFetch('crm_opportunites?select=*&order=created_at.desc'),
+      sbFetch('crm_main_courante?select=*&order=date.desc,created_at.desc'),
+      sbFetch('crm_prestations?select=*&order=created_at.asc'),
+    ]);
+    clients=cl||[];contacts=ct||[];missions=ms||[];echeances=ec||[];opportunites=op||[];
+    mainCourante=mc||[];prestations=pr||[];
+    cacheLocally();
+  }catch(e){
+    console.warn('Offline:',e.message);
+    loadCache();
+  }
+  renderAll();
+}
+function cacheLocally(){try{localStorage.setItem(CACHE_KEY,JSON.stringify({clients,contacts,missions,echeances,opportunites,mainCourante,prestations}));}catch(_){}}
+function loadCache(){
+  try{const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'{}');clients=c.clients||[];contacts=c.contacts||[];missions=c.missions||[];echeances=c.echeances||[];opportunites=c.opportunites||[];mainCourante=c.mainCourante||[];prestations=c.prestations||[];toast('Mode hors-ligne — données en cache','err');}
+  catch(_){clients=[];contacts=[];missions=[];echeances=[];opportunites=[];mainCourante=[];prestations=[];}
+}
+function loadParams_legacy(){
+  // Kept for reference only — replaced by Supabase-backed loadParams above
+}
+function renderAll(){renderDashboard();renderKanban();renderClients();renderContacts();renderMissions();renderFacturation();renderMC();renderParametres();updateBadges();populateSelects();}
+
+// ════════════════════════════════════════
+//  NAV
+// ════════════════════════════════════════
+function nav(p){
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+  document.getElementById(`panel-${p}`).classList.add('active');
+  document.getElementById(`nav-${p}`)?.classList.add('active');
+}
+
+// ════════════════════════════════════════
+//  SELECTS & BADGES
+// ════════════════════════════════════════
+function populateSelects(){
+  const opts=clients.map(c=>`<option value="${c.id}">${c.raison_sociale}</option>`).join('');
+  ['op-client-id'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=`<option value="">— Nouveau prospect —</option>${opts}`;});
+  ['m-client-id','ct-client-id','mc-client-id'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=`<option value="">— Sélectionner —</option>${opts}`;});
+  const fc=document.getElementById('filter-contact-client');
+  if(fc)fc.innerHTML=`<option value="">Tous les clients</option>${opts}`;
+  const fmc=document.getElementById('filter-mc-client');
+  if(fmc)fmc.innerHTML=`<option value="">Tous les clients</option>${opts}`;
+  // Filtre mission MC
+  const fmm=document.getElementById('filter-mc-mission');
+  if(fmm)fmm.innerHTML=`<option value="">Toutes les missions</option>${missions.map(m=>`<option value="${m.id}">${m.titre}</option>`).join('')}`;
+  // Catégories MC select (modal + filtre)
+  const catOpts=params.mcCategories.map(c=>`<option value="${c.label}">${c.label}</option>`).join('');
+  const mcCat=document.getElementById('mc-categorie');
+  if(mcCat)mcCat.innerHTML=catOpts;
+  const fcat=document.getElementById('filter-mc-cat');
+  if(fcat)fcat.innerHTML=`<option value="">Toutes catégories</option>${catOpts}`;
+  // Mois facturation
+  const moisSet=[...new Set(echeances.map(e=>e.date_echeance?.slice(0,7)).filter(Boolean))].sort();
+  const moisEl=document.getElementById('filter-fact-mois');
+  if(moisEl)moisEl.innerHTML=`<option value="">Tous mois</option>${moisSet.map(m=>`<option value="${m}">${formatMois(m+'-01')}</option>`).join('')}`;
+  // Echeances mission select
+  const emEl=document.getElementById('ech-mission-id');
+  if(emEl)emEl.innerHTML=`<option value="">— Sélectionner —</option>${missions.map(m=>`<option value="${m.id}">${m.titre} — ${clientName(m.client_id)}</option>`).join('')}`;
+}
+function updateBadges(){
+  document.getElementById('badge-pipeline').textContent=opportunites.filter(o=>!['gagne','perdu'].includes(o.etape)).length;
+  document.getElementById('badge-fact').textContent=echeances.filter(e=>e.statut==='a_emettre').length;
+}
+
+// ════════════════════════════════════════
+//  DASHBOARD
+// ════════════════════════════════════════
+function renderDashboard(){
+  const actives=missions.filter(m=>m.statut==='en_cours');
+  const caAn=actives.reduce((s,m)=>s+caMensuel(m)*12,0);
+  const clientsActifs=new Set(actives.map(m=>m.client_id)).size;
+  const aFacturer=echeances.filter(e=>e.statut==='a_emettre').length;
+  const pipelineTotal=opportunites.filter(o=>!['gagne','perdu'].includes(o.etape)).reduce((s,o)=>s+(parseFloat(o.montant)||0)*(parseFloat(o.probabilite)||50)/100,0);
+  document.getElementById('kpi-grid').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">CA annuel (actif)</div><div class="kpi-val kv-green">${chfNum(caAn)}</div><div class="kpi-sub">${actives.length} missions en cours</div></div>
+    <div class="kpi-card"><div class="kpi-label">Clients actifs</div><div class="kpi-val kv-blue">${clientsActifs}</div><div class="kpi-sub">${clients.length} clients total</div></div>
+    <div class="kpi-card"><div class="kpi-label">Factures à émettre</div><div class="kpi-val kv-red">${aFacturer}</div><div class="kpi-sub">échéances en attente</div></div>
+    <div class="kpi-card"><div class="kpi-label">Pipeline pondéré</div><div class="kpi-val kv-orange">${chfNum(pipelineTotal)}</div><div class="kpi-sub">${opportunites.filter(o=>!['gagne','perdu'].includes(o.etape)).length} opportunités</div></div>`;
+
+  // Alertes
+  const today=new Date(),in30=new Date(today);in30.setDate(in30.getDate()+30);
+  const alertes=[];
+  missions.filter(m=>m.statut==='en_cours'&&m.date_fin).forEach(m=>{
+    const fin=new Date(m.date_fin);
+    if(fin<=in30){const days=Math.ceil((fin-today)/864e5);alertes.push({type:'urgent',label:m.titre,desc:`Contrat expire dans ${days}j — ${clientName(m.client_id)}`,date:formatDate(m.date_fin)});}
+  });
+  echeances.filter(e=>e.statut==='a_emettre').slice(0,4).forEach(e=>{
+    const m=missions.find(x=>x.id===e.mission_id);
+    alertes.push({type:'warn',label:'Facture à émettre',desc:`${m?.titre||'Mission'} — ${chf(e.montant_ht)} HT`,date:formatMois(e.date_echeance)});
+  });
+  const al=document.getElementById('dash-alertes');
+  al.innerHTML=alertes.length?`<div class="alert-list">${alertes.slice(0,5).map(a=>`<div class="alert-item ${a.type==='warn'?'warn':''}"><div><div class="alert-name">${a.label}</div><div class="alert-desc">${a.desc}</div></div><div class="alert-date kv-red">${a.date}</div></div>`).join('')}</div>`:'<div class="empty" style="padding:20px"><div class="empty-icon">✅</div>Aucune alerte</div>';
+
+  const dm=document.getElementById('dash-missions');
+  dm.innerHTML=actives.length?`<div class="tbl-wrap"><table><thead><tr><th>Mission</th><th>Client</th><th>CA/mois</th></tr></thead><tbody>${actives.slice(0,8).map(m=>`<tr onclick="openFicheMission('${m.id}')"><td style="font-weight:600">${m.titre}</td><td style="color:var(--text3)">${clientName(m.client_id)}</td><td class="mono" style="color:var(--green)">${chf(caMensuel(m))}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty" style="padding:20px"><div class="empty-icon">📋</div>Aucune mission active</div>';
+
+  const thisMois=todayISO().slice(0,7);
+  const aEmettre=echeances.filter(e=>e.statut==='a_emettre'&&e.date_echeance?.startsWith(thisMois));
+  const df=document.getElementById('dash-facturer');
+  df.innerHTML=aEmettre.length?`<div class="tbl-wrap"><table><thead><tr><th>Mission</th><th>Client</th><th>Période</th><th>HT</th><th>TTC</th><th></th></tr></thead><tbody>${aEmettre.map(e=>{const m=missions.find(x=>x.id===e.mission_id);return`<tr><td style="font-weight:600">${m?.titre||'—'}</td><td>${clientName(m?.client_id)}</td><td style="color:var(--text3)">${formatMois(e.date_echeance)}</td><td class="mono">${chf(e.montant_ht)}</td><td class="mono" style="font-weight:600">${chf(e.montant_ttc)}</td><td><button class="btn btn-primary btn-xs" onclick="openEcheance('${e.id}')">Mettre à jour</button></td></tr>`;}).join('')}</tbody></table></div>`:'<div class="empty" style="padding:20px"><div class="empty-icon">🎉</div>Toutes les factures de ce mois sont émises</div>';
+}
+
+// ════════════════════════════════════════
+//  KANBAN
+// ════════════════════════════════════════
+function renderKanban(){
+  const board=document.getElementById('kanban-board');
+  board.innerHTML=PIPELINE_COLS.map(col=>{
+    const cards=opportunites.filter(o=>o.etape===col.key);
+    const total=cards.reduce((s,o)=>s+(parseFloat(o.montant)||0),0);
+    return`<div class="kb-col"><div class="kb-hdr" style="color:${col.color}">${col.label}<span class="kb-count" style="background:${col.color};color:white">${cards.length}</span></div>
+    <div class="kb-cards">${cards.map(o=>`<div class="kb-card" onclick="editOpportunite('${o.id}')"><div class="kb-card-title">${o.titre}</div><div class="kb-card-client">${o.prospect||clientName(o.client_id)||'—'}</div><div class="kb-card-footer"><div class="kb-card-amount">${o.montant?chfNum(o.montant):''}</div><div style="font-size:11px;color:var(--text3)">${o.responsable||''}</div></div></div>`).join('')}
+    ${cards.length&&col.key!=='gagne'?`<div style="font-size:11px;color:var(--text3);text-align:center;padding:4px">Total: ${chfNum(total)}/an</div>`:''}
+    </div></div>`;
+  }).join('');
+  const perdus=opportunites.filter(o=>o.etape==='perdu');
+  if(perdus.length) board.innerHTML+=`<div class="kb-col"><div class="kb-hdr" style="color:#dc2626">Perdu ❌<span class="kb-count" style="background:#dc2626;color:white">${perdus.length}</span></div><div class="kb-cards">${perdus.map(o=>`<div class="kb-card" onclick="editOpportunite('${o.id}')"><div class="kb-card-title">${o.titre}</div><div class="kb-card-client">${o.prospect||clientName(o.client_id)||'—'}</div></div>`).join('')}</div></div>`;
+}
+
+// ════════════════════════════════════════
+//  CLIENTS
+// ════════════════════════════════════════
+function renderClients(){
+  const q=(document.getElementById('search-clients')?.value||'').toLowerCase();
+  const st=document.getElementById('filter-client-statut')?.value||'';
+  const filtered=clients.filter(c=>{
+    if(st&&c.statut!==st)return false;
+    if(q&&![c.raison_sociale,c.siret,c.secteur].some(s=>s?.toLowerCase().includes(q)))return false;
+    return true;
+  });
+  document.getElementById('clients-count').textContent=`${filtered.length} client${filtered.length>1?'s':''}`;
+  const tbody=document.getElementById('tbody-clients');
+  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-icon">🏢</div>Aucun client</div></td></tr>`;return;}
+  tbody.innerHTML=filtered.map(c=>{
+    const nbMs=missions.filter(m=>m.client_id===c.id).length;
+    const caAn=missions.filter(m=>m.client_id===c.id&&m.statut==='en_cours').reduce((s,m)=>s+caMensuel(m)*12,0);
+    const s=CLIENT_STATUTS[c.statut]||CLIENT_STATUTS.prospect;
+    return`<tr onclick="openFicheClient('${c.id}')"><td><strong>${c.raison_sociale}</strong></td><td class="mono" style="font-size:11.5px;color:var(--text3)">${c.siret||'—'}</td><td>${c.secteur||'—'}</td><td>${nbMs} mission${nbMs>1?'s':''}</td><td class="mono" style="color:var(--green);font-weight:600">${caAn?chf(caAn):'—'}</td><td>${badge(s.label,s.cls)}</td><td><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();editClient('${c.id}')">✏️</button></td></tr>`;
+  }).join('');
+}
+
+function openNewClient(){editingClientId=null;clearForm(['c-raison','c-siret','c-secteur','c-adresse-fact','c-tarif','c-delai-pmt','c-notes']);document.getElementById('c-tva').value='8.1';document.getElementById('c-statut').value='prospect';document.getElementById('client-modal-title').textContent='Nouveau client';document.getElementById('client-modal-sub').textContent='';openModal('modal-client');}
+function editClient(id){
+  editingClientId=id;const c=clients.find(x=>x.id===id);if(!c)return;
+  document.getElementById('client-modal-title').textContent=c.raison_sociale;
+  document.getElementById('client-modal-sub').textContent='Modifier';
+  setVals({'c-raison':c.raison_sociale,'c-siret':c.siret,'c-secteur':c.secteur,'c-adresse-fact':c.adresse_fact,'c-tarif':c.tarif,'c-delai-pmt':c.delai_pmt,'c-tva':c.tva||8.1,'c-statut':c.statut||'prospect','c-notes':c.notes});
+  openModal('modal-client');
+}
+async function saveClient(){
+  const data={raison_sociale:v('c-raison'),siret:v('c-siret'),secteur:v('c-secteur'),adresse_fact:v('c-adresse-fact'),tarif:vn('c-tarif'),delai_pmt:vn('c-delai-pmt'),tva:vn('c-tva')||8.1,statut:v('c-statut')||'prospect',notes:v('c-notes')};
+  if(!data.raison_sociale){toast('Raison sociale obligatoire','err');return;}
+  try{
+    if(editingClientId){
+      await sbFetch(`crm_clients?id=eq.${editingClientId}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify(data)});
+      const i=clients.findIndex(x=>x.id===editingClientId);if(i>=0)clients[i]={...clients[i],...data};
+      toast('Client mis à jour ✓');
+    }else{
+      const rec={...data,id:uuid(),created_at:new Date().toISOString()};
+      await sbFetch('crm_clients',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(rec)});
+      clients.push(rec);toast('Client créé ✓');
+    }
+    closeModal('modal-client');cacheLocally();renderAll();
+  }catch(e){toast(e.message,'err');}
+}
+
+function openFicheClient(id){
+  currentClientId=id;
+  const c=clients.find(x=>x.id===id);if(!c)return;
+  const cts=contacts.filter(x=>x.client_id===id);
+  const ms=missions.filter(x=>x.client_id===id);
+  const s=CLIENT_STATUTS[c.statut]||CLIENT_STATUTS.prospect;
+  const caAn=ms.filter(m=>m.statut==='en_cours').reduce((s,m)=>s+caMensuel(m)*12,0);
+  document.getElementById('fc-title').textContent=c.raison_sociale;
+  document.getElementById('fc-sub').innerHTML=badge(s.label,s.cls);
+  document.getElementById('fc-body').innerHTML=`
+    <div class="fiche-grid">
+      <div class="fiche-card">
+        <div class="frow"><div class="fl">SIRET / IDE</div><div class="fv mono">${c.siret||'—'}</div></div>
+        <div class="frow"><div class="fl">Secteur</div><div class="fv">${c.secteur||'—'}</div></div>
+        <div class="frow"><div class="fl">Adresse facturation</div><div class="fv">${c.adresse_fact||'—'}</div></div>
+        <div class="frow"><div class="fl">Délai de paiement</div><div class="fv">${c.delai_pmt?c.delai_pmt+' jours':'—'}</div></div>
+        <div class="frow"><div class="fl">Tarif horaire défaut</div><div class="fv mono">${c.tarif?chf(c.tarif):'—'}</div></div>
+        <div class="frow"><div class="fl">TVA</div><div class="fv">${c.tva||8.1} %</div></div>
+      </div>
+      <div class="fiche-card">
+        <div class="frow"><div class="fl">CA annuel (actif)</div><div class="fv mono" style="color:var(--green);font-weight:700">${caAn?chf(caAn):'—'}</div></div>
+        <div class="frow"><div class="fl">Missions totales</div><div class="fv">${ms.length}</div></div>
+        <div class="frow"><div class="fl">Missions actives</div><div class="fv">${ms.filter(m=>m.statut==='en_cours').length}</div></div>
+        <div class="frow"><div class="fl">Contacts</div><div class="fv">${cts.length}</div></div>
+      </div>
+      ${c.notes?`<div class="fiche-card full"><div class="frow"><div class="fl">Notes</div><div class="fv" style="text-align:left">${c.notes}</div></div></div>`:''}
+    </div>
+    <div class="sep"></div>
+    <div class="sec-title">👤 Interlocuteurs
+      <button class="btn btn-ghost btn-xs" onclick="openNewContact('${id}')">+ Ajouter</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:20px">
+      ${cts.length?cts.map(ct=>`
+        <div class="contact-chip">
+          <div class="contact-chip-av">${initials(ct.prenom+' '+ct.nom)}</div>
+          <div class="contact-chip-info">
+            <div class="contact-chip-name">${ct.prenom} ${ct.nom}${ct.principal?' ⭐':''}</div>
+            <div class="contact-chip-role">${ct.role||'—'}</div>
+            <div class="contact-chip-tel">${ct.tel||''}</div>
+            <div style="font-size:11px;color:var(--text3)">${ct.email||''}</div>
+          </div>
+          <button class="btn btn-ghost btn-xs" style="flex-shrink:0" onclick="editContactFromFiche('${ct.id}')">✏️</button>
+        </div>`).join(''):'<div style="color:var(--text3);font-size:13px;padding:10px 0">Aucun contact enregistré</div>'}
+    </div>
+    <div class="sec-title">🛡 Missions</div>
+    ${ms.length?`<div class="tbl-wrap"><table><thead><tr><th>Mission</th><th>Type</th><th>Statut</th><th>Période</th><th>CA/mois</th></tr></thead><tbody>
+      ${ms.map(m=>{const s=MISSION_STATUTS[m.statut]||MISSION_STATUTS.devis;return`<tr onclick="openFicheMissionFromClient('${m.id}')"><td style="font-weight:600">${m.titre}</td><td>${TYPES_MISSION[m.type]||m.type}</td><td>${badge(s.label,s.cls)}</td><td style="font-size:12px;color:var(--text3)">${formatDate(m.date_debut)} → ${m.date_fin?formatDate(m.date_fin):'∞'}</td><td class="mono" style="color:var(--green)">${chf(caMensuel(m))}</td></tr>`;}).join('')}
+    </tbody></table></div>`:'<div style="color:var(--text3);font-size:13px;padding:10px 0">Aucune mission</div>'}
+
+    <div class="sep"></div>
+    <div class="sec-title">📋 Main courante client
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-xs" onclick="openNewMC('${id}')">+ Entrée</button>
+        <button class="btn btn-ghost btn-xs" onclick="openMCClient('${id}')">Tout voir →</button>
+      </div>
+    </div>
+    ${(()=>{
+      const mcClient=mainCourante.filter(x=>{const m=missions.find(ms=>ms.id===x.mission_id);return x.client_id===id||m?.client_id===id;}).slice(0,6);
+      if(!mcClient.length) return '<div style="color:var(--text3);font-size:13px;padding:6px 0 4px">Aucune entrée — utilisez "+ Entrée" pour commencer</div>';
+      return mcClient.map(x=>renderMCItemHTML(x)).join('');
+    })()}`;
+  openModal('modal-fiche-client');
+}
+function editCurrentClient(){closeModal('modal-fiche-client');editClient(currentClientId);}
+
+// ── Ouvrir contact depuis fiche client (modal par-dessus)
+function editContactFromFiche(ctId){
+  editContact(ctId, true);
+}
+function openNewContact(clientId, fromFiche=false){
+  editingContactId=null;
+  clearForm(['ct-prenom','ct-nom','ct-role','ct-tel','ct-email','ct-notes']);
+  document.getElementById('ct-principal').value='false';
+  document.getElementById('contact-modal-title').textContent='Nouveau contact';
+  document.getElementById('contact-modal-sub').textContent='';
+  // pré-sélectionner le client
+  setTimeout(()=>{if(clientId)document.getElementById('ct-client-id').value=clientId;},10);
+  openModal('modal-contact', fromFiche||!!clientId);
+}
+
+// ════════════════════════════════════════
+//  CONTACTS
+// ════════════════════════════════════════
+function renderContacts(){
+  const q=(document.getElementById('search-contacts')?.value||'').toLowerCase();
+  const cl=document.getElementById('filter-contact-client')?.value||'';
+  const filtered=contacts.filter(c=>{
+    if(cl&&c.client_id!==cl)return false;
+    if(q&&![(c.prenom+' '+c.nom),c.email,c.tel].some(s=>s?.toLowerCase().includes(q)))return false;
+    return true;
+  });
+  document.getElementById('contacts-count').textContent=`${filtered.length} contact${filtered.length>1?'s':''}`;
+  const tbody=document.getElementById('tbody-contacts');
+  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="7"><div class="empty"><div class="empty-icon">👤</div>Aucun contact</div></td></tr>`;return;}
+  tbody.innerHTML=filtered.map(c=>`<tr onclick="editContact('${c.id}')"><td><strong>${c.prenom} ${c.nom}</strong></td><td style="color:var(--text3)">${c.role||'—'}</td><td>${clientName(c.client_id)}</td><td class="mono" style="font-size:12px">${c.tel||'—'}</td><td style="font-size:12px">${c.email||'—'}</td><td>${c.principal?'⭐ Principal':'—'}</td><td><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();editContact('${c.id}')">✏️</button></td></tr>`).join('');
+}
+
+function editContact(id, onTop=false){
+  editingContactId=id;const c=contacts.find(x=>x.id===id);if(!c)return;
+  document.getElementById('contact-modal-title').textContent=`${c.prenom} ${c.nom}`;
+  document.getElementById('contact-modal-sub').textContent='Modifier';
+  setVals({'ct-prenom':c.prenom,'ct-nom':c.nom,'ct-client-id':c.client_id,'ct-role':c.role,'ct-tel':c.tel,'ct-email':c.email,'ct-principal':c.principal?'true':'false','ct-notes':c.notes});
+  openModal('modal-contact', onTop);
+}
+async function saveContact(){
+  const data={prenom:v('ct-prenom'),nom:v('ct-nom'),client_id:v('ct-client-id'),role:v('ct-role'),tel:v('ct-tel'),email:v('ct-email'),principal:document.getElementById('ct-principal').value==='true',notes:v('ct-notes')};
+  if(!data.prenom||!data.nom){toast('Prénom et nom obligatoires','err');return;}
+  if(!data.client_id){toast('Veuillez sélectionner un client','err');return;}
+  try{
+    if(editingContactId){
+      await sbFetch(`crm_contacts?id=eq.${editingContactId}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify(data)});
+      const i=contacts.findIndex(x=>x.id===editingContactId);if(i>=0)contacts[i]={...contacts[i],...data};
+      toast('Contact mis à jour ✓');
+    }else{
+      const rec={...data,id:uuid(),created_at:new Date().toISOString()};
+      await sbFetch('crm_contacts',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(rec)});
+      contacts.push(rec);toast('Contact créé ✓');
+    }
+    closeModal('modal-contact');
+    cacheLocally();renderAll();
+    // Rafraîchir la fiche client si elle est ouverte
+    if(currentClientId)refreshFicheClient();
+  }catch(e){toast(e.message,'err');}
+}
+function refreshFicheClient(){
+  if(document.getElementById('modal-fiche-client').classList.contains('open')){
+    openFicheClient(currentClientId);
+  }
+}
+
+// ════════════════════════════════════════
+//  MISSIONS
+// ════════════════════════════════════════
+
+// -- Calcul CA
+function caMensuel(m){
+  if(!m)return 0;
+  const mode=m.mode_tarif||'horaire';
+  const tarif=parseFloat(m.tarif)||0;
+  if(!tarif)return 0;
+  if(mode==='forfait')return tarif;
+  if(mode==='horaire'){
+    const h=parseFloat(m.heures_semaine)||0;
+    return tarif*h*52/12;
+  }
+  if(mode==='passage'){
+    const nb=parseFloat(m.nb_passages)||0;
+    const freq=m.freq_passages||'semaine';
+    if(freq==='jour')return tarif*nb*30;
+    if(freq==='semaine')return tarif*nb*52/12;
+    if(freq==='mois')return tarif*nb;
+  }
+  return 0;
+}
+function caTotal(m){
+  if(!m.date_debut||!m.date_fin)return null;
+  const d1=new Date(m.date_debut),d2=new Date(m.date_fin);
+  const mois=(d2.getFullYear()-d1.getFullYear())*12+(d2.getMonth()-d1.getMonth())+1;
+  return caMensuel(m)*mois;
+}
+
+// -- Toggle form fields
+function togglePlanFields(){
+  const unite=document.getElementById('m-unite-plan')?.value;
+  document.getElementById('plan-heures-block').style.display=unite==='heures'?'':'none';
+  document.getElementById('plan-passages-block').style.display=unite==='passages'?'':'none';
+  document.getElementById('plan-freq-block').style.display=unite==='passages'?'':'none';
+  calcCaMission();
+}
+function toggleTarifFields(){
+  const mode=document.getElementById('m-mode-tarif')?.value;
+  const label={horaire:'Tarif horaire (CHF/h)',passage:'Tarif au passage (CHF/passage)',forfait:'Forfait mensuel (CHF/mois)'};
+  document.getElementById('tarif-label').textContent=label[mode]||'Tarif';
+  // Synchro unité planif selon mode
+  if(mode==='passage'){document.getElementById('m-unite-plan').value='passages';togglePlanFields();}
+  else if(mode==='horaire'){document.getElementById('m-unite-plan').value='heures';togglePlanFields();}
+  calcCaMission();
+}
+function calcCaMission(){
+  const mode=document.getElementById('m-mode-tarif')?.value||'horaire';
+  const tarif=parseFloat(document.getElementById('m-tarif')?.value)||0;
+  const tva=parseFloat(document.getElementById('m-tva')?.value)||8.1;
+  let caM=0;
+  if(mode==='forfait')caM=tarif;
+  else if(mode==='horaire'){const h=parseFloat(document.getElementById('m-heures')?.value)||0;caM=tarif*h*52/12;}
+  else if(mode==='passage'){const nb=parseFloat(document.getElementById('m-nb-passages')?.value)||0;const freq=document.getElementById('m-freq-passages')?.value||'semaine';if(freq==='jour')caM=tarif*nb*30;else if(freq==='semaine')caM=tarif*nb*52/12;else caM=tarif*nb;}
+  const debut=document.getElementById('m-date-debut')?.value;
+  const fin=document.getElementById('m-date-fin')?.value;
+  document.getElementById('m-ca-mensuel').value=caM?chf(caM):'';
+  if(debut&&fin&&caM){const d1=new Date(debut),d2=new Date(fin);const mois=(d2.getFullYear()-d1.getFullYear())*12+(d2.getMonth()-d1.getMonth())+1;document.getElementById('m-ca-total').value=chf(caM*mois)+` (${mois} mois)`;}
+  else document.getElementById('m-ca-total').value=caM?'Date fin requise':'';
+}
+
+// -- Interlocuteurs dans le form mission
+function onMissionClientChange(){
+  missionInterlos=[];renderInterloForm();
+}
+function addInterloRow(){
+  const clientId=document.getElementById('m-client-id')?.value;
+  if(!clientId){toast('Sélectionnez d\'abord un client','err');return;}
+  missionInterlos.push({contact_id:'',role_mission:''});
+  renderInterloForm();
+}
+function removeInterloRow(idx){missionInterlos.splice(idx,1);renderInterloForm();}
+function renderInterloForm(){
+  const clientId=document.getElementById('m-client-id')?.value;
+  const clientContacts=contacts.filter(c=>c.client_id===clientId);
+  const container=document.getElementById('interlo-form-list');
+  if(!container)return;
+  container.innerHTML=missionInterlos.map((il,i)=>`
+    <div style="display:flex;gap:8px;align-items:center">
+      <select class="fsel" style="flex:2" onchange="missionInterlos[${i}].contact_id=this.value">
+        <option value="">— Contact —</option>
+        ${clientContacts.map(c=>`<option value="${c.id}" ${il.contact_id===c.id?'selected':''}>${c.prenom} ${c.nom}${c.principal?' ⭐':''} — ${c.role||''}</option>`).join('')}
+      </select>
+      <input class="finp" style="flex:1" placeholder="Rôle sur cette mission" value="${il.role_mission||''}" oninput="missionInterlos[${i}].role_mission=this.value">
+      <button class="btn btn-danger btn-xs" onclick="removeInterloRow(${i})">✕</button>
+    </div>`).join('');
+}
+
+// -- Render list
+function renderMissions(){
+  const q=(document.getElementById('search-missions')?.value||'').toLowerCase();
+  const st=document.getElementById('filter-mission-statut')?.value||'';
+  const tp=document.getElementById('filter-mission-type')?.value||'';
+  const filtered=missions.filter(m=>{
+    if(st&&m.statut!==st)return false;
+    if(tp&&m.type!==tp)return false;
+    if(q&&![m.titre,m.adresse,clientName(m.client_id)].some(s=>s?.toLowerCase().includes(q)))return false;
+    return true;
+  });
+  document.getElementById('missions-count').textContent=`${filtered.length} mission${filtered.length>1?'s':''}`;
+  const tbody=document.getElementById('tbody-missions');
+  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="empty-icon">🛡</div>Aucune mission</div></td></tr>`;return;}
+  tbody.innerHTML=filtered.map(m=>{
+    const s=MISSION_STATUTS[m.statut]||MISSION_STATUTS.devis;
+    const planTxt=planLabel(m);
+    const docsOk=[m.doc_consignes,m.doc_cdc,m.doc_proc].filter(x=>x==='oui').length;
+    const docsTotal=3;
+    const docsHtml=docsOk===docsTotal?`<span class="badge b-green">✅ ${docsOk}/${docsTotal}</span>`:docsOk>0?`<span class="badge b-orange">${docsOk}/${docsTotal}</span>`:`<span class="badge b-gray">—</span>`;
+    return`<tr onclick="openFicheMission('${m.id}')">
+      <td><strong>${m.titre}</strong></td>
+      <td style="color:var(--text3)">${clientName(m.client_id)}</td>
+      <td>${TYPES_MISSION[m.type]||m.type}</td>
+      <td style="font-size:12px;color:var(--text3)">${m.adresse||'—'}</td>
+      <td style="font-size:12px">${planTxt}</td>
+      <td class="mono" style="color:var(--green)">${chf(caMensuel(m))}</td>
+      <td>${docsHtml}</td>
+      <td>${badge(s.label,s.cls)}</td>
+      <td><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();editMission('${m.id}')">✏️</button></td>
+    </tr>`;
+  }).join('');
+}
+function planLabel(m){
+  if(!m)return'—';
+  const mode=m.mode_tarif||'horaire';
+  if(mode==='horaire')return m.heures_semaine?`${m.heures_semaine}h/sem`:'—';
+  if(mode==='passage'){const freq={jour:'/j',semaine:'/sem',mois:'/mois'}[m.freq_passages]||'';return m.nb_passages?`${m.nb_passages} passages${freq}`:'—';}
+  if(mode==='forfait')return'Forfait';
+  return'—';
+}
+
+// -- Open/Edit
+function openNewMission(){
+  editingMissionId=null;missionInterlos=[];
+  clearForm(['m-titre','m-n-contrat','m-n-bc','m-adresse','m-acces','m-consignes','m-heures','m-nb-passages','m-tarif','m-notes','m-doc-consignes-url','m-doc-cdc-url','m-doc-proc-url']);
+  setVals({'m-tva':'8.1','m-statut':'devis','m-type':'surveillance','m-jours':'7j','m-recurrence':'mensuelle','m-mode-tarif':'horaire','m-unite-plan':'heures','m-freq-passages':'semaine','m-doc-consignes':'non','m-doc-cdc':'non','m-doc-proc':'non'});
+  document.getElementById('m-date-debut').value=todayISO();
+  document.getElementById('m-date-fin').value='';
+  document.getElementById('m-ca-mensuel').value='';
+  document.getElementById('m-ca-total').value='';
+  document.getElementById('mission-modal-title').textContent='Nouvelle mission';
+  document.getElementById('mission-modal-sub').textContent='';
+  document.getElementById('btn-delete-mission').style.display='none';
+  togglePlanFields();toggleTarifFields();renderInterloForm();
+  openModal('modal-mission');
+}
+function editMission(id){
+  editingMissionId=id;const m=missions.find(x=>x.id===id);if(!m)return;
+  document.getElementById('mission-modal-title').textContent=m.titre;
+  document.getElementById('mission-modal-sub').textContent='Modifier la mission';
+  document.getElementById('btn-delete-mission').style.display='';
+  setVals({
+    'm-titre':m.titre,'m-client-id':m.client_id,'m-type':m.type||'surveillance',
+    'm-statut':m.statut||'devis','m-n-contrat':m.n_contrat,'m-n-bc':m.n_bc,
+    'm-adresse':m.adresse,'m-acces':m.acces,'m-consignes':m.consignes,
+    'm-doc-consignes':m.doc_consignes||'non','m-doc-consignes-url':m.doc_consignes_url,
+    'm-doc-cdc':m.doc_cdc||'non','m-doc-cdc-url':m.doc_cdc_url,
+    'm-doc-proc':m.doc_proc||'non','m-doc-proc-url':m.doc_proc_url,
+    'm-date-debut':m.date_debut,'m-date-fin':m.date_fin,
+    'm-jours':m.jours||'7j','m-unite-plan':m.mode_tarif==='passage'?'passages':'heures',
+    'm-recurrence':m.recurrence||'mensuelle',
+    'm-heures':m.heures_semaine,'m-nb-passages':m.nb_passages,
+    'm-freq-passages':m.freq_passages||'semaine',
+    'm-mode-tarif':m.mode_tarif||'horaire','m-tarif':m.tarif,'m-tva':m.tva||8.1,
+    'm-notes':m.notes,
+  });
+  // Interlocuteurs
+  missionInterlos=Array.isArray(m.interlocuteurs)?[...m.interlocuteurs]:[];
+  togglePlanFields();toggleTarifFields();renderInterloForm();
+  calcCaMission();
+  openModal('modal-mission');
+}
+async function saveMission(){
+  const data={
+    titre:v('m-titre'),client_id:v('m-client-id'),type:v('m-type'),statut:v('m-statut'),
+    n_contrat:v('m-n-contrat'),n_bc:v('m-n-bc'),
+    adresse:v('m-adresse'),acces:v('m-acces'),consignes:v('m-consignes'),
+    doc_consignes:v('m-doc-consignes'),doc_consignes_url:v('m-doc-consignes-url')||null,
+    doc_cdc:v('m-doc-cdc'),doc_cdc_url:v('m-doc-cdc-url')||null,
+    doc_proc:v('m-doc-proc'),doc_proc_url:v('m-doc-proc-url')||null,
+    date_debut:v('m-date-debut')||null,date_fin:v('m-date-fin')||null,
+    jours:v('m-jours'),recurrence:v('m-recurrence'),
+    mode_tarif:v('m-mode-tarif'),tarif:vn('m-tarif'),tva:vn('m-tva')||8.1,
+    heures_semaine:vn('m-heures'),nb_passages:vn('m-nb-passages'),
+    freq_passages:v('m-freq-passages'),
+    interlocuteurs:missionInterlos.filter(il=>il.contact_id),
+    notes:v('m-notes'),
+  };
+  if(!data.titre){toast('Titre obligatoire','err');return;}
+  if(!data.client_id){toast('Veuillez sélectionner un client','err');return;}
+  try{
+    let savedId;
+    if(editingMissionId){
+      await sbFetch(`crm_missions?id=eq.${editingMissionId}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify(data)});
+      const i=missions.findIndex(x=>x.id===editingMissionId);if(i>=0)missions[i]={...missions[i],...data};
+      savedId=editingMissionId;toast('Mission mise à jour ✓');
+    }else{
+      const rec={...data,id:uuid(),created_at:new Date().toISOString()};
+      await sbFetch('crm_missions',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(rec)});
+      missions.push(rec);savedId=rec.id;toast('Mission créée ✓');
+    }
+    // Génération auto échéances si récurrente
+    if(data.recurrence!=='ponctuelle'&&data.date_debut&&data.date_fin){
+      await genEcheances(savedId,data);
+    }
+    closeModal('modal-mission');cacheLocally();renderAll();
+  }catch(e){toast(e.message,'err');}
+}
+async function deleteMission(){
+  if(!editingMissionId||!confirm('Supprimer cette mission et toutes ses échéances ?'))return;
+  try{
+    await sbFetch(`crm_echeances?mission_id=eq.${editingMissionId}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    await sbFetch(`crm_missions?id=eq.${editingMissionId}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    missions=missions.filter(x=>x.id!==editingMissionId);
+    echeances=echeances.filter(x=>x.mission_id!==editingMissionId);
+    closeModal('modal-mission');cacheLocally();renderAll();toast('Mission supprimée');
+  }catch(e){toast(e.message,'err');}
+}
+
+function openFicheMission(id){
+  currentMissionId=id;const m=missions.find(x=>x.id===id);if(!m)return;
+  const s=MISSION_STATUTS[m.statut]||MISSION_STATUTS.devis;
+  const cl=clients.find(x=>x.id===m.client_id);
+  const echs=echeances.filter(e=>e.mission_id===id).sort((a,b)=>(a.date_echeance||'').localeCompare(b.date_echeance||''));
+  const prest=prestations.filter(p=>p.mission_id===id);
+  const mcItems=mainCourante.filter(x=>x.mission_id===id).slice(0,5);
+  const caM=caMensuelFromPrest(id)||caMensuel(m);
+  const caT=caM&&m.date_fin&&m.date_debut?(()=>{const d1=new Date(m.date_debut),d2=new Date(m.date_fin);const mo=(d2.getFullYear()-d1.getFullYear())*12+(d2.getMonth()-d1.getMonth())+1;return caM*mo;})():caTotal(m);
+  const interlos=Array.isArray(m.interlocuteurs)?m.interlocuteurs.filter(il=>il.contact_id):[];
+  document.getElementById('fm-title').textContent=m.titre;
+  document.getElementById('fm-sub').innerHTML=badge(s.label,s.cls);
+  document.getElementById('fm-body').innerHTML=`
+    <div class="fiche-grid">
+      <div class="fiche-card">
+        <div class="frow"><div class="fl">Client</div><div class="fv" style="color:var(--blue);cursor:pointer" onclick="openFicheClientFromMission('${m.client_id}')">${cl?.raison_sociale||'—'}</div></div>
+        <div class="frow"><div class="fl">Type</div><div class="fv">${TYPES_MISSION[m.type]||m.type}</div></div>
+        <div class="frow"><div class="fl">N° contrat</div><div class="fv mono">${m.n_contrat||'—'}</div></div>
+        <div class="frow"><div class="fl">N° BC</div><div class="fv mono">${m.n_bc||'—'}</div></div>
+        <div class="frow"><div class="fl">Jours</div><div class="fv">${JOURS_LABELS[m.jours]||m.jours||'—'}</div></div>
+        <div class="frow"><div class="fl">Période</div><div class="fv">${formatDate(m.date_debut)} → ${m.date_fin?formatDate(m.date_fin):'∞'}</div></div>
+        <div class="frow"><div class="fl">Récurrence fact.</div><div class="fv">${FREQ_LABELS[m.recurrence]||m.recurrence||'—'}</div></div>
+      </div>
+      <div class="fiche-card">
+        <div class="frow"><div class="fl">CA mensuel</div><div class="fv mono" style="color:var(--green);font-weight:700">${caM?chf(caM):'—'}${prest.length?` <span style="font-size:10px;color:var(--text3)">(${prest.length} ligne${prest.length>1?'s':''})</span>`:''}</div></div>
+        <div class="frow"><div class="fl">CA total contrat</div><div class="fv mono" style="color:var(--green)">${caT?chf(caT):'—'}</div></div>
+        <div class="frow"><div class="fl">Mode tarif</div><div class="fv">${{horaire:'Horaire',passage:'Au passage',forfait:'Forfait'}[m.mode_tarif]||'—'}</div></div>
+        <div class="frow"><div class="fl">Planification</div><div class="fv">${planLabel(m)}</div></div>
+        <div class="frow"><div class="fl">TVA</div><div class="fv">${m.tva||8.1} %</div></div>
+      </div>
+      <div class="fiche-card">
+        <div class="frow"><div class="fl">Adresse site</div><div class="fv">${m.adresse||'—'}</div></div>
+        <div class="frow"><div class="fl">Accès / Digicode</div><div class="fv">${m.acces||'—'}</div></div>
+        <div class="frow"><div class="fl">Consignes</div><div class="fv">${m.consignes||'—'}</div></div>
+      </div>
+      <div class="fiche-card">
+        <div class="frow" style="align-items:center"><div class="fl">Consignes</div><div class="fv">${docBadge(m.doc_consignes,'Consignes',m.doc_consignes_url)}</div></div>
+        <div class="frow" style="align-items:center"><div class="fl">Cahier des charges</div><div class="fv">${docBadge(m.doc_cdc,'CDC',m.doc_cdc_url)}</div></div>
+        <div class="frow" style="align-items:center"><div class="fl">Procédures</div><div class="fv">${docBadge(m.doc_proc,'Procédures',m.doc_proc_url)}</div></div>
+      </div>
+      ${m.notes?`<div class="fiche-card full"><div class="frow"><div class="fl">Notes</div><div class="fv" style="text-align:left;white-space:pre-line">${m.notes}</div></div></div>`:''}
+    </div>
+
+    ${interlos.length?`
+    <div class="sep"></div>
+    <div class="sec-title">👤 Interlocuteurs</div>
+    <div class="interlo-list">${interlos.map(il=>{const ct=contacts.find(x=>x.id===il.contact_id);if(!ct)return'';return`<div class="interlo-row"><div class="interlo-av">${initials(ct.prenom+' '+ct.nom)}</div><div class="interlo-info"><div class="interlo-name">${ct.prenom} ${ct.nom}${ct.principal?' ⭐':''}</div><div class="interlo-meta">${il.role_mission||ct.role||'—'}</div></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">${ct.tel?`<div class="interlo-tel">${ct.tel}</div>`:''} ${ct.email?`<div style="font-size:11px;color:var(--text3)">${ct.email}</div>`:''}</div></div>`;}).join('')}</div>`:''}
+
+    <div class="sep"></div>
+    <div class="sec-title">💼 Lignes de prestation
+      <button class="btn btn-ghost btn-xs" onclick="openPrestations('${id}')">✏️ Gérer les lignes</button>
+    </div>
+    ${prest.length?`
+    <div class="card" style="padding:0 12px;">
+      <div class="lp-head"><div class="lp-head-label">Description</div><div class="lp-head-label">Type</div><div class="lp-head-label">Qté</div><div class="lp-head-label">PU HT</div><div class="lp-head-label">Total HT</div></div>
+      ${prest.map(p=>`<div class="lp-row" style="grid-template-columns:2fr 1fr 1fr 1fr 1fr">
+        <div style="font-size:13px">${p.description||'—'}</div>
+        <div style="font-size:12px;color:var(--text3)">${p.type_prestation||'—'}</div>
+        <div class="mono" style="font-size:12px">${p.quantite??1}</div>
+        <div class="mono" style="font-size:12px">${chf(p.pu_ht)}</div>
+        <div class="mono" style="font-weight:600;color:var(--green)">${chf((parseFloat(p.quantite)||1)*(parseFloat(p.pu_ht)||0))}</div>
+      </div>`).join('')}
+      <div class="lp-total-row"><span class="lp-total-label">Total HT mensuel :</span><span class="lp-total-val kv-green">${chf(caM)}</span></div>
+    </div>`:`<div style="color:var(--text3);font-size:13px;padding:4px 0">Aucune ligne — <button class="btn btn-ghost btn-sm" onclick="openPrestations('${id}')">+ Définir les prestations</button></div>`}
+
+    ${echs.length?`
+    <div class="sep"></div>
+    <div class="sec-title">🧾 Échéances (${echs.length})
+      <span style="font-size:11px;color:var(--text3);font-weight:400">Total TTC: ${chf(echs.reduce((s,e)=>s+(parseFloat(e.montant_ttc)||0),0))}</span>
+    </div>
+    <div class="card" style="padding:0;max-height:280px;overflow-y:auto">
+      ${echs.map(e=>{const fs=FACT_STATUTS[e.statut]||FACT_STATUTS.a_emettre;return`<div class="ech-row"><div class="ech-num">#${e.n_echeance||'—'}</div><div class="ech-date">${formatMois(e.date_echeance)}</div><div class="ech-mt">${chf(e.montant_ht)} HT</div><div class="ech-mt">${chf(e.montant_ttc)} TTC</div><div class="ech-spacer"></div>${e.n_facture?`<div class="mono" style="font-size:11px;color:var(--text3)">${e.n_facture}</div>`:''} ${badge(fs.label,fs.cls)} <button class="btn btn-ghost btn-xs" onclick="openEcheance('${e.id}')">✏️</button></div>`;}).join('')}
+    </div>`:`<div class="sep"></div><div style="color:var(--text3);font-size:13px">${m.recurrence==='ponctuelle'?`Mission ponctuelle — <button class="btn btn-ghost btn-sm" onclick="openNewEcheanceForMission('${id}')">+ Créer une échéance</button>`:'Aucune échéance. Ajoutez une date de fin pour générer automatiquement.'}</div>`}
+
+    ${mcItems.length?`
+    <div class="sep"></div>
+    <div class="sec-title">📋 Main courante (5 dernières)
+      <button class="btn btn-ghost btn-xs" onclick="closeModal('modal-fiche-mission');nav('maincourante')">Tout voir</button>
+    </div>
+    <div>${mcItems.map(x=>renderMCItemHTML(x)).join('')}</div>`:''}
+  `;
+  openModal('modal-fiche-mission');
+}
+function openFicheMissionFromClient(id){
+  // Ouvrir la fiche mission par-dessus la fiche client
+  currentMissionId=id;const m=missions.find(x=>x.id===id);if(!m)return;
+  openFicheMission(id);
+  // Mettre la modale en avant-plan
+  document.getElementById('modal-fiche-mission').classList.add('on-top');
+}
+function openFicheClientFromMission(clientId){
+  closeModal('modal-fiche-mission');
+  openFicheClient(clientId);
+}
+function editCurrentMission(){closeModal('modal-fiche-mission');editMission(currentMissionId);}
+
+// CA from prestation lines (returns 0 if no lines)
+function caMensuelFromPrest(missionId){
+  const lines=prestations.filter(p=>p.mission_id===missionId);
+  if(!lines.length)return 0;
+  return lines.reduce((s,p)=>s+(parseFloat(p.quantite)||1)*(parseFloat(p.pu_ht)||0),0);
+}
+
+// -- Génération échéances auto
+async function genEcheances(missionId,data){
+  try{
+    await sbFetch(`crm_echeances?mission_id=eq.${missionId}&statut=eq.a_emettre`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    echeances=echeances.filter(e=>!(e.mission_id===missionId&&e.statut==='a_emettre'));
+  }catch(_){}
+  const freqMois={mensuelle:1,bimensuelle:2,trimestrielle:3}[data.recurrence]||1;
+  // Priorité : lignes de prestation > tarif mission
+  const prestLines=prestations.filter(p=>p.mission_id===missionId);
+  const caM=prestLines.length?caMensuelFromPrest(missionId):caMensuel({...data});
+  if(!caM)return;
+  const tva=parseFloat(data.tva)||8.1;
+  const htM=caM*freqMois;
+  const ttcM=htM*(1+tva/100);
+  const d1=new Date(data.date_debut),d2=new Date(data.date_fin);
+  let cur=new Date(d1.getFullYear(),d1.getMonth(),1);
+  let n=1;const newEchs=[];
+  while(cur<=d2){
+    newEchs.push({id:uuid(),mission_id:missionId,n_echeance:n,date_echeance:cur.toISOString().slice(0,7)+'-01',montant_ht:Math.round(htM*100)/100,montant_ttc:Math.round(ttcM*100)/100,tva,statut:'a_emettre',created_at:new Date().toISOString()});
+    cur.setMonth(cur.getMonth()+freqMois);n++;if(n>600)break;
+  }
+  if(!newEchs.length)return;
+  try{
+    await sbFetch('crm_echeances',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(newEchs)});
+    echeances.push(...newEchs);
+    toast(`${newEchs.length} échéance${newEchs.length>1?'s':''} générée${newEchs.length>1?'s':''} ✓`);
+  }catch(e){toast('Erreur génération échéances: '+e.message,'err');}
+}
+
+// ════════════════════════════════════════
+//  FACTURATION
+// ════════════════════════════════════════
+function renderFacturation(){
+  const st=document.getElementById('filter-fact-statut')?.value||'';
+  const mois=document.getElementById('filter-fact-mois')?.value||'';
+  const filtered=echeances.filter(e=>{
+    if(st&&e.statut!==st)return false;
+    if(mois&&!e.date_echeance?.startsWith(mois))return false;
+    return true;
+  }).sort((a,b)=>(a.date_echeance||'').localeCompare(b.date_echeance||''));
+  const totalHT=filtered.reduce((s,e)=>s+(parseFloat(e.montant_ht)||0),0);
+  document.getElementById('fact-count').textContent=`${filtered.length} échéance${filtered.length>1?'s':''} — Total HT : ${chf(totalHT)}`;
+  const tbody=document.getElementById('tbody-facturation');
+  if(!filtered.length){tbody.innerHTML=`<tr><td colspan="9"><div class="empty"><div class="empty-icon">🧾</div>Aucune échéance — créez des missions récurrentes pour en générer automatiquement</div></td></tr>`;return;}
+  tbody.innerHTML=filtered.map(e=>{
+    const m=missions.find(x=>x.id===e.mission_id);
+    const fs=FACT_STATUTS[e.statut]||FACT_STATUTS.a_emettre;
+    return`<tr onclick="openEcheance('${e.id}')">
+      <td class="mono" style="font-size:12px">${formatDate(e.date_echeance)}${e.n_facture?`<br><span style="color:var(--text3);font-size:10.5px">${e.n_facture}</span>`:''}</td>
+      <td style="font-weight:600">${m?.titre||'—'}</td>
+      <td style="color:var(--text3)">${clientName(m?.client_id)}</td>
+      <td style="font-size:12px;color:var(--text3)">${formatMois(e.date_echeance)}</td>
+      <td class="mono">${chf(e.montant_ht)}</td>
+      <td style="color:var(--text3)">${e.tva||8.1}%</td>
+      <td class="mono" style="font-weight:600">${chf(e.montant_ttc)}</td>
+      <td>${badge(fs.label,fs.cls)}</td>
+      <td><button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openEcheance('${e.id}')">✏️</button></td>
+    </tr>`;
+  }).join('');
+}
+
+function calcEchTtc(){
+  const ht=parseFloat(document.getElementById('ech-montant-ht')?.value)||0;
+  const tva=parseFloat(document.getElementById('ech-tva')?.value)||8.1;
+  document.getElementById('ech-montant-ttc').value=ht?(chf(ht*(1+tva/100))):'';
+}
+
+function openNewEcheanceManuelle(){
+  editingEcheanceId=null;
+  clearForm(['ech-n-facture','ech-date-emission','ech-date-pmt','ech-notes']);
+  setVals({'ech-tva':'8.1','ech-statut':'a_emettre','ech-montant-ht':'','ech-montant-ttc':'','ech-periode':todayISO().slice(0,7)});
+  document.getElementById('ech-modal-sub').textContent='Nouvelle échéance manuelle';
+  document.getElementById('btn-delete-ech').style.display='none';
+  openModal('modal-echeance');
+}
+function openNewEcheanceForMission(missionId){
+  openNewEcheanceManuelle();
+  setTimeout(()=>{document.getElementById('ech-mission-id').value=missionId;},20);
+  closeModal('modal-fiche-mission');
+}
+function openEcheance(id){
+  editingEcheanceId=id;const e=echeances.find(x=>x.id===id);if(!e)return;
+  const m=missions.find(x=>x.id===e.mission_id);
+  document.getElementById('ech-modal-sub').textContent=`${m?.titre||'Mission'} — ${formatMois(e.date_echeance)} — ${chf(e.montant_ttc)} TTC`;
+  setVals({'ech-mission-id':e.mission_id,'ech-periode':e.date_echeance?.slice(0,7),'ech-montant-ht':e.montant_ht,'ech-tva':e.tva||8.1,'ech-montant-ttc':e.montant_ttc?chf(e.montant_ttc):'','ech-n-facture':e.n_facture,'ech-date-emission':e.date_emission,'ech-statut':e.statut,'ech-date-pmt':e.date_paiement,'ech-notes':e.notes});
+  document.getElementById('btn-delete-ech').style.display='';
+  openModal('modal-echeance');
+}
+async function saveEcheance(){
+  const htRaw=document.getElementById('ech-montant-ht')?.value;
+  const tva=parseFloat(document.getElementById('ech-tva')?.value)||8.1;
+  const ht=parseFloat(htRaw)||0;
+  const ttc=ht*(1+tva/100);
+  const missionId=document.getElementById('ech-mission-id')?.value;
+  const periode=document.getElementById('ech-periode')?.value;
+  const data={mission_id:missionId||null,date_echeance:periode?(periode+'-01'):null,montant_ht:ht||null,montant_ttc:Math.round(ttc*100)/100||null,tva,n_facture:v('ech-n-facture'),date_emission:v('ech-date-emission')||null,statut:v('ech-statut'),date_paiement:v('ech-date-pmt')||null,notes:v('ech-notes')};
+  try{
+    if(editingEcheanceId){
+      await sbFetch(`crm_echeances?id=eq.${editingEcheanceId}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify(data)});
+      const i=echeances.findIndex(x=>x.id===editingEcheanceId);if(i>=0)echeances[i]={...echeances[i],...data};
+      toast('Échéance mise à jour ✓');
+    }else{
+      if(!missionId){toast('Veuillez sélectionner une mission','err');return;}
+      const rec={...data,id:uuid(),created_at:new Date().toISOString()};
+      await sbFetch('crm_echeances',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(rec)});
+      echeances.push(rec);toast('Échéance créée ✓');
+    }
+    closeModal('modal-echeance');cacheLocally();renderAll();
+  }catch(e){toast(e.message,'err');}
+}
+async function deleteEcheance(){
+  if(!editingEcheanceId||!confirm('Supprimer cette échéance ?'))return;
+  try{
+    await sbFetch(`crm_echeances?id=eq.${editingEcheanceId}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    echeances=echeances.filter(x=>x.id!==editingEcheanceId);
+    closeModal('modal-echeance');cacheLocally();renderAll();toast('Échéance supprimée');
+  }catch(e){toast(e.message,'err');}
+}
+
+// ════════════════════════════════════════
+//  OPPORTUNITES
+// ════════════════════════════════════════
+function openNewOpportunite(){
+  editingOpportuniteId=null;
+  clearForm(['op-titre','op-prospect','op-montant','op-date-cloture','op-notes']);
+  setVals({'op-proba':'50','op-etape':'prospect','op-responsable':'Guillaume'});
+  document.getElementById('op-client-id').value='';
+  document.getElementById('opport-modal-title').textContent='Nouvelle opportunité';
+  openModal('modal-opportunite');
+}
+function editOpportunite(id){
+  editingOpportuniteId=id;const o=opportunites.find(x=>x.id===id);if(!o)return;
+  document.getElementById('opport-modal-title').textContent=o.titre;
+  setVals({'op-titre':o.titre,'op-client-id':o.client_id,'op-prospect':o.prospect,'op-montant':o.montant,'op-proba':o.probabilite||50,'op-etape':o.etape,'op-date-cloture':o.date_cloture,'op-responsable':o.responsable||'Guillaume','op-notes':o.notes});
+  openModal('modal-opportunite');
+}
+async function saveOpportunite(){
+  const data={titre:v('op-titre'),client_id:v('op-client-id')||null,prospect:v('op-prospect'),montant:vn('op-montant'),probabilite:vn('op-proba')||50,etape:v('op-etape'),date_cloture:v('op-date-cloture')||null,responsable:v('op-responsable'),notes:v('op-notes')};
+  if(!data.titre){toast('Titre obligatoire','err');return;}
+  try{
+    if(editingOpportuniteId){
+      await sbFetch(`crm_opportunites?id=eq.${editingOpportuniteId}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify(data)});
+      const i=opportunites.findIndex(x=>x.id===editingOpportuniteId);if(i>=0)opportunites[i]={...opportunites[i],...data};
+      toast('Opportunité mise à jour ✓');
+    }else{
+      const rec={...data,id:uuid(),created_at:new Date().toISOString()};
+      await sbFetch('crm_opportunites',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(rec)});
+      opportunites.push(rec);toast('Opportunité créée ✓');
+    }
+    closeModal('modal-opportunite');cacheLocally();renderAll();
+  }catch(e){toast(e.message,'err');}
+}
+
+// ════════════════════════════════════════
+//  MODAL HELPERS
+// ════════════════════════════════════════
+function openModal(id, onTop=false){
+  const el=document.getElementById(id);if(!el)return;
+  el.classList.add('open');
+  if(onTop)el.classList.add('on-top');
+  else el.classList.remove('on-top');
+  document.body.style.overflow='hidden';
+}
+function closeModal(id){
+  const el=document.getElementById(id);if(!el)return;
+  el.classList.remove('open','on-top');
+  // Ne restaurer overflow que si plus aucune modal ouverte
+  if(!document.querySelector('.overlay.open'))document.body.style.overflow='';
+}
+
+// ════════════════════════════════════════
+//  FORM HELPERS
+// ════════════════════════════════════════
+function v(id){return(document.getElementById(id)?.value||'').trim();}
+function vn(id){const val=document.getElementById(id)?.value;return(val===''||val==null)?null:parseFloat(val);}
+function setVals(obj){Object.entries(obj).forEach(([id,val])=>{const el=document.getElementById(id);if(el)el.value=val??'';}); }
+function clearForm(ids){ids.forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});}
+function clientName(id){return clients.find(x=>x.id===id)?.raison_sociale||'—';}
+
+// ════════════════════════════════════════
+//  LIGNES DE PRESTATION
+// ════════════════════════════════════════
+function openPrestations(missionId){
+  currentPrestMissionId=missionId;
+  const m=missions.find(x=>x.id===missionId);
+  document.getElementById('prest-modal-title').textContent='Lignes de prestation';
+  document.getElementById('prest-modal-sub').textContent=m?`${m.titre} — ${clientName(m.client_id)}`:'';
+  // Charger les lignes existantes
+  editPrestLines=prestations.filter(p=>p.mission_id===missionId).map(p=>({...p}));
+  if(!editPrestLines.length)editPrestLines=[{id:uuid(),mission_id:missionId,description:'',type_prestation:params.prestTypes[0]||'',quantite:1,pu_ht:'',isNew:true}];
+  renderPrestLines();
+  openModal('modal-prestations');
+}
+function addPrestLine(){
+  editPrestLines.push({id:uuid(),mission_id:currentPrestMissionId,description:'',type_prestation:params.prestTypes[0]||'',quantite:1,pu_ht:'',isNew:true});
+  renderPrestLines();
+}
+function removePrestLine(idx){editPrestLines.splice(idx,1);renderPrestLines();}
+function renderPrestLines(){
+  const typeOpts=params.prestTypes.map(t=>`<option value="${t}">${t}</option>`).join('');
+  const container=document.getElementById('prest-lines-container');
+  container.innerHTML=editPrestLines.map((l,i)=>`
+    <div class="lp-row">
+      <input class="finp" style="font-size:12.5px" placeholder="Description" value="${l.description||''}" oninput="editPrestLines[${i}].description=this.value">
+      <select class="fsel" style="font-size:12.5px" onchange="editPrestLines[${i}].type_prestation=this.value">
+        ${typeOpts.replace(`value="${l.type_prestation}"`,`value="${l.type_prestation}" selected`)}
+      </select>
+      <input class="finp" style="font-size:12.5px" type="number" step="0.5" min="0" placeholder="1" value="${l.quantite??1}" oninput="editPrestLines[${i}].quantite=parseFloat(this.value)||1;updatePrestTotal()">
+      <input class="finp" style="font-size:12.5px" type="number" step="0.01" placeholder="0.00" value="${l.pu_ht||''}" oninput="editPrestLines[${i}].pu_ht=parseFloat(this.value)||0;updatePrestTotal()">
+      <button class="btn btn-danger btn-xs" onclick="removePrestLine(${i});updatePrestTotal()">✕</button>
+    </div>`).join('');
+  updatePrestTotal();
+}
+function updatePrestTotal(){
+  const total=editPrestLines.reduce((s,l)=>s+(parseFloat(l.quantite)||1)*(parseFloat(l.pu_ht)||0),0);
+  document.getElementById('prest-total-row').innerHTML=`
+    <span class="lp-total-label">Total HT mensuel :</span>
+    <span class="lp-total-val kv-green">${chf(total)}</span>`;
+}
+async function savePrestations(){
+  if(!currentPrestMissionId)return;
+  const m=missions.find(x=>x.id===currentPrestMissionId);
+  const tva=parseFloat(m?.tva)||8.1;
+  try{
+    // Supprimer toutes les lignes existantes pour cette mission
+    await sbFetch(`crm_prestations?mission_id=eq.${currentPrestMissionId}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    prestations=prestations.filter(p=>p.mission_id!==currentPrestMissionId);
+    const validLines=editPrestLines.filter(l=>l.description||l.pu_ht);
+    if(validLines.length){
+      const toInsert=validLines.map(l=>({id:l.id||uuid(),mission_id:currentPrestMissionId,description:l.description||'',type_prestation:l.type_prestation||'',quantite:parseFloat(l.quantite)||1,pu_ht:parseFloat(l.pu_ht)||0,created_at:new Date().toISOString()}));
+      await sbFetch('crm_prestations',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(toInsert)});
+      prestations.push(...toInsert);
+    }
+    // Régénérer les échéances si mission récurrente avec dates
+    if(m&&m.recurrence!=='ponctuelle'&&m.date_debut&&m.date_fin){
+      await genEcheances(currentPrestMissionId,m);
+    }
+    closeModal('modal-prestations');
+    cacheLocally();renderAll();
+    // Rafraîchir fiche mission si ouverte
+    if(document.getElementById('modal-fiche-mission').classList.contains('open'))openFicheMission(currentPrestMissionId);
+    toast(`${validLines.length} ligne${validLines.length>1?'s':''} de prestation enregistrée${validLines.length>1?'s':''} ✓`);
+  }catch(e){toast(e.message,'err');}
+}
+
+// ════════════════════════════════════════
+//  MAIN COURANTE
+// ════════════════════════════════════════
+function mcCatColor(cat){return params.mcCategories.find(c=>c.label===cat)?.color||'#9ca3af';}
+
+function renderMCItemHTML(x){
+  const color=mcCatColor(x.categorie);
+  const m=missions.find(ms=>ms.id===x.mission_id);
+  return`<div class="mc-item" style="position:relative">
+    <div class="mc-dot-col"><div class="mc-dot" style="background:${color}"></div><div class="mc-line"></div></div>
+    <div class="mc-body">
+      <div class="mc-head">
+        <span class="mc-date">${formatDate(x.date)}</span>
+        <span class="badge" style="background:${color}22;color:${color};font-size:10.5px;padding:1px 8px;border-radius:20px;font-weight:600">${x.categorie||'—'}</span>
+        ${m?`<span class="mc-mission-tag">🛡 ${m.titre}</span>`:''}
+        <span class="mc-author">par ${x.auteur||'—'}</span>
+        <div class="mc-actions">
+          <button class="btn btn-ghost btn-xs" title="Modifier" onclick="editMC('${x.id}')">✏️</button>
+          <button class="btn btn-danger btn-xs" title="Supprimer" onclick="deleteMCDirect('${x.id}')">🗑</button>
+        </div>
+      </div>
+      <div class="mc-texte">${(x.texte||'').replace(/</g,'&lt;').replace(/\n/g,'<br>')}</div>
+    </div>
+  </div>`;
+}
+
+function renderMC(){
+  const q=(document.getElementById('search-mc')?.value||'').toLowerCase();
+  const cl=document.getElementById('filter-mc-client')?.value||'';
+  const ms=document.getElementById('filter-mc-mission')?.value||'';
+  const cat=document.getElementById('filter-mc-cat')?.value||'';
+
+  let filtered=mainCourante.filter(x=>{
+    if(cat&&x.categorie!==cat)return false;
+    if(ms&&x.mission_id!==ms)return false;
+    if(cl){
+      // Filtrer par client via la mission ou directement
+      const xMission=missions.find(m=>m.id===x.mission_id);
+      if(x.client_id!==cl&&xMission?.client_id!==cl)return false;
+    }
+    if(q&&![(x.texte||''),(x.categorie||''),(x.auteur||'')].some(s=>s.toLowerCase().includes(q)))return false;
+    return true;
+  });
+
+  document.getElementById('mc-count').textContent=`${filtered.length} entrée${filtered.length>1?'s':''}`;
+  const container=document.getElementById('mc-timeline');
+  if(!filtered.length){
+    container.innerHTML='<div class="empty"><div class="empty-icon">📋</div>Aucune entrée de main courante</div>';
+    return;
+  }
+  // Grouper par client
+  const byClient={};
+  filtered.forEach(x=>{
+    const m=missions.find(ms=>ms.id===x.mission_id);
+    const cid=x.client_id||m?.client_id||'_none';
+    if(!byClient[cid])byClient[cid]=[];
+    byClient[cid].push(x);
+  });
+  let html='';
+  Object.entries(byClient).forEach(([cid,items])=>{
+    const cl=clients.find(c=>c.id===cid);
+    if(cl||cid!=='_none') html+=`<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--border)">${cl?.raison_sociale||'Sans client'}</div>`;
+    html+=items.map(x=>renderMCItemHTML(x)).join('');
+  });
+  container.innerHTML=html;
+}
+
+function openNewMC(clientId,missionId){
+  editingMCId=null;
+  clearForm(['mc-texte']);
+  setVals({'mc-date':todayISO(),'mc-auteur':session?.profile?.full_name?.split(' ')[0]||'Guillaume'});
+  document.getElementById('mc-modal-title').textContent='Nouvelle entrée';
+  document.getElementById('btn-delete-mc').style.display='none';
+  populateSelects();
+  setTimeout(()=>{
+    if(clientId)document.getElementById('mc-client-id').value=clientId;
+    if(missionId){updateMCMissionSelect();setTimeout(()=>document.getElementById('mc-mission-id').value=missionId,30);}
+  },20);
+  openModal('modal-mc');
+}
+function editMC(id){
+  editingMCId=id;const x=mainCourante.find(e=>e.id===id);if(!x)return;
+  document.getElementById('mc-modal-title').textContent='Modifier l\'entrée';
+  document.getElementById('btn-delete-mc').style.display='';
+  const m=missions.find(ms=>ms.id===x.mission_id);
+  const cid=x.client_id||m?.client_id||'';
+  setVals({'mc-date':x.date,'mc-categorie':x.categorie,'mc-auteur':x.auteur,'mc-texte':x.texte});
+  setTimeout(()=>{
+    document.getElementById('mc-client-id').value=cid;
+    updateMCMissionSelect();
+    setTimeout(()=>document.getElementById('mc-mission-id').value=x.mission_id||'',30);
+  },20);
+  openModal('modal-mc');
+}
+function updateMCMissionSelect(){
+  const cid=document.getElementById('mc-client-id')?.value;
+  const sel=document.getElementById('mc-mission-id');
+  if(!sel)return;
+  const filtered=missions.filter(m=>!cid||m.client_id===cid);
+  sel.innerHTML=`<option value="">— Non spécifiée —</option>`+filtered.map(m=>`<option value="${m.id}">${m.titre}</option>`).join('');
+}
+async function saveMC(){
+  const missionId=document.getElementById('mc-mission-id')?.value||null;
+  const clientId=document.getElementById('mc-client-id')?.value||null;
+  const data={date:v('mc-date')||todayISO(),categorie:v('mc-categorie'),client_id:clientId,mission_id:missionId||null,auteur:v('mc-auteur'),texte:v('mc-texte')};
+  if(!data.texte){toast('Le texte est obligatoire','err');return;}
+  if(!data.client_id&&!data.mission_id){toast('Veuillez sélectionner un client ou une mission','err');return;}
+  try{
+    if(editingMCId){
+      await sbFetch(`crm_main_courante?id=eq.${editingMCId}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify(data)});
+      const i=mainCourante.findIndex(x=>x.id===editingMCId);if(i>=0)mainCourante[i]={...mainCourante[i],...data};
+      toast('Entrée mise à jour ✓');
+    }else{
+      const rec={...data,id:uuid(),created_at:new Date().toISOString()};
+      await sbFetch('crm_main_courante',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(rec)});
+      mainCourante.unshift(rec);toast('Entrée ajoutée ✓');
+    }
+    closeModal('modal-mc');cacheLocally();renderAll();
+  }catch(e){toast(e.message,'err');}
+}
+async function deleteMC(){
+  if(!editingMCId||!confirm('Supprimer cette entrée ?'))return;
+  try{
+    await sbFetch(`crm_main_courante?id=eq.${editingMCId}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    mainCourante=mainCourante.filter(x=>x.id!==editingMCId);
+    closeModal('modal-mc');cacheLocally();renderAll();toast('Entrée supprimée');
+  }catch(e){toast(e.message,'err');}
+}
+
+// Suppression directe depuis le bouton 🗑 dans la timeline (sans ouvrir la modal)
+async function deleteMCDirect(id){
+  if(!confirm('Supprimer cette entrée de main courante ?'))return;
+  try{
+    await sbFetch(`crm_main_courante?id=eq.${id}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
+    mainCourante=mainCourante.filter(x=>x.id!==id);
+    cacheLocally();renderAll();toast('Entrée supprimée');
+  }catch(e){toast(e.message,'err');}
+}
+
+// MC depuis fiche client — vue toutes missions du client
+function openMCClient(clientId){
+  nav('maincourante');
+  setTimeout(()=>{document.getElementById('filter-mc-client').value=clientId;renderMC();},50);
+  closeModal('modal-fiche-client');
+}
+
+// ════════════════════════════════════════
+//  PARAMETRES — stockés dans Supabase
+// ════════════════════════════════════════
+
+// Charger les params depuis Supabase (table crm_params)
+async function loadParams(){
+  try{
+    const rows = await sbFetch('crm_params?select=*');
+    if(rows && rows.length){
+      rows.forEach(row=>{
+        try{
+          if(row.key==='mcCategories') params.mcCategories = JSON.parse(row.value);
+          if(row.key==='prestTypes')   params.prestTypes   = JSON.parse(row.value);
+        }catch(_){}
+      });
+    }
+  }catch(e){
+    // Fallback localStorage si offline
+    try{
+      const p=JSON.parse(localStorage.getItem(PARAMS_KEY)||'{}');
+      if(p.mcCategories) params.mcCategories=p.mcCategories;
+      if(p.prestTypes)   params.prestTypes=p.prestTypes;
+    }catch(_){}
+  }
+}
+
+// Sauvegarder un param dans Supabase (upsert sur la clé)
+async function saveParam(key, value){
+  const payload = {key, value: JSON.stringify(value)};
+  try{
+    // Upsert : insert ou update si la clé existe déjà
+    await sbFetch('crm_params', {
+      method:'POST',
+      headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+      body: JSON.stringify(payload),
+    });
+    // Aussi en localStorage comme cache offline
+    try{
+      const p=JSON.parse(localStorage.getItem(PARAMS_KEY)||'{}');
+      p[key]=value;
+      localStorage.setItem(PARAMS_KEY, JSON.stringify(p));
+    }catch(_){}
+  }catch(e){
+    // Si Supabase indisponible, au moins sauvegarder en local
+    try{
+      const p=JSON.parse(localStorage.getItem(PARAMS_KEY)||'{}');
+      p[key]=value;
+      localStorage.setItem(PARAMS_KEY, JSON.stringify(p));
+    }catch(_){}
+    toast('Paramètre sauvegardé localement (hors-ligne)','err');
+  }
+}
+
+function renderParametres(){
+  const mcList=document.getElementById('param-mc-list');
+  if(mcList)mcList.innerHTML=params.mcCategories.map((c,i)=>`
+    <div class="param-item">
+      <div class="param-color" style="background:${c.color}"></div>
+      <div class="param-name">${c.label}</div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <input type="color" value="${c.color}" title="Changer la couleur"
+          style="width:28px;height:28px;padding:2px;border:1px solid var(--border2);border-radius:5px;cursor:pointer"
+          onchange="updateMCCatColor(${i},this.value)">
+        <button class="btn btn-danger btn-xs" onclick="removeMCCat(${i})">✕</button>
+      </div>
+    </div>`).join('');
+
+  const pList=document.getElementById('param-prest-list');
+  if(pList)pList.innerHTML=params.prestTypes.map((t,i)=>`
+    <div class="param-item">
+      <div class="param-name">${t}</div>
+      <button class="btn btn-danger btn-xs" onclick="removePrestType(${i})">✕</button>
+    </div>`).join('');
+}
+
+async function addMCCat(){
+  const label=document.getElementById('param-mc-new-label')?.value.trim();
+  const color=document.getElementById('param-mc-new-color')?.value||'#2563eb';
+  if(!label){toast('Entrez un nom de catégorie','err');return;}
+  params.mcCategories.push({label,color});
+  document.getElementById('param-mc-new-label').value='';
+  await saveParam('mcCategories', params.mcCategories);
+  renderParametres();populateSelects();toast('Catégorie ajoutée ✓');
+}
+async function removeMCCat(i){
+  if(!confirm(`Supprimer la catégorie "${params.mcCategories[i]?.label}" ?`))return;
+  params.mcCategories.splice(i,1);
+  await saveParam('mcCategories', params.mcCategories);
+  renderParametres();populateSelects();toast('Catégorie supprimée');
+}
+async function updateMCCatColor(i, color){
+  params.mcCategories[i].color=color;
+  await saveParam('mcCategories', params.mcCategories);
+  renderParametres();populateSelects();renderMC();
+}
+async function addPrestType(){
+  const val=document.getElementById('param-prest-new')?.value.trim();
+  if(!val){toast('Entrez un nom de prestation','err');return;}
+  params.prestTypes.push(val);
+  document.getElementById('param-prest-new').value='';
+  await saveParam('prestTypes', params.prestTypes);
+  renderParametres();toast('Type de prestation ajouté ✓');
+}
+async function removePrestType(i){
+  if(!confirm(`Supprimer le type "${params.prestTypes[i]}" ?`))return;
+  params.prestTypes.splice(i,1);
+  await saveParam('prestTypes', params.prestTypes);
+  renderParametres();toast('Type supprimé');
+}
+
+// ════════════════════════════════════════
+//  SQL MIGRATION NOTE — v3
+// ════════════════════════════════════════
+// Nouvelles tables à créer dans Supabase :
+//
+// CREATE TABLE IF NOT EXISTS crm_prestations (
+//   id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+//   mission_id       UUID REFERENCES crm_missions(id) ON DELETE CASCADE,
+//   description      TEXT,
+//   type_prestation  TEXT,
+//   quantite         NUMERIC(8,2) DEFAULT 1,
+//   pu_ht            NUMERIC(10,2),
+//   created_at       TIMESTAMPTZ DEFAULT NOW()
+// );
+//
+// CREATE TABLE IF NOT EXISTS crm_main_courante (
+//   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+//   date        DATE NOT NULL,
+//   categorie   TEXT,
+//   client_id   UUID REFERENCES crm_clients(id) ON DELETE SET NULL,
+//   mission_id  UUID REFERENCES crm_missions(id) ON DELETE SET NULL,
+//   auteur      TEXT,
+//   texte       TEXT NOT NULL,
+//   created_at  TIMESTAMPTZ DEFAULT NOW()
+// );
+//
+// ALTER TABLE crm_prestations    ENABLE ROW LEVEL SECURITY;
+// ALTER TABLE crm_main_courante  ENABLE ROW LEVEL SECURITY;
+// CREATE POLICY "auth_full" ON crm_prestations   FOR ALL USING (auth.role()='authenticated');
+// CREATE POLICY "auth_full" ON crm_main_courante FOR ALL USING (auth.role()='authenticated');
+// CREATE INDEX IF NOT EXISTS idx_prest_mission ON crm_prestations(mission_id);
+// CREATE INDEX IF NOT EXISTS idx_mc_client     ON crm_main_courante(client_id);
+// CREATE INDEX IF NOT EXISTS idx_mc_mission    ON crm_main_courante(mission_id);
+// CREATE INDEX IF NOT EXISTS idx_mc_date       ON crm_main_courante(date DESC);
+// ALTER TABLE crm_missions ADD COLUMN IF NOT EXISTS jours TEXT DEFAULT '7j';
+// ALTER TABLE crm_missions ADD COLUMN IF NOT EXISTS mode_tarif TEXT DEFAULT 'horaire';
+// ALTER TABLE crm_missions ADD COLUMN IF NOT EXISTS nb_passages NUMERIC(6,1);
+// ALTER TABLE crm_missions ADD COLUMN IF NOT EXISTS freq_passages TEXT DEFAULT 'semaine';
+// ALTER TABLE crm_missions ADD COLUMN IF NOT EXISTS interlocuteurs JSONB DEFAULT '[]';
+// ALTER TABLE crm_missions ADD COLUMN IF NOT EXISTS doc_consignes TEXT DEFAULT 'non';
+// ALTER TABLE crm_missions ADD COLUMN IF NOT EXISTS doc_consignes_url TEXT;
+// ALTER TABLE crm_missions ADD COLUMN IF NOT EXISTS doc_cdc TEXT DEFAULT 'non';
+// ALTER TABLE crm_missions ADD COLUMN IF NOT EXISTS doc_cdc_url TEXT;
+// ALTER TABLE crm_missions ADD COLUMN IF NOT EXISTS doc_proc TEXT DEFAULT 'non';
+// ALTER TABLE crm_missions ADD COLUMN IF NOT EXISTS doc_proc_url TEXT;
+</script>
+</body>
+</html>
