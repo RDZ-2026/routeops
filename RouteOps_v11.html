@@ -3418,7 +3418,7 @@ function loadFromSupabase(token){
       S.sheets=sheetsR.map(r=>({
         id:r.id, name:r.name, cat:r.cat,
         isTemplate:r.is_template, date:r.date,
-        startTime:r.start_time, endTime:r.end_time||r.end_service||'',
+        startTime:r.start_time, endTime:r.end_time||'', endService:r.end_time||r.end_service||'',
         tasks:Array.isArray(r.tasks)?r.tasks:[], note:r.note||'',
         observations:r.observations||''
       }))
@@ -3476,7 +3476,7 @@ function pushToSupabase(){
     fetch(base+'/sheets',{method:'POST',headers:h,body:JSON.stringify(S.sheets.map(sh=>({
       id:sh.id, name:sh.name, cat:sh.cat||'Semaine',
       is_template:!!sh.isTemplate, date:sh.date||null,
-      start_time:sh.startTime||'06:00', end_time:sh.endTime||null,
+      start_time:sh.startTime||'06:00', end_time:sh.endService||sh.endTime||null,
       tasks:sh.tasks||[], note:sh.note||null,
       observations:sh.observations||null, active:true
     })))}).catch(e=>console.error('sheets push:',e))
