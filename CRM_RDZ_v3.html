@@ -1598,20 +1598,29 @@ async function saveMission(){
   try{
     let savedId;
     if(editingMissionId){
-      await sbFetch(`crm_missions?id=eq.${editingMissionId}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify(data)});
+      const res = await fetch(`${SB_URL}/rest/v1/crm_missions?id=eq.${editingMissionId}`,{
+        method:'PATCH',
+        headers:{'apikey':SB_KEY,'Authorization':`Bearer ${session?.access_token}`,'Content-Type':'application/json','Prefer':'return=minimal'},
+        body:JSON.stringify(data)
+      });
+      if(!res.ok){const err=await res.text();console.error('PATCH error:',err);toast('Erreur: '+err,'err');return;}
       const i=missions.findIndex(x=>x.id===editingMissionId);if(i>=0)missions[i]={...missions[i],...data};
       savedId=editingMissionId;toast('Mission mise à jour ✓');
     }else{
       const rec={...data,id:uuid(),created_at:new Date().toISOString()};
-      await sbFetch('crm_missions',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(rec)});
+      const res = await fetch(`${SB_URL}/rest/v1/crm_missions`,{
+        method:'POST',
+        headers:{'apikey':SB_KEY,'Authorization':`Bearer ${session?.access_token}`,'Content-Type':'application/json','Prefer':'return=minimal'},
+        body:JSON.stringify(rec)
+      });
+      if(!res.ok){const err=await res.text();console.error('POST error payload:',JSON.stringify(rec,null,2));console.error('POST error response:',err);toast('Erreur Supabase: '+err,'err');return;}
       missions.push(rec);savedId=rec.id;toast('Mission créée ✓');
     }
-    // Génération auto échéances si récurrente
     if(data.recurrence!=='ponctuelle'&&data.date_debut&&data.date_fin){
       await genEcheances(savedId,data);
     }
     closeModal('modal-mission');cacheLocally();renderAll();
-  }catch(e){toast(e.message,'err');}
+  }catch(e){console.error('saveMission exception:',e);toast(e.message,'err');}
 }
 async function deleteMission(){
   if(!editingMissionId||!confirm('Supprimer cette mission et toutes ses échéances ?'))return;
