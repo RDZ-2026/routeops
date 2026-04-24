@@ -301,6 +301,7 @@ tbody tr:last-child td{border-bottom:none;}
 }
 @media(max-width:900px){.kpi-grid{grid-template-columns:1fr 1fr;}.fiche-grid,.two-col,.fgrid{grid-template-columns:1fr;}.fg.full{grid-column:1;}}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -357,7 +358,8 @@ tbody tr:last-child td{border-bottom:none;}
         <div id="sync-popover-body"></div>
         <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:8px;">
           <button class="btn btn-primary btn-sm" style="flex:1;" onclick="pushToSupabase();closeSyncPopover()">☁️ Sauvegarder</button>
-          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportDataJSON();closeSyncPopover()">📤 Export</button>
+          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportDataJSON();closeSyncPopover()">📤 JSON</button>
+          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportExcel();closeSyncPopover()">📊 Excel</button>
         </div>
         <div style="margin-top:8px;">
           <label class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;cursor:pointer;display:flex;align-items:center;gap:6px;">
@@ -389,6 +391,7 @@ tbody tr:last-child td{border-bottom:none;}
       </div>
     </div>
     <div class="hdr-div"></div>
+    <button class="hdr-btn hdr-btn-ghost" onclick="exportExcel()" title="Export Excel">📊 Excel</button>
     <button class="hdr-btn hdr-btn-primary" onclick="openNewAgent()">+ Nouvel agent</button>
     <button class="hdr-btn hdr-btn-ghost" onclick="addMCEntry()">+ Main courante</button>
   </div>
@@ -615,6 +618,7 @@ tbody tr:last-child td{border-bottom:none;}
       <div style="display:flex;gap:8px;align-items:center;">
         <button class="btn btn-ghost btn-sm" id="btn-print-proc" onclick="printProcess()" style="display:none;">🖨️ Imprimer</button>
         <button class="btn btn-danger btn-sm" id="btn-del-proc" onclick="deleteProcess()" style="display:none;">🗑 Supprimer</button>
+        <button class="btn btn-ghost btn-sm" id="btn-dup-proc" onclick="duplicateProcess()" style="display:none;">⧉ Dupliquer</button>
         <button class="m-close" onclick="closeM('modal-process')">✕</button>
       </div>
     </div>
@@ -1041,10 +1045,14 @@ function loadDB() {
   } catch(e){}
   return initDB();
 }
+var _saveTimer = null;
 function saveDB() {
   try { localStorage.setItem('rdz_rh_v7', JSON.stringify(DB)); } catch(e){}
-  if (window.currentToken) pushToSupabase();
-  updateSyncDot();
+  if (window.currentToken) {
+    setSyncState('saving', 'Modification...');
+    clearTimeout(_saveTimer);
+    _saveTimer = setTimeout(function(){ pushToSupabase(); }, 1000);
+  }
 }
 
 function initDB() {
@@ -1773,9 +1781,19 @@ function saveAgentEdit(){
 }
 
 function deleteAgent(id){
-  if(!confirm('Supprimer définitivement cet agent ?')) return;
-  DB.agents=DB.agents.filter(a=>a.id!==id);
-  saveDB(); closeM('modal-agent'); renderAgents(); buildDashboard();
+  if(!confirm('Supprimer definitivement cet agent ?')) return;
+  DB.agents = DB.agents.filter(function(a){ return a.id !== id; });
+  DB.process = DB.process.filter(function(p){ return p.agent_id !== id; });
+  try { localStorage.setItem('rdz_rh_v7', JSON.stringify(DB)); } catch(e){}
+  closeM('modal-agent'); renderAgents(); buildDashboard();
+  if(window.currentToken){
+    var h = authHeaders(window.currentToken);
+    Promise.all([
+      fetch(SUPA_URL+'/rest/v1/rh_agents?id=eq.'+id,{method:'DELETE',headers:h}),
+      fetch(SUPA_URL+'/rest/v1/rh_process?agent_id=eq.'+id,{method:'DELETE',headers:h})
+    ]).then(function(){ setSyncState('ok','Agent supprime'); showToast('Agent supprime', true); })
+    .catch(function(){ showToast('Erreur Supabase', false); });
+  }
 }
 
 function openNewAgent(){
@@ -2044,9 +2062,40 @@ function renderProcModal(){
 
 
 function saveProcNotes(){const p=DB.process.find(x=>x.id===curProcId);if(p){p.notes=document.getElementById('pr-notes')?.value||'';saveDB();}}
-function deleteProcess(){if(!confirm('Supprimer ce process ?'))return;DB.process=DB.process.filter(p=>p.id!==curProcId);saveDB();closeM('modal-process');renderProcess();}
+function deleteProcess(){
+  if(!confirm('Supprimer ce process ?')) return;
+  var pid = curProcId;
+  DB.process = DB.process.filter(function(p){ return p.id !== pid; });
+  try { localStorage.setItem('rdz_rh_v7', JSON.stringify(DB)); } catch(e){}
+  closeM('modal-process'); renderProcess(); buildDashboard();
+  if(window.currentToken){
+    fetch(SUPA_URL+'/rest/v1/rh_process?id=eq.'+pid,{method:'DELETE',headers:authHeaders(window.currentToken)})
+    .then(function(){ setSyncState('ok','Supprime'); showToast('Supprime', true); })
+    .catch(function(){ showToast('Erreur Supabase', false); });
+  } else { showToast('Process supprime (local)', true); }
+}
 
 // ─── Journal de suivi ─────────────────────────────
+function duplicateProcess(){
+  var src = DB.process.find(function(p){ return p.id === curProcId; });
+  if(!src) return;
+  var ag = DB.agents.find(function(a){ return a.id === src.agent_id; });
+  var agName = ag ? ag.nom+' '+ag.prenom : 'Agent inconnu';
+  if(!confirm('Dupliquer ce process pour '+agName+' ?')) return;
+  var copy = JSON.parse(JSON.stringify(src));
+  copy.id = 'pr'+Date.now();
+  copy.date = new Date().toISOString().slice(0,10);
+  copy.notes = (src.notes||'') + (src.notes ? '\n[Copie]' : '[Copie]');
+  DB.process.push(copy);
+  saveDB();
+  closeM('modal-process');
+  renderProcess();
+  curProcId = copy.id;
+  renderProcModal();
+  document.getElementById('modal-process').classList.add('open');
+  showToast('Process duplique', true);
+}
+
 function addJournalEntry(){
   const ta=document.getElementById('new-journal-entry');
   if(!ta) return;
@@ -3113,9 +3162,15 @@ function editMCEntry(id){
 }
 
 function deleteMCEntry(id){
-  if(!confirm('Supprimer cette entrée ?')) return;
-  DB.main_courante=DB.main_courante.filter(e=>e.id!==id);
-  saveDB(); renderMC(); buildDashboard();
+  if(!confirm('Supprimer cette entree ?')) return;
+  DB.main_courante = DB.main_courante.filter(function(e){ return e.id !== id; });
+  try { localStorage.setItem('rdz_rh_v7', JSON.stringify(DB)); } catch(e){}
+  renderMC(); renderProcess();
+  if(window.currentToken){
+    fetch(SUPA_URL+'/rest/v1/rh_main_courante?id=eq.'+id,{method:'DELETE',headers:authHeaders(window.currentToken)})
+    .then(function(){ setSyncState('ok','Entree supprimee'); })
+    .catch(function(){ showToast('Erreur Supabase', false); });
+  }
 }
 
 function saveMC(){
@@ -3152,31 +3207,37 @@ const PARAM_LABELS={
 let paramDragSrc={key:null,idx:null};
 
 function renderProcessTypesInSettings(){
-  // Show/create a dedicated section for process types in settings page
-  let ptSection=document.getElementById('settings-proc-types-section');
-  if(!ptSection){
-    ptSection=document.createElement('div');
-    ptSection.id='settings-proc-types-section';
-    ptSection.style.cssText='grid-column:1/-1;';
-    const grid=document.getElementById('settings-grid');
-    if(grid) grid.prepend(ptSection);
-  }
-  const types=DB.process_types||[];
-  ptSection.innerHTML=`<div class="card" style="margin-bottom:16px;">
-    <div class="card-title">✅ Types de Process RH
-      <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="openManageTypes()">⚙️ Gérer les types et checklists</button>
-    </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
-      ${types.map(t=>`<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;border-left:3px solid ${t.color};">
-        <span style="font-size:16px;">${t.icon}</span>
-        <div>
-          <div style="font-weight:600;font-size:12.5px;">${esc(t.name)}</div>
-          <div style="font-size:10.5px;color:var(--text3);">${(t.steps_template||[]).length} étapes · ${t.marks_depart?'Marque départ':'Pas de départ'}</div>
-        </div>
-      </div>`).join('')}
-    </div>
-  </div>`;
+  var el = document.getElementById('proc-types-list');
+  if(!el) return;
+  el.innerHTML = DB.process_types.map(function(pt, i){
+    var isFirst = i === 0;
+    var isLast  = i === DB.process_types.length - 1;
+    var isBuiltin = BUILT_IN_IDS.includes(pt.id);
+    var pid = pt.id.replace(/'/g, '');
+    var html = '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:white;">';
+    html += '<span style="font-size:18px;">'+(pt.icon||'📋')+'</span>';
+    html += '<span style="flex:1;font-size:13px;font-weight:600;">'+esc(pt.name)+'</span>';
+    html += '<div style="display:flex;gap:4px;">';
+    html += isFirst ? '<button class="btn btn-ghost btn-sm" disabled style="opacity:.3;">↑</button>' : '<button class="btn btn-ghost btn-sm" onclick="moveProcTypeOrder('+i+','+(i-1)+')">↑</button>';
+    html += isLast  ? '<button class="btn btn-ghost btn-sm" disabled style="opacity:.3;">↓</button>' : '<button class="btn btn-ghost btn-sm" onclick="moveProcTypeOrder('+i+','+(i+1)+')">↓</button>';
+    if(!isBuiltin){
+      html += '<button class="btn btn-ghost btn-sm" onclick="openEditProcType(\'' + pid + '\')" title="Modifier">✏️</button>';
+      html += '<button class="btn btn-ghost btn-sm" style="color:#dc2626;" onclick="deleteProcType(\'' + pid + '\')" title="Supprimer">✕</button>';
+    }
+    html += '</div></div>';
+    return html;
+  }).join('');
 }
+
+function moveProcTypeOrder(fromIdx, toIdx){
+  var arr = DB.process_types;
+  var item = arr.splice(fromIdx, 1)[0];
+  arr.splice(toIdx, 0, item);
+  saveDB();
+  renderProcessTypesInSettings();
+  renderProcTabs();
+}
+
 
 function renderSettings(){
   renderProcessTypesInSettings();
@@ -3914,6 +3975,204 @@ function importDataJSON(input) {
 function _importDataJSON_old(input) {
 }
 
+
+// ═══════════════════════════════════════════════════════════
+// SÉLECTEUR D'EMOJIS
+// ═══════════════════════════════════════════════════════════
+var BUILTIN_EMOJIS = [
+  '🟢','🔴','🟡','🟠','⚪','✅','❌','⏳','🔄','📌','🔒','🔓',
+  '📄','📋','📁','📂','🗂️','📝','✍️','📎','🗃️','🗄️',
+  '👤','👥','🪪','🤝','👋','🚶','🏃',
+  '📞','📧','💬','📢','⚠️','🔔','📣',
+  '📅','🗓️','⏱️','🕐','📆',
+  '🏢','🚗','🎓','💼','🏥','⭐','🔑','🛡️'
+];
+var _emojiCallback = null;
+
+function openEmojiPicker(callback, anchorEl) {
+  _emojiCallback = callback;
+  var picker = document.getElementById('emoji-picker');
+  // Position near anchor
+  if(anchorEl) {
+    var r = anchorEl.getBoundingClientRect();
+    picker.style.top  = (r.bottom + window.scrollY + 6) + 'px';
+    picker.style.left = Math.min(r.left, window.innerWidth - 340) + 'px';
+  } else {
+    picker.style.top  = '120px';
+    picker.style.left = '50%';
+    picker.style.transform = 'translateX(-50%)';
+  }
+  document.getElementById('emoji-search').value = '';
+  renderEmojiGrid(BUILTIN_EMOJIS);
+  renderCustomEmojis();
+  picker.style.display = 'block';
+  setTimeout(function(){ document.addEventListener('click', _emojiOutsideClick); }, 50);
+}
+
+function _emojiOutsideClick(e) {
+  var p = document.getElementById('emoji-picker');
+  if(p && !p.contains(e.target)) { closeEmojiPicker(); }
+}
+
+function closeEmojiPicker() {
+  document.getElementById('emoji-picker').style.display = 'none';
+  _emojiCallback = null;
+  document.removeEventListener('click', _emojiOutsideClick);
+}
+
+function renderEmojiGrid(list) {
+  var grid = document.getElementById('emoji-grid-builtin');
+  if(!grid) return;
+  grid.innerHTML = '';
+  list.forEach(function(e) {
+    var btn = document.createElement('button');
+    btn.textContent = e;
+    btn.style.cssText = 'background:none;border:1px solid #e2e2e6;border-radius:6px;padding:5px 7px;font-size:20px;cursor:pointer;';
+    btn.onmouseenter = function(){ this.style.background='#f2f2f4'; };
+    btn.onmouseleave = function(){ this.style.background='none'; };
+    btn.onclick = function(){ pickEmoji(e); };
+    grid.appendChild(btn);
+  });
+}
+
+function filterEmojis(val) {
+  if(!val) { renderEmojiGrid(BUILTIN_EMOJIS); return; }
+  // Si c'est un emoji direct, juste l'afficher
+  renderEmojiGrid(BUILTIN_EMOJIS.filter(function(e){ return e.includes(val); }));
+}
+
+function renderCustomEmojis() {
+  var custom = (DB.params && DB.params._custom_emojis) ? DB.params._custom_emojis : [];
+  var sec  = document.getElementById('emoji-custom-section');
+  var grid = document.getElementById('emoji-grid-custom');
+  if(!sec || !grid) return;
+  if(!custom.length) { sec.style.display = 'none'; return; }
+  sec.style.display = 'block';
+  grid.innerHTML = '';
+  custom.forEach(function(e, i) {
+    var wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;display:inline-block;';
+    var btn = document.createElement('button');
+    btn.textContent = e;
+    btn.style.cssText = 'background:none;border:1px solid #e2e2e6;border-radius:6px;padding:5px 7px;font-size:20px;cursor:pointer;';
+    btn.onclick = function(){ pickEmoji(e); };
+    var del = document.createElement('button');
+    del.textContent = 'x';
+    del.style.cssText = 'position:absolute;top:-4px;right:-4px;background:#dc2626;color:white;border:none;border-radius:50%;width:14px;height:14px;font-size:9px;cursor:pointer;line-height:1;';
+    del.onclick = function(){ removeCustomEmoji(i); };
+    wrap.appendChild(btn);
+    wrap.appendChild(del);
+    grid.appendChild(wrap);
+  });
+}
+
+function addCustomEmoji() {
+  var val = document.getElementById('emoji-search').value.trim();
+  if(!val) return;
+  if(!DB.params._custom_emojis) DB.params._custom_emojis = [];
+  if(!DB.params._custom_emojis.includes(val)) {
+    DB.params._custom_emojis.push(val);
+    saveDB();
+  }
+  document.getElementById('emoji-search').value = '';
+  renderCustomEmojis();
+}
+
+function removeCustomEmoji(idx) {
+  if(!DB.params._custom_emojis) return;
+  DB.params._custom_emojis.splice(idx, 1);
+  saveDB();
+  renderCustomEmojis();
+}
+
+function pickEmoji(e) {
+  if(_emojiCallback) _emojiCallback(e);
+  closeEmojiPicker();
+}
+
+
+function exportExcel(){
+  if(typeof XLSX === 'undefined'){
+    showToast('SheetJS non charge, verifiez votre connexion', false); return;
+  }
+  var wb = XLSX.utils.book_new();
+
+  // Onglet 1 : Agents actifs
+  var actifs = DB.agents.filter(function(a){ return a.statut === 'actif'; }).map(function(a){
+    return {
+      'Nom': a.nom||'', 'Prenom': a.prenom||'', 'Fonction': a.fonction||'',
+      'Telephone': a.telephone||'', 'Email': a.email||'',
+      'Nationalite': a.nationalite||'', 'Date embauche': a.date_embauche||'',
+      'Taux horaire': a.taux_horaire||'', 'Categorie': a.categorie_salaire||'',
+      'Contrat': a.contrat||'', 'Ville': a.ville||'',
+      'Carte exp': (a.docs&&a.docs.carte&&a.docs.carte.exp)||'',
+      'PPA exp': (a.docs&&a.docs.ppa&&a.docs.ppa.exp)||'',
+      'Permis exp': (a.docs&&a.docs.permis&&a.docs.permis.exp)||''
+    };
+  });
+  if(actifs.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(actifs), 'Agents actifs');
+
+  // Onglet 2 : Agents partis
+  var partis = DB.agents.filter(function(a){ return a.statut === 'parti'; }).map(function(a){
+    return {
+      'Nom': a.nom||'', 'Prenom': a.prenom||'', 'Fonction': a.fonction||'',
+      'Date embauche': a.date_embauche||'', 'Date depart': a.date_depart||''
+    };
+  });
+  if(partis.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(partis), 'Agents partis');
+
+  // Onglet 3 : Main courante
+  var mc = DB.main_courante.map(function(e){
+    var ag = DB.agents.find(function(a){ return a.id === e.agent; });
+    return {
+      'Date': e.date||'',
+      'Agent': ag ? ag.nom+' '+ag.prenom : (e.agent||''),
+      'Site': e.site||'', 'Categorie': e.categorie||'',
+      'Mesure': e.mesure||'', 'Fait': e.fait||'', 'Suivi': e.suivi||''
+    };
+  });
+  if(mc.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mc), 'Main courante');
+
+  // Onglet 4 : Process en cours
+  var procs = DB.process.map(function(p){
+    var ag = DB.agents.find(function(a){ return a.id === p.agent_id; });
+    var pt = DB.process_types.find(function(t){ return t.id === p.type; });
+    var done = (p.steps||[]).filter(function(s){ return s.checked; }).length;
+    var total = (p.steps||[]).length;
+    return {
+      'Agent': ag ? ag.nom+' '+ag.prenom : (p.agent_id||''),
+      'Type': pt ? pt.name : (p.type||''),
+      'Date': p.date||'',
+      'Avancement': total ? done+'/'+total : '0/0',
+      'Notes': p.notes||''
+    };
+  });
+  if(procs.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(procs), 'Process RH');
+
+  // Onglet 5 : Formations
+  var forms = [];
+  DB.agents.forEach(function(a){
+    (a.formations||[]).forEach(function(f){
+      forms.push({
+        'Agent': a.nom+' '+a.prenom,
+        'Date': f.date||'', 'Type': f.type||'',
+        'Theme': f.theme||'', 'Site': f.site||'',
+        'Formateur': f.formateur||'', 'Note': f.note||''
+      });
+    });
+  });
+  if(forms.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(forms), 'Formations');
+
+  if(wb.SheetNames.length === 0){
+    showToast('Aucune donnee a exporter', false); return;
+  }
+
+  var date = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, 'RDZ_RH_'+date+'.xlsx');
+  showToast('Export Excel telecharge', true);
+}
+
+
 function exportDataJSON() {
   const payload = { version:'rdz_hr_v7', exportedAt:new Date().toISOString(), data:DB };
   const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
@@ -3972,6 +4231,27 @@ renderAgents();
     </div>
   </div>
 </div>
+
+<!-- EMOJI PICKER -->
+<div id="emoji-picker" style="display:none;position:fixed;z-index:10000;background:white;border:1.5px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:14px;width:320px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+    <span style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Choisir un emoji</span>
+    <button onclick="closeEmojiPicker()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text3);">✕</button>
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:10px;">
+    <input id="emoji-search" type="text" placeholder="Coller ou taper un emoji..." 
+      style="flex:1;border:1.5px solid var(--border);border-radius:7px;padding:7px 10px;font-size:16px;outline:none;"
+      oninput="filterEmojis(this.value)">
+    <button onclick="addCustomEmoji()" style="padding:7px 12px;background:var(--red);color:white;border:none;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;">+ Ajouter</button>
+  </div>
+  <div style="font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Emojis RDZ</div>
+  <div id="emoji-grid-builtin" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;"></div>
+  <div id="emoji-custom-section" style="display:none;">
+    <div style="font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Mes emojis</div>
+    <div id="emoji-grid-custom" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
+  </div>
+</div>
+
 <div id="print-zone"></div>
 </body>
 </html>
