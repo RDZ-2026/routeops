@@ -3230,6 +3230,7 @@ function renderProcessTypesInSettings(){
     html += '<div style="display:flex;gap:4px;">';
     html += isFirst ? '<button class="btn btn-ghost btn-sm" disabled style="opacity:.3;">↑</button>' : '<button class="btn btn-ghost btn-sm" onclick="moveProcTypeOrder('+i+','+(i-1)+')">↑</button>';
     html += isLast  ? '<button class="btn btn-ghost btn-sm" disabled style="opacity:.3;">↓</button>' : '<button class="btn btn-ghost btn-sm" onclick="moveProcTypeOrder('+i+','+(i+1)+')">↓</button>';
+    html += '<button class="btn btn-ghost btn-sm" onclick="duplicateProcType(\'' + pid + '\')" title="Dupliquer">⧉</button>';
     if(!isBuiltin){
       html += '<button class="btn btn-ghost btn-sm" onclick="openEditProcType(\'' + pid + '\')" title="Modifier">✏️</button>';
       html += '<button class="btn btn-ghost btn-sm" style="color:#dc2626;" onclick="deleteProcType(\'' + pid + '\')" title="Supprimer">✕</button>';
@@ -3238,6 +3239,21 @@ function renderProcessTypesInSettings(){
     return html;
   }).join('');
 }
+
+function duplicateProcType(id){
+  var src = DB.process_types.find(function(t){ return t.id === id; });
+  if(!src) return;
+  var copy = JSON.parse(JSON.stringify(src));
+  copy.id = 'proc_' + Date.now();
+  copy.name = copy.name + ' (copie)';
+  copy.is_builtin = false;
+  DB.process_types.push(copy);
+  saveDB();
+  renderProcessTypesInSettings();
+  renderProcTabs();
+  showToast('Type duplique — cliquez Modifier pour le renommer', true);
+}
+
 
 function moveProcTypeOrder(fromIdx, toIdx){
   var arr = DB.process_types;
