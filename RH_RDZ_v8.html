@@ -965,8 +965,8 @@ const REF_STEPS = {
 // Build default steps for a process type
 function buildDefaultSteps(typeId, checkedMap={}, checkDateDefault=null){
   // Look up in DB.process_types first, fall back to BUILT_IN_PROC_TYPES, then REF_STEPS
-  const pt = ((typeof DB!=="undefined"&&DB.process_types)||BUILT_IN_PROC_TYPES).find(t=>t.id===typeId)
-           || BUILT_IN_PROC_TYPES.find(t=>t.id===typeId);
+  // Chercher dans BUILT_IN_PROC_TYPES uniquement (DB pas encore initialisé à ce stade)
+  const pt = BUILT_IN_PROC_TYPES.find(t=>t.id===typeId);
   const template = pt ? pt.steps_template : (REF_STEPS[typeId]||[]);
   return template.map((s,i)=>({
     id: s.id||('s_'+typeId+'_'+i),
@@ -983,7 +983,8 @@ function buildDefaultSteps(typeId, checkedMap={}, checkDateDefault=null){
 }
 // Get process type metadata
 function getProcType(typeId){
-  return ((typeof DB!=="undefined"&&DB.process_types)||BUILT_IN_PROC_TYPES).find(t=>t.id===typeId)
+  var types = (typeof DB!=="undefined" && DB && DB.process_types) ? DB.process_types : BUILT_IN_PROC_TYPES;
+  return types.find(function(t){return t.id===typeId;}) || BUILT_IN_PROC_TYPES.find(function(t){return t.id===typeId;})
       || BUILT_IN_PROC_TYPES.find(t=>t.id===typeId)
       || {id:typeId, name:typeId, icon:'📋', color:'#5a5753', badge_class:'b-gray', marks_depart:false};
 }
