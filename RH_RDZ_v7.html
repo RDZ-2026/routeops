@@ -356,18 +356,16 @@ tbody tr:last-child td{border-bottom:none;}
       <div id="sync-popover" style="display:none;position:absolute;top:40px;right:0;width:280px;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-lg);z-index:500;padding:14px;">
         <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px;">Synchronisation</div>
         <div id="sync-popover-body"></div>
-        <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border);display:flex;gap:8px;">
-          <button class="btn btn-primary btn-sm" style="flex:1;" onclick="pushToSupabase();closeSyncPopover()">☁️ Sauvegarder</button>
-          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportDataJSON();closeSyncPopover()">📤 JSON</button>
-          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportExcel();closeSyncPopover()">📊 Excel</button>
-        </div>
-        <div style="margin-top:8px;">
+        <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border);">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:8px;">Sauvegarde automatique active — toute modification est envoyée dans Supabase.</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px;">
+            <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportDataJSON();closeSyncPopover()">📤 JSON</button>
+            <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="exportExcel();closeSyncPopover()">📊 Excel</button>
+          </div>
           <label class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;cursor:pointer;display:flex;align-items:center;gap:6px;">
             📥 Importer un fichier JSON
             <input type="file" accept=".json" style="display:none;" onchange="importDataJSON(this);closeSyncPopover()">
           </label>
-        </div>
-        <div style="display:none;"><!-- placeholder to keep structure -->
         </div>
       </div>
     </div>
@@ -821,6 +819,31 @@ tbody tr:last-child td{border-bottom:none;}
 <script>
 // ── Constantes globales (déclarées en premier) ────────────
 
+
+// ═══════════════════════════════════════════════════════════
+// SYNC POPOVER
+// ═══════════════════════════════════════════════════════════
+function toggleSyncPopover() {
+  var p = document.getElementById('sync-popover');
+  if(!p) return;
+  if(p.style.display !== 'none') { p.style.display = 'none'; return; }
+  var s = window.currentSession;
+  var lbl = document.getElementById('sync-label');
+  var lastSync = lbl ? lbl.textContent : '';
+  var html = s
+    ? '<div style="padding:8px 10px;background:#f0fdf4;border-radius:7px;font-size:12px;color:#16a34a;font-weight:600;margin-bottom:8px;">🟢 Connecte &mdash; ' + s.email + '</div>'
+    : '<div style="padding:8px 10px;background:#f2f2f4;border-radius:7px;font-size:12px;color:#9ca3af;margin-bottom:8px;">Non connecte</div>';
+  if(lastSync) html += '<div style="font-size:12px;color:#4b5563;padding:4px 10px 8px;">&#9201; ' + lastSync + '</div>';
+  html += '<div style="font-size:11px;color:#9ca3af;padding:7px 10px;background:#f2f2f4;border-radius:6px;">Sauvegarde automatique active &mdash; RGPD &mdash; RLS Supabase</div>';
+  document.getElementById('sync-popover-body').innerHTML = html;
+  p.style.display = 'block';
+  setTimeout(function() { document.addEventListener('click', closeSyncPopover, {once:true}); }, 50);
+}
+function closeSyncPopover() {
+  var p = document.getElementById('sync-popover');
+  if(p) p.style.display = 'none';
+}
+
 // ── Toast notifications ───────────────────────────────────
 function showToast(msg, success) {
   var t = document.createElement('div');
@@ -1054,14 +1077,19 @@ function loadDB() {
   } catch(e){}
   return initDB();
 }
-var _saveTimer = null;
-function saveDB() {
+function saveDB(dirty_hint) {
   try { localStorage.setItem('rdz_rh_v7', JSON.stringify(DB)); } catch(e){}
-  if (window.currentToken) {
-    setSyncState('saving', 'Modification...');
-    clearTimeout(_saveTimer);
-    _saveTimer = setTimeout(function(){ pushToSupabase(); }, 1000);
+  if (!window.currentToken) return;
+  // Mark what's dirty
+  if (dirty_hint) {
+    if (typeof dirty_hint === 'string') markDirty(dirty_hint);
+    else dirty_hint.forEach(function(d){ markDirty(d); });
+  } else {
+    // No hint = mark everything (safe fallback)
+    markDirty('agents'); markDirty('mc'); markDirty('process');
+    markDirty('proc_types'); markDirty('params');
   }
+  triggerAutoSave();
 }
 
 function initDB() {
@@ -2124,13 +2152,13 @@ function editJournalEntry(idx){
   if(newText===null) return;
   p.journal[idx].text=newText.trim()||p.journal[idx].text;
   p.journal[idx].edited=new Date().toISOString();
-  saveDB(); renderProcModal();
+  saveDB('process'); renderProcModal();
 }
 function deleteJournalEntry(idx){
   if(!confirm('Supprimer cette note ?')) return;
   const p=DB.process.find(x=>x.id===curProcId); if(!p) return;
   p.journal.splice(idx,1);
-  saveDB(); renderProcModal();
+  saveDB('process'); renderProcModal();
 }
 
 // ─── Print process ────────────────────────────────
@@ -2280,7 +2308,7 @@ function saveProcType(){
     const newId='pt_'+Date.now();
     DB.process_types.push({id:newId,name,icon,color,badge_class,marks_depart,steps_template:[]});
   }
-  saveDB();closeM('modal-proc-type-edit');renderManageTypes();renderProcTabs();
+  saveDB('proc_types');closeM('modal-proc-type-edit');renderManageTypes();renderProcTabs();
 }
 function deleteProcType(id){
   const inUse=DB.process.filter(p=>p.type===id).length;
@@ -2369,7 +2397,7 @@ function moveTypeSection(typeId,targetSec,srcSec){
   const tIdx=rest.findIndex(s=>s.section===targetSec);
   if(tIdx<0) t.steps_template=[...rest,...srcSteps];
   else {rest.splice(tIdx,0,...srcSteps); t.steps_template=rest;}
-  saveDB(); renderTypeStepsEditor(t);
+  saveDB('proc_types'); renderTypeStepsEditor(t);
 }
 
 function moveTypeStep(typeId,targetIdx,srcIdx){
@@ -2378,14 +2406,14 @@ function moveTypeStep(typeId,targetIdx,srcIdx){
   const [moved]=t.steps_template.splice(srcIdx,1);
   t.steps_template.splice(targetIdx,0,moved);
   typeStepDragSrc=null;
-  saveDB(); renderTypeStepsEditor(t);
+  saveDB('proc_types'); renderTypeStepsEditor(t);
 }
 function renameTypeSection(typeId,oldSec){
   const name=prompt('Nouveau nom de la section :', oldSec);
   if(!name||name===oldSec) return;
   const t=(DB.process_types||[]).find(x=>x.id===typeId); if(!t) return;
   t.steps_template.filter(s=>s.section===oldSec).forEach(s=>s.section=name);
-  saveDB(); renderTypeStepsEditor(t);
+  saveDB('proc_types'); renderTypeStepsEditor(t);
 }
 
 function addTypeStep(typeId,sec){
@@ -2424,7 +2452,7 @@ function deleteTypeStep(typeId,idx){
   if(!confirm('Supprimer cette étape du modèle ?')) return;
   const t=(DB.process_types||[]).find(x=>x.id===typeId); if(!t) return;
   t.steps_template.splice(idx,1);
-  saveDB(); renderTypeStepsEditor(t);
+  saveDB('proc_types'); renderTypeStepsEditor(t);
 }
 
 // Override saveStep to handle both process steps and type template steps
@@ -2436,7 +2464,7 @@ function toggleStepCheck(idx){
   s.checked=!s.checked;
   if(s.checked && !s.check_date) s.check_date=new Date().toISOString().split('T')[0];
   else if(!s.checked) s.check_date=null;
-  saveDB(); renderProcModal(); renderProcess(); buildDashboard();
+  saveDB('process'); renderProcModal(); renderProcess(); buildDashboard();
 }
 function updateStepDoc(idx,rawVal){
   const p=DB.process.find(x=>x.id===curProcId); if(!p) return;
@@ -2450,7 +2478,7 @@ function updateStepDoc(idx,rawVal){
       s.doc_exp=toDateStr(exp);
     } else if(!s.doc_date) { s.doc_exp=null; }
   }
-  saveDB(); renderProcModal(); renderProcess(); buildDashboard();
+  saveDB('process'); renderProcModal(); renderProcess(); buildDashboard();
 }
 function recalcStepExpiries(p){
   // On render: recompute doc_exp for validity steps that have doc_date but stale/missing doc_exp
@@ -2480,7 +2508,7 @@ function dropStep(e,targetIdx){
   const [moved]=p.steps.splice(dragSrcIdx,1);
   p.steps.splice(targetIdx,0,moved);
   dragSrcIdx=null;
-  saveDB(); renderProcModal();
+  saveDB('process'); renderProcModal();
 }
 let dragSrcSec=null;
 function dragSection(e,sec){dragSrcSec=sec;}
@@ -2494,7 +2522,7 @@ function dropSection(e,targetSec){
   if(tIdx<0) p.steps=[...rest,...srcSteps];
   else {rest.splice(tIdx,0,...srcSteps);p.steps=rest;}
   dragSrcSec=null;
-  saveDB(); renderProcModal();
+  saveDB('process'); renderProcModal();
 }
 let editingStepIdx=null, editingStepSection=null;
 function addStepToSection(sec){
@@ -2529,7 +2557,7 @@ function deleteStep(idx){
   if(!confirm('Supprimer cette étape ?')) return;
   const p=DB.process.find(x=>x.id===curProcId); if(!p) return;
   p.steps.splice(idx,1);
-  saveDB(); renderProcModal(); renderProcess();
+  saveDB('process'); renderProcModal(); renderProcess();
 }
 function toggleStepDocFields(){
   const v=document.getElementById('ms-hasdoc').value;
@@ -2619,7 +2647,7 @@ function saveStep(){
       else t.steps_template.push(ns);
     }
     delete modal.dataset.editIdx;
-    saveDB(); closeM('modal-step'); renderTypeStepsEditor(t);
+    saveDB('proc_types'); closeM('modal-step'); renderTypeStepsEditor(t);
     return;
   }
 
@@ -2678,7 +2706,7 @@ function saveNewProcess(){
   if(pt.marks_depart){const a=DB.agents.find(x=>x.id===agId);if(a){a.statut='parti';a.date_depart=document.getElementById('np-date').value;}}
   const newProc={id:'pr'+Date.now(),agent_id:agId,type:typeId,date:document.getElementById('np-date').value,notes:document.getElementById('np-notes').value,checks:{},steps:buildDefaultSteps(typeId)};
   DB.process.push(newProc);
-  saveDB();closeM('modal-newprocess');renderProcess();buildDashboard();
+  saveDB('process');closeM('modal-newprocess');renderProcess();buildDashboard();
   // Auto-open the process
   curProcId=newProc.id; renderProcModal(); document.getElementById('modal-process').classList.add('open');
 }
@@ -3302,7 +3330,7 @@ function moveParam(key,fromIdx,toIdx){
   const arr=DB.params[key];
   const [moved]=arr.splice(fromIdx,1);
   arr.splice(toIdx,0,moved);
-  saveDB(); renderSettings(); populateSelects();
+  saveDB('params'); renderSettings(); populateSelects();
 }
 
 function addParam(key){
@@ -3311,13 +3339,13 @@ function addParam(key){
   if(!val) return;
   if(!DB.params[key].includes(val)) DB.params[key].push(val);
   inp.value='';
-  saveDB();renderSettings();populateSelects();
+  saveDB('params');renderSettings();populateSelects();
 }
 
 function removeParam(key,idx){
   if(!confirm('Supprimer "'+DB.params[key][idx]+'" ?')) return;
   DB.params[key].splice(idx,1);
-  saveDB();renderSettings();populateSelects();
+  saveDB('params');renderSettings();populateSelects();
 }
 function editParamInline(key,idx){
   const span=document.getElementById(`sv-${key}-${idx}`);
@@ -3335,7 +3363,7 @@ function saveParamInline(key,idx){
   const val=(inp?.value||'').trim();
   if(!val){alert('Valeur vide.');return;}
   DB.params[key][idx]=val;
-  saveDB();renderSettings();populateSelects();
+  saveDB('params');renderSettings();populateSelects();
 }
 
 // ═══════════════════════════════════════
@@ -3838,16 +3866,40 @@ async function loadFromSupabase(token) {
 // ═══════════════════════════════════════════════════════════
 // SAUVEGARDE VERS SUPABASE
 // ═══════════════════════════════════════════════════════════
-async function pushToSupabase() {
-  if (!window.currentToken) { showToast('❌ Non connecté à Supabase', false); return; }
-  const h    = authHeaders(window.currentToken);
-  const base = SUPA_URL + '/rest/v1';
-  setSyncState('saving', 'Sauvegarde…');
+// ── File d'envoi intelligente ─────────────────────────────
+var _dirty   = {};   // {agents:true, mc:true, process:true, params:true, proc_types:true}
+var _saveTimer = null;
+
+function markDirty(what) {
+  _dirty[what] = true;
+}
+
+// saveDB — appelé par toutes les fonctions de modification
+var _origSaveDB = null; // stub, redéfini ci-dessous dans init
+
+// Debounce : 1.5s après la dernière modification
+function triggerAutoSave() {
+  setSyncState('saving', 'Modification...');
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(function(){ pushDirty(); }, 1500);
+}
+
+// Push uniquement les tables marquées dirty
+async function pushDirty() {
+  if (!window.currentToken) return;
+  if (!Object.keys(_dirty).length) return;
+  var dirty = Object.assign({}, _dirty);
+  _dirty = {};  // reset avant l'envoi
+  var h    = authHeaders(window.currentToken);
+  var base = SUPA_URL + '/rest/v1';
+  var errors = [];
+
   try {
-    if (DB.agents.length) {
-      await fetch(base + '/rh_agents', { method:'POST', headers:h,
-        body: JSON.stringify(DB.agents.map(a => ({
-          id:a.id, nom:a.nom, prenom:a.prenom, statut:a.statut||'actif',
+    // ── Agents ──────────────────────────────────────────
+    if (dirty.agents && DB.agents && DB.agents.length) {
+      var res = await fetch(base+'/rh_agents', {method:'POST', headers:h,
+        body: JSON.stringify(DB.agents.map(function(a) { return {
+          id:a.id, nom:a.nom||null, prenom:a.prenom||null, statut:a.statut||'actif',
           dob:a.dob||null, nationalite:a.nationalite||null, avs:a.avs||null,
           fonction:a.fonction||null, telephone:a.telephone||null, email:a.email||null,
           adresse:a.adresse||null, cp:a.cp||null, ville:a.ville||null, pays:a.pays||null,
@@ -3858,426 +3910,85 @@ async function pushToSupabase() {
           contrat_heures:a.contrat_heures||null,
           statut_marital:a.statut_marital||'Célibataire',
           nb_enfants:a.nb_enfants||0,
-          matr_denonc_carte:a.matr_denonc_carte||null,
-          matr_denonc_ppa:a.matr_denonc_ppa||null,
-          docs:a.docs||{}, conjoint:a.conjoint||{},
-          baspe:a.baspe||{}, formations:a.formations||[],
-          updated_by:window.currentSession?.user_id||null
-        })))
+          matr_denonc_carte:a.matr_denonc_carte||null, matr_denonc_ppa:a.matr_denonc_ppa||null,
+          docs:a.docs||{}, conjoint:a.conjoint||{}, baspe:a.baspe||{}, formations:a.formations||[],
+          updated_by:window.currentSession&&window.currentSession.user_id||null
+        };}))
       });
+      if (!res.ok) errors.push('agents:'+res.status);
     }
-    if (DB.main_courante.length) {
-      await fetch(base + '/rh_main_courante', { method:'POST', headers:h,
-        body: JSON.stringify(DB.main_courante.map(m => ({
+
+    // ── Main courante ────────────────────────────────────
+    if (dirty.mc && DB.main_courante && DB.main_courante.length) {
+      var res2 = await fetch(base+'/rh_main_courante', {method:'POST', headers:h,
+        body: JSON.stringify(DB.main_courante.map(function(m) { return {
           id:m.id, date:m.date, agent_id:m.agent||null, site:m.site||null,
           categorie:m.categorie||null, mesure:m.mesure||null,
-          fait:m.fait||'', suivi:m.suivi||null,
-          created_by:window.currentSession?.user_id||null
-        })))
+          fait:m.fait||null, suivi:m.suivi||null,
+          created_by:window.currentSession&&window.currentSession.user_id||null
+        };}))
       });
+      if (!res2.ok) errors.push('mc:'+res2.status);
     }
-    if (DB.process_types.length) {
-      await fetch(base + '/rh_process_types', { method:'POST', headers:h,
-        body: JSON.stringify(DB.process_types.map((pt,i) => ({
-          id:pt.id, name:pt.name, icon:pt.icon||'📋', color:pt.color||'#6b7280',
-          badge_class:pt.badge_class||'b-gray', marks_depart:!!pt.marks_depart,
-          is_builtin:!!pt.is_builtin, position:i, steps_template:pt.steps_template||[]
-        })))
-      });
-    }
-    if (DB.process.length) {
-      await fetch(base + '/rh_process', { method:'POST', headers:h,
-        body: JSON.stringify(DB.process.map(p => ({
+
+    // ── Process ──────────────────────────────────────────
+    if (dirty.process && DB.process && DB.process.length) {
+      var res3 = await fetch(base+'/rh_process', {method:'POST', headers:h,
+        body: JSON.stringify(DB.process.map(function(p) { return {
           id:p.id, agent_id:p.agent_id||null, type_id:p.type||null,
           date:p.date||null, notes:p.notes||null, steps:p.steps||[],
-          updated_by:window.currentSession?.user_id||null
-        })))
+          updated_by:window.currentSession&&window.currentSession.user_id||null
+        };}))
       });
+      if (!res3.ok) errors.push('process:'+res3.status);
     }
-    try { localStorage.setItem('rdz_rh_v7', JSON.stringify(DB)); } catch(e) {}
-    const t = new Date().toLocaleTimeString('fr-CH', {hour:'2-digit',minute:'2-digit'});
-    setSyncState('ok', 'Sauvegardé ' + t);
-    showToast('☁️ Données sauvegardées dans Supabase', true);
+
+    // ── Types de process ─────────────────────────────────
+    if (dirty.proc_types && DB.process_types && DB.process_types.length) {
+      var res4 = await fetch(base+'/rh_process_types', {method:'POST', headers:h,
+        body: JSON.stringify(DB.process_types.map(function(pt, i) { return {
+          id:pt.id, name:pt.name, icon:pt.icon||'📋',
+          color:pt.color||'#6b7280', badge_class:pt.badge_class||'b-gray',
+          marks_depart:!!pt.marks_depart, is_builtin:!!pt.is_builtin,
+          position:i, steps_template:pt.steps_template||[]
+        };}))
+      });
+      if (!res4.ok) errors.push('proc_types:'+res4.status);
+    }
+
+    // ── Params ───────────────────────────────────────────
+    if (dirty.params && DB.params) {
+      var parPayload = Object.keys(DB.params).map(function(k) {
+        return { key:k, value:DB.params[k],
+          updated_by:window.currentSession&&window.currentSession.user_id||null };
+      });
+      var res5 = await fetch(base+'/rh_params', {method:'POST', headers:h,
+        body: JSON.stringify(parPayload)
+      });
+      if (!res5.ok) errors.push('params:'+res5.status);
+    }
+
+    if (errors.length) {
+      setSyncState('error', 'Erreur: '+errors.join(', '));
+      showToast('Erreur sync: '+errors.join(', '), false);
+      // Re-marque dirty pour retry
+      errors.forEach(function(e){ _dirty[e.split(':')[0]] = true; });
+    } else {
+      var t = new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'});
+      setSyncState('ok', 'Sync '+t);
+    }
   } catch(e) {
-    console.error('pushToSupabase:', e);
-    setSyncState('error', 'Erreur sync');
-    showToast('❌ Erreur de synchronisation', false);
+    console.error('pushDirty:', e);
+    setSyncState('error', 'Hors ligne');
+    Object.assign(_dirty, dirty); // restore dirty pour retry
   }
 }
 
-// ═══════════════════════════════════════════════════════════
-// VOYANT SYNC
-// ═══════════════════════════════════════════════════════════
-function setSyncState(state, label) {
-  const dot = document.getElementById('sync-dot');
-  const lbl = document.getElementById('sync-label');
-  if (!dot) return;
-  const cfg = {
-    ok:      {c:'#16a34a', s:'0 0 5px #16a34a88'},
-    loading: {c:'#2563eb', s:'0 0 5px #2563eb88'},
-    saving:  {c:'#d97706', s:'0 0 5px #d9770688'},
-    error:   {c:'#dc2626', s:'0 0 5px #dc262688'},
-    idle:    {c:'#9ca3af', s:'none'},
-  }[state] || {c:'#9ca3af', s:'none'};
-  dot.style.background = cfg.c;
-  dot.style.boxShadow  = cfg.s;
-  if (lbl && label) lbl.textContent = label;
-}
-function updateSyncDot() {} // legacy stub
-
-function toggleSyncPopover() {
-  const p = document.getElementById('sync-popover');
-  if (!p) return;
-  if (p.style.display !== 'none') { p.style.display = 'none'; return; }
-  const s = window.currentSession;
-  let html = s
-    ? `<div style="padding:8px 10px;background:var(--green-l);border-radius:7px;font-size:12px;color:var(--green);font-weight:600;margin-bottom:8px;">🟢 Connecté — ${s.email}</div>`
-    : `<div style="padding:8px 10px;background:var(--bg);border-radius:7px;font-size:12px;color:var(--text3);margin-bottom:8px;">⚪ Non connecté</div>`;
-  html += `<div style="font-size:11px;color:var(--text3);padding:7px 10px;background:var(--bg);border-radius:6px;">🔒 Données RGPD protégées par RLS Supabase</div>`;
-  document.getElementById('sync-popover-body').innerHTML = html;
-  p.style.display = 'block';
-  setTimeout(() => document.addEventListener('click', closeSyncPopover, {once:true}), 50);
-}
-function closeSyncPopover() {
-  const p = document.getElementById('sync-popover');
-  if (p) p.style.display = 'none';
-}
-
-// ── Export JSON (backup) ──────────────────────────────────
-function importDataJSON(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      const raw     = JSON.parse(e.target.result);
-      const newData = raw.data || raw;
-      if (!newData.agents) {
-        alert("Fichier invalide — ce n'est pas un export RDZ RH.");
-        input.value = ''; return;
-      }
-      var nAg = (newData.agents        || []).length;
-      var nMC = (newData.main_courante || []).length;
-      var nPr = (newData.process       || []).length;
-      if (!confirm(nAg + ' agents, ' + nMC + ' main courante, ' + nPr + ' process. Importer et remplacer les donnees actuelles ?')) {
-        input.value = ''; return;
-      }
-      // Appliquer sur la variable globale DB
-      if (!newData.params)        newData.params        = JSON.parse(JSON.stringify(DEFAULTS));
-      if (!newData.agents)        newData.agents        = [];
-      if (!newData.process)       newData.process       = [];
-      if (!newData.process_types) newData.process_types = JSON.parse(JSON.stringify(BUILT_IN_PROC_TYPES));
-      if (!newData.main_courante) newData.main_courante = [];
-      newData.agents.forEach(function(a) {
-        if (!a.formations) a.formations = [];
-        if (!a.conjoint)   a.conjoint   = {};
-        if (!a.baspe)      a.baspe      = {};
-        if (!a.docs)       a.docs       = {carte:{},ppa:{},permis:{},pi1:{},pi2:{},permis_conduire:{}};
-      });
-      // Écraser DB globalement
-      for (var k in DB) { try { delete DB[k]; } catch(ex) {} }
-      Object.assign(DB, newData);
-      // Cache local
-      try { localStorage.setItem('rdz_rh_v7', JSON.stringify(DB)); } catch(ex) {}
-      // Rafraîchir UI
-      if (typeof populateSelects       === 'function') populateSelects();
-      if (typeof populateFormSelects   === 'function') populateFormSelects();
-      if (typeof renderProcTabs        === 'function') renderProcTabs();
-      if (typeof buildDashboard        === 'function') buildDashboard();
-      if (typeof renderAgents          === 'function') renderAgents();
-      input.value = '';
-      if (typeof showToast === 'function')
-        showToast('OK : ' + nAg + ' agents importes. Cliquez Sauvegarder pour envoyer dans Supabase.', true);
-      if (typeof setSyncState === 'function')
-        setSyncState('ok', 'Importe — a sauvegarder');
-    } catch(err) {
-      alert('Erreur : ' + err.message);
-      input.value = '';
-    }
-  };
-  reader.readAsText(file);
-}
-// (ancienne version remplacee ci-dessus)
-function _importDataJSON_old(input) {
+// pushToSupabase — backward compat : marque tout dirty et envoie
+async function pushToSupabase() {
+  markDirty('agents'); markDirty('mc'); markDirty('process');
+  markDirty('proc_types'); markDirty('params');
+  await pushDirty();
 }
 
 
-// ═══════════════════════════════════════════════════════════
-// SÉLECTEUR D'EMOJIS
-// ═══════════════════════════════════════════════════════════
-var BUILTIN_EMOJIS = [
-  '🟢','🔴','🟡','🟠','⚪','✅','❌','⏳','🔄','📌','🔒','🔓',
-  '📄','📋','📁','📂','🗂️','📝','✍️','📎','🗃️','🗄️',
-  '👤','👥','🪪','🤝','👋','🚶','🏃',
-  '📞','📧','💬','📢','⚠️','🔔','📣',
-  '📅','🗓️','⏱️','🕐','📆',
-  '🏢','🚗','🎓','💼','🏥','⭐','🔑','🛡️'
-];
-var _emojiCallback = null;
-
-function openEmojiPicker(callback, anchorEl) {
-  _emojiCallback = callback;
-  var picker = document.getElementById('emoji-picker');
-  // Position near anchor
-  if(anchorEl) {
-    var r = anchorEl.getBoundingClientRect();
-    picker.style.top  = (r.bottom + window.scrollY + 6) + 'px';
-    picker.style.left = Math.min(r.left, window.innerWidth - 340) + 'px';
-  } else {
-    picker.style.top  = '120px';
-    picker.style.left = '50%';
-    picker.style.transform = 'translateX(-50%)';
-  }
-  document.getElementById('emoji-search').value = '';
-  renderEmojiGrid(BUILTIN_EMOJIS);
-  renderCustomEmojis();
-  picker.style.display = 'block';
-  setTimeout(function(){ document.addEventListener('click', _emojiOutsideClick); }, 50);
-}
-
-function _emojiOutsideClick(e) {
-  var p = document.getElementById('emoji-picker');
-  if(p && !p.contains(e.target)) { closeEmojiPicker(); }
-}
-
-function closeEmojiPicker() {
-  document.getElementById('emoji-picker').style.display = 'none';
-  _emojiCallback = null;
-  document.removeEventListener('click', _emojiOutsideClick);
-}
-
-function renderEmojiGrid(list) {
-  var grid = document.getElementById('emoji-grid-builtin');
-  if(!grid) return;
-  grid.innerHTML = '';
-  list.forEach(function(e) {
-    var btn = document.createElement('button');
-    btn.textContent = e;
-    btn.style.cssText = 'background:none;border:1px solid #e2e2e6;border-radius:6px;padding:5px 7px;font-size:20px;cursor:pointer;';
-    btn.onmouseenter = function(){ this.style.background='#f2f2f4'; };
-    btn.onmouseleave = function(){ this.style.background='none'; };
-    btn.onclick = function(){ pickEmoji(e); };
-    grid.appendChild(btn);
-  });
-}
-
-function filterEmojis(val) {
-  if(!val) { renderEmojiGrid(BUILTIN_EMOJIS); return; }
-  // Si c'est un emoji direct, juste l'afficher
-  renderEmojiGrid(BUILTIN_EMOJIS.filter(function(e){ return e.includes(val); }));
-}
-
-function renderCustomEmojis() {
-  var custom = (DB.params && DB.params._custom_emojis) ? DB.params._custom_emojis : [];
-  var sec  = document.getElementById('emoji-custom-section');
-  var grid = document.getElementById('emoji-grid-custom');
-  if(!sec || !grid) return;
-  if(!custom.length) { sec.style.display = 'none'; return; }
-  sec.style.display = 'block';
-  grid.innerHTML = '';
-  custom.forEach(function(e, i) {
-    var wrap = document.createElement('div');
-    wrap.style.cssText = 'position:relative;display:inline-block;';
-    var btn = document.createElement('button');
-    btn.textContent = e;
-    btn.style.cssText = 'background:none;border:1px solid #e2e2e6;border-radius:6px;padding:5px 7px;font-size:20px;cursor:pointer;';
-    btn.onclick = function(){ pickEmoji(e); };
-    var del = document.createElement('button');
-    del.textContent = 'x';
-    del.style.cssText = 'position:absolute;top:-4px;right:-4px;background:#dc2626;color:white;border:none;border-radius:50%;width:14px;height:14px;font-size:9px;cursor:pointer;line-height:1;';
-    del.onclick = function(){ removeCustomEmoji(i); };
-    wrap.appendChild(btn);
-    wrap.appendChild(del);
-    grid.appendChild(wrap);
-  });
-}
-
-function addCustomEmoji() {
-  var val = document.getElementById('emoji-search').value.trim();
-  if(!val) return;
-  if(!DB.params._custom_emojis) DB.params._custom_emojis = [];
-  if(!DB.params._custom_emojis.includes(val)) {
-    DB.params._custom_emojis.push(val);
-    saveDB();
-  }
-  document.getElementById('emoji-search').value = '';
-  renderCustomEmojis();
-}
-
-function removeCustomEmoji(idx) {
-  if(!DB.params._custom_emojis) return;
-  DB.params._custom_emojis.splice(idx, 1);
-  saveDB();
-  renderCustomEmojis();
-}
-
-function pickEmoji(e) {
-  if(_emojiCallback) _emojiCallback(e);
-  closeEmojiPicker();
-}
-
-
-function exportExcel(){
-  if(typeof XLSX === 'undefined'){
-    showToast('SheetJS non charge, verifiez votre connexion', false); return;
-  }
-  var wb = XLSX.utils.book_new();
-
-  // Onglet 1 : Agents actifs
-  var actifs = DB.agents.filter(function(a){ return a.statut === 'actif'; }).map(function(a){
-    return {
-      'Nom': a.nom||'', 'Prenom': a.prenom||'', 'Fonction': a.fonction||'',
-      'Telephone': a.telephone||'', 'Email': a.email||'',
-      'Nationalite': a.nationalite||'', 'Date embauche': a.date_embauche||'',
-      'Taux horaire': a.taux_horaire||'', 'Categorie': a.categorie_salaire||'',
-      'Contrat': a.contrat||'', 'Ville': a.ville||'',
-      'Carte exp': (a.docs&&a.docs.carte&&a.docs.carte.exp)||'',
-      'PPA exp': (a.docs&&a.docs.ppa&&a.docs.ppa.exp)||'',
-      'Permis exp': (a.docs&&a.docs.permis&&a.docs.permis.exp)||''
-    };
-  });
-  if(actifs.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(actifs), 'Agents actifs');
-
-  // Onglet 2 : Agents partis
-  var partis = DB.agents.filter(function(a){ return a.statut === 'parti'; }).map(function(a){
-    return {
-      'Nom': a.nom||'', 'Prenom': a.prenom||'', 'Fonction': a.fonction||'',
-      'Date embauche': a.date_embauche||'', 'Date depart': a.date_depart||''
-    };
-  });
-  if(partis.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(partis), 'Agents partis');
-
-  // Onglet 3 : Main courante
-  var mc = DB.main_courante.map(function(e){
-    var ag = DB.agents.find(function(a){ return a.id === e.agent; });
-    return {
-      'Date': e.date||'',
-      'Agent': ag ? ag.nom+' '+ag.prenom : (e.agent||''),
-      'Site': e.site||'', 'Categorie': e.categorie||'',
-      'Mesure': e.mesure||'', 'Fait': e.fait||'', 'Suivi': e.suivi||''
-    };
-  });
-  if(mc.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mc), 'Main courante');
-
-  // Onglet 4 : Process en cours
-  var procs = DB.process.map(function(p){
-    var ag = DB.agents.find(function(a){ return a.id === p.agent_id; });
-    var pt = DB.process_types.find(function(t){ return t.id === p.type; });
-    var done = (p.steps||[]).filter(function(s){ return s.checked; }).length;
-    var total = (p.steps||[]).length;
-    return {
-      'Agent': ag ? ag.nom+' '+ag.prenom : (p.agent_id||''),
-      'Type': pt ? pt.name : (p.type||''),
-      'Date': p.date||'',
-      'Avancement': total ? done+'/'+total : '0/0',
-      'Notes': p.notes||''
-    };
-  });
-  if(procs.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(procs), 'Process RH');
-
-  // Onglet 5 : Formations
-  var forms = [];
-  DB.agents.forEach(function(a){
-    (a.formations||[]).forEach(function(f){
-      forms.push({
-        'Agent': a.nom+' '+a.prenom,
-        'Date': f.date||'', 'Type': f.type||'',
-        'Theme': f.theme||'', 'Site': f.site||'',
-        'Formateur': f.formateur||'', 'Note': f.note||''
-      });
-    });
-  });
-  if(forms.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(forms), 'Formations');
-
-  if(wb.SheetNames.length === 0){
-    showToast('Aucune donnee a exporter', false); return;
-  }
-
-  var date = new Date().toISOString().slice(0,10);
-  XLSX.writeFile(wb, 'RDZ_RH_'+date+'.xlsx');
-  showToast('Export Excel telecharge', true);
-}
-
-
-function exportDataJSON() {
-  const payload = { version:'rdz_hr_v7', exportedAt:new Date().toISOString(), data:DB };
-  const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  a.download = 'rdz_rh_' + new Date().toISOString().slice(0,10) + '.json';
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('📤 Export JSON téléchargé', true);
-}
-function exportData() { exportDataJSON(); } // legacy compat
-function syncTrackChange() {}               // legacy stub
-
-// ═══════════════════════════════════════════════════════════
-// INIT
-// ═══════════════════════════════════════════════════════════
-populateSelects();
-populateFormSelects();
-renderProcTabs();
-buildDashboard();
-renderAgents();
-
-;(function() {
-  // Chercher la session : d'abord sessionStorage (venant du hub), puis localStorage
-  let s = null;
-  try { s = JSON.parse(sessionStorage.getItem(SK)); } catch(e) {}
-  if (s) { sessionStorage.removeItem(SK); localStorage.setItem(SK, JSON.stringify(s)); }
-  else { try { s = JSON.parse(localStorage.getItem(SK)); } catch(e) {} }
-
-  if (s && s.token && s.expires_at > Math.floor(Date.now() / 1000)) {
-    applySession(s);
-    loadFromSupabase(s.token);
-  } else {
-    clearSession();
-    document.getElementById('rh-login').style.display = 'flex';
-    setSyncState('idle', 'Non connecté');
-  }
-})();
-
-</script>
-<!-- IMPORT CONFIRM MODAL -->
-<div id="import-confirm" style="display:none;position:fixed;inset:0;background:rgba(26,25,23,.45);z-index:2000;align-items:center;justify-content:center;backdrop-filter:blur(3px);">
-  <div style="background:var(--white);border-radius:16px;width:100%;max-width:480px;box-shadow:var(--shadow-lg);padding:24px 26px;">
-    <div style="font-family:'DM Serif Display';font-size:20px;margin-bottom:4px;">Importer des données</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:14px;">Vérifiez avant d'écraser vos données locales</div>
-    <div id="import-info" style="font-size:13px;color:var(--text2);margin-bottom:10px;line-height:1.6"></div>
-    <div id="import-verdict" style="margin-bottom:10px;"></div>
-    <div id="import-diff" style="margin-bottom:14px;"></div>
-    <div style="padding:10px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;font-size:12px;color:#92400e;margin-bottom:16px;">
-      ⚠️ L'import <strong>remplacera toutes vos données actuelles</strong>. Exportez d'abord si vous souhaitez conserver votre version.
-    </div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;">
-      <button class="btn btn-ghost" onclick="document.getElementById('import-confirm').style.display='none'">Annuler</button>
-      <button class="btn btn-primary" id="import-confirm-btn">✓ Importer</button>
-    </div>
-  </div>
-</div>
-
-<!-- EMOJI PICKER -->
-<div id="emoji-picker" style="display:none;position:fixed;z-index:10000;background:white;border:1.5px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:14px;width:320px;">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-    <span style="font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;">Choisir un emoji</span>
-    <button onclick="closeEmojiPicker()" style="background:none;border:none;cursor:pointer;font-size:16px;color:var(--text3);">✕</button>
-  </div>
-  <div style="display:flex;gap:6px;margin-bottom:10px;">
-    <input id="emoji-search" type="text" placeholder="Coller ou taper un emoji..." 
-      style="flex:1;border:1.5px solid var(--border);border-radius:7px;padding:7px 10px;font-size:16px;outline:none;"
-      oninput="filterEmojis(this.value)">
-    <button onclick="addCustomEmoji()" style="padding:7px 12px;background:var(--red);color:white;border:none;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;">+ Ajouter</button>
-  </div>
-  <div style="font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Emojis RDZ</div>
-  <div id="emoji-grid-builtin" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px;"></div>
-  <div id="emoji-custom-section" style="display:none;">
-    <div style="font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Mes emojis</div>
-    <div id="emoji-grid-custom" style="display:flex;flex-wrap:wrap;gap:4px;"></div>
-  </div>
-</div>
-
-<div id="print-zone"></div>
-</body>
-</html>
