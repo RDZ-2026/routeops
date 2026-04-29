@@ -3545,12 +3545,37 @@ function _setSyncDot(state){
   else if(state==='offline') dot.style.background='#6b7280'
 }
 
+// Refresh token si expire dans moins de 5 minutes
+function _refreshTokenIfNeeded(){
+  const s=_loadSession(); if(!s) return Promise.resolve(null)
+  const margin = 300 // 5 minutes
+  if(s.expires_at - Math.floor(Date.now()/1000) > margin) return Promise.resolve(s)
+  return fetch(SUPABASE_URL+'/auth/v1/token?grant_type=refresh_token',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON},
+    body:JSON.stringify({refresh_token:s.refresh_token})
+  }).then(r=>r.json()).then(data=>{
+    if(!data.access_token) return null
+    const updated={...s,access_token:data.access_token,refresh_token:data.refresh_token,expires_at:data.expires_at}
+    _saveSession(updated)
+    return updated
+  }).catch(()=>null)
+}
+
 // Envoi uniquement des tables dirty
 function pushDirty(){
   if(!currentUser){ _setSyncDot('offline'); return }
   if(_syncing) return
   const s=_loadSession(); if(!s){ _setSyncDot('offline'); return }
 
+  // Refresh token si nécessaire avant d'envoyer
+  _refreshTokenIfNeeded().then(freshSession=>{
+    const session = freshSession || s
+    _doPushDirty(session)
+  })
+}
+
+function _doPushDirty(s){
   const token=s.access_token
   const h={'apikey':SUPABASE_ANON,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'}
   const base=SUPABASE_URL+'/rest/v1'
@@ -3608,14 +3633,22 @@ function pushDirty(){
       _syncing=false
       _pushRetry=0
       _setSyncDot('ok')
-      // S'il y a eu de nouvelles modifs pendant l'envoi, relancer
       if(Object.keys(_dirty).length) pushDirty()
     })
     .catch(err=>{
       _syncing=false
       console.error('pushDirty error:', err)
+      // Si 401, forcer refresh token puis retry une fois
+      if(err.message && err.message.includes('401')){
+        _saveSession({..._loadSession(), expires_at:0}) // force refresh
+        _pushRetry = (_pushRetry||0) + 1
+        if(_pushRetry <= 2){
+          Object.assign(_dirty, snapshot)
+          setTimeout(pushDirty, 1000)
+          return
+        }
+      }
       _setSyncDot('error')
-      // Retry max 3 fois, puis abandon (évite boucle infinie)
       _pushRetry = (_pushRetry||0) + 1
       if(_pushRetry <= 3){
         Object.assign(_dirty, snapshot)
@@ -3625,6 +3658,7 @@ function pushDirty(){
         console.warn('pushDirty: abandon après 3 tentatives. Données sauvées localement.')
       }
     })
+}
 }
 
 // Suppression immédiate (pas de debounce)
