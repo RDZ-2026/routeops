@@ -2292,8 +2292,10 @@ async function pushDirty(){
   };
   const errors = [];
   for(const table of dirtyTables){
-    const data = SYNC_TABLES[table]?.();
-    if(!data || !data.length) continue;
+    const raw = SYNC_TABLES[table]?.();
+    if(!raw || !raw.length) { delete _dirty[table]; continue; }
+    // ── Normalisation : tous les objets doivent avoir les mêmes clés ──
+    const data = normalizeRows(raw, table);
     try{
       const res = await fetch(`${SB_URL}/rest/v1/${table}`, {
         method: 'POST',
@@ -2304,7 +2306,6 @@ async function pushDirty(){
         const msg = await res.text();
         throw new Error(`${table}: ${msg}`);
       }
-      // Reset dirty pour cette table seulement
       delete _dirty[table];
     } catch(e){
       console.error('pushDirty error:', e);
@@ -2313,12 +2314,70 @@ async function pushDirty(){
   }
   if(errors.length){
     setSyncState('error', 'Erreur: ' + errors.join(', '));
-    // Retry dans 5s
     setTimeout(pushDirty, 5000);
   } else {
     const t = new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'});
     setSyncState('ok', 'Sauvegardé ' + t);
   }
+}
+
+// Normalise un tableau d'objets : tous les enregistrements reçoivent
+// les mêmes clés avec des valeurs par défaut null — requis par PostgREST
+function normalizeRows(rows, table){
+  // Schémas complets par table
+  const SCHEMAS = {
+    crm_missions: {
+      id:null, titre:null, client_id:null, type:'surveillance', statut:'devis',
+      n_contrat:null, n_bc:null, adresse:null, acces:null, consignes:null,
+      doc_consignes:'non', doc_consignes_url:null,
+      doc_cdc:'non', doc_cdc_url:null,
+      doc_proc:'non', doc_proc_url:null,
+      date_debut:null, date_fin:null,
+      jours:'7j', recurrence:'mensuelle',
+      mode_tarif:'horaire', tarif:null, tva:8.1,
+      heures_semaine:null, nb_passages:null, freq_passages:'semaine',
+      interlocuteurs:[], notes:null, created_at:null,
+    },
+    crm_clients: {
+      id:null, raison_sociale:null, siret:null, secteur:null, adresse_fact:null,
+      tarif:null, delai_pmt:30, tva:8.1, statut:'prospect', notes:null, created_at:null,
+    },
+    crm_contacts: {
+      id:null, client_id:null, prenom:null, nom:null, role:null,
+      tel:null, email:null, principal:false, notes:null, created_at:null,
+    },
+    crm_echeances: {
+      id:null, mission_id:null, n_echeance:null, date_echeance:null,
+      montant_ht:null, montant_ttc:null, tva:8.1, statut:'a_emettre',
+      n_facture:null, date_emission:null, date_paiement:null, notes:null, created_at:null,
+    },
+    crm_opportunites: {
+      id:null, titre:null, client_id:null, prospect:null, montant:null,
+      probabilite:50, etape:'prospect', date_cloture:null,
+      responsable:null, notes:null, created_at:null,
+    },
+    crm_main_courante: {
+      id:null, date:null, categorie:null, client_id:null,
+      mission_id:null, auteur:null, texte:null, created_at:null,
+    },
+    crm_prestations: {
+      id:null, mission_id:null, description:null,
+      type_prestation:null, quantite:1, pu_ht:null, created_at:null,
+    },
+  };
+  const schema = SCHEMAS[table];
+  if(!schema) return rows; // pas de schéma connu → envoi brut
+  return rows.map(row => {
+    const normalized = {...schema};
+    Object.keys(row).forEach(k => {
+      if(k in normalized || true) normalized[k] = row[k] ?? schema[k] ?? null;
+    });
+    // S'assurer que les clés du schéma sont toutes présentes
+    Object.keys(schema).forEach(k => {
+      if(!(k in normalized)) normalized[k] = schema[k];
+    });
+    return normalized;
+  });
 }
 
 // ── Voyant sync ──────────────────────────
