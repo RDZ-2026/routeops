@@ -333,11 +333,12 @@ td input:focus{background:var(--accent-light);border:1px solid var(--accent);out
         </div>
       </div>
     </div>
-    <button class="btn btn-sm" style="background:rgba(255,255,255,.12);color:white;border:1px solid rgba(255,255,255,.2)" onclick="saveAll()">💾 Sauvegarder</button>
+    <button class="btn btn-sm" style="background:rgba(255,255,255,.12);color:white;border:1px solid rgba(255,255,255,.2)" onclick="saveAll('all')">💾 Forcer sync</button>
     <button class="btn btn-sm" style="background:rgba(255,255,255,.12);color:white;border:1px solid rgba(255,255,255,.2)" onclick="exportData()" title="Exporter toutes les données (JSON) pour partage Teams">📤 Exporter</button>
     <label class="btn btn-sm" style="background:rgba(255,255,255,.12);color:white;border:1px solid rgba(255,255,255,.2);cursor:pointer;margin:0" title="Importer un fichier de données partagé par un collègue">
       📥 Importer<input type="file" accept=".json" style="display:none" onchange="importData(this)">
     </label>
+    <button class="btn btn-sm" style="background:rgba(255,255,255,.12);color:white;border:1px solid rgba(255,255,255,.2)" onclick="exportExcel()" title="Exporter les données en Excel">📊 Excel</button>
 <!-- Badge utilisateur -->
     <div id="user-badge" onclick="toggleUserMenu()">
       <div>
@@ -1314,7 +1315,7 @@ function buildJournee(){
       const sh=S.sheets.find(s=>s.id===this.dataset.id);
       if(!confirm('Supprimer "'+( sh?.name||'cette feuille')+'" ?'))return;
       S.sheets=S.sheets.filter(s=>s.id!==this.dataset.id);
-      saveAll();buildJournee();
+      saveAll("sheets");buildJournee();
     });
   });
 }
@@ -1470,7 +1471,7 @@ function _bulkAddSheets(date, templates, label){
     S.sheets.push(inst);
     created.push(inst);
   });
-  saveAll();
+  saveAll("sheets");
   buildJournee();
   // Proposer la saisie de fin de service
   showEndServiceBulk(created, label);
@@ -1497,7 +1498,7 @@ function endServiceBulkSave(){
     const sh=S.sheets.find(s=>s.id===inp.dataset.id);
     if(sh) sh.endService=inp.value||null;
   });
-  saveAll();
+  saveAll("sheets");
   buildJournee();
   document.getElementById('modal-endservice-bulk').style.display='none';
   _bulkCreated=[];
@@ -1556,7 +1557,7 @@ function confirmCopyJournee(){
     S.sheets.push(copy);
     created.push(copy);
   });
-  saveAll();
+  saveAll("sheets");
   // Naviguer vers la date cible
   document.getElementById('jour-date').value=targetDate;
   buildJournee();
@@ -1608,7 +1609,7 @@ function createSheetForDate(){
     tasks:tpl?JSON.parse(JSON.stringify(tpl.tasks)):[],
   };
   S.sheets.push(newSheet);
-  saveAll();
+  saveAll("sheets");
   closeModal('modal-new-sheet');
   // Ouvrir dans l'éditeur
   const tab=document.querySelectorAll('.ntab')[1];
@@ -1626,7 +1627,7 @@ function deleteSheet(id){
   const sh=S.sheets.find(s=>s.id===id);
   if(!confirm('Supprimer "'+sh?.name+'" ?')) return;
   S.sheets=S.sheets.filter(s=>s.id!==id);
-  saveAll();buildJournee();
+  saveAll("sheets");buildJournee();
 }
 
 function printJournee(){
@@ -2104,7 +2105,7 @@ function addPauseToEditor(){
 
 function saveEditorSheet(){
   saveEditorMeta();
-  saveAll();
+  saveAll("sheets");
   const indicator=document.getElementById('ed-saved');
   indicator.style.display='inline';
   setTimeout(()=>indicator.style.display='none',2000);
@@ -2139,7 +2140,7 @@ function saveSheetForDate(){
     };
     S.sheets.push(copy);
   }
-  saveAll();
+  saveAll("sheets");
   closeModal('modal-save-date');
   // Proposer d'aller voir la journée
   if(confirm(`Feuille enregistrée pour le ${date}. Aller sur la journée ?`)){
@@ -2206,7 +2207,7 @@ function deleteSite(id){
   S.sites=S.sites.filter(s=>s.id!==id);
   delete S.travel[id];
   Object.values(S.travel).forEach(row=>delete row[id]);
-  saveAll();buildSitesTable();
+  saveAll("sites");buildSitesTable();
 }
 
 function addSite(){
@@ -2226,7 +2227,7 @@ function addSite(){
   ['ms-name','ms-code','ms-note'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('ms-minsem').value='0';
   document.getElementById('ms-minwe').value='0';
-  saveAll();buildSitesTable();
+  saveAll("sites");buildSitesTable();
 }
 
 function addSiteFromTravel(){
@@ -2239,7 +2240,7 @@ function addSiteFromTravel(){
     color:document.getElementById('mst-color').value,note:document.getElementById('mst-note').value});
   closeModal('modal-site-travel');
   ['mst-name','mst-code','mst-note'].forEach(i=>document.getElementById(i).value='');
-  saveAll();buildTravelMatrix();
+  saveAll("travel");buildTravelMatrix();
 }
 
 // ═══════════════════════════════════════════════════
@@ -2371,7 +2372,7 @@ function saveMission(id){
   m.cHeure1=document.getElementById('mm-ch1').value||'';
   m.cHeure2=document.getElementById('mm-ch2').value||'';
   closeModal('modal-mission');
-  saveAll();buildMissionsBySite();
+  saveAll("missions");buildMissionsBySite();
 }
 
 // ─── Dupliquer une mission ─────────────────────────────────────
@@ -2381,7 +2382,7 @@ function dupMission(id){
   // Insérer juste après la source
   const idx=S.missions.findIndex(m=>m.id===id);
   S.missions.splice(idx+1,0,copy);
-  saveAll();buildMissionsBySite();
+  saveAll("missions");buildMissionsBySite();
 }
 
 
@@ -2389,7 +2390,7 @@ function deleteMission(id){
   const m=getMission(id);
   if(!confirm('Supprimer "'+( m?.name||'cette mission')+'" ?'))return;
   S.missions=S.missions.filter(x=>x.id!==id);
-  saveAll();buildMissionsBySite();
+  saveAll("missions");buildMissionsBySite();
 }
 
 function updateModalCHeures(){
@@ -2424,7 +2425,7 @@ function addMission(){
   });
   closeModal('modal-mission');
   resetMissionModal();
-  saveAll();buildMissionsBySite();
+  saveAll("missions");buildMissionsBySite();
 }
 
 function resetMissionModal(){
@@ -2478,7 +2479,7 @@ function fillTravelDefaults(){
     if(!S.travel[a.id])S.travel[a.id]={};
     if(S.travel[a.id][b.id]===undefined)S.travel[a.id][b.id]=15;
   }));
-  saveAll();buildTravelMatrix();
+  saveAll("travel");buildTravelMatrix();
 }
 
 // ═══════════════════════════════════════════════════
@@ -2522,7 +2523,7 @@ function newEmptyTemplate(){
   if(!name)return;
   const id='sh'+uid();
   S.sheets.push({id,name,cat:'patrouille-semaine',days:'lun-ven',startTime:'17:30',status:'actif',isTemplate:true,date:null,note:'',tasks:[]});
-  saveAll();
+  saveAll("sheets");
   const tab=document.querySelectorAll('.ntab')[1];
   go('editeur',tab);
   setTimeout(()=>loadEditorById(id),80);
@@ -2547,7 +2548,7 @@ function deleteTemplate(id){
   const t=S.sheets.find(s=>s.id===id);
   if(!confirm('Supprimer le modèle "'+t?.name+'" ?'))return;
   S.sheets=S.sheets.filter(s=>s.id!==id);
-  saveAll();buildModelsList();
+  saveAll("sheets");buildModelsList();
 }
 
 // ═══════════════════════════════════════════════════
@@ -2784,7 +2785,7 @@ function ganttDrop(e,target){
   const srcSite=S.sites.find(s=>s.id===srcId);
   if(srcSite) srcSite.secteur=tgtSect;
   ganttDragSrc=null;
-  saveAll();renderGanttFromDate();
+  saveAll("sheets");renderGanttFromDate();
 }
 
 // Drop sur un en-tête de secteur (changer de secteur sans position précise)
@@ -2809,7 +2810,7 @@ function ganttSectDrop(e,hdr){
   const srcSite=S.sites.find(s=>s.id===srcId);
   if(srcSite) srcSite.secteur=newSect;
   ganttDragSrc=null;
-  saveAll();renderGanttFromDate();
+  saveAll("sheets");renderGanttFromDate();
 }
 
 // ── Actions secteurs inline ───────────────────────────────────
@@ -2821,7 +2822,7 @@ function ganttAddSect(){
   if(sects[name]){alert(`Le secteur "${name}" existe déjà.`);return;}
   sects[name]=[];
   inp.value='';
-  saveAll();renderGanttFromDate();
+  saveAll("sheets");renderGanttFromDate();
 }
 
 function ganttRenameSect(el,oldName){
@@ -2839,7 +2840,7 @@ function ganttRenameSect(el,oldName){
   entries.forEach(([k,v])=>{ S.ganttSectors[k===oldName?newName:k]=v; });
   // Mettre à jour les sites
   S.sites.forEach(s=>{ if(s.secteur===oldName) s.secteur=newName; });
-  saveAll();renderGanttFromDate();
+  saveAll("sheets");renderGanttFromDate();
 }
 
 function ganttDeleteSect(sectName){
@@ -2852,7 +2853,7 @@ function ganttDeleteSect(sectName){
   delete sects[sectName];
   // Les sites n'ont plus de secteur — ils apparaîtront dans "Sans secteur"
   S.sites.forEach(s=>{ if(s.secteur===sectName) s.secteur=''; });
-  saveAll();renderGanttFromDate();
+  saveAll("sheets");renderGanttFromDate();
 }
 
 
@@ -2913,7 +2914,7 @@ function ganttSectHdrDrop(e,hdr){
   keys.forEach(k=>{ reordered[k]=sects[k]; });
   S.ganttSectors=reordered;
 
-  saveAll();renderGanttFromDate();
+  saveAll("sheets");renderGanttFromDate();
 }
 
 // ═══════════════════════════════════════════════════
@@ -3204,7 +3205,7 @@ function importData(input){
 
       btn.onclick=function(){
         S=_importPending.data;
-        saveAll();
+        saveAll("sheets");
         syncMarkImported(_importPending.filename,_importPending.exportedAt);
         document.getElementById('import-confirm').style.display='none';
         _importPending=null;
@@ -3497,14 +3498,192 @@ function pushToSupabase(){
   }
 }
 
-// ── SAVEALL (remplace l'original) ──
-function saveAll(){
+// ══════════════════════════════════════════════════════
+// AUTOSAVE — sauvegarde automatique temps réel
+// ══════════════════════════════════════════════════════
+
+var _dirty = {}      // tables modifiées : {sites:true, sheets:true, ...}
+var _saveTimer = null
+var _syncing = false
+
+// Appelé à chaque modification — remplace saveAll()
+function saveAll(hint){
   // Migration automatique des IDs si nécessaire
-  if(S.sites.length && !S.sites[0].id.includes('-')) _migrateIds(S)
-  localStorage.setItem('routeops_v6',JSON.stringify(S))
-  syncTrackChange()
-  showSaved()
-  if(currentUser) pushToSupabase()
+  if(S.sites.length && S.sites[0].id && !S.sites[0].id.includes('-')) _migrateIds(S)
+  // Sauvegarde locale immédiate
+  localStorage.setItem('routeops_v6', JSON.stringify(S))
+  // Marquer les tables dirty selon le hint
+  if(!hint || hint==='all'){
+    _dirty.sites=true; _dirty.missions=true; _dirty.sheets=true; _dirty.travel=true
+  } else {
+    hint.split(',').forEach(h=>{ _dirty[h.trim()]=true })
+  }
+  // Voyant orange = en attente
+  _setSyncDot('pending')
+  // Debounce 800ms
+  clearTimeout(_saveTimer)
+  _saveTimer = setTimeout(pushDirty, 800)
+}
+
+// Voyant de sync
+function _setSyncDot(state){
+  const dot = document.getElementById('sync-dot')
+  if(!dot) return
+  if(state==='pending') dot.style.background='#d97706'
+  else if(state==='ok'){
+    dot.style.background='#16a34a'
+    const now=new Date()
+    const hhmm=now.getHours().toString().padStart(2,'0')+':'+now.getMinutes().toString().padStart(2,'0')
+    dot.title='✓ Synchronisé à '+hhmm
+  }
+  else if(state==='error') dot.style.background='#dc2626'
+  else if(state==='offline') dot.style.background='#6b7280'
+}
+
+// Envoi uniquement des tables dirty
+function pushDirty(){
+  if(!currentUser){ _setSyncDot('offline'); return }
+  if(_syncing) return
+  const s=_loadSession(); if(!s){ _setSyncDot('offline'); return }
+
+  const token=s.access_token
+  const h={'apikey':SUPABASE_ANON,'Authorization':'Bearer '+token,'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'}
+  const base=SUPABASE_URL+'/rest/v1'
+  const snapshot={..._dirty}
+  _dirty={}
+  _syncing=true
+
+  const tasks=[]
+
+  if(snapshot.sites && S.sites.length){
+    tasks.push(fetch(base+'/sites',{method:'POST',headers:h,body:JSON.stringify(
+      S.sites.map(s=>({id:s.id,name:s.name,code:s.code,color:s.color,
+        min_sem:s.minSem||0,min_we:s.minWE||0,note:s.note||null,secteur:s.secteur||null,active:true}))
+    )}).then(r=>{ if(!r.ok) throw new Error('sites '+r.status) }))
+  }
+
+  if(snapshot.missions && S.missions.length){
+    tasks.push(fetch(base+'/missions',{method:'POST',headers:h,body:JSON.stringify(
+      S.missions.map(m=>({id:m.id,name:m.name,code:m.code||null,site_id:m.siteId||null,
+        type:m.type||null,duree:m.duree||'00:30',duration:_dureeToMin(m.duree||m.duration),
+        fixed:m.fixed||false,description:m.desc||m.description||null,
+        cs:m.cs||null,cw:m.cw||null,
+        time_start:m.timeStart||null,time_end:m.timeEnd||null,
+        color:m.color||null,active:true}))
+    )}).then(r=>{ if(!r.ok) throw new Error('missions '+r.status) }))
+  }
+
+  if(snapshot.sheets && S.sheets.length){
+    tasks.push(fetch(base+'/sheets',{method:'POST',headers:h,body:JSON.stringify(
+      S.sheets.map(sh=>({id:sh.id,name:sh.name,cat:sh.cat||'Semaine',
+        is_template:!!sh.isTemplate,date:sh.date||null,
+        start_time:sh.startTime||'06:00',end_time:sh.endService||sh.endTime||null,
+        days:sh.days||'lun-ven',status:sh.status||'actif',
+        tasks:sh.tasks||[],note:sh.note||null,
+        observations:sh.observations||null,active:true}))
+    )}).then(r=>{ if(!r.ok) throw new Error('sheets '+r.status) }))
+  }
+
+  if(snapshot.travel){
+    const travelPayload=[]; const seen=new Set()
+    Object.entries(S.travel||{}).forEach(([a,bMap])=>{
+      Object.entries(bMap).forEach(([b,mins])=>{
+        const pair=[a,b].sort(), key=pair[0]+'|'+pair[1]
+        if(!seen.has(key)){ seen.add(key); travelPayload.push({site_a:pair[0],site_b:pair[1],minutes:mins}) }
+      })
+    })
+    if(travelPayload.length){
+      tasks.push(fetch(base+'/travel',{method:'POST',headers:h,body:JSON.stringify(travelPayload)})
+        .then(r=>{ if(!r.ok) throw new Error('travel '+r.status) }))
+    }
+  }
+
+  Promise.all(tasks)
+    .then(()=>{
+      _syncing=false
+      _setSyncDot('ok')
+      // S'il y a eu de nouvelles modifs pendant l'envoi, relancer
+      if(Object.keys(_dirty).length) pushDirty()
+    })
+    .catch(err=>{
+      _syncing=false
+      console.error('pushDirty error:', err)
+      // Remettre les tables en dirty pour retry
+      Object.assign(_dirty, snapshot)
+      _setSyncDot('error')
+      // Retry dans 5 secondes
+      setTimeout(pushDirty, 5000)
+    })
+}
+
+// Suppression immédiate (pas de debounce)
+function deleteFromDB(table, id){
+  const s=_loadSession(); if(!s) return
+  const h={'apikey':SUPABASE_ANON,'Authorization':'Bearer '+s.access_token,'Content-Type':'application/json'}
+  fetch(SUPABASE_URL+'/rest/v1/'+table+'?id=eq.'+id,{method:'DELETE',headers:h})
+    .catch(e=>console.error('delete error:',e))
+}
+
+// ── EXPORT EXCEL ──
+function exportExcel(){
+  // SheetJS via CDN
+  if(typeof XLSX === 'undefined'){
+    const script = document.createElement('script')
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'
+    script.onload = _doExportExcel
+    document.head.appendChild(script)
+  } else {
+    _doExportExcel()
+  }
+}
+
+function _doExportExcel(){
+  const wb = XLSX.utils.book_new()
+
+  // ── Feuille SITES ──
+  const sitesData = [['ID','Nom','Code','Couleur','Secteur','Min Sem','Min WE','Note']]
+  S.sites.forEach(s => sitesData.push([s.id,s.name,s.code,s.color,s.secteur||'',s.minSem||0,s.minWE||0,s.note||'']))
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sitesData), 'Sites')
+
+  // ── Feuille MISSIONS ──
+  const missData = [['ID','Nom','Code','Site','Type','Durée','Desc','CS','CW']]
+  S.missions.forEach(m => {
+    const site = S.sites.find(s=>s.id===m.siteId)
+    missData.push([m.id,m.name,m.code||'',site?.name||'',m.type||'',m.duree||'',m.desc||'',m.cs||'',m.cw||''])
+  })
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(missData), 'Missions')
+
+  // ── Feuille FEUILLES DE ROUTE ──
+  const sheetsData = [['ID','Nom','Catégorie','Type','Date','Début','Fin service','Jours','Statut','Nb missions']]
+  S.sheets.forEach(sh => {
+    sheetsData.push([
+      sh.id, sh.name, sh.cat||'',
+      sh.isTemplate?'Modèle':'Instance',
+      sh.date||'', sh.startTime||'',
+      sh.endService||'', sh.days||'',
+      sh.status||'actif', (sh.tasks||[]).length
+    ])
+  })
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(sheetsData), 'Feuilles')
+
+  // ── Feuille DÉTAIL MISSIONS PAR FEUILLE ──
+  const detailData = [['Feuille','Catégorie','Date','Mission','Site','Heure fixe','Note']]
+  S.sheets.forEach(sh => {
+    ;(sh.tasks||[]).forEach(t => {
+      const m = S.missions.find(x=>x.id===t.mId)
+      const site = m ? S.sites.find(s=>s.id===m.siteId) : null
+      detailData.push([
+        sh.name, sh.cat||'', sh.date||'',
+        m?.name||'(inconnu)', site?.name||'',
+        t.fixedStart||'', t.note||''
+      ])
+    })
+  })
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(detailData), 'Détail missions')
+
+  // ── Export ──
+  const date = new Date().toISOString().split('T')[0]
+  XLSX.writeFile(wb, 'RouteOps_'+date+'.xlsx')
 }
 
 // ── INIT ──
