@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CRM_RDZ v3 — RDZ Security Management</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --red:#c0272d;--red-d:#a31f24;--red-l:#fdf2f2;--red-m:#f8dada;
@@ -340,6 +341,16 @@ tbody tr:last-child td{border-bottom:none;}
     <div class="tb-info">
       <div class="tb-brand">CRM_RDZ <span style="font-size:9px;opacity:.5;font-weight:400">v3</span></div>
       <div class="tb-sub">Gestion commerciale & opérationnelle</div>
+    </div>
+    <!-- VOYANT SYNC -->
+    <div style="display:flex;align-items:center;gap:7px;cursor:pointer;padding:5px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);transition:background .15s" onclick="toggleSyncPopover()" title="Statut synchronisation">
+      <span id="sync-dot" style="width:9px;height:9px;border-radius:50%;background:#9ca3af;display:inline-block;transition:all .3s;flex-shrink:0"></span>
+      <span id="sync-label" style="font-size:11px;color:rgba(255,255,255,.55);white-space:nowrap">—</span>
+    </div>
+    <!-- SYNC POPOVER -->
+    <div id="sync-popover" style="display:none;position:absolute;top:62px;right:160px;background:var(--white);border:1px solid var(--border);border-radius:12px;box-shadow:var(--shadow-lg);padding:14px;width:240px;z-index:500">
+      <div id="sync-popover-body"></div>
+      <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px" onclick="exportExcel()">📊 Export Excel complet</button>
     </div>
     <div class="tb-user" id="tb-user"></div>
     <button class="tb-logout" onclick="logout()">Déconnexion</button>
@@ -1091,6 +1102,7 @@ function startApp(){
   document.getElementById('login-screen').classList.remove('visible');
   document.getElementById('app').classList.add('visible');
   document.getElementById('tb-user').textContent=session?.profile?.full_name||session?.user?.email||'';
+  setSyncState('loading','Chargement…');
   loadData();
 }
 
@@ -1113,9 +1125,11 @@ async function loadData(){
     clients=cl||[];contacts=ct||[];missions=ms||[];echeances=ec||[];opportunites=op||[];
     mainCourante=mc||[];prestations=pr||[];
     cacheLocally();
+    setSyncState('ok','Synchronisé');
   }catch(e){
     console.warn('Offline:',e.message);
     loadCache();
+    setSyncState('error','Hors ligne');
   }
   renderAll();
 }
@@ -1270,7 +1284,7 @@ async function saveClient(){
       await sbFetch('crm_clients',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(rec)});
       clients.push(rec);toast('Client créé ✓');
     }
-    closeModal('modal-client');cacheLocally();renderAll();
+    closeModal('modal-client');cacheLocally();renderAll();saveDB('crm_clients');
   }catch(e){toast(e.message,'err');}
 }
 
@@ -1393,8 +1407,7 @@ async function saveContact(){
       contacts.push(rec);toast('Contact créé ✓');
     }
     closeModal('modal-contact');
-    cacheLocally();renderAll();
-    // Rafraîchir la fiche client si elle est ouverte
+    cacheLocally();renderAll();saveDB('crm_contacts');
     if(currentClientId)refreshFicheClient();
   }catch(e){toast(e.message,'err');}
 }
@@ -1580,8 +1593,8 @@ function editMission(id){
 async function saveMission(){
   const data={
     titre:v('m-titre'),client_id:v('m-client-id'),type:v('m-type'),statut:v('m-statut'),
-    n_contrat:v('m-n-contrat'),n_bc:v('m-n-bc'),
-    adresse:v('m-adresse'),acces:v('m-acces'),consignes:v('m-consignes'),
+    n_contrat:v('m-n-contrat')||null,n_bc:v('m-n-bc')||null,
+    adresse:v('m-adresse')||null,acces:v('m-acces')||null,consignes:v('m-consignes')||null,
     doc_consignes:v('m-doc-consignes'),doc_consignes_url:v('m-doc-consignes-url')||null,
     doc_cdc:v('m-doc-cdc'),doc_cdc_url:v('m-doc-cdc-url')||null,
     doc_proc:v('m-doc-proc'),doc_proc_url:v('m-doc-proc-url')||null,
@@ -1591,36 +1604,26 @@ async function saveMission(){
     heures_semaine:vn('m-heures'),nb_passages:vn('m-nb-passages'),
     freq_passages:v('m-freq-passages'),
     interlocuteurs:missionInterlos.filter(il=>il.contact_id),
-    notes:v('m-notes'),
+    notes:v('m-notes')||null,
   };
   if(!data.titre){toast('Titre obligatoire','err');return;}
   if(!data.client_id){toast('Veuillez sélectionner un client','err');return;}
   try{
     let savedId;
     if(editingMissionId){
-      const res = await fetch(`${SB_URL}/rest/v1/crm_missions?id=eq.${editingMissionId}`,{
-        method:'PATCH',
-        headers:{'apikey':SB_KEY,'Authorization':`Bearer ${session?.access_token}`,'Content-Type':'application/json','Prefer':'return=minimal'},
-        body:JSON.stringify(data)
-      });
-      if(!res.ok){const err=await res.text();console.error('PATCH error:',err);toast('Erreur: '+err,'err');return;}
+      await sbFetch(`crm_missions?id=eq.${editingMissionId}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify(data)});
       const i=missions.findIndex(x=>x.id===editingMissionId);if(i>=0)missions[i]={...missions[i],...data};
       savedId=editingMissionId;toast('Mission mise à jour ✓');
     }else{
       const rec={...data,id:uuid(),created_at:new Date().toISOString()};
-      const res = await fetch(`${SB_URL}/rest/v1/crm_missions`,{
-        method:'POST',
-        headers:{'apikey':SB_KEY,'Authorization':`Bearer ${session?.access_token}`,'Content-Type':'application/json','Prefer':'return=minimal'},
-        body:JSON.stringify(rec)
-      });
-      if(!res.ok){const err=await res.text();console.error('POST error payload:',JSON.stringify(rec,null,2));console.error('POST error response:',err);toast('Erreur Supabase: '+err,'err');return;}
+      await sbFetch('crm_missions',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(rec)});
       missions.push(rec);savedId=rec.id;toast('Mission créée ✓');
     }
     if(data.recurrence!=='ponctuelle'&&data.date_debut&&data.date_fin){
       await genEcheances(savedId,data);
     }
-    closeModal('modal-mission');cacheLocally();renderAll();
-  }catch(e){console.error('saveMission exception:',e);toast(e.message,'err');}
+    closeModal('modal-mission');cacheLocally();renderAll();saveDB('crm_missions');
+  }catch(e){toast(e.message,'err');}
 }
 async function deleteMission(){
   if(!editingMissionId||!confirm('Supprimer cette mission et toutes ses échéances ?'))return;
@@ -1629,7 +1632,7 @@ async function deleteMission(){
     await sbFetch(`crm_missions?id=eq.${editingMissionId}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
     missions=missions.filter(x=>x.id!==editingMissionId);
     echeances=echeances.filter(x=>x.mission_id!==editingMissionId);
-    closeModal('modal-mission');cacheLocally();renderAll();toast('Mission supprimée');
+    closeModal('modal-mission');cacheLocally();renderAll();saveDB('crm_missions');toast('Mission supprimée');
   }catch(e){toast(e.message,'err');}
 }
 
@@ -1843,7 +1846,7 @@ async function saveEcheance(){
       await sbFetch('crm_echeances',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(rec)});
       echeances.push(rec);toast('Échéance créée ✓');
     }
-    closeModal('modal-echeance');cacheLocally();renderAll();
+    closeModal('modal-echeance');cacheLocally();renderAll();saveDB('crm_echeances');
   }catch(e){toast(e.message,'err');}
 }
 async function deleteEcheance(){
@@ -1851,7 +1854,7 @@ async function deleteEcheance(){
   try{
     await sbFetch(`crm_echeances?id=eq.${editingEcheanceId}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
     echeances=echeances.filter(x=>x.id!==editingEcheanceId);
-    closeModal('modal-echeance');cacheLocally();renderAll();toast('Échéance supprimée');
+    closeModal('modal-echeance');cacheLocally();renderAll();saveDB('crm_echeances');toast('Échéance supprimée');
   }catch(e){toast(e.message,'err');}
 }
 
@@ -1885,7 +1888,7 @@ async function saveOpportunite(){
       await sbFetch('crm_opportunites',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(rec)});
       opportunites.push(rec);toast('Opportunité créée ✓');
     }
-    closeModal('modal-opportunite');cacheLocally();renderAll();
+    closeModal('modal-opportunite');cacheLocally();renderAll();saveDB('crm_opportunites');
   }catch(e){toast(e.message,'err');}
 }
 
@@ -1974,8 +1977,7 @@ async function savePrestations(){
       await genEcheances(currentPrestMissionId,m);
     }
     closeModal('modal-prestations');
-    cacheLocally();renderAll();
-    // Rafraîchir fiche mission si ouverte
+    cacheLocally();renderAll();saveDB('crm_prestations');
     if(document.getElementById('modal-fiche-mission').classList.contains('open'))openFicheMission(currentPrestMissionId);
     toast(`${validLines.length} ligne${validLines.length>1?'s':''} de prestation enregistrée${validLines.length>1?'s':''} ✓`);
   }catch(e){toast(e.message,'err');}
@@ -2098,7 +2100,7 @@ async function saveMC(){
       await sbFetch('crm_main_courante',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(rec)});
       mainCourante.unshift(rec);toast('Entrée ajoutée ✓');
     }
-    closeModal('modal-mc');cacheLocally();renderAll();
+    closeModal('modal-mc');cacheLocally();renderAll();saveDB('crm_main_courante');
   }catch(e){toast(e.message,'err');}
 }
 async function deleteMC(){
@@ -2106,7 +2108,7 @@ async function deleteMC(){
   try{
     await sbFetch(`crm_main_courante?id=eq.${editingMCId}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
     mainCourante=mainCourante.filter(x=>x.id!==editingMCId);
-    closeModal('modal-mc');cacheLocally();renderAll();toast('Entrée supprimée');
+    closeModal('modal-mc');cacheLocally();renderAll();saveDB('crm_main_courante');toast('Entrée supprimée');
   }catch(e){toast(e.message,'err');}
 }
 
@@ -2115,7 +2117,7 @@ async function deleteMCDirect(id){
   if(!confirm('Supprimer cette entrée de main courante ?'))return;
   try{
     await sbFetch(`crm_main_courante?id=eq.${id}`,{method:'DELETE',headers:{'Prefer':'return=minimal'}});
-    mainCourante=mainCourante.filter(x=>x.id!==id);
+    mainCourante=mainCourante.filter(x=>x.id!==id);saveDB('crm_main_courante');
     cacheLocally();renderAll();toast('Entrée supprimée');
   }catch(e){toast(e.message,'err');}
 }
@@ -2156,27 +2158,29 @@ async function loadParams(){
 // Sauvegarder un param dans Supabase (upsert sur la clé)
 async function saveParam(key, value){
   const payload = {key, value: JSON.stringify(value)};
+  // Mise à jour locale immédiate
   try{
-    // Upsert : insert ou update si la clé existe déjà
-    await sbFetch('crm_params', {
+    const p=JSON.parse(localStorage.getItem(PARAMS_KEY)||'{}');
+    p[key]=value; localStorage.setItem(PARAMS_KEY, JSON.stringify(p));
+  }catch(_){}
+  // Envoi direct (les params sont légers, pas besoin de debounce)
+  if(!session?.access_token) return;
+  try{
+    await fetch(`${SB_URL}/rest/v1/crm_params`, {
       method:'POST',
-      headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+      headers:{
+        'apikey':SB_KEY,
+        'Authorization':`Bearer ${session.access_token}`,
+        'Content-Type':'application/json',
+        'Prefer':'resolution=merge-duplicates,return=minimal',
+      },
       body: JSON.stringify(payload),
     });
-    // Aussi en localStorage comme cache offline
-    try{
-      const p=JSON.parse(localStorage.getItem(PARAMS_KEY)||'{}');
-      p[key]=value;
-      localStorage.setItem(PARAMS_KEY, JSON.stringify(p));
-    }catch(_){}
+    const t = new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'});
+    setSyncState('ok','Sauvegardé '+t);
   }catch(e){
-    // Si Supabase indisponible, au moins sauvegarder en local
-    try{
-      const p=JSON.parse(localStorage.getItem(PARAMS_KEY)||'{}');
-      p[key]=value;
-      localStorage.setItem(PARAMS_KEY, JSON.stringify(p));
-    }catch(_){}
-    toast('Paramètre sauvegardé localement (hors-ligne)','err');
+    setSyncState('error','Erreur param');
+    console.error('saveParam error:',e);
   }
 }
 
@@ -2238,8 +2242,268 @@ async function removePrestType(i){
 }
 
 // ════════════════════════════════════════
-//  SQL MIGRATION NOTE — v3
+//  MOTEUR SYNC TEMPS RÉEL
+//  saveDB(hint) → debounce 800ms → pushDirty()
 // ════════════════════════════════════════
+
+var _dirty     = {};   // {tableName: true}
+var _saveTimer = null; // timer debounce
+
+// Tables CRM et leurs sélecteurs Supabase
+const SYNC_TABLES = {
+  crm_clients:      () => clients,
+  crm_contacts:     () => contacts,
+  crm_missions:     () => missions,
+  crm_echeances:    () => echeances,
+  crm_opportunites: () => opportunites,
+  crm_main_courante:() => mainCourante,
+  crm_prestations:  () => prestations,
+};
+
+// Appel central après chaque modification
+function saveDB(hint){
+  // 1. Sauvegarde locale immédiate
+  cacheLocally();
+  // 2. Marquer les tables dirty
+  if(hint && SYNC_TABLES[hint]){
+    _dirty[hint] = true;
+  } else {
+    // Si pas de hint précis, tout marquer
+    Object.keys(SYNC_TABLES).forEach(t => _dirty[t] = true);
+  }
+  // 3. Debounce 800ms
+  if(_saveTimer) clearTimeout(_saveTimer);
+  setSyncState('pending','Non sauvegardé…');
+  _saveTimer = setTimeout(pushDirty, 800);
+}
+
+// Envoi uniquement des tables marquées dirty
+async function pushDirty(){
+  _saveTimer = null;
+  if(!session?.access_token){ setSyncState('error','Non connecté'); return; }
+  const dirtyTables = Object.keys(_dirty).filter(t => _dirty[t]);
+  if(!dirtyTables.length){ setSyncState('ok','Synchronisé'); return; }
+  setSyncState('saving','Sauvegarde…');
+  const headers = {
+    'apikey': SB_KEY,
+    'Authorization': `Bearer ${session.access_token}`,
+    'Content-Type': 'application/json',
+    'Prefer': 'resolution=merge-duplicates,return=minimal',
+  };
+  const errors = [];
+  for(const table of dirtyTables){
+    const data = SYNC_TABLES[table]?.();
+    if(!data || !data.length) continue;
+    try{
+      const res = await fetch(`${SB_URL}/rest/v1/${table}`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(data),
+      });
+      if(!res.ok){
+        const msg = await res.text();
+        throw new Error(`${table}: ${msg}`);
+      }
+      // Reset dirty pour cette table seulement
+      delete _dirty[table];
+    } catch(e){
+      console.error('pushDirty error:', e);
+      errors.push(table);
+    }
+  }
+  if(errors.length){
+    setSyncState('error', 'Erreur: ' + errors.join(', '));
+    // Retry dans 5s
+    setTimeout(pushDirty, 5000);
+  } else {
+    const t = new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'});
+    setSyncState('ok', 'Sauvegardé ' + t);
+  }
+}
+
+// ── Voyant sync ──────────────────────────
+function setSyncState(state, label){
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  if(!dot) return;
+  const cfg = {
+    ok:      {c:'#16a34a', s:'0 0 6px #16a34a99'},
+    saving:  {c:'#d97706', s:'0 0 6px #d9770699'},
+    pending: {c:'#d97706', s:'none'},
+    error:   {c:'#dc2626', s:'0 0 6px #dc262699'},
+    loading: {c:'#2563eb', s:'0 0 6px #2563eb99'},
+    idle:    {c:'#9ca3af', s:'none'},
+  }[state] || {c:'#9ca3af', s:'none'};
+  dot.style.background = cfg.c;
+  dot.style.boxShadow  = cfg.s;
+  if(lbl && label) lbl.textContent = label;
+}
+
+// ── Popover sync ──────────────────────────
+function toggleSyncPopover(){
+  const p = document.getElementById('sync-popover');
+  if(!p) return;
+  if(p.style.display !== 'none'){ p.style.display='none'; return; }
+  const email = session?.user?.email || session?.profile?.full_name || '—';
+  const dirtyCount = Object.keys(_dirty).filter(t=>_dirty[t]).length;
+  document.getElementById('sync-popover-body').innerHTML = `
+    <div style="padding:8px 10px;background:var(--green-l);border-radius:7px;font-size:12px;color:var(--green);font-weight:600;margin-bottom:8px">
+      🟢 Connecté — ${email}
+    </div>
+    ${dirtyCount ? `<div style="padding:6px 10px;background:var(--orange-l);border-radius:6px;font-size:11.5px;color:var(--orange);margin-bottom:8px">⏳ ${dirtyCount} table(s) en attente de sync</div>` : ''}
+    <div style="font-size:11px;color:var(--text3);padding:7px 10px;background:var(--bg);border-radius:6px">🔒 Données protégées par RLS Supabase</div>
+  `;
+  p.style.display = 'block';
+  setTimeout(()=>document.addEventListener('click', closeSyncPopover, {once:true}), 50);
+}
+function closeSyncPopover(){
+  const p = document.getElementById('sync-popover');
+  if(p) p.style.display='none';
+}
+
+// ── Patcher les saves existants pour utiliser saveDB ──────────
+// Toutes les fonctions save* appellent déjà cacheLocally() + renderAll()
+// On intercept via saveDB avec le hint de table
+function saveDB_clients()     { saveDB('crm_clients'); }
+function saveDB_contacts()    { saveDB('crm_contacts'); }
+function saveDB_missions()    { saveDB('crm_missions'); }
+function saveDB_echeances()   { saveDB('crm_echeances'); }
+function saveDB_opportunites(){ saveDB('crm_opportunites'); }
+function saveDB_mc()          { saveDB('crm_main_courante'); }
+function saveDB_prest()       { saveDB('crm_prestations'); }
+
+// Offline detection
+window.addEventListener('online',  () => { setSyncState('saving','Reconnexion…'); pushDirty(); });
+window.addEventListener('offline', () => setSyncState('error','Hors ligne'));
+
+// ════════════════════════════════════════
+//  EXPORT EXCEL COMPLET
+// ════════════════════════════════════════
+function exportExcel(){
+  if(typeof XLSX === 'undefined'){ toast('SheetJS non chargé','err'); return; }
+  closeSyncPopover();
+  const wb = XLSX.utils.book_new();
+  const date = new Date().toLocaleDateString('fr-CH').replace(/\//g,'-');
+
+  // ── Feuille Clients
+  const clientsData = clients.map(c => ({
+    'Raison sociale':       c.raison_sociale,
+    'SIRET / IDE':          c.siret||'',
+    'Secteur':              c.secteur||'',
+    'Adresse facturation':  c.adresse_fact||'',
+    'Tarif horaire (CHF)':  c.tarif||'',
+    'Délai paiement (j)':   c.delai_pmt||30,
+    'TVA (%)':              c.tva||8.1,
+    'Statut':               c.statut||'',
+    'Notes':                c.notes||'',
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(clientsData), 'Clients');
+
+  // ── Feuille Contacts
+  const contactsData = contacts.map(ct => ({
+    'Prénom':     ct.prenom,
+    'Nom':        ct.nom,
+    'Client':     clientName(ct.client_id),
+    'Rôle':       ct.role||'',
+    'Téléphone':  ct.tel||'',
+    'Email':      ct.email||'',
+    'Principal':  ct.principal?'Oui':'Non',
+    'Notes':      ct.notes||'',
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(contactsData), 'Contacts');
+
+  // ── Feuille Missions
+  const missionsData = missions.map(m => ({
+    'Titre':            m.titre,
+    'Client':           clientName(m.client_id),
+    'Type':             TYPES_MISSION[m.type]||m.type,
+    'Statut':           MISSION_STATUTS[m.statut]?.label||m.statut,
+    'N° Contrat':       m.n_contrat||'',
+    'N° BC':            m.n_bc||'',
+    'Adresse site':     m.adresse||'',
+    'Date début':       m.date_debut||'',
+    'Date fin':         m.date_fin||'',
+    'Jours':            JOURS_LABELS[m.jours]||m.jours||'',
+    'Mode tarif':       m.mode_tarif||'',
+    'Tarif (CHF)':      m.tarif||'',
+    'Heures/sem':       m.heures_semaine||'',
+    'Nb passages':      m.nb_passages||'',
+    'Fréq. passages':   m.freq_passages||'',
+    'CA mensuel (CHF)': Math.round(caMensuel(m)*100)/100||'',
+    'TVA (%)':          m.tva||8.1,
+    'Récurrence fact.': FREQ_LABELS[m.recurrence]||m.recurrence||'',
+    'Consignes dispo':  m.doc_consignes||'non',
+    'CDC dispo':        m.doc_cdc||'non',
+    'Procédures dispo': m.doc_proc||'non',
+    'Notes':            m.notes||'',
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(missionsData), 'Missions');
+
+  // ── Feuille Prestations
+  const prestData = prestations.map(p => ({
+    'Mission':          missions.find(m=>m.id===p.mission_id)?.titre||'',
+    'Client':           clientName(missions.find(m=>m.id===p.mission_id)?.client_id),
+    'Description':      p.description||'',
+    'Type prestation':  p.type_prestation||'',
+    'Quantité':         p.quantite||1,
+    'PU HT (CHF)':      p.pu_ht||0,
+    'Total HT (CHF)':   Math.round((parseFloat(p.quantite)||1)*(parseFloat(p.pu_ht)||0)*100)/100,
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(prestData), 'Prestations');
+
+  // ── Feuille Facturation
+  const factData = echeances.map(e => {
+    const m = missions.find(x=>x.id===e.mission_id);
+    return {
+      'N° échéance':     e.n_echeance||'',
+      'Mission':         m?.titre||'',
+      'Client':          clientName(m?.client_id),
+      'Période':         formatMois(e.date_echeance),
+      'Date échéance':   e.date_echeance||'',
+      'Montant HT':      e.montant_ht||0,
+      'TVA (%)':         e.tva||8.1,
+      'Montant TTC':     e.montant_ttc||0,
+      'Statut':          FACT_STATUTS[e.statut]?.label||e.statut,
+      'N° Facture':      e.n_facture||'',
+      'Date émission':   e.date_emission||'',
+      'Date paiement':   e.date_paiement||'',
+      'Notes':           e.notes||'',
+    };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(factData), 'Facturation');
+
+  // ── Feuille Pipeline
+  const pipeData = opportunites.map(o => ({
+    'Titre':          o.titre,
+    'Client/Prospect':o.prospect||clientName(o.client_id),
+    'Étape':          o.etape,
+    'Montant (CHF)':  o.montant||0,
+    'Probabilité (%)':o.probabilite||0,
+    'Pondéré (CHF)':  Math.round((parseFloat(o.montant)||0)*(parseFloat(o.probabilite)||0)/100),
+    'Responsable':    o.responsable||'',
+    'Date clôture':   o.date_cloture||'',
+    'Notes':          o.notes||'',
+  }));
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pipeData), 'Pipeline');
+
+  // ── Feuille Main courante
+  const mcData = mainCourante.map(x => {
+    const m = missions.find(ms=>ms.id===x.mission_id);
+    return {
+      'Date':      x.date,
+      'Catégorie': x.categorie||'',
+      'Client':    clientName(x.client_id || m?.client_id),
+      'Mission':   m?.titre||'',
+      'Auteur':    x.auteur||'',
+      'Texte':     x.texte||'',
+    };
+  });
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(mcData), 'Main courante');
+
+  // ── Téléchargement
+  XLSX.writeFile(wb, `CRM_RDZ_export_${date}.xlsx`);
+  toast('Export Excel généré ✓');
+}
 // Nouvelles tables à créer dans Supabase :
 //
 // CREATE TABLE IF NOT EXISTS crm_prestations (
