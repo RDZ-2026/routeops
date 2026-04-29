@@ -326,8 +326,8 @@ tbody tr:last-child td{border-bottom:none;}
     <input type="password" id="rh-pass" placeholder="••••••••" autocomplete="current-password"
       style="width:100%;background:#f5f4f2;border:1.5px solid #d0cec9;border-radius:8px;padding:11px 14px;font-size:14px;font-family:'DM Sans';outline:none;margin-bottom:4px;display:block;"
       onfocus="this.style.borderColor='var(--red)'" onblur="this.style.borderColor='#d0cec9'"
-      onkeydown="if(event.key==='Enter') doRhLogin()">
-    <button id="rh-login-btn" onclick="doRhLogin()"
+      >
+    <button id="rh-login-btn"
       style="width:100%;margin-top:14px;padding:12px;background:var(--red);color:white;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:'DM Sans';">
       Se connecter
     </button>
@@ -337,6 +337,15 @@ tbody tr:last-child td{border-bottom:none;}
     </div>
   </div>
 </div>
+<script>
+// Rendre le bouton login fonctionnel dès que le DOM est prêt
+document.getElementById('rh-login-btn').onclick = function(){
+  if(typeof doRhLogin === 'function') doRhLogin();
+};
+document.getElementById('rh-pass').onkeydown = function(e){
+  if(e.key === 'Enter' && typeof doRhLogin === 'function') doRhLogin();
+};
+</script>
 
 <!-- HEADER -->
 <header class="hdr" id="rh-app" style="display:none;">
@@ -818,48 +827,7 @@ tbody tr:last-child td{border-bottom:none;}
 </div><!-- /rh-content -->
 
 <script>
-// ── Constantes globales (déclarées en premier) ────────────
 
-
-// ═══════════════════════════════════════════════════════════
-// SYNC POPOVER
-// ═══════════════════════════════════════════════════════════
-function toggleSyncPopover() {
-  var p = document.getElementById('sync-popover');
-  if(!p) return;
-  if(p.style.display !== 'none') { p.style.display = 'none'; return; }
-  var s = window.currentSession;
-  var lbl = document.getElementById('sync-label');
-  var lastSync = lbl ? lbl.textContent : '';
-  var html = s
-    ? '<div style="padding:8px 10px;background:#f0fdf4;border-radius:7px;font-size:12px;color:#16a34a;font-weight:600;margin-bottom:8px;">🟢 Connecte &mdash; ' + s.email + '</div>'
-    : '<div style="padding:8px 10px;background:#f2f2f4;border-radius:7px;font-size:12px;color:#9ca3af;margin-bottom:8px;">Non connecte</div>';
-  if(lastSync) html += '<div style="font-size:12px;color:#4b5563;padding:4px 10px 8px;">&#9201; ' + lastSync + '</div>';
-  html += '<div style="font-size:11px;color:#9ca3af;padding:7px 10px;background:#f2f2f4;border-radius:6px;">Sauvegarde automatique active &mdash; RGPD &mdash; RLS Supabase</div>';
-  document.getElementById('sync-popover-body').innerHTML = html;
-  p.style.display = 'block';
-  setTimeout(function() { document.addEventListener('click', closeSyncPopover, {once:true}); }, 50);
-}
-function closeSyncPopover() {
-  var p = document.getElementById('sync-popover');
-  if(p) p.style.display = 'none';
-}
-
-// ── Toast notifications ───────────────────────────────────
-function showToast(msg, success) {
-  var t = document.createElement('div');
-  t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:340px;line-height:1.5;color:white;background:' + (success ? '#166534' : '#1a1917') + ';';
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(function() { t.remove(); }, 4000);
-}
-
-const SUPA_URL  = 'https://trdhtlcenmjlcvzuplid.supabase.co';
-const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
-const SK = 'rdz_session';
-// ─────────────────────────────────────────────────────────
-
-// ─── Login entry point (appellé depuis le bouton HTML) ───
 function doRhLogin() {
   var email = document.getElementById('rh-email').value.trim();
   var pass  = document.getElementById('rh-pass').value;
@@ -930,6 +898,48 @@ function doRhLogout() {
   if(m) m.style.display = 'none';
 }
 
+// ── Constantes globales (déclarées en premier) ────────────
+
+
+// ═══════════════════════════════════════════════════════════
+// SYNC POPOVER
+// ═══════════════════════════════════════════════════════════
+function toggleSyncPopover() {
+  var p = document.getElementById('sync-popover');
+  if(!p) return;
+  if(p.style.display !== 'none') { p.style.display = 'none'; return; }
+  var s = window.currentSession;
+  var lbl = document.getElementById('sync-label');
+  var lastSync = lbl ? lbl.textContent : '';
+  var html = s
+    ? '<div style="padding:8px 10px;background:#f0fdf4;border-radius:7px;font-size:12px;color:#16a34a;font-weight:600;margin-bottom:8px;">🟢 Connecte &mdash; ' + s.email + '</div>'
+    : '<div style="padding:8px 10px;background:#f2f2f4;border-radius:7px;font-size:12px;color:#9ca3af;margin-bottom:8px;">Non connecte</div>';
+  if(lastSync) html += '<div style="font-size:12px;color:#4b5563;padding:4px 10px 8px;">&#9201; ' + lastSync + '</div>';
+  html += '<div style="font-size:11px;color:#9ca3af;padding:7px 10px;background:#f2f2f4;border-radius:6px;">Sauvegarde automatique active &mdash; RGPD &mdash; RLS Supabase</div>';
+  document.getElementById('sync-popover-body').innerHTML = html;
+  p.style.display = 'block';
+  setTimeout(function() { document.addEventListener('click', closeSyncPopover, {once:true}); }, 50);
+}
+function closeSyncPopover() {
+  var p = document.getElementById('sync-popover');
+  if(p) p.style.display = 'none';
+}
+
+// ── Toast notifications ───────────────────────────────────
+function showToast(msg, success) {
+  var t = document.createElement('div');
+  t.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:9999;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:500;box-shadow:0 4px 16px rgba(0,0,0,.2);max-width:340px;line-height:1.5;color:white;background:' + (success ? '#166534' : '#1a1917') + ';';
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(function() { t.remove(); }, 4000);
+}
+
+const SUPA_URL  = 'https://trdhtlcenmjlcvzuplid.supabase.co';
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
+const SK = 'rdz_session';
+// ─────────────────────────────────────────────────────────
+
+// ─── Login entry point (appellé depuis le bouton HTML) ───
 // ═══════════════════════════════════════
 // DEFAULTS & DB
 // ═══════════════════════════════════════
