@@ -1032,14 +1032,48 @@ function loadState(){
     const d=localStorage.getItem('routeops_v6');
     if(d){
       const p=JSON.parse(d);
-      // Merge selectif - ne jamais ecraser avec undefined un tableau existant
       if(Array.isArray(p.sites)&&p.sites.length)       S.sites=p.sites;
       if(Array.isArray(p.missions)&&p.missions.length)  S.missions=p.missions;
       if(Array.isArray(p.sheets))                       S.sheets=p.sheets;
       if(p.travel&&typeof p.travel==='object')          S.travel=p.travel;
       if(p.ganttSectors&&typeof p.ganttSectors==='object') S.ganttSectors=p.ganttSectors;
+      // Migration automatique des IDs — corrige s1/m1 et s+uuid malformés
+      _autoFixIds()
     }
   }catch(e){console.warn('loadState error:',e);}
+}
+
+// Corrige automatiquement tous les IDs invalides dans S
+function _autoFixIds(){
+  const fixId = id => {
+    if(!id) return id
+    // ID court legacy (s1, m1, sh123...)
+    if(!id.includes('-')) return _uuid()
+    // ID avec lettre collée devant UUID (s3746d234-...)
+    if(/^[a-z][0-9a-f]{8}-/.test(id)) return id.slice(1)
+    return id
+  }
+  const sMap={}, mMap={}
+  S.sites.forEach(s=>{ const n=fixId(s.id); sMap[s.id]=n; s.id=n })
+  S.missions.forEach(m=>{
+    const n=fixId(m.id); mMap[m.id]=n; m.id=n
+    if(m.siteId) m.siteId=sMap[m.siteId]||fixId(m.siteId)
+  })
+  S.sheets.forEach(sh=>{
+    sh.id=fixId(sh.id)
+    ;(sh.tasks||[]).forEach(t=>{
+      if(t.mId) t.mId=mMap[t.mId]||fixId(t.mId)
+    })
+    // Nettoyer les tasks avec mId invalide
+    sh.tasks=(sh.tasks||[]).filter(t=>!t.mId||t.mId.includes('-'))
+  })
+  const newTravel={}
+  Object.entries(S.travel||{}).forEach(([a,bMap])=>{
+    const na=sMap[a]||fixId(a); if(!newTravel[na]) newTravel[na]={}
+    Object.entries(bMap).forEach(([b,mins])=>{ newTravel[na][sMap[b]||fixId(b)]=mins })
+  })
+  S.travel=newTravel
+  localStorage.setItem('routeops_v6', JSON.stringify(S))
 }
 // saveAll défini plus bas avec migration auto
 function showSaved(){
@@ -3658,6 +3692,7 @@ function _doPushDirty(s){
         console.warn('pushDirty: abandon après 3 tentatives. Données sauvées localement.')
       }
     })
+}
 }
 
 // Suppression immédiate (pas de debounce)
