@@ -3294,11 +3294,15 @@ function _dureeToMin(d){
 // ── MIGRATION IDs (s1→uuid, m1→uuid, etc.) ──
 function _migrateIds(data){
   const sMap={}, mMap={}
-  ;(data.sites||[]).forEach(s=>{ if(!s.id.includes('-')){ const n=_uuid(); sMap[s.id]=n; s.id=n } else sMap[s.id]=s.id })
-  ;(data.missions||[]).forEach(m=>{ if(!m.id.includes('-')){ const n=_uuid(); mMap[m.id]=n; m.id=n } else mMap[m.id]=m.id; if(m.siteId) m.siteId=sMap[m.siteId]||m.siteId })
+  ;(data.sites||[]).forEach(s=>{ if(!s.id||!s.id.includes('-')){ const n=_uuid(); sMap[s.id]=n; s.id=n } else sMap[s.id]=s.id })
+  ;(data.missions||[]).forEach(m=>{ if(!m.id||!m.id.includes('-')){ const n=_uuid(); mMap[m.id]=n; m.id=n } else mMap[m.id]=m.id; if(m.siteId) m.siteId=sMap[m.siteId]||m.siteId })
   ;(data.sheets||[]).forEach(sh=>{
-    if(!sh.id.includes('-')) sh.id=_uuid()
-    ;(sh.tasks||[]).forEach(t=>{ if(t.mId && mMap[t.mId]) t.mId=mMap[t.mId] })
+    if(!sh.id||!sh.id.includes('-')) sh.id=_uuid()
+    ;(sh.tasks||[]).forEach(t=>{
+      if(t.mId && mMap[t.mId]) t.mId=mMap[t.mId]
+      else if(t.mId && !t.mId.includes('-')) t.mId=null // orphelin — on nettoie
+    })
+    sh.tasks=(sh.tasks||[]).filter(t=>!t.mId||t.mId.includes('-'))
   })
   const newTravel={}
   Object.entries(data.travel||{}).forEach(([a,bMap])=>{
@@ -3505,6 +3509,7 @@ function pushToSupabase(){
 var _dirty = {}      // tables modifiées : {sites:true, sheets:true, ...}
 var _saveTimer = null
 var _syncing = false
+var _pushRetry = 0    // compteur de retries
 
 // Appelé à chaque modification — remplace saveAll()
 function saveAll(hint){
@@ -3601,6 +3606,7 @@ function pushDirty(){
   Promise.all(tasks)
     .then(()=>{
       _syncing=false
+      _pushRetry=0
       _setSyncDot('ok')
       // S'il y a eu de nouvelles modifs pendant l'envoi, relancer
       if(Object.keys(_dirty).length) pushDirty()
@@ -3608,11 +3614,16 @@ function pushDirty(){
     .catch(err=>{
       _syncing=false
       console.error('pushDirty error:', err)
-      // Remettre les tables en dirty pour retry
-      Object.assign(_dirty, snapshot)
       _setSyncDot('error')
-      // Retry dans 5 secondes
-      setTimeout(pushDirty, 5000)
+      // Retry max 3 fois, puis abandon (évite boucle infinie)
+      _pushRetry = (_pushRetry||0) + 1
+      if(_pushRetry <= 3){
+        Object.assign(_dirty, snapshot)
+        setTimeout(pushDirty, 5000 * _pushRetry)
+      } else {
+        _pushRetry = 0
+        console.warn('pushDirty: abandon après 3 tentatives. Données sauvées localement.')
+      }
     })
 }
 
