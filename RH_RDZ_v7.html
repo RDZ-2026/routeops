@@ -303,6 +303,12 @@ tbody tr:last-child td{border-bottom:none;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
+<script>
+// Login wrappers — définis avant tout autre script pour garantir disponibilité
+function doRhLogin()  { if(typeof rhLogin  === 'function') rhLogin();  else setTimeout(doRhLogin,  100); }
+function doRhLogout() { if(typeof rhLogout === 'function') rhLogout(); else setTimeout(doRhLogout, 100); }
+</script>
+
 <body>
 
 <!-- LOGIN SCREEN -->
@@ -858,9 +864,7 @@ const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIs
 const SK = 'rdz_session';
 // ─────────────────────────────────────────────────────────
 
-// Wrapper synchrone pour le bouton login (évite le problème de hoisting async)
-function doRhLogin() { rhLogin(); }
-function doRhLogout() { rhLogout(); }
+// (wrappers login deplaces en tete)
 
 // ═══════════════════════════════════════
 // DEFAULTS & DB
