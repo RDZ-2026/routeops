@@ -3780,6 +3780,7 @@ function pushDirty(){
       created_by:currentSession&&currentSession.user_id||null
     };}))}).then(function(r){if(!r.ok) _dirty.mc=true; return r;}));
   }
+
   if(dirty.process&&DB.process&&DB.process.length){
     tasks.push(fetch(base+'/rh_process',{method:'POST',headers:h,body:JSON.stringify(DB.process.map(function(p){return{
       id:p.id,agent_id:p.agent_id||null,type_id:p.type||null,
@@ -3801,6 +3802,20 @@ function pushDirty(){
     tasks.push(fetch(base+'/rh_params',{method:'POST',headers:h,body:JSON.stringify(pp)})
       .then(function(r){if(!r.ok) _dirty.params=true; return r;}));
   }
+  // Exécution séquentielle pour respecter les FK (proc_types avant process)
+  var taskFn = function(i){
+    if(i>=tasks.length){
+      if(!Object.keys(_dirty).length){
+        var t=new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'});
+        setSyncState('ok','Sync '+t);
+      } else { setSyncState('error','Erreur partielle'); }
+      return;
+    }
+    tasks[i].then(function(){ taskFn(i+1); }).catch(function(){
+      Object.assign(_dirty,dirty); setSyncState('error','Hors ligne');
+    });
+  };
+  // Promise.all legacy kept for reference
   Promise.all(tasks).then(function(){
     if(!Object.keys(_dirty).length){
       var t=new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'});
