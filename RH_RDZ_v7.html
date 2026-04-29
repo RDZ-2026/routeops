@@ -303,11 +303,6 @@ tbody tr:last-child td{border-bottom:none;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
-<script>
-// Login wrappers — définis avant tout autre script pour garantir disponibilité
-function doRhLogin()  { if(typeof rhLogin  === 'function') rhLogin();  else setTimeout(doRhLogin,  100); }
-function doRhLogout() { if(typeof rhLogout === 'function') rhLogout(); else setTimeout(doRhLogout, 100); }
-</script>
 
 <body>
 
@@ -864,7 +859,76 @@ const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIs
 const SK = 'rdz_session';
 // ─────────────────────────────────────────────────────────
 
-// (wrappers login deplaces en tete)
+// ─── Login entry point (appellé depuis le bouton HTML) ───
+function doRhLogin() {
+  var email = document.getElementById('rh-email').value.trim();
+  var pass  = document.getElementById('rh-pass').value;
+  var btn   = document.getElementById('rh-login-btn');
+  var err   = document.getElementById('rh-login-err');
+  err.style.display = 'none';
+  if (!email || !pass) {
+    err.textContent = 'Veuillez remplir tous les champs.';
+    err.style.display = 'block';
+    return;
+  }
+  btn.textContent = 'Connexion…';
+  btn.disabled = true;
+  fetch(SUPA_URL + '/auth/v1/token?grant_type=password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'apikey': SUPA_ANON },
+    body: JSON.stringify({ email: email, password: pass })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(auth) {
+    if (!auth.access_token) throw new Error('Email ou mot de passe incorrect.');
+    return fetch(SUPA_URL + '/rest/v1/profiles?id=eq.' + auth.user.id + '&select=*', {
+      headers: { 'apikey': SUPA_ANON, 'Authorization': 'Bearer ' + auth.access_token }
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(profiles) {
+      var profile = Array.isArray(profiles) ? profiles[0] : null;
+      if (!profile || !profile.active) throw new Error('Compte inactif ou acces refuse.');
+      var session = {
+        token:      auth.access_token,
+        refresh:    auth.refresh_token,
+        expires_at: auth.expires_at,
+        user_id:    auth.user.id,
+        email:      auth.user.email,
+        full_name:  profile.full_name,
+        role:       profile.role
+      };
+      localStorage.setItem(SK, JSON.stringify(session));
+      applySession(session);
+      loadFromSupabase(session.token);
+    });
+  })
+  .catch(function(e) {
+    err.textContent = e.message || 'Erreur reseau.';
+    err.style.display = 'block';
+    btn.textContent = 'Se connecter';
+    btn.disabled = false;
+  });
+}
+
+function doRhLogout() {
+  var s = null;
+  try { s = JSON.parse(localStorage.getItem(SK)); } catch(e) {}
+  localStorage.removeItem(SK);
+  sessionStorage.removeItem(SK);
+  window.currentToken   = null;
+  window.currentSession = null;
+  if (s && s.token) {
+    fetch(SUPA_URL + '/auth/v1/logout', {
+      method: 'POST',
+      headers: { 'apikey': SUPA_ANON, 'Authorization': 'Bearer ' + s.token }
+    }).catch(function(){});
+  }
+  document.getElementById('rh-login').style.display   = 'flex';
+  document.getElementById('rh-app').style.display     = 'none';
+  document.getElementById('rh-content').style.display = 'none';
+  var m = document.getElementById('user-menu');
+  if(m) m.style.display = 'none';
+}
 
 // ═══════════════════════════════════════
 // DEFAULTS & DB
