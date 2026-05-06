@@ -1929,7 +1929,31 @@ function openProcess(id){curProcId=id;renderProcModal();document.getElementById(
 
 function renderProcModal(){
   const p=DB.process.find(x=>x.id===curProcId); if(!p) return;
-  if(!p.steps||!p.steps.length) p.steps=buildDefaultSteps(p.type);
+  // Synchroniser les étapes avec le template à jour (conserve les coches existantes)
+  if(!p.steps||!p.steps.length){
+    p.steps=buildDefaultSteps(p.type);
+  } else {
+    const pt=getProcType(p.type);
+    const tmpl=(pt&&pt.steps_template)||[];
+    if(tmpl.length){
+      // Ajouter les étapes du template manquantes dans p.steps
+      const existingLabels=p.steps.map(function(s){return s.label;});
+      tmpl.forEach(function(t,i){
+        if(!existingLabels.includes(t.label)){
+          // Nouvelle étape dans le template — l'ajouter non cochée
+          p.steps.push({
+            id:'c_'+Date.now()+'_'+i,
+            section:t.section,label:t.label,
+            checked:false,check_date:null,
+            has_doc:t.has_doc||false,
+            doc_type:t.doc_type||'validity',
+            doc_valid_days:t.doc_valid_days||null,
+            doc_date:null,doc_exp:null
+          });
+        }
+      });
+    }
+  }
   if(!p.journal) p.journal=[];
   recalcStepExpiries(p);
   const steps=p.steps;
@@ -2217,7 +2241,7 @@ function saveProcType(){
     const newId='pt_'+Date.now();
     DB.process_types.push({id:newId,name,icon,color,badge_class,marks_depart,steps_template:[]});
   }
-  saveDB();closeM('modal-proc-type-edit');renderManageTypes();renderProcTabs();
+  saveDB('proc_types');closeM('modal-proc-type-edit');renderManageTypes();renderProcTabs();
 }
 function deleteProcType(id){
   const inUse=DB.process.filter(p=>p.type===id).length;
@@ -2554,7 +2578,7 @@ function saveStep(){
       else t.steps_template.push(ns);
     }
     delete modal.dataset.editIdx;
-    saveDB(); closeM('modal-step'); renderTypeStepsEditor(t);
+    saveDB('proc_types'); closeM('modal-step'); renderTypeStepsEditor(t);
     return;
   }
 
