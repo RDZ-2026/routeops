@@ -964,9 +964,9 @@ const REF_STEPS = {
 
 // Build default steps for a process type
 function buildDefaultSteps(typeId, checkedMap={}, checkDateDefault=null){
-  // Look up in DB.process_types first, fall back to BUILT_IN_PROC_TYPES, then REF_STEPS
-  // Chercher dans BUILT_IN_PROC_TYPES uniquement (DB pas encore initialisé à ce stade)
-  const pt = BUILT_IN_PROC_TYPES.find(t=>t.id===typeId);
+  // Priorité DB.process_types (modifié par l'user), sinon BUILT_IN_PROC_TYPES
+  var _types = (typeof DB!=='undefined'&&DB&&DB.process_types&&DB.process_types.length) ? DB.process_types : BUILT_IN_PROC_TYPES;
+  const pt = _types.find(t=>t.id===typeId) || BUILT_IN_PROC_TYPES.find(t=>t.id===typeId);
   const template = pt ? pt.steps_template : (REF_STEPS[typeId]||[]);
   return template.map((s,i)=>({
     id: s.id||('s_'+typeId+'_'+i),
@@ -1929,29 +1929,36 @@ function openProcess(id){curProcId=id;renderProcModal();document.getElementById(
 
 function renderProcModal(){
   const p=DB.process.find(x=>x.id===curProcId); if(!p) return;
-  // Synchroniser les étapes avec le template à jour (conserve les coches existantes)
+  // Synchroniser les étapes avec le template (ordre + nouvelles étapes, coches conservées)
   if(!p.steps||!p.steps.length){
-    p.steps=buildDefaultSteps(p.type);
+    p.steps = buildDefaultSteps(p.type);
   } else {
-    const pt=getProcType(p.type);
-    const tmpl=(pt&&pt.steps_template)||[];
+    var pt2 = getProcType(p.type);
+    var tmpl = (pt2 && pt2.steps_template) || [];
     if(tmpl.length){
-      // Ajouter les étapes du template manquantes dans p.steps
-      const existingLabels=p.steps.map(function(s){return s.label;});
-      tmpl.forEach(function(t,i){
-        if(!existingLabels.includes(t.label)){
-          // Nouvelle étape dans le template — l'ajouter non cochée
-          p.steps.push({
-            id:'c_'+Date.now()+'_'+i,
-            section:t.section,label:t.label,
-            checked:false,check_date:null,
-            has_doc:t.has_doc||false,
-            doc_type:t.doc_type||'validity',
-            doc_valid_days:t.doc_valid_days||null,
-            doc_date:null,doc_exp:null
-          });
-        }
+      // Construire un map des étapes existantes par label
+      var existingMap = {};
+      p.steps.forEach(function(s){ existingMap[s.label] = s; });
+      // Reconstruire dans l'ordre du template, en conservant les coches
+      var synced = tmpl.map(function(t, i){
+        var existing = existingMap[t.label];
+        if(existing) return existing; // étape existante — on garde tout
+        return { // nouvelle étape du template
+          id: 'c_'+Date.now()+'_'+i,
+          section: t.section, label: t.label,
+          checked: false, check_date: null,
+          has_doc: t.has_doc||false,
+          doc_type: t.doc_type||'validity',
+          doc_valid_days: t.doc_valid_days||null,
+          doc_date: null, doc_exp: null
+        };
       });
+      // Ajouter les étapes custom (ajoutées manuellement, pas dans le template)
+      p.steps.forEach(function(s){
+        if(!tmpl.find(function(t){ return t.label===s.label; }))
+          synced.push(s);
+      });
+      p.steps = synced;
     }
   }
   if(!p.journal) p.journal=[];
@@ -2619,7 +2626,9 @@ function previewProcType(){
 function openNewProcess(){
   const sel=document.getElementById('np-agent');
   sel.innerHTML='<option value="">— Sélectionner —</option>';
-  DB.agents.filter(a=>a.statut==='actif').forEach(a=>{sel.innerHTML+=`<option value="${a.id}">${esc(a.nom)} ${esc(a.prenom)}</option>`;});
+  DB.agents.filter(a=>a.statut==='actif')
+    .sort(function(a,b){ return (a.nom+' '+a.prenom).localeCompare(b.nom+' '+b.prenom,'fr'); })
+    .forEach(a=>{ sel.innerHTML+=`<option value="${a.id}">${esc(a.nom)} ${esc(a.prenom)}</option>`; });
   const tsel=document.getElementById('np-type');
   tsel.innerHTML=(DB.process_types||BUILT_IN_PROC_TYPES).map(t=>`<option value="${t.id}">${t.icon} ${esc(t.name)}</option>`).join('');
   // Pre-select current tab type if not 'all'
