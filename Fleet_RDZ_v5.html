@@ -1249,7 +1249,7 @@ async function saveKm(vehicleId){
   try{
     await sbFetch('fleet_events',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(ev)});
     await sbFetch(`fleet_vehicles?id=eq.${vehicleId}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify({km_current:val})});
-    events.push(ev);v.km_current=val;saveDB('fleet_events');saveDB('fleet_vehicles');toast('Relevé enregistré ✓');renderVehicleDetail(v);renderSidebar();
+    events.push(ev);_dirtyEventIds.add(ev.id);v.km_current=val;saveDB('fleet_vehicles');saveDB('fleet_events');toast('Relevé enregistré ✓');renderVehicleDetail(v);renderSidebar();
   }catch(e){toast('Erreur: '+e.message,'err');}
 }
 
@@ -1273,7 +1273,7 @@ async function saveKmEdit(){
   const upd={date:newDate,km:newKm,description:newDesc};
   try{
     await sbFetch(`fleet_events?id=eq.${editingKmId}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify(upd)});
-    Object.assign(ev,upd);
+    Object.assign(ev,upd);_dirtyEventIds.add(editingKmId);
     const v=vehicles.find(x=>x.id===ev.vehicle_id);
     if(v){
       const latest=events.filter(e=>e.vehicle_id===v.id&&e.type==='km'&&e.km).sort((a,b)=>b.date.localeCompare(a.date))[0];
@@ -1332,12 +1332,13 @@ async function saveEvent(){
     if(editingEventId){
       await sbFetch(`fleet_events?id=eq.${editingEventId}`,{method:'PATCH',headers:{'Prefer':'return=minimal'},body:JSON.stringify(evData)});
       const idx=events.findIndex(x=>x.id===editingEventId);
-      if(idx>=0)Object.assign(events[idx],evData);
+      if(idx>=0){Object.assign(events[idx],evData);_dirtyEventIds.add(editingEventId);}
       toast('Événement modifié ✓');
     }else{
       evData.id=uuid();
       await sbFetch('fleet_events',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(evData)});
       events.push(evData);
+      _dirtyEventIds.add(evData.id);
       toast('Événement enregistré ✓');
     }
     if(type==='km'&&evData.km){
@@ -1528,7 +1529,7 @@ async function saveDriverChange(){
   const ev={id:uuid(),vehicle_id:vehicleId,date:date||todayISO(),type:'conducteur',km:null,description:name,provider:reason,invoice:'',amount:null,created_by:session?.profile?.full_name||'admin'};
   try{
     await sbFetch('fleet_events',{method:'POST',headers:{'Prefer':'return=minimal'},body:JSON.stringify(ev)});
-    events.push(ev);
+    events.push(ev);_dirtyEventIds.add(ev.id);
     // Also update driver field on vehicle
     const v=vehicles.find(x=>x.id===vehicleId);
     if(v){v.driver=name;
@@ -1805,11 +1806,13 @@ var _dirty     = {};   // { 'fleet_vehicles': true, 'fleet_events': true }
 var _saveTimer = null; // timer debounce
 
 // Mapping table → getter de données
+// fleet_events excluded from bulk upsert (PGRST102: mixed keys) — uses individual push instead
 const SYNC_TABLES = {
   fleet_vehicles: () => vehicles,
-  fleet_events:   () => events,
-  // suppliers stockés en localStorage uniquement (pas de table Supabase)
 };
+
+// Track individual events to push (avoids PGRST102 mixed-key issue)
+var _dirtyEventIds = new Set();
 
 // Voyant de synchronisation
 function setSyncState(state, label) {
@@ -1836,6 +1839,8 @@ function saveDB(hint) {
   // 2. Marquer dirty
   if (hint && SYNC_TABLES[hint]) {
     _dirty[hint] = true;
+  } else if (hint === 'fleet_events') {
+    // handled by _dirtyEventIds — no bulk
   } else {
     // Pas de hint précis → tout marquer
     Object.keys(SYNC_TABLES).forEach(t => _dirty[t] = true);
@@ -1881,6 +1886,39 @@ async function pushDirty() {
       }
     } catch (e) {
       errors.push(`${table}: ${e.message}`);
+    }
+  }
+
+  // Push individual dirty events (avoids PGRST102 mixed-key issue)
+  if (_dirtyEventIds.size > 0) {
+    const evHeaders = {
+      'apikey':        SB_KEY,
+      'Authorization': `Bearer ${session.access_token}`,
+      'Content-Type':  'application/json',
+      'Prefer':        'resolution=merge-duplicates,return=minimal',
+    };
+    const toSend = events.filter(e => _dirtyEventIds.has(e.id)).map(e => ({
+      id: e.id, vehicle_id: e.vehicle_id, date: e.date, type: e.type,
+      km: e.km ?? null, description: e.description ?? '',
+      provider: e.provider ?? '', invoice: e.invoice ?? '',
+      amount: e.amount ?? null, created_by: e.created_by ?? 'admin',
+    }));
+    if (toSend.length > 0) {
+      try {
+        const res = await fetch(`${SB_URL}/rest/v1/fleet_events`, {
+          method: 'POST', headers: evHeaders, body: JSON.stringify(toSend),
+        });
+        if (res.ok) {
+          _dirtyEventIds.clear();
+        } else {
+          const txt = await res.text();
+          errors.push(`fleet_events: ${res.status} ${txt.slice(0,80)}`);
+        }
+      } catch(e2) {
+        errors.push(`fleet_events: ${e2.message}`);
+      }
+    } else {
+      _dirtyEventIds.clear();
     }
   }
 
