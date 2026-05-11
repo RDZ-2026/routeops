@@ -1495,6 +1495,8 @@ function renderFicheEdit(a){
     <div class="fgrid">
       <div class="fg"><div class="flabel">Fonction</div><select class="fsel" id="ea-fonction">${opts(P.fonctions,a.fonction,'— Sélectionner —')}</select></div>
       <div class="fg"><div class="flabel">Date embauche</div><input class="finp" type="date" id="ea-embauche" value="${a.date_embauche||''}"></div>
+      <div class="fg"><div class="flabel">Signature règlement intérieur</div><input class="finp" type="date" id="ea-reglement" value="${a.date_reglement||''}"></div>
+      <div class="fg"><div class="flabel">MAJ fiche renseignement</div><input class="finp" type="date" id="ea-fiche" value="${a.date_fiche||''}"></div>
       <div class="fg"><div class="flabel">Contrat (h/mois)</div><input class="finp" type="number" step="0.5" id="ea-heures" value="${a.contrat_heures||''}" oninput="previewSalaire()"></div>
       <div class="fg"><div class="flabel">Taux horaire (CHF)</div><input class="finp" type="number" step="0.01" id="ea-taux" value="${a.taux_horaire||''}" oninput="previewSalaire()"></div>
       <div class="fg"><div class="flabel">Catégorie</div><select class="fsel" id="ea-cat">${opts(P.categories_salaire,a.categorie_salaire,'— Sélectionner —')}</select></div>
@@ -1742,6 +1744,7 @@ function saveAgentEdit(){
   a.taux_horaire=parseFloat(g('ea-taux'))||null;
   a.categorie_salaire=g('ea-cat'); a.taux_emploi=parseFloat(g('ea-emploi'))||null;
   a.contrat=g('ea-contrat'); a.date_depart=g('ea-depart'); a.statut=g('ea-statut')||'actif';
+  a.date_reglement=g('ea-reglement'); a.date_fiche=g('ea-fiche');
   a.contrat_heures=parseFloat(g('ea-heures'))||null;
   a.statut_marital=g('ea-marital');
   a.nb_enfants=parseInt(g('ea-enfants'))||0;
