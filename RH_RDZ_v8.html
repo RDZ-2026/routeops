@@ -486,6 +486,8 @@ tbody tr:last-child td{border-bottom:none;}
     <button class="sec-tab" onclick="switchDocTab(this,'permis')">Permis travail</button>
     <button class="sec-tab" onclick="switchDocTab(this,'pi')">Pièces identité</button>
     <button class="sec-tab" onclick="switchDocTab(this,'detail')">Détail complet</button>
+    <button class="sec-tab" onclick="switchDocTab(this,'reglement')">Règlement intérieur</button>
+    <button class="sec-tab" onclick="switchDocTab(this,'maj_fiche')">MAJ fiche</button>
   </div>
   <div id="doc-content"></div>
 </div>
@@ -1367,6 +1369,8 @@ function renderFicheView(a){
     <div class="fiche-card">
       <div class="sec-title" style="margin-bottom:10px;">💼 Contrat & Salaire</div>
       <div class="frow"><span class="fl">Date embauche</span><span class="fv">${fDate(a.date_embauche)}</span></div>
+      <div class="frow"><span class="fl">Signature règlement intérieur</span><span class="fv">${a.date_reglement?fDate(a.date_reglement):'<span style=\"color:#dc2626;font-weight:600;\">Non signé</span>'}</span></div>
+      <div class="frow"><span class="fl">MAJ fiche renseignement</span><span class="fv">${a.date_fiche?fDate(a.date_fiche):'<span style=\"color:#d97706;\">Non renseigné</span>'}</span></div>
       <div class="frow"><span class="fl">Fonction</span><span class="fv">${v(a.fonction)}</span></div>
       <div class="frow"><span class="fl">Contrat (heures)</span><span class="fv">${a.contrat_heures?a.contrat_heures+' h/mois':'—'}</span></div>
       <div class="frow"><span class="fl">Taux horaire</span><span class="fv">${a.taux_horaire?a.taux_horaire+' CHF/h':'—'}</span></div>
@@ -2721,11 +2725,115 @@ function sortMatrix(col){
   else {matrixSort.col=col; matrixSort.dir='asc';}
   renderDocuments();
 }
+
+// ── Tableau Règlement intérieur ──────────────────────────
+var reglSort = {col:'nom', dir:'asc'};
+function sortRegl(k){ reglSort.col===k ? reglSort.dir=(reglSort.dir==='asc'?'desc':'asc') : (reglSort.col=k, reglSort.dir='asc'); renderDocuments(); }
+
+function renderReglementTable(el){
+  var agents = DB.agents.filter(function(a){ return a.statut==='actif'; });
+  var rows = agents.map(function(a){
+    return { id:a.id, nom:a.nom+' '+a.prenom, date:a.date_reglement||null };
+  });
+  rows.sort(function(a,b){
+    var va=a[reglSort.col]||'', vb=b[reglSort.col]||'';
+    var r = va.localeCompare(vb,'fr');
+    return reglSort.dir==='asc' ? r : -r;
+  });
+  var sc = function(k){ return reglSort.col===k ? (reglSort.dir==='asc'?' ▲':' ▼') : ''; };
+  var html = '<div class="card" style="padding:0;overflow-x:auto;"><table class="matrix-tbl">';
+  html += '<thead><tr>';
+  html += "<th onclick='sortRegl(\"nom\")' style='cursor:pointer;'>Agent"+sc('nom')+"</th>";
+  html += "<th onclick='sortRegl(\"date\")' style='cursor:pointer;'>Date de signature"+sc('date')+"</th>";
+  html += "<th>Statut</th>";
+  html += "</tr></thead>";
+  // SKIP OLD" style="cursor:pointer;">Agent'+sc('nom')+'</th>';
+  html += "<th onclick=\"sortRegl('date')\" style=\"cursor:pointer;\">Date de signature"+sc("date")+"</th>";
+  html += '<th>Statut</th>';
+  html += '</tr></thead><tbody>';
+  rows.forEach(function(r){
+    var statut = r.date
+      ? '<span class="badge b-green">✓ Signé le '+fDate(r.date)+'</span>'
+      : '<span class="badge b-red">⚠ Non signé</span>';
+    html += `<tr onclick="openFiche('${r.id}')" style="cursor:pointer;">`;
+    html += '<td><strong>'+esc(r.nom)+'</strong></td>';
+    html += '<td>'+(r.date ? fDate(r.date) : '<span style="color:var(--text3);">—</span>')+'</td>';
+    html += '<td>'+statut+'</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  var signed   = rows.filter(function(r){ return r.date; }).length;
+  var unsigned = rows.length - signed;
+  html = '<div style="display:flex;gap:10px;margin-bottom:14px;">'
+    + '<div class="card" style="padding:12px 18px;flex:1;text-align:center;">'
+    + '<div style="font-size:22px;font-weight:700;color:#16a34a;">'+signed+'</div>'
+    + '<div style="font-size:11px;color:var(--text3);">Signés</div></div>'
+    + '<div class="card" style="padding:12px 18px;flex:1;text-align:center;">'
+    + '<div style="font-size:22px;font-weight:700;color:#dc2626;">'+unsigned+'</div>'
+    + '<div style="font-size:11px;color:var(--text3);">Non signés</div></div>'
+    + '</div>' + html;
+  el.innerHTML = html;
+}
+
+// ── Tableau MAJ fiche de renseignement ───────────────────
+var ficheSort = {col:'nom', dir:'asc'};
+function sortFiche(k){ ficheSort.col===k ? ficheSort.dir=(ficheSort.dir==='asc'?'desc':'asc') : (ficheSort.col=k, ficheSort.dir='asc'); renderDocuments(); }
+
+function renderFicheTable(el){
+  var agents = DB.agents.filter(function(a){ return a.statut==='actif'; });
+  var rows = agents.map(function(a){
+    var d = a.date_fiche||null;
+    var days = d ? daysUntil(d) : null; // jours depuis MAJ (négatif = passé)
+    return { id:a.id, nom:a.nom+' '+a.prenom, date:d, days:days };
+  });
+  rows.sort(function(a,b){
+    var va=a[ficheSort.col]||'', vb=b[ficheSort.col]||'';
+    var r = va.toString().localeCompare(vb.toString(),'fr');
+    return ficheSort.dir==='asc' ? r : -r;
+  });
+  var sc = function(k){ return ficheSort.col===k ? (ficheSort.dir==='asc'?' ▲':' ▼') : ''; };
+  var html = '<div class="card" style="padding:0;overflow-x:auto;"><table class="matrix-tbl">';
+  html += '<thead><tr>';
+  html += "<th onclick=\"sortFiche('nom')\" style=\"cursor:pointer;\">Agent"+sc("nom")+"</th>";
+  html += "<th onclick=\"sortFiche('date')\" style=\"cursor:pointer;\">Dernière MAJ"+sc("date")+"</th>";
+  html += '<th>Ancienneté MAJ</th>';
+  html += '</tr></thead><tbody>';
+  rows.forEach(function(r){
+    var ageDays = r.date ? Math.abs(Math.floor((Date.now()-new Date(r.date))/86400000)) : null;
+    var ageLabel = ageDays===null ? '<span style="color:var(--text3);">—</span>'
+      : ageDays > 365 ? '<span class="badge b-red">'+Math.floor(ageDays/365)+' an(s)</span>'
+      : ageDays > 90  ? '<span class="badge b-orange">'+ageDays+' jours</span>'
+      : '<span class="badge b-green">'+ageDays+' jours</span>';
+    html += `<tr onclick="openFiche('${r.id}')" style="cursor:pointer;">`;
+    html += '<td><strong>'+esc(r.nom)+'</strong></td>';
+    html += '<td>'+(r.date ? fDate(r.date) : '<span style="color:var(--text3);">Non renseigné</span>')+'</td>';
+    html += '<td>'+ageLabel+'</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+  var withDate  = rows.filter(function(r){ return r.date; }).length;
+  var oldDate   = rows.filter(function(r){ return r.date && Math.abs(Math.floor((Date.now()-new Date(r.date))/86400000))>365; }).length;
+  html = '<div style="display:flex;gap:10px;margin-bottom:14px;">'
+    + '<div class="card" style="padding:12px 18px;flex:1;text-align:center;">'
+    + '<div style="font-size:22px;font-weight:700;color:#16a34a;">'+withDate+'</div>'
+    + '<div style="font-size:11px;color:var(--text3);">Fiches à jour</div></div>'
+    + '<div class="card" style="padding:12px 18px;flex:1;text-align:center;">'
+    + '<div style="font-size:22px;font-weight:700;color:#dc2626;">'+oldDate+'</div>'
+    + '<div style="font-size:11px;color:var(--text3);">> 1 an sans MAJ</div></div>'
+    + '<div class="card" style="padding:12px 18px;flex:1;text-align:center;">'
+    + '<div style="font-size:22px;font-weight:700;color:#9ca3af;">'+(rows.length-withDate)+'</div>'
+    + '<div style="font-size:11px;color:var(--text3);">Non renseignées</div></div>'
+    + '</div>' + html;
+  el.innerHTML = html;
+}
+
 function renderDocuments(){
   const el=document.getElementById('doc-content'); if(!el) return;
   if(docTab==='matrix') renderDocMatrix(el);
   else if(docTab==='detail') renderDocDetail(el);
   else if(docTab==='carte_simple') renderCarteSimple(el);
+  else if(docTab==='reglement') renderReglementTable(el);
+  else if(docTab==='maj_fiche') renderFicheTable(el);
   else renderDocTypeTable(el,docTab);
 }
 function renderDocMatrix(el){
@@ -2739,12 +2847,15 @@ function renderDocMatrix(el){
     {k:'pi1_exp',l:'PI 1',sort:true},
     {k:'pi2_exp',l:'PI 2',sort:true},
     {k:'pc_exp',l:'Permis conduire',sort:true},
+    {k:'date_reglement',l:'Règlement intérieur',sort:true},
+    {k:'date_fiche',l:'MAJ fiche',sort:true},
   ];
   const rows=agents.map(a=>({
     id:a.id, nom:`${a.nom} ${a.prenom}`,
     carte_exp:a.docs.carte?.exp||null, carte_sit:a.docs.carte?.situation||null, ppa_exp:a.docs.ppa?.exp||null,
     permis_exp:a.docs.permis?.exp||null, pi1_exp:a.docs.pi1?.exp||null,
     pi2_exp:a.docs.pi2?.exp||null, pc_exp:a.docs.permis_conduire?.exp||null,
+    date_reglement:a.date_reglement||null, date_fiche:a.date_fiche||null,
   }));
   // sort
   rows.sort((a,b)=>{
@@ -2774,6 +2885,8 @@ function renderDocMatrix(el){
         <td>${cellHtml(r.pi1_exp)}</td>
         <td>${cellHtml(r.pi2_exp)}</td>
         <td>${cellHtml(r.pc_exp)}</td>
+        <td>${r.date_reglement?`<span class="badge b-green">✓ ${fDate(r.date_reglement)}</span>`:'<span class="badge b-red">Non signé</span>'}</td>
+        <td>${r.date_fiche?`<span class="badge b-green">✓ ${fDate(r.date_fiche)}</span>`:'<span style="color:var(--text3);">—</span>'}</td>
       </tr>`).join('')}</tbody>
     </table>
   </div>`;
