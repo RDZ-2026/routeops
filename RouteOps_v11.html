@@ -2329,6 +2329,8 @@ function buildMissionsBySite(){
 
   const container=document.getElementById('missions-by-site');
   container.innerHTML=html||'<p style="padding:16px;color:var(--text3)">Aucune mission.</p>';
+  container._dragInitDone = false
+  initMissionDragDrop();
 
   // Attacher le listener une seule fois (flag sur l'élément)
   if(!container._missionListenerSet){
@@ -3287,8 +3289,11 @@ Réponds en français, de façon concise et opérationnelle.`;
 // ═══════════════════════════════════════════════════
 
 function initMissionDragDrop(){
-  const container = document.getElementById('missions-list')
+  const container = document.getElementById('missions-by-site')
   if(!container) return
+  // Éviter double-attachement
+  if(container._dragInitDone) return
+  container._dragInitDone = true
   let dragId = null
 
   container.addEventListener('dragstart', e => {
