@@ -1286,7 +1286,9 @@ function calcSheetTimes(sh){
       }
     }
     const st=minToT(cur);
-    const[dh,dm]=(m.duree||'00:00').split(':').map(Number);
+    // dureeOverride : surcharge de durée spécifique à cette instance
+    const dureeStr=task.dureeOverride||m.duree||'00:00';
+    const[dh,dm]=dureeStr.split(':').map(Number);
     cur+=dh*60+dm;
     const et=minToT(cur);
     if(m.siteId) lastSite=m.siteId;
@@ -1432,6 +1434,7 @@ function buildSheetCard(sh){
         ${sites.map(sid=>{const s=getSite(sid);return s?`<span class="site-chip" style="background:${s.color}">${s.code}</span>`:''}).join('')}
       </div>
       <button class="btn btn-outline btn-sm sc-edit-btn" data-id="${sh.id}">✏️ Éditer</button>
+      <button class="btn btn-outline btn-sm" onclick="openMaterielForm('${sh.id}')" title="Prise de matériel" style="font-size:12px;padding:4px 8px">📦</button>
       <button class="btn btn-red btn-icon btn-sm sc-del-btn" data-id="${sh.id}" title="Supprimer cette feuille">✕</button>
     </div>
   </div>`;
@@ -2001,6 +2004,7 @@ function renderEditorRows(shId){
         ${i>0?`<button class="btn btn-ghost btn-icon btn-sm" onclick="moveRow('${shId}',${i},-1)">↑</button>`:'<span style="width:28px"></span>'}
         ${i<sh.tasks.length-1?`<button class="btn btn-ghost btn-icon btn-sm" onclick="moveRow('${shId}',${i},1)">↓</button>`:'<span style="width:28px"></span>'}
         ${isFixed?`<button class="btn btn-ghost btn-icon btn-sm" onclick="clearFixed('${shId}',${i})" title="Retirer fixe">🔓</button>`:''}
+        <button class="btn btn-outline btn-icon btn-sm" onclick="openTaskOverride('${shId}',${i})" title="Modifier pour ce jour" style="font-size:11px">✏</button>
         <button class="btn btn-red btn-icon btn-sm" onclick="removeRow('${shId}',${i})">✕</button>
       </div>
     </div>`;
@@ -2280,7 +2284,8 @@ function buildMissionsBySite(){
         <span style="font-size:11px;font-family:var(--mono);color:var(--text2);flex-shrink:0">⏱ ${esc(m.duree||'—')}</span>
         ${cLabel?`<span style="background:#d97706;color:white;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;flex-shrink:0">${cLabel} ${cDetail}</span>`:''}
         ${m.cs||m.cw?`<span style="font-size:10px;color:var(--text3);flex-shrink:0">Sem: ${esc(m.cs||'—')} · WE: ${esc(m.cw||'—')}</span>`:''}
-        <span style="margin-left:auto;display:flex;gap:5px;flex-shrink:0">
+        <span style="margin-left:auto;display:flex;gap:5px;flex-shrink:0;align-items:center">
+          <span class="drag-handle" draggable="true" data-mid="${m.id}" style="cursor:grab;color:var(--text3);font-size:16px;padding:0 4px;user-select:none" title="Glisser pour réordonner">⠿</span>
           <button class="btn btn-outline btn-sm" data-id="${m.id}" data-action="edit" style="font-size:11px;padding:3px 10px">✏ Modifier</button>
           <button class="btn btn-outline btn-sm" data-id="${m.id}" data-action="dup"  style="font-size:11px;padding:3px 10px">⧉ Copier</button>
           <button class="btn btn-red btn-sm"     data-id="${m.id}" data-action="del"  style="font-size:11px;padding:3px 8px">✕</button>
@@ -3278,6 +3283,282 @@ Réponds en français, de façon concise et opérationnelle.`;
 
 
 // ═══════════════════════════════════════════════════
+// ORDRE DES MISSIONS — drag & drop dans Paramètres
+// ═══════════════════════════════════════════════════
+
+function initMissionDragDrop(){
+  const container = document.getElementById('missions-list')
+  if(!container) return
+  let dragId = null
+
+  container.addEventListener('dragstart', e => {
+    const h = e.target.closest('.drag-handle')
+    if(!h) return
+    dragId = h.dataset.mid
+    e.dataTransfer.effectAllowed = 'move'
+  })
+
+  container.addEventListener('dragover', e => {
+    e.preventDefault()
+    const row = e.target.closest('.mission-list-row')
+    if(!row || !dragId) return
+    const overId = row.querySelector('.drag-handle')?.dataset.mid
+    if(!overId || overId === dragId) return
+    // Déplacer dans S.missions
+    const fromIdx = S.missions.findIndex(m => m.id === dragId)
+    const toIdx   = S.missions.findIndex(m => m.id === overId)
+    if(fromIdx < 0 || toIdx < 0) return
+    const [moved] = S.missions.splice(fromIdx, 1)
+    S.missions.splice(toIdx, 0, moved)
+  })
+
+  container.addEventListener('dragend', () => {
+    dragId = null
+    saveAll('missions')
+    buildMissionsBySite()
+  })
+}
+
+// ═══════════════════════════════════════════════════
+// SURCHARGE MISSION — modifier pour ce jour seulement
+// ═══════════════════════════════════════════════════
+
+function openTaskOverride(shId, taskIdx){
+  const sh = S.sheets.find(s => s.id === shId)
+  if(!sh) return
+  const task = sh.tasks[taskIdx]
+  const m = S.missions.find(x => x.id === task.mId)
+  if(!m) return
+
+  // Créer le modal
+  document.getElementById('modalTitle2').innerHTML =
+    `✏️ Modifier pour ce jour — <strong>${esc(m.name)}</strong>`
+
+  document.getElementById('modalBody2').innerHTML = `
+    <div style="background:#fef9ec;border:1px solid #f59e0b;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#92400e">
+      ⚠️ Ces modifications s'appliquent uniquement à cette feuille, pas au modèle.
+    </div>
+    <div style="display:grid;gap:12px">
+      <div class="fg">
+        <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">Durée (hh:mm)</label>
+        <input type="text" id="ov-duree" value="${task.dureeOverride||m.duree||''}"
+          placeholder="${m.duree||'00:30'}"
+          style="font-family:var(--mono);width:100px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px">
+        <span style="font-size:11px;color:var(--text3)">Durée modèle : ${m.duree||'—'}</span>
+      </div>
+      <div class="fg">
+        <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">Heure fixe de début</label>
+        <input type="time" id="ov-fixed" value="${task.fixedStart||''}"
+          style="width:130px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px">
+        <button onclick="document.getElementById('ov-fixed').value=''" 
+          style="font-size:11px;padding:4px 8px;background:none;border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--text3)">Effacer</button>
+      </div>
+      <div class="fg">
+        <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">Note pour ce jour</label>
+        <input type="text" id="ov-note" value="${esc(task.note||'')}" placeholder="Note spécifique..."
+          style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+      </div>
+      <div style="display:flex;gap:8px;padding-top:4px;border-top:1px solid var(--border)">
+        <button onclick="resetTaskOverride('${shId}',${taskIdx})" 
+          style="padding:6px 12px;background:none;border:1px solid var(--border);border-radius:6px;font-size:12px;cursor:pointer;color:var(--text3)">
+          ↺ Remettre les valeurs du modèle
+        </button>
+      </div>
+    </div>
+  `
+
+  document.getElementById('modalOk2').style.display = 'inline-flex'
+  document.getElementById('modalOk2').textContent = 'Appliquer'
+  document.getElementById('modalOk2').onclick = () => applyTaskOverride(shId, taskIdx)
+
+  document.getElementById('modal2').style.display = 'flex'
+}
+
+function applyTaskOverride(shId, taskIdx){
+  const sh = S.sheets.find(s => s.id === shId)
+  if(!sh) return
+  const task = sh.tasks[taskIdx]
+
+  const duree = document.getElementById('ov-duree').value.trim()
+  const fixed = document.getElementById('ov-fixed').value.trim()
+  const note  = document.getElementById('ov-note').value.trim()
+
+  // Appliquer uniquement si différent de la mission par défaut
+  const m = S.missions.find(x => x.id === task.mId)
+  task.dureeOverride = (duree && duree !== m?.duree) ? duree : null
+  task.fixedStart    = fixed || null
+  task.note          = note
+
+  document.getElementById('modal2').style.display = 'none'
+  saveAll('sheets')
+  if(typeof renderEditorRows === 'function') renderEditorRows(shId)
+  if(typeof buildJournee === 'function') buildJournee()
+}
+
+function resetTaskOverride(shId, taskIdx){
+  const sh = S.sheets.find(s => s.id === shId)
+  if(!sh) return
+  const task = sh.tasks[taskIdx]
+  const m    = S.missions.find(x => x.id === task.mId)
+  if(m) document.getElementById('ov-duree').value = m.duree || ''
+  document.getElementById('ov-fixed').value = ''
+  document.getElementById('ov-note').value  = ''
+  task.dureeOverride = null
+}
+
+// ═══════════════════════════════════════════════════
+// FORMULAIRE PRISE DE MATÉRIEL
+// ═══════════════════════════════════════════════════
+
+const VEHICULES = [
+  {id:'rdz1', label:'RDZ1 — GE134389'},
+  {id:'rdz2', label:'RDZ2 — GE306576'},
+  {id:'rdz3', label:'RDZ3 — GE246077'},
+]
+const MATERIEL = [
+  'Lampe', 'Radio (+ accessoires)', 'Parapluie', 'Téléphone', 'Baton lumineux'
+]
+
+function openMaterielForm(shId){
+  const sh = S.sheets.find(s => s.id === shId)
+  if(!sh) return
+  const mat = sh.materiel || {}
+
+  document.getElementById('modalTitle2').innerHTML = '📦 Prise de matériel — ' + esc(sh.name)
+
+  const vehtRows = VEHICULES.map(v => {
+    const vd = mat.vehicules?.[v.id] || {}
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 10px;font-weight:500;font-size:13px;white-space:nowrap">${v.label}</td>
+      <td style="padding:8px 6px"><input type="time" id="vh-dep-h-${v.id}" value="${vd.depH||''}" style="width:90px;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-family:var(--mono)"></td>
+      <td style="padding:8px 6px"><input type="number" id="vh-dep-km-${v.id}" value="${vd.depKm||''}" placeholder="km" style="width:80px;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-family:var(--mono)"></td>
+      <td style="padding:8px 6px"><input type="time" id="vh-arr-h-${v.id}" value="${vd.arrH||''}" style="width:90px;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-family:var(--mono)"></td>
+      <td style="padding:8px 6px"><input type="number" id="vh-arr-km-${v.id}" value="${vd.arrKm||''}" placeholder="km" style="width:80px;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;font-family:var(--mono)"></td>
+      <td style="padding:8px 6px"><input type="text" id="vh-note-${v.id}" value="${esc(vd.note||'')}" placeholder="Dégradations, pannes..." style="width:160px;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:5px"></td>
+    </tr>`
+  }).join('')
+
+  const matRows = MATERIEL.map(item => {
+    const key = item.toLowerCase().replace(/[^a-z]/g,'_')
+    const md = mat.items?.[key] || {}
+    return `<tr style="border-bottom:1px solid var(--border)">
+      <td style="padding:8px 10px;font-weight:500;font-size:13px">${item}</td>
+      <td style="padding:8px 10px">
+        <label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer">
+          <input type="checkbox" id="mt-pris-${key}" ${md.pris?'checked':''} style="width:14px;height:14px"> Pris
+        </label>
+      </td>
+      <td style="padding:8px 6px">
+        <select id="mt-etat-${key}" style="font-size:12px;padding:4px 8px;border:1px solid var(--border);border-radius:5px">
+          <option value="">—</option>
+          <option value="normal" ${md.etat==='normal'?'selected':''}>Normal</option>
+          <option value="reparer" ${md.etat==='reparer'?'selected':''}>À réparer</option>
+          <option value="hs" ${md.etat==='hs'?'selected':''}>Défectueux / HS</option>
+        </select>
+      </td>
+      <td style="padding:8px 6px"><input type="text" id="mt-note-${key}" value="${esc(md.note||'')}" placeholder="Note..." style="width:140px;font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:5px"></td>
+    </tr>`
+  }).join('')
+
+  document.getElementById('modalBody2').innerHTML = `
+    <div style="display:grid;gap:18px;max-height:70vh;overflow-y:auto;padding-right:4px">
+      <div>
+        <div style="font-weight:700;font-size:13px;background:var(--surface3);padding:6px 12px;border-radius:6px;margin-bottom:8px">🚗 Véhicules</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:12px">
+            <thead>
+              <tr style="background:var(--surface2);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">
+                <th style="padding:6px 10px;text-align:left">Véhicule</th>
+                <th style="padding:6px 6px">Heure départ</th>
+                <th style="padding:6px 6px">Km départ</th>
+                <th style="padding:6px 6px">Heure arrivée</th>
+                <th style="padding:6px 6px">Km arrivée</th>
+                <th style="padding:6px 6px;text-align:left">Note</th>
+              </tr>
+            </thead>
+            <tbody>${vehtRows}</tbody>
+          </table>
+        </div>
+      </div>
+      <div>
+        <div style="font-weight:700;font-size:13px;background:var(--surface3);padding:6px 12px;border-radius:6px;margin-bottom:8px">🔦 Autre matériel</div>
+        <div style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:var(--surface2);font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">
+                <th style="padding:6px 10px;text-align:left">Matériel</th>
+                <th style="padding:6px 10px;text-align:left">Prise</th>
+                <th style="padding:6px 6px;text-align:left">État</th>
+                <th style="padding:6px 6px;text-align:left">Note</th>
+              </tr>
+            </thead>
+            <tbody>${matRows}</tbody>
+          </table>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;padding:12px;background:var(--surface2);border-radius:8px">
+        <div class="fg">
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">Date</label>
+          <input type="date" id="mat-date" value="${sh.materiel?.date||sh.date||''}" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+        </div>
+        <div class="fg">
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">Nom agent</label>
+          <input type="text" id="mat-agent" value="${esc(sh.materiel?.agent||'')}" placeholder="Prénom Nom" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+        </div>
+        <div class="fg">
+          <label style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.4px">Signature</label>
+          <input type="text" id="mat-sig" value="${esc(sh.materiel?.signature||'')}" placeholder="Initiales ou signature..." style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:13px">
+        </div>
+      </div>
+    </div>
+  `
+
+  document.getElementById('modalOk2').style.display = 'inline-flex'
+  document.getElementById('modalOk2').textContent = '💾 Enregistrer'
+  document.getElementById('modalOk2').onclick = () => saveMaterielForm(shId)
+
+  document.getElementById('modal2').style.display = 'flex'
+}
+
+function saveMaterielForm(shId){
+  const sh = S.sheets.find(s => s.id === shId)
+  if(!sh) return
+
+  const vehicules = {}
+  VEHICULES.forEach(v => {
+    vehicules[v.id] = {
+      depH:  document.getElementById('vh-dep-h-'+v.id)?.value || '',
+      depKm: document.getElementById('vh-dep-km-'+v.id)?.value || '',
+      arrH:  document.getElementById('vh-arr-h-'+v.id)?.value || '',
+      arrKm: document.getElementById('vh-arr-km-'+v.id)?.value || '',
+      note:  document.getElementById('vh-note-'+v.id)?.value || '',
+    }
+  })
+
+  const items = {}
+  MATERIEL.forEach(item => {
+    const key = item.toLowerCase().replace(/[^a-z]/g,'_')
+    items[key] = {
+      pris:  document.getElementById('mt-pris-'+key)?.checked || false,
+      etat:  document.getElementById('mt-etat-'+key)?.value || '',
+      note:  document.getElementById('mt-note-'+key)?.value || '',
+    }
+  })
+
+  sh.materiel = {
+    vehicules,
+    items,
+    date:      document.getElementById('mat-date')?.value || '',
+    agent:     document.getElementById('mat-agent')?.value || '',
+    signature: document.getElementById('mat-sig')?.value || '',
+  }
+
+  document.getElementById('modal2').style.display = 'none'
+  saveAll('sheets')
+  if(typeof buildJournee === 'function') buildJournee()
+}
+
+// ═══════════════════════════════════════════════════
 // INIT — AUTH + AUTOSAVE
 // ═══════════════════════════════════════════════════
 
@@ -3309,8 +3590,9 @@ function _dureeToMin(d){
 function _autoFixIds(){
   const fixId = id => {
     if(!id) return _uuid()
-    if(/^[a-z][0-9a-f]{8}-/.test(id)) return id.slice(1)  // lettre+uuid → enlever lettre
-    if(!id.includes('-')) return _uuid()                    // ID court → nouveau UUID
+    if(!id.includes('-')) return _uuid()                         // ID court → nouveau UUID
+    const m = id.match(/^([a-z]+)([0-9a-f]{8}-[0-9a-f]{4}-)/)  // préfixe lettres + UUID
+    if(m) return id.slice(m[1].length)                           // enlever le préfixe
     return id
   }
   const sMap={}, mMap={}
