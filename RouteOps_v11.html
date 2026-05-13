@@ -1322,6 +1322,14 @@ function buildJournee(){
   buildSiteCoverage(date, sheets);
 
   // Délégation — évite les problèmes de quotes dans onclick
+  // Boutons réordonnancement cartes
+  cardsEl.querySelectorAll('.sc-left-btn').forEach(btn=>{
+    btn.addEventListener('click',function(){ moveSheetInDay(this.dataset.id,-1) })
+  })
+  cardsEl.querySelectorAll('.sc-right-btn').forEach(btn=>{
+    btn.addEventListener('click',function(){ moveSheetInDay(this.dataset.id,+1) })
+  })
+
   cardsEl.querySelectorAll('.sc-edit-btn').forEach(btn=>{
     btn.addEventListener('click',function(){editInstance(this.dataset.id);});
   });
@@ -1404,7 +1412,7 @@ function buildSheetCard(sh){
   const calc=calcSheetTimes(sh);
   const hasAlert=calc.some(r=>r.alert);
   const totMin=calc.reduce((a,r)=>{const m=getMission(r.mId);if(!m)return a;const[h,mi]=(m.duree||'00:00').split(':').map(Number);return a+h*60+mi;},0);
-  const endTime=calc.filter(r=>r.endTime).pop()?.endTime||'—';
+  const endTime=sh.endService||calc.filter(r=>r.endTime).pop()?.endTime||'—';
   const sites=[...new Set(calc.map(r=>getMission(r.mId)?.siteId).filter(Boolean))];
 
   const mLines=calc.slice(0,6).map(r=>{
@@ -1435,6 +1443,8 @@ function buildSheetCard(sh){
       <div style="flex:1;display:flex;gap:4px;flex-wrap:wrap">
         ${sites.map(sid=>{const s=getSite(sid);return s?`<span class="site-chip" style="background:${s.color}">${s.code}</span>`:''}).join('')}
       </div>
+      <button class="btn btn-ghost btn-icon btn-sm sc-left-btn"  data-id="${sh.id}" title="Déplacer à gauche" style="font-size:11px">←</button>
+      <button class="btn btn-ghost btn-icon btn-sm sc-right-btn" data-id="${sh.id}" title="Déplacer à droite" style="font-size:11px">→</button>
       <button class="btn btn-outline btn-sm sc-edit-btn" data-id="${sh.id}">✏️ Éditer</button>
       <button class="btn btn-outline btn-sm" onclick="openMaterielForm('${sh.id}')" title="Prise de matériel" style="font-size:12px;padding:4px 8px">📦</button>
       <button class="btn btn-red btn-icon btn-sm sc-del-btn" data-id="${sh.id}" title="Supprimer cette feuille">✕</button>
@@ -3613,6 +3623,28 @@ function showCopyFeedback(msg){
   t.textContent = msg
   document.body.appendChild(t)
   setTimeout(() => t.remove(), 2500)
+}
+
+// ═══════════════════════════════════════════════════
+// ORDRE DES CARTES JOURNÉE
+// ═══════════════════════════════════════════════════
+
+function moveSheetInDay(shId, dir){
+  const date = document.getElementById('jour-date').value
+  // Récupérer les feuilles de la journée dans l'ordre actuel
+  const daySheets = S.sheets.filter(s => !s.isTemplate && s.date === date)
+  const pos = daySheets.findIndex(s => s.id === shId)
+  if(pos < 0) return
+  const newPos = pos + dir
+  if(newPos < 0 || newPos >= daySheets.length) return
+
+  // Trouver les indices réels dans S.sheets et les échanger
+  const idxA = S.sheets.findIndex(s => s.id === daySheets[pos].id)
+  const idxB = S.sheets.findIndex(s => s.id === daySheets[newPos].id)
+  ;[S.sheets[idxA], S.sheets[idxB]] = [S.sheets[idxB], S.sheets[idxA]]
+
+  saveAll('sheets')
+  buildJournee()
 }
 
 // ═══════════════════════════════════════════════════
