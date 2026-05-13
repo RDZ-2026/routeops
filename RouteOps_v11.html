@@ -1996,7 +1996,9 @@ function renderEditorRows(shId){
       </div>
       <div class="ec">${debutCell}</div>
       <div class="ec" style="font-family:var(--mono);font-size:12px;color:var(--text2)">${row.endTime}</div>
-      <div class="ec" style="font-family:var(--mono);font-size:12px;color:var(--text2)">${m.duree}</div>
+      <div class="ec" style="font-family:var(--mono);font-size:12px;color:${row.dureeOverride?'var(--accent)':'var(--text2)'};font-weight:${row.dureeOverride?'700':'400'}" title="${row.dureeOverride?'Durée modifiée pour ce jour (modèle: '+m.duree+')':''}">
+        ${row.dureeOverride||m.duree}${row.dureeOverride?'<span style="font-size:9px;margin-left:2px;vertical-align:middle">✏</span>':''}
+      </div>
       <div class="ec" style="font-size:11px;color:var(--text2);line-height:1.4;overflow:hidden">${m.desc||''}</div>
       <div class="ec" style="font-size:11px;color:var(--text3)">
         ${row.travelMin>0?`<span style="background:var(--surface3);border-radius:3px;padding:1px 6px;font-family:var(--mono)">+${row.travelMin}'</span>`:'—'}
@@ -3290,19 +3292,23 @@ Réponds en français, de façon concise et opérationnelle.`;
 // ═══════════════════════════════════════════════════
 
 function moveMission(mId, dir){
-  const idx = S.missions.findIndex(m => m.id === mId)
-  if(idx < 0) return
-  const newIdx = idx + dir
-  if(newIdx < 0 || newIdx >= S.missions.length) return
-  const [moved] = S.missions.splice(idx, 1)
-  S.missions.splice(newIdx, 0, moved)
+  const m = S.missions.find(x => x.id === mId)
+  if(!m) return
+  // Déplacer uniquement parmi les missions du même site
+  const siteId = m.siteId || '__none__'
+  const siteGroup = S.missions
+    .map((x, i) => ({mission: x, idx: i}))
+    .filter(x => (x.mission.siteId || '__none__') === siteId)
+  const posInGroup = siteGroup.findIndex(x => x.mission.id === mId)
+  if(posInGroup < 0) return
+  const newPosInGroup = posInGroup + dir
+  if(newPosInGroup < 0 || newPosInGroup >= siteGroup.length) return
+  // Echanger dans S.missions
+  const idxA = siteGroup[posInGroup].idx
+  const idxB = siteGroup[newPosInGroup].idx
+  ;[S.missions[idxA], S.missions[idxB]] = [S.missions[idxB], S.missions[idxA]]
   saveAll('missions')
   buildMissionsBySite()
-  // Scroll vers la mission déplacée
-  setTimeout(() => {
-    const btn = document.querySelector(`[onclick*="moveMission('${mId}'"]`)
-    if(btn) btn.closest('.mission-list-row')?.scrollIntoView({block:'nearest'})
-  }, 100)
 }
 
 // ═══════════════════════════════════════════════════
