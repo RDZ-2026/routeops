@@ -529,6 +529,8 @@ td input:focus{background:var(--accent-light);border:1px solid var(--accent);out
       <button class="btn btn-green btn-sm" onclick="saveEditorSheet()">💾 Sauvegarder comme modèle</button>
       <button class="btn btn-amber btn-sm" onclick="showModalSaveAsDate()">📅 Enregistrer pour une date</button>
       <span id="ed-saved" style="font-size:11px;color:var(--green);display:none">✓ Sauvegardé</span>
+      <button onclick="copySelectedTasks()" class="btn btn-outline btn-sm" title="Copier les missions cochées" style="font-size:11px">📋 Copier sélection</button>
+      <button onclick="pasteTasksHere()" class="btn btn-outline btn-sm" id="btn-paste-tasks" style="font-size:11px;display:none" title="Coller les missions copiées">📌 Coller ici</button>
     </div>
   </div>
 
@@ -1984,7 +1986,12 @@ function renderEditorRows(shId){
           style="font-family:var(--mono);font-size:12px;color:var(--accent);background:var(--accent-light);border:1px solid #93c5fd;border-radius:4px;padding:2px 7px;cursor:pointer;white-space:nowrap"
           title="Cliquer pour forcer cette heure">${row.startTime}</button>`;
 
-    return `<div class="ed-row ${rowClass}">
+    return `<div class="ed-row ${rowClass}" data-task-idx="${i}">
+      <div class="ec" style="justify-content:center;align-items:center;padding:0 4px">
+        <input type="checkbox" class="task-copy-cb" data-idx="${i}"
+          style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)"
+          title="Sélectionner pour copier">
+      </div>
       <div class="ec" style="justify-content:center;color:var(--text3);font-size:13px;cursor:grab">⠿</div>
       <div class="ec" style="gap:7px">
         <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
@@ -3540,6 +3547,71 @@ function saveMaterielForm(shId){
   document.getElementById('modal2').style.display = 'none'
   saveAll('sheets')
   if(typeof buildJournee === 'function') buildJournee()
+}
+
+
+// ═══════════════════════════════════════════════════
+// COPIER / COLLER MISSIONS ENTRE FEUILLES
+// ═══════════════════════════════════════════════════
+
+var _taskClipboard = []  // missions copiées
+
+function copySelectedTasks(){
+  const shId = currentSheetId
+  const sh = S.sheets.find(s => s.id === shId)
+  if(!sh) return
+
+  const checkboxes = document.querySelectorAll('.task-copy-cb:checked')
+  if(!checkboxes.length){
+    alert('Cochez au moins une mission à copier.')
+    return
+  }
+
+  _taskClipboard = []
+  checkboxes.forEach(cb => {
+    const idx = parseInt(cb.dataset.idx)
+    const task = sh.tasks[idx]
+    if(task) _taskClipboard.push({...task})
+  })
+
+  // Afficher le bouton Coller
+  const btnPaste = document.getElementById('btn-paste-tasks')
+  if(btnPaste){
+    btnPaste.style.display = 'inline-flex'
+    btnPaste.textContent = `📌 Coller (${_taskClipboard.length} mission${_taskClipboard.length > 1 ? 's' : ''})`
+  }
+
+  // Décocher toutes les cases
+  document.querySelectorAll('.task-copy-cb').forEach(cb => cb.checked = false)
+
+  // Feedback visuel
+  const nb = _taskClipboard.length
+  const names = _taskClipboard.map(t => getMission(t.mId)?.name || '?').join(', ')
+  showCopyFeedback(`${nb} mission${nb > 1 ? 's' : ''} copiée${nb > 1 ? 's' : ''} : ${names}`)
+}
+
+function pasteTasksHere(){
+  if(!_taskClipboard.length) return
+  const shId = currentSheetId
+  const sh = S.sheets.find(s => s.id === shId)
+  if(!sh) return
+
+  // Ajouter les missions copiées à la fin
+  _taskClipboard.forEach(task => {
+    sh.tasks.push({...task})
+  })
+
+  saveAll('sheets')
+  renderEditorRows(shId)
+  showCopyFeedback(`${_taskClipboard.length} mission${_taskClipboard.length > 1 ? 's' : ''} collée${_taskClipboard.length > 1 ? 's' : ''}`)
+}
+
+function showCopyFeedback(msg){
+  const t = document.createElement('div')
+  t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e40af;color:white;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:500;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.2)'
+  t.textContent = msg
+  document.body.appendChild(t)
+  setTimeout(() => t.remove(), 2500)
 }
 
 // ═══════════════════════════════════════════════════
