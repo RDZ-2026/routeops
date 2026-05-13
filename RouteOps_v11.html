@@ -1987,12 +1987,6 @@ function renderEditorRows(shId){
           title="Cliquer pour forcer cette heure">${row.startTime}</button>`;
 
     return `<div class="ed-row ${rowClass}" data-task-idx="${i}">
-      <div class="ec" style="justify-content:center;align-items:center;padding:0 4px">
-        <input type="checkbox" class="task-copy-cb" data-idx="${i}"
-          style="width:15px;height:15px;cursor:pointer;accent-color:var(--accent)"
-          title="Sélectionner pour copier">
-      </div>
-      <div class="ec" style="justify-content:center;color:var(--text3);font-size:13px;cursor:grab">⠿</div>
       <div class="ec" style="gap:7px">
         <span style="width:8px;height:8px;border-radius:50%;background:${color};flex-shrink:0"></span>
         <div>
@@ -2007,7 +2001,8 @@ function renderEditorRows(shId){
       <div class="ec" style="font-size:11px;color:var(--text3)">
         ${row.travelMin>0?`<span style="background:var(--surface3);border-radius:3px;padding:1px 6px;font-family:var(--mono)">+${row.travelMin}'</span>`:'—'}
       </div>
-      <div class="ec" style="gap:3px;justify-content:flex-end">
+      <div class="ec" style="gap:3px;justify-content:flex-end;align-items:center">
+        <input type="checkbox" class="task-copy-cb" data-idx="${i}" style="width:13px;height:13px;cursor:pointer;accent-color:var(--accent);flex-shrink:0" title="Sélectionner pour copier">
         ${i>0?`<button class="btn btn-ghost btn-icon btn-sm" onclick="moveRow('${shId}',${i},-1)">↑</button>`:'<span style="width:28px"></span>'}
         ${i<sh.tasks.length-1?`<button class="btn btn-ghost btn-icon btn-sm" onclick="moveRow('${shId}',${i},1)">↓</button>`:'<span style="width:28px"></span>'}
         ${isFixed?`<button class="btn btn-ghost btn-icon btn-sm" onclick="clearFixed('${shId}',${i})" title="Retirer fixe">🔓</button>`:''}
