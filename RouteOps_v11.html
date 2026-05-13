@@ -2285,7 +2285,8 @@ function buildMissionsBySite(){
         ${cLabel?`<span style="background:#d97706;color:white;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:700;flex-shrink:0">${cLabel} ${cDetail}</span>`:''}
         ${m.cs||m.cw?`<span style="font-size:10px;color:var(--text3);flex-shrink:0">Sem: ${esc(m.cs||'—')} · WE: ${esc(m.cw||'—')}</span>`:''}
         <span style="margin-left:auto;display:flex;gap:5px;flex-shrink:0;align-items:center">
-          <span class="drag-handle" draggable="true" data-mid="${m.id}" style="cursor:grab;color:var(--text3);font-size:16px;padding:0 4px;user-select:none" title="Glisser pour réordonner">⠿</span>
+          <button onclick="moveMission('${m.id}',-1)" title="Monter" style="padding:2px 6px;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:12px;color:var(--text2)">↑</button>
+          <button onclick="moveMission('${m.id}',+1)" title="Descendre" style="padding:2px 6px;background:none;border:1px solid var(--border);border-radius:4px;cursor:pointer;font-size:12px;color:var(--text2)">↓</button>
           <button class="btn btn-outline btn-sm" data-id="${m.id}" data-action="edit" style="font-size:11px;padding:3px 10px">✏ Modifier</button>
           <button class="btn btn-outline btn-sm" data-id="${m.id}" data-action="dup"  style="font-size:11px;padding:3px 10px">⧉ Copier</button>
           <button class="btn btn-red btn-sm"     data-id="${m.id}" data-action="del"  style="font-size:11px;padding:3px 8px">✕</button>
@@ -2329,8 +2330,6 @@ function buildMissionsBySite(){
 
   const container=document.getElementById('missions-by-site');
   container.innerHTML=html||'<p style="padding:16px;color:var(--text3)">Aucune mission.</p>';
-  container._dragInitDone = false
-  initMissionDragDrop();
 
   // Attacher le listener une seule fois (flag sur l'élément)
   if(!container._missionListenerSet){
@@ -3285,43 +3284,23 @@ Réponds en français, de façon concise et opérationnelle.`;
 
 
 // ═══════════════════════════════════════════════════
-// ORDRE DES MISSIONS — drag & drop dans Paramètres
+// ORDRE DES MISSIONS — boutons ↑ ↓
 // ═══════════════════════════════════════════════════
 
-function initMissionDragDrop(){
-  const container = document.getElementById('missions-by-site')
-  if(!container) return
-  // Éviter double-attachement
-  if(container._dragInitDone) return
-  container._dragInitDone = true
-  let dragId = null
-
-  container.addEventListener('dragstart', e => {
-    const h = e.target.closest('.drag-handle')
-    if(!h) return
-    dragId = h.dataset.mid
-    e.dataTransfer.effectAllowed = 'move'
-  })
-
-  container.addEventListener('dragover', e => {
-    e.preventDefault()
-    const row = e.target.closest('.mission-list-row')
-    if(!row || !dragId) return
-    const overId = row.querySelector('.drag-handle')?.dataset.mid
-    if(!overId || overId === dragId) return
-    // Déplacer dans S.missions
-    const fromIdx = S.missions.findIndex(m => m.id === dragId)
-    const toIdx   = S.missions.findIndex(m => m.id === overId)
-    if(fromIdx < 0 || toIdx < 0) return
-    const [moved] = S.missions.splice(fromIdx, 1)
-    S.missions.splice(toIdx, 0, moved)
-  })
-
-  container.addEventListener('dragend', () => {
-    dragId = null
-    saveAll('missions')
-    buildMissionsBySite()
-  })
+function moveMission(mId, dir){
+  const idx = S.missions.findIndex(m => m.id === mId)
+  if(idx < 0) return
+  const newIdx = idx + dir
+  if(newIdx < 0 || newIdx >= S.missions.length) return
+  const [moved] = S.missions.splice(idx, 1)
+  S.missions.splice(newIdx, 0, moved)
+  saveAll('missions')
+  buildMissionsBySite()
+  // Scroll vers la mission déplacée
+  setTimeout(() => {
+    const btn = document.querySelector(`[onclick*="moveMission('${mId}'"]`)
+    if(btn) btn.closest('.mission-list-row')?.scrollIntoView({block:'nearest'})
+  }, 100)
 }
 
 // ═══════════════════════════════════════════════════
