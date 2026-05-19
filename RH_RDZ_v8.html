@@ -3918,6 +3918,7 @@ function loadFromSupabase(token){
         statut_marital:a.statut_marital||'Célibataire',
         nb_enfants:a.nb_enfants||0,
         matr_denonc_carte:a.matr_denonc_carte,matr_denonc_ppa:a.matr_denonc_ppa,
+        date_reglement:a.date_reglement||null,date_fiche:a.date_fiche||null,
         docs:a.docs||{carte:{},ppa:{},permis:{},pi1:{},pi2:{},permis_conduire:{}},
         conjoint:a.conjoint||{},baspe:a.baspe||{},formations:a.formations||[]
       };});
