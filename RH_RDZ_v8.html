@@ -4083,12 +4083,12 @@ function _renderHablLists(){
   // Agents à ajouter : actifs SANS matr_denonc_carte
   var toAdd = DB.agents
     .filter(function(a){ return a.statut==='actif' && !a.matr_denonc_carte; })
-    .sort(function(a,b){ return (a.nom+' '+a.prenom).localeCompare(b.nom+' '+b.prenom,'fr'); });
+    .sort(function(a,b){ var r=a.nom.localeCompare(b.nom,'fr'); return r!==0?r:a.prenom.localeCompare(b.prenom,'fr'); });
 
   // Agents à supprimer : AVEC matr_denonc_carte (actifs ou partis)
   var toRem = DB.agents
     .filter(function(a){ return !!a.matr_denonc_carte; })
-    .sort(function(a,b){ return (a.matr_denonc_carte||'').localeCompare(b.matr_denonc_carte||'','fr'); });
+    .sort(function(a,b){ var r=a.nom.localeCompare(b.nom,'fr'); return r!==0?r:a.prenom.localeCompare(b.prenom,'fr'); });
 
   // Liste en cours : AVEC matr_denonc_carte
   var current = toRem.slice();
@@ -4175,81 +4175,121 @@ function _toggleRem(id){
 function printHabilitation(){
   var addIds = Object.keys(_hablAdd);
   var remIds = Object.keys(_hablRem);
-  var current = DB.agents.filter(function(a){ return !!a.matr_denonc_carte; })
-    .sort(function(a,b){ return (a.matr_denonc_carte||'').localeCompare(b.matr_denonc_carte||'','fr'); });
 
-  var agentsToAdd = addIds.map(function(id){ return DB.agents.find(function(a){ return a.id===id; }); }).filter(Boolean)
-    .sort(function(a,b){ return a.nom.localeCompare(b.nom,'fr'); });
-  var agentsToRem = remIds.map(function(id){ return DB.agents.find(function(a){ return a.id===id; }); }).filter(Boolean)
-    .sort(function(a,b){ return (a.matr_denonc_carte||'').localeCompare(b.matr_denonc_carte||'','fr'); });
+  // Tri : nom puis prénom
+  function sortNom(a,b){
+    var r = a.nom.localeCompare(b.nom,'fr');
+    return r !== 0 ? r : a.prenom.localeCompare(b.prenom,'fr');
+  }
+
+  // À ajouter : actifs SANS matricule, sélectionnés
+  var agentsToAdd = addIds
+    .map(function(id){ return DB.agents.find(function(a){ return a.id===id; }); })
+    .filter(Boolean)
+    .sort(sortNom);
+
+  // À supprimer : AVEC matricule, sélectionnés
+  var agentsToRem = remIds
+    .map(function(id){ return DB.agents.find(function(a){ return a.id===id; }); })
+    .filter(Boolean)
+    .sort(sortNom);
+
+  // Liste en cours : AVEC matricule, tous, triés par nom
+  var current = DB.agents
+    .filter(function(a){ return !!a.matr_denonc_carte; })
+    .sort(sortNom);
 
   var today = new Date().toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'});
 
-  function agRow(a, showMatr){
-    var dob = a.dob ? a.dob.split('-').reverse().join('.') : '—';
-    return '<tr>'
-      + (showMatr ? '<td>'+esc(a.matr_denonc_carte||'—')+'</td>' : '<td>—</td>')
-      + '<td>'+esc(a.nom)+'</td><td>'+esc(a.prenom)+'</td><td>'+dob+'</td>'
-      + '</tr>';
+  function dob(a){ return a.dob ? a.dob.split('-').reverse().join('.') : '—'; }
+
+  // Table avec matricule carte (À ajouter)
+  function tableAdd(agents){
+    if(!agents.length) return '<p style="color:#666;font-style:italic;">Aucun agent sélectionné.</p>';
+    var rows = agents.map(function(a){
+      var matr = (a.docs && a.docs.carte && a.docs.carte.num) ? a.docs.carte.num : (a.matr_denonc_ppa || '—');
+      return '<tr>'
+        + '<td style="font-family:monospace;font-weight:600;">'+esc(matr)+'</td>'
+        + '<td>'+esc(a.nom)+'</td>'
+        + '<td>'+esc(a.prenom)+'</td>'
+        + '<td>'+dob(a)+'</td>'
+        + '</tr>';
+    }).join('');
+    return '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px;">'
+      + '<thead><tr style="border-bottom:2px solid #333;">'
+      + '<th style="text-align:left;padding:5px 8px;width:20%;">Matricule carte</th>'
+      + '<th style="text-align:left;padding:5px 8px;width:30%;">NOM</th>'
+      + '<th style="text-align:left;padding:5px 8px;width:30%;">Prénom</th>'
+      + '<th style="text-align:left;padding:5px 8px;">Date de naissance</th>'
+      + '</tr></thead><tbody>'+rows+'</tbody></table>';
   }
 
-  function section(title, color, agents, showMatr){
-    if(!agents.length) return '';
-    return '<div style="margin-bottom:28px;">'
-      + '<div style="background:'+color+';color:white;padding:7px 14px;font-weight:700;font-size:13px;border-radius:4px;margin-bottom:10px;">'+title+'</div>'
-      + '<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+  // Table avec matricule (À supprimer + Liste en cours)
+  function tableMatr(agents){
+    if(!agents.length) return '<p style="color:#666;font-style:italic;">Aucun agent.</p>';
+    var rows = agents.map(function(a){
+      return '<tr>'
+        + '<td style="font-family:monospace;font-weight:600;">'+esc(a.matr_denonc_carte)+'</td>'
+        + '<td>'+esc(a.nom)+'</td>'
+        + '<td>'+esc(a.prenom)+'</td>'
+        + '<td>'+dob(a)+'</td>'
+        + '</tr>';
+    }).join('');
+    return '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:4px;">'
       + '<thead><tr style="border-bottom:2px solid #333;">'
-      + '<th style="text-align:left;padding:5px 8px;">Matricule</th>'
-      + '<th style="text-align:left;padding:5px 8px;">NOM</th>'
-      + '<th style="text-align:left;padding:5px 8px;">Prénom</th>'
+      + '<th style="text-align:left;padding:5px 8px;width:20%;">Matricule</th>'
+      + '<th style="text-align:left;padding:5px 8px;width:30%;">NOM</th>'
+      + '<th style="text-align:left;padding:5px 8px;width:30%;">Prénom</th>'
       + '<th style="text-align:left;padding:5px 8px;">Date de naissance</th>'
-      + '</tr></thead><tbody>'
-      + agents.map(function(a){ return agRow(a, showMatr); }).join('')
-      + '</tbody></table></div>';
+      + '</tr></thead><tbody>'+rows+'</tbody></table>';
+  }
+
+  function section(title, color, tableHtml, count){
+    return '<div style="margin-bottom:28px;">'
+      + '<div style="background:'+color+';color:white;padding:8px 14px;font-weight:700;font-size:13px;border-radius:4px;margin-bottom:10px;">'
+      + title + ' <span style="font-weight:400;font-size:11px;">('+count+' agent(s))</span></div>'
+      + tableHtml
+      + '</div>';
   }
 
   var html = '<!DOCTYPE html><html><head><meta charset="UTF-8">'
     + '<title>Liste habilitation dénoncer — RDZ</title>'
     + '<style>'
-    + 'body{font-family:Arial,sans-serif;margin:30px;color:#1a1a1a;}'
-    + 'table{width:100%;border-collapse:collapse;font-size:12px;}'
-    + 'th{text-align:left;padding:5px 8px;border-bottom:2px solid #333;font-weight:700;}'
-    + 'td{padding:5px 8px;border-bottom:1px solid #ddd;}'
-    + 'tr:nth-child(even){background:#f9f9f9;}'
-    + '@media print{body{margin:15mm;}}'
+    + 'body{font-family:Arial,sans-serif;margin:30px;color:#1a1a1a;font-size:12px;}'
+    + 'table{width:100%;border-collapse:collapse;}'
+    + 'th{text-align:left;padding:5px 8px;border-bottom:2px solid #333;font-weight:700;background:#f5f5f5;}'
+    + 'td{padding:5px 8px;border-bottom:1px solid #e0e0e0;}'
+    + 'tr:nth-child(even) td{background:#fafafa;}'
+    + '@media print{body{margin:12mm;} button{display:none;}}'
     + '</style></head><body>'
 
     // En-tête
-    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:28px;border-bottom:3px solid #C8102E;padding-bottom:16px;">'
-    + '<div><div style="font-size:22px;font-weight:800;color:#1a1917;">RDZ Security Management</div>'
-    + '<div style="font-size:16px;font-weight:700;margin-top:4px;color:#C8102E;">Liste d\'habilitation pour d\u00e9noncer</div></div>'
-    + '<div style="text-align:right;font-size:12px;color:#666;"><div>Date : '+today+'</div></div>'
+    + '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;padding-bottom:14px;border-bottom:3px solid #C8102E;">'
+    + '<div>'
+    + '<div style="font-size:20px;font-weight:800;color:#1a1917;letter-spacing:-.3px;">RDZ Security Management</div>'
+    + '<div style="font-size:15px;font-weight:700;margin-top:4px;color:#C8102E;">Liste d\'habilitation pour dénoncer</div>'
+    + '</div>'
+    + '<div style="text-align:right;font-size:11px;color:#666;line-height:1.6;">'
+    + '<div><strong>Date :</strong> '+today+'</div>'
+    + '</div>'
     + '</div>'
 
-    // Sections À ajouter / À supprimer (si sélection)
-    + section('➕ À ajouter', '#16a34a', agentsToAdd, false)
-    + section('➖ À supprimer', '#dc2626', agentsToRem, true)
+    // À ajouter
+    + section('➕ À ajouter', '#16a34a', tableAdd(agentsToAdd), agentsToAdd.length)
+
+    // À supprimer
+    + section('➖ À supprimer', '#dc2626', tableMatr(agentsToRem), agentsToRem.length)
 
     // Liste en cours
-    + '<div>'
-    + '<div style="background:#1a1917;color:white;padding:7px 14px;font-weight:700;font-size:13px;border-radius:4px;margin-bottom:10px;">📋 Liste en cours ('+current.length+' agent(s))</div>'
-    + '<table style="width:100%;border-collapse:collapse;font-size:12px;">'
-    + '<thead><tr style="border-bottom:2px solid #333;">'
-    + '<th style="text-align:left;padding:5px 8px;">Matricule</th>'
-    + '<th style="text-align:left;padding:5px 8px;">NOM</th>'
-    + '<th style="text-align:left;padding:5px 8px;">Prénom</th>'
-    + '<th style="text-align:left;padding:5px 8px;">Date de naissance</th>'
-    + '</tr></thead><tbody>'
-    + current.map(function(a){ return agRow(a, true); }).join('')
-    + '</tbody></table></div>'
+    + section('📋 Liste en cours', '#1a1917', tableMatr(current), current.length)
 
     // Pied de page
-    + '<div style="margin-top:40px;padding-top:16px;border-top:1px solid #ddd;font-size:11px;color:#888;">'
-    + 'RDZ Security Management SA — Document confidentiel — Usage interne — '+today
+    + '<div style="margin-top:36px;padding-top:12px;border-top:1px solid #ddd;font-size:10px;color:#999;">'
+    + 'RDZ Security Management SA — Document confidentiel — Usage interne exclusivement — '+today
     + '</div>'
     + '</body></html>';
 
-  var w = window.open('','_blank','width=900,height=700');
+  var w = window.open('', '_blank', 'width=900,height=750');
   w.document.write(html);
   w.document.close();
   setTimeout(function(){ w.print(); }, 400);
