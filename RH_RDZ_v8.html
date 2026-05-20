@@ -3990,6 +3990,7 @@ function pushDirty(){
       contrat_heures:a.contrat_heures||null,
       statut_marital:a.statut_marital||'Célibataire',nb_enfants:a.nb_enfants||0,
       matr_denonc_carte:a.matr_denonc_carte||null,matr_denonc_ppa:a.matr_denonc_ppa||null,
+      date_reglement:a.date_reglement||null,date_fiche:a.date_fiche||null,
       docs:a.docs||{},conjoint:a.conjoint||{},baspe:a.baspe||{},formations:a.formations||[],
       updated_by:currentSession&&currentSession.user_id||null
     };}))}).then(function(r){if(!r.ok){_dirty.agents=true; r.text().then(function(t){console.error('[RH] agents push error:', r.status, t);});} return r;}));
