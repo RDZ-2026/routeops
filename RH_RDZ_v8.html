@@ -4184,7 +4184,7 @@ function printHabilitation(){
   function sortNom(a,b){ var r=a.nom.localeCompare(b.nom,'fr'); return r!==0?r:a.prenom.localeCompare(b.prenom,'fr'); }
   var agentsToAdd = addIds.map(function(id){ return DB.agents.find(function(a){ return a.id===id; }); }).filter(Boolean).sort(sortNom);
   var agentsToRem = remIds.map(function(id){ return DB.agents.find(function(a){ return a.id===id; }); }).filter(Boolean).sort(sortNom);
-  var current = DB.agents.filter(function(a){ return !!a.matr_denonc_carte; }).sort(sortNom);
+  var current = DB.agents.filter(function(a){ return !!a.matr_denonc_carte && !_hablRem[a.id]; }).sort(sortNom);
   var today = new Date().toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'});
   function dob(a){ return a.dob ? a.dob.split('-').reverse().join('.') : '—'; }
   function e(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
