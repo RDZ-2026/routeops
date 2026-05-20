@@ -4096,8 +4096,8 @@ function _renderHablLists(){
     .filter(function(a){ return !!a.matr_denonc_carte; })
     .sort(function(a,b){ var r=a.nom.localeCompare(b.nom,'fr'); return r!==0?r:a.prenom.localeCompare(b.prenom,'fr'); });
 
-  // Liste en cours : actifs OU partis AVEC matr_denonc_carte
-  var current = toRem.slice(); // même liste que À supprimer
+  // Liste en cours : actifs OU partis AVEC matr_denonc_carte, SAUF ceux cochés pour suppression
+  var current = toRem.filter(function(a){ return !_hablRem[a.id]; });
 
   // ── À ajouter ──────────────────────────────────────────
   var addList = document.getElementById('habl-add-list');
