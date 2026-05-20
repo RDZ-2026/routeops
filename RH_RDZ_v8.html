@@ -1826,7 +1826,10 @@ function saveAgentEdit(){
   a.docs.pi1={type:g('ea-pi1-type'),pays:g('ea-pi1-pays'),num:g('ea-pi1-num'),emission:null,exp:g('ea-pi1-exp')};
   a.docs.pi2={type:g('ea-pi2-type'),pays:g('ea-pi2-pays'),num:g('ea-pi2-num'),emission:null,exp:g('ea-pi2-exp')};
   a.docs.permis_conduire={pays:g('ea-pc-pays'),emission:g('ea-pc-emission'),exp:g('ea-pc-exp')};
-  saveDB(); editMode=false; renderFiche(); renderAgents(); buildDashboard();
+  saveDB('agents');
+  editMode=false; renderFiche(); renderAgents(); buildDashboard();
+  // Debug : vérifier que les champs sont bien dans l'objet
+  console.log('[RH] saveAgentEdit date_reglement=', a.date_reglement, 'date_fiche=', a.date_fiche);
 }
 
 function deleteAgent(id){
@@ -3974,7 +3977,8 @@ function pushDirty(){
   var base=SUPA_URL+'/rest/v1';
   var tasks=[];
   if(dirty.agents&&DB.agents&&DB.agents.length){
-    tasks.push(fetch(base+'/rh_agents',{method:'POST',headers:h,body:JSON.stringify(DB.agents.map(function(a){return{
+    console.log('[RH] pushDirty agents, count=', DB.agents.length, 'sample date_reglement=', DB.agents[0]&&DB.agents[0].date_reglement);
+  tasks.push(fetch(base+'/rh_agents',{method:'POST',headers:h,body:JSON.stringify(DB.agents.map(function(a){return{
       id:a.id,nom:a.nom||null,prenom:a.prenom||null,statut:a.statut||'actif',
       dob:a.dob||null,nationalite:a.nationalite||null,avs:a.avs||null,
       fonction:a.fonction||null,telephone:a.telephone||null,email:a.email||null,
@@ -3988,7 +3992,7 @@ function pushDirty(){
       matr_denonc_carte:a.matr_denonc_carte||null,matr_denonc_ppa:a.matr_denonc_ppa||null,
       docs:a.docs||{},conjoint:a.conjoint||{},baspe:a.baspe||{},formations:a.formations||[],
       updated_by:currentSession&&currentSession.user_id||null
-    };}))}).then(function(r){if(!r.ok){_dirty.agents=true;} return r;}));
+    };}))}).then(function(r){if(!r.ok){_dirty.agents=true; r.text().then(function(t){console.error('[RH] agents push error:', r.status, t);});} return r;}));
   }
   if(dirty.mc&&DB.main_courante&&DB.main_courante.length){
     tasks.push(fetch(base+'/rh_main_courante',{method:'POST',headers:h,body:JSON.stringify(DB.main_courante.map(function(m){return{
