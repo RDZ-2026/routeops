@@ -1605,6 +1605,7 @@ function renderFicheEdit(a){
           <option value="">— Non renseigné —</option>
           <option value="Au coffre" ${a.docs.carte?.situation==='Au coffre'?'selected':''}>Au coffre</option>
           <option value="Remis à l&#39;agent" ${a.docs.carte?.situation==='Remis à l&#39;agent'?'selected':''}>Remis à l&#39;agent</option>
+          <option value="Renvoyé à la BASPE" ${a.docs.carte?.situation==='Renvoyé à la BASPE'?'selected':''}>Renvoyé à la BASPE</option>
         </select>
       </div>
       <div class="fg"><div class="flabel">Matricule Dénonciateur</div><input class="finp" id="ea-matr-carte" value="${esc(a.matr_denonc_carte||'')}"></div>
