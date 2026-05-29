@@ -300,6 +300,18 @@ tbody tr:last-child td{border-bottom:none;}
   #print-zone .exp-expired{color:#dc2626;font-weight:700;}
 }
 @media(max-width:900px){.kpi-grid{grid-template-columns:1fr 1fr;}.fiche-grid,.two-col,.fgrid{grid-template-columns:1fr;}.fg.full{grid-column:1;}}
+
+/* ── Recrutement ── */
+.rec-tab{padding:6px 14px;border-radius:7px;font-size:12.5px;font-weight:500;cursor:pointer;color:var(--text2);border:none;font-family:'DM Sans';background:transparent;transition:all .12s;}
+.rec-tab.active{background:var(--white);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.1);font-weight:600;}
+.cand-card{background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:18px;cursor:pointer;transition:all .15s;position:relative;overflow:hidden;}
+.cand-card:hover{box-shadow:var(--shadow-lg);transform:translateY(-1px);border-color:var(--border2);}
+.cand-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--ccard-color,var(--text3));}
+.cand-name{font-size:14px;font-weight:700;color:var(--text);}
+.cand-poste{font-size:12px;color:var(--text2);margin-top:2px;}
+.cand-meta{font-size:11px;color:var(--text3);margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;}
+.cand-scores{display:flex;gap:8px;margin-top:8px;}
+.score-pill{font-size:11px;font-weight:600;padding:3px 9px;border-radius:20px;background:var(--bg);color:var(--text2);}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
@@ -410,6 +422,7 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="nav-item" onclick="nav(this,'mc')"><span class="nav-icon">📋</span>Main courante<span class="nbadge nb-blue" id="bdg-mc">0</span></div>
   <div class="nav-sec">Administration</div>
   <div class="nav-item" onclick="nav(this,'settings')"><span class="nav-icon">⚙️</span>Paramétrage</div>
+  <div class="nav-item" onclick="nav(this,'recrutement')"><span class="nav-icon">🔍</span>Recrutement</div>
   <div class="nav-item" onclick="nav(this,'habilitation')"><span class="nav-icon">🚨</span>Habilitation dénoncer</div>
 </nav>
 
@@ -573,6 +586,134 @@ tbody tr:last-child td{border-bottom:none;}
 </div>
 
 </main>
+
+<!-- RECRUTEMENT -->
+<div class="panel" id="panel-recrutement">
+  <div class="ph">
+    <div>
+      <div class="ph-title">Recrutement</div>
+      <div class="ph-sub">Vivier de candidats — RDZ Security Management</div>
+    </div>
+    <button class="btn btn-primary" onclick="openNewCandidatModal()">+ Nouveau candidat</button>
+  </div>
+
+  <!-- Sub-nav statuts -->
+  <div style="display:flex;gap:4px;margin-bottom:20px;background:var(--bg2,#f0eeeb);padding:4px;border-radius:10px;width:fit-content;">
+    <button class="rec-tab active" onclick="switchRecTab(this,'vivier')">📋 Vivier</button>
+    <button class="rec-tab" onclick="switchRecTab(this,'retenus')">⭐ Retenus</button>
+    <button class="rec-tab" onclick="switchRecTab(this,'embauches')">✅ Embauchés</button>
+    <button class="rec-tab" onclick="switchRecTab(this,'archives')">🗄️ Archives</button>
+  </div>
+
+  <!-- Barre de recherche -->
+  <div style="display:flex;gap:10px;margin-bottom:18px;align-items:center;">
+    <div class="sw" style="flex:1;max-width:320px;">
+      <span class="sw-icon">🔍</span>
+      <input class="inp" id="rec-q" placeholder="Nom, prénom, poste…" oninput="renderRecrutement()">
+    </div>
+    <div id="rec-count" style="font-size:12px;color:var(--text3);"></div>
+  </div>
+
+  <!-- Grille candidats -->
+  <div id="rec-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px;"></div>
+  <div id="rec-empty" style="display:none;padding:40px;text-align:center;color:var(--text3);font-size:13px;">Aucun candidat dans cette vue.</div>
+</div>
+
+<!-- MODAL NOUVEAU CANDIDAT -->
+<div class="overlay" id="modal-new-candidat">
+  <div class="modal" style="max-width:600px;">
+    <div class="mhdr">
+      <div><div class="m-title">Nouveau candidat</div><div class="m-sub">Ajouter au vivier</div></div>
+      <button class="m-close" onclick="closeM('modal-new-candidat')">✕</button>
+    </div>
+    <div class="mbody">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="fg"><div class="flabel">Nom *</div><input class="finp" id="nc-nom" placeholder="NOM"></div>
+        <div class="fg"><div class="flabel">Prénom *</div><input class="finp" id="nc-prenom" placeholder="Prénom"></div>
+        <div class="fg"><div class="flabel">Date de naissance</div><input class="finp" type="date" id="nc-dob"></div>
+        <div class="fg"><div class="flabel">Nationalité</div><input class="finp" id="nc-nat" placeholder="FR"></div>
+        <div class="fg"><div class="flabel">Téléphone</div><input class="finp" id="nc-tel" placeholder="+41 …"></div>
+        <div class="fg"><div class="flabel">E-mail</div><input class="finp" type="email" id="nc-email" placeholder="@"></div>
+        <div class="fg" style="grid-column:1/-1;"><div class="flabel">Adresse</div><input class="finp" id="nc-adresse" placeholder="Rue, ville"></div>
+        <div class="fg"><div class="flabel">Poste visé</div><input class="finp" id="nc-poste" placeholder="Agent de sécurité…"></div>
+        <div class="fg"><div class="flabel">Référence</div><input class="finp" id="nc-ref" placeholder="REC-2026-…"></div>
+        <div class="fg"><div class="flabel">Source</div>
+          <select class="fsel" id="nc-source">
+            <option value="">— Sélectionner —</option>
+            <option>LinkedIn</option><option>Indeed</option><option>Jobup</option>
+            <option>Recommandation</option><option>Candidature spontanée</option>
+            <option>Agence</option><option>Autre</option>
+          </select>
+        </div>
+        <div class="fg"><div class="flabel">Recommandé par</div><input class="finp" id="nc-recommande" placeholder="Nom d'un agent…"></div>
+        <div class="fg"><div class="flabel">Préavis</div><input class="finp" id="nc-preavis" placeholder="1 mois, immédiat…"></div>
+        <div class="fg"><div class="flabel">Permis conduire</div><input class="finp" id="nc-permis" placeholder="B, A…"></div>
+        <div class="fg" style="grid-column:1/-1;"><div class="flabel">Notes</div><textarea class="finp" id="nc-notes" rows="3" style="resize:vertical;"></textarea></div>
+      </div>
+    </div>
+    <div class="mftr">
+      <button class="btn btn-ghost" onclick="closeM('modal-new-candidat')">Annuler</button>
+      <button class="btn btn-primary" onclick="saveNewCandidat()">Créer le candidat</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FICHE CANDIDAT -->
+<div class="overlay" id="modal-candidat">
+  <div class="modal modal-lg">
+    <div class="mhdr">
+      <div><div class="m-title" id="mc-title">Candidat</div><div class="m-sub" id="mc-sub"></div></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <select class="sel" id="mc-statut-sel" onchange="updateCandidatStatut(this.value)" style="font-size:12px;padding:5px 10px;"></select>
+        <button class="btn btn-ghost btn-sm" id="mc-edit-btn" onclick="toggleCandidatEdit()">✏️ Modifier</button>
+        <button class="m-close" onclick="closeM('modal-candidat')">✕</button>
+      </div>
+    </div>
+    <div class="mbody" id="mc-body"></div>
+  </div>
+</div>
+
+<!-- MODAL CHOIX PROCESS (embauche) -->
+<div class="overlay" id="modal-choix-process">
+  <div class="modal" style="max-width:520px;">
+    <div class="mhdr">
+      <div><div class="m-title">Choisir un process</div><div class="m-sub" id="mcp-sub">Sélectionnez le process à lancer pour ce candidat</div></div>
+      <button class="m-close" onclick="closeM('modal-choix-process')">✕</button>
+    </div>
+    <div class="mbody" id="mcp-body"></div>
+    <div class="mftr">
+      <button class="btn btn-ghost" onclick="closeM('modal-choix-process')">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FICHE PRÉREMPLIE (embauche) -->
+<div class="overlay" id="modal-embauche-fiche">
+  <div class="modal modal-lg">
+    <div class="mhdr">
+      <div><div class="m-title">Créer la fiche agent</div><div class="m-sub">Vérifiez et complétez avant de créer</div></div>
+      <button class="m-close" onclick="closeM('modal-embauche-fiche')">✕</button>
+    </div>
+    <div class="mbody">
+      <div id="embauche-info" style="background:var(--green-l);border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#166534;margin-bottom:16px;"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="fg"><div class="flabel">Nom *</div><input class="finp" id="emb-nom"></div>
+        <div class="fg"><div class="flabel">Prénom *</div><input class="finp" id="emb-prenom"></div>
+        <div class="fg"><div class="flabel">Date de naissance</div><input class="finp" type="date" id="emb-dob"></div>
+        <div class="fg"><div class="flabel">Nationalité</div><input class="finp" id="emb-nat"></div>
+        <div class="fg"><div class="flabel">Téléphone</div><input class="finp" id="emb-tel"></div>
+        <div class="fg"><div class="flabel">E-mail</div><input class="finp" id="emb-email"></div>
+        <div class="fg" style="grid-column:1/-1;"><div class="flabel">Adresse</div><input class="finp" id="emb-adresse"></div>
+        <div class="fg"><div class="flabel">Fonction</div><input class="finp" id="emb-fonction"></div>
+        <div class="fg"><div class="flabel">Date d'embauche</div><input class="finp" type="date" id="emb-date"></div>
+      </div>
+    </div>
+    <div class="mftr">
+      <button class="btn btn-ghost" onclick="closeM('modal-embauche-fiche')">Annuler</button>
+      <button class="btn btn-primary" onclick="confirmerEmbauche()">✅ Créer l'agent et lancer le process</button>
+    </div>
+  </div>
+</div>
 
 <!-- HABILITATION -->
 <div class="panel" id="panel-habilitation">
@@ -1298,7 +1439,7 @@ function nav(el, panel) {
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   el.classList.add('active');
   document.getElementById('panel-'+panel).classList.add('active');
-  ({agents:renderAgents,process:()=>{renderProcTabs();renderProcess();},documents:renderDocuments,alertes:renderAlertes,mc:renderMC,settings:renderSettings,formations:()=>{renderFormations();populateFormSelects();},habilitation:renderHabilitation})[panel]?.();
+  ({agents:renderAgents,process:()=>{renderProcTabs();renderProcess();},documents:renderDocuments,alertes:renderAlertes,mc:renderMC,settings:renderSettings,formations:()=>{renderFormations();populateFormSelects();},habilitation:renderHabilitation,recrutement:renderRecrutement})[panel]?.();
 }
 function closeM(id){ document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
@@ -4273,6 +4414,494 @@ function printHabilitation(){
   setTimeout(function(){ w.print(); }, 500);
 }
 
+// ═══════════════════════════════════════════════════════════
+// RECRUTEMENT
+// ═══════════════════════════════════════════════════════════
+var REC = [];           // candidats en mémoire
+var _recTab = 'vivier'; // onglet actif
+var _curCandId = null;  // candidat ouvert
+var _recSaveTimer = null;
+var _embaucheProcessId = null; // type process sélectionné pour embauche
+var _embaucheCandidat = null;  // candidat en cours d'embauche
+
+var REC_STATUTS = {
+  nouveau:      {label:'Nouveau',      color:'#6b7280', bg:'#f3f4f6'},
+  a_contacter:  {label:'À contacter',  color:'#2563eb', bg:'#eff6ff'},
+  entretien:    {label:'Entretien',    color:'#d97706', bg:'#fffbeb'},
+  retenu:       {label:'Retenu',       color:'#16a34a', bg:'#f0fdf4'},
+  embauche:     {label:'Embauché',     color:'#7c3aed', bg:'#f5f3ff'},
+  non_retenu:   {label:'Non retenu',   color:'#9ca3af', bg:'#f9fafb'},
+  refuse:       {label:'Refusé',       color:'#dc2626', bg:'#fef2f2'},
+};
+
+var REC_TAB_STATUTS = {
+  vivier:    ['nouveau','a_contacter','entretien'],
+  retenus:   ['retenu'],
+  embauches: ['embauche'],
+  archives:  ['non_retenu','refuse'],
+};
+
+// ── Chargement Supabase ──────────────────────────────────
+function loadRecrutement(){
+  if(!currentToken){ REC=[]; renderRecrutement(); return; }
+  fetch(SUPA_URL+'/rest/v1/rec_candidats?order=date_reception.desc&select=*',{
+    headers:{'apikey':SUPA_ANON,'Authorization':'Bearer '+currentToken}
+  }).then(function(r){ return r.json(); })
+  .then(function(data){
+    if(Array.isArray(data)){ REC=data; } else { REC=[]; }
+    renderRecrutement();
+  }).catch(function(){ REC=[]; renderRecrutement(); });
+}
+
+// ── Sauvegarde auto candidat ─────────────────────────────
+function saveCandidat(cand, isNew){
+  if(!currentToken) return;
+  var method = isNew ? 'POST' : 'PATCH';
+  var url = SUPA_URL+'/rest/v1/rec_candidats'+(isNew?'':'?id=eq.'+cand.id);
+  var headers = {
+    'apikey':SUPA_ANON,'Authorization':'Bearer '+currentToken,
+    'Content-Type':'application/json',
+    'Prefer': isNew ? 'return=representation' : 'return=minimal'
+  };
+  if(!isNew) headers['Prefer'] = 'return=minimal';
+  fetch(url,{method:method,headers:headers,body:JSON.stringify(cand)})
+  .then(function(r){
+    if(!r.ok) r.text().then(function(t){ console.error('[REC] save error:',r.status,t); });
+    else { setSyncState('ok','Sync '+new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})); }
+  }).catch(function(e){ console.error('[REC] save error:',e); });
+}
+
+function deleteCandidat(id){
+  if(!currentToken || !confirm('Supprimer ce candidat ?')) return;
+  REC = REC.filter(function(c){ return c.id!==id; });
+  renderRecrutement();
+  fetch(SUPA_URL+'/rest/v1/rec_candidats?id=eq.'+id,{
+    method:'DELETE',
+    headers:{'apikey':SUPA_ANON,'Authorization':'Bearer '+currentToken}
+  }).catch(function(e){ console.error('[REC] delete:',e); });
+}
+
+// ── Onglets ──────────────────────────────────────────────
+function switchRecTab(el, tab){
+  document.querySelectorAll('.rec-tab').forEach(function(t){ t.classList.remove('active'); });
+  el.classList.add('active');
+  _recTab = tab;
+  renderRecrutement();
+}
+
+// ── Rendu grille ─────────────────────────────────────────
+function renderRecrutement(){
+  var grid  = document.getElementById('rec-grid');
+  var empty = document.getElementById('rec-empty');
+  var count = document.getElementById('rec-count');
+  if(!grid) return;
+
+  var q = (document.getElementById('rec-q')||{value:''}).value.toLowerCase();
+  var statuts = REC_TAB_STATUTS[_recTab] || [];
+
+  var filtered = REC.filter(function(c){
+    if(!statuts.includes(c.statut)) return false;
+    if(q && !(c.nom+' '+c.prenom+' '+(c.poste||'')).toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  if(count) count.textContent = filtered.length+' candidat(s)';
+
+  if(!filtered.length){
+    grid.innerHTML=''; grid.style.display='none'; empty.style.display='block'; return;
+  }
+  empty.style.display='none'; grid.style.display='grid';
+
+  grid.innerHTML = filtered.map(function(cand){
+    var st = REC_STATUTS[cand.statut] || {label:cand.statut,color:'#9ca3af',bg:'#f9fafb'};
+    var scoreCV = cand.preanalyse && cand.preanalyse.score ? cand.preanalyse.score : null;
+    var noteEnt = cand.rapport_entretien && cand.rapport_entretien.note_globale ? cand.rapport_entretien.note_globale : null;
+    var retenuBtn = cand.statut==='retenu'
+      ? '<button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%;" onclick="event.stopPropagation();ouvrirFluxEmbauche(\''+cand.id+'\')">✅ Embaucher</button>'
+      : '';
+    return '<div class="cand-card" style="--ccard-color:'+st.color+';" onclick="openCandidatModal(\''+cand.id+'\')">'
+      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
+      +'<div>'
+      +'<div class="cand-name">'+esc(cand.nom)+' '+esc(cand.prenom)+'</div>'
+      +(cand.poste?'<div class="cand-poste">'+esc(cand.poste)+'</div>':'')
+      +'</div>'
+      +'<span style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;background:'+st.bg+';color:'+st.color+';">'+st.label+'</span>'
+      +'</div>'
+      +'<div class="cand-meta">'
+      +(cand.source?'<span>📥 '+esc(cand.source)+'</span>':'')
+      +(cand.recommande_par?'<span>👤 '+esc(cand.recommande_par)+'</span>':'')
+      +'<span>📅 '+fDate(cand.date_reception)+'</span>'
+      +'</div>'
+      +(scoreCV||noteEnt?'<div class="cand-scores">'
+        +(scoreCV?'<span class="score-pill">CV '+scoreCV+'/10</span>':'')
+        +(noteEnt?'<span class="score-pill">Entretien '+noteEnt+'/5</span>':'')
+        +'</div>':'')
+      +retenuBtn
+      +'</div>';
+  }).join('');
+}
+
+// ── Nouveau candidat ─────────────────────────────────────
+function openNewCandidatModal(){
+  ['nc-nom','nc-prenom','nc-dob','nc-nat','nc-tel','nc-email',
+   'nc-adresse','nc-poste','nc-ref','nc-recommande','nc-preavis','nc-permis','nc-notes']
+  .forEach(function(id){ var el=document.getElementById(id); if(el) el.value=''; });
+  document.getElementById('nc-source').value='';
+  document.getElementById('modal-new-candidat').classList.add('open');
+}
+
+function saveNewCandidat(){
+  var nom    = (document.getElementById('nc-nom').value||'').trim().toUpperCase();
+  var prenom = (document.getElementById('nc-prenom').value||'').trim();
+  if(!nom||!prenom){ alert('Nom et prénom obligatoires.'); return; }
+  var g = function(id){ var el=document.getElementById(id); return el&&el.value||null; };
+  var cand = {
+    id: 'rec_'+Date.now(),
+    nom:nom, prenom:prenom,
+    dob:g('nc-dob'), nationalite:g('nc-nat'),
+    telephone:g('nc-tel'), email:g('nc-email'),
+    adresse:g('nc-adresse'), poste:g('nc-poste'),
+    reference:g('nc-ref'), source:g('nc-source'),
+    recommande_par:g('nc-recommande'),
+    preavis:g('nc-preavis'), permis_conduire:g('nc-permis'),
+    notes:g('nc-notes'),
+    statut:'nouveau',
+    date_reception:new Date().toISOString().slice(0,10),
+    created_by: currentSession&&currentSession.user_id||null
+  };
+  REC.unshift(cand);
+  saveCandidat(cand, true);
+  closeM('modal-new-candidat');
+  renderRecrutement();
+  showToast('Candidat créé', true);
+}
+
+// ── Fiche candidat ───────────────────────────────────────
+function openCandidatModal(id){
+  _curCandId = id;
+  var cand = REC.find(function(c){ return c.id===id; });
+  if(!cand) return;
+  renderCandidatModal(cand, false);
+  document.getElementById('modal-candidat').classList.add('open');
+}
+
+function renderCandidatModal(cand, editMode){
+  document.getElementById('mc-title').textContent = cand.nom+' '+cand.prenom;
+  document.getElementById('mc-sub').textContent = cand.poste||'Candidat';
+
+  // Statut select
+  var sel = document.getElementById('mc-statut-sel');
+  sel.innerHTML = Object.keys(REC_STATUTS).map(function(k){
+    return '<option value="'+k+'"'+(cand.statut===k?' selected':'')+'>'+REC_STATUTS[k].label+'</option>';
+  }).join('');
+
+  var scoreCV   = cand.preanalyse&&cand.preanalyse.score ? cand.preanalyse.score : null;
+  var verdictCV = cand.preanalyse&&cand.preanalyse.verdict ? cand.preanalyse.verdict : null;
+  var noteEnt   = cand.rapport_entretien&&cand.rapport_entretien.note_globale ? cand.rapport_entretien.note_globale : null;
+  var avisEnt   = cand.rapport_entretien&&cand.rapport_entretien.avis ? cand.rapport_entretien.avis : null;
+
+  var body = document.getElementById('mc-body');
+
+  if(!editMode){
+    // Vue lecture
+    body.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">'
+      +'<div>'
+      +'<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Identité</div>'
+      +frow('Nom', cand.nom)+frow('Prénom', cand.prenom)
+      +frow('Date de naissance', fDate(cand.dob))
+      +frow('Nationalité', cand.nationalite)
+      +frow('Téléphone', cand.telephone)
+      +frow('E-mail', cand.email)
+      +frow('Adresse', cand.adresse)
+      +frow('Permis conduire', cand.permis_conduire)
+      +'</div>'
+      +'<div>'
+      +'<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Candidature</div>'
+      +frow('Poste visé', cand.poste)
+      +frow('Référence', cand.reference)
+      +frow('Source', cand.source)
+      +frow('Recommandé par', cand.recommande_par)
+      +frow('Préavis', cand.preavis)
+      +frow('Reçu le', fDate(cand.date_reception))
+      +(cand.notes?'<div style="margin-top:12px;"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Notes</div><div style="font-size:12.5px;color:var(--text2);white-space:pre-wrap;">'+esc(cand.notes)+'</div></div>':'')
+      +'</div>'
+      +'</div>'
+
+      // Analyse IA
+      +(scoreCV||noteEnt?
+        '<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">'
+        +'<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">Analyse IA</div>'
+        +'<div style="display:flex;gap:12px;flex-wrap:wrap;">'
+        +(scoreCV?'<div class="card" style="padding:12px 16px;flex:1;min-width:140px;text-align:center;">'
+          +'<div style="font-size:24px;font-weight:700;color:var(--red);">'+scoreCV+'/10</div>'
+          +'<div style="font-size:11px;color:var(--text3);">Score CV</div>'
+          +(verdictCV?'<div style="font-size:11.5px;color:var(--text2);margin-top:4px;">'+esc(verdictCV)+'</div>':'')
+          +'</div>':'')
+        +(noteEnt?'<div class="card" style="padding:12px 16px;flex:1;min-width:140px;text-align:center;">'
+          +'<div style="font-size:24px;font-weight:700;color:#2563eb;">'+noteEnt+'/5</div>'
+          +'<div style="font-size:11px;color:var(--text3);">Note entretien</div>'
+          +(avisEnt?'<div style="font-size:11.5px;color:var(--text2);margin-top:4px;">'+esc(avisEnt)+'</div>':'')
+          +'</div>':'')
+        +'</div>'
+        +'</div>':'')
+
+      // Import IA
+      +'<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">'
+      +'<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Import analyse IA</div>'
+      +'<div style="display:flex;gap:8px;margin-bottom:8px;">'
+      +'<button class="btn btn-ghost btn-sm" onclick="openIAImport(\'preanalyse\')">📋 Coller analyse CV</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="openIAImport(\'rapport_entretien\')">🎤 Coller rapport entretien</button>'
+      +'</div>'
+      +'<div id="ia-import-zone" style="display:none;">'
+      +'<textarea id="ia-json-input" class="finp" rows="5" placeholder="Collez le JSON ici…" style="width:100%;margin-bottom:8px;font-family:monospace;font-size:12px;resize:vertical;"></textarea>'
+      +'<div style="display:flex;gap:8px;">'
+      +'<button class="btn btn-primary btn-sm" onclick="saveIAImport()">✓ Importer</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'ia-import-zone\').style.display=\'none\'">Annuler</button>'
+      +'</div></div></div>'
+
+      // Bouton embauche si retenu
+      +(cand.statut==='retenu'?
+        '<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">'
+        +'<button class="btn btn-primary" style="width:100%;" onclick="closeM(\'modal-candidat\');ouvrirFluxEmbauche(\''+cand.id+'\')">✅ Embaucher ce candidat</button>'
+        +'</div>':'')
+
+      // Bouton supprimer
+      +'<div style="margin-top:12px;text-align:right;">'
+      +'<button class="btn btn-ghost btn-sm" style="color:#dc2626;" onclick="deleteCandidat(\''+cand.id+'\');closeM(\'modal-candidat\')">🗑 Supprimer</button>'
+      +'</div>';
+
+  } else {
+    // Vue édition
+    body.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
+      +'<div class="fg"><div class="flabel">Nom *</div><input class="finp" id="ec-nom" value="'+esc(cand.nom||'')+'"></div>'
+      +'<div class="fg"><div class="flabel">Prénom *</div><input class="finp" id="ec-prenom" value="'+esc(cand.prenom||'')+'"></div>'
+      +'<div class="fg"><div class="flabel">Date de naissance</div><input class="finp" type="date" id="ec-dob" value="'+(cand.dob||'')+'"></div>'
+      +'<div class="fg"><div class="flabel">Nationalité</div><input class="finp" id="ec-nat" value="'+esc(cand.nationalite||'')+'"></div>'
+      +'<div class="fg"><div class="flabel">Téléphone</div><input class="finp" id="ec-tel" value="'+esc(cand.telephone||'')+'"></div>'
+      +'<div class="fg"><div class="flabel">E-mail</div><input class="finp" id="ec-email" value="'+esc(cand.email||'')+'"></div>'
+      +'<div class="fg" style="grid-column:1/-1;"><div class="flabel">Adresse</div><input class="finp" id="ec-adresse" value="'+esc(cand.adresse||'')+'"></div>'
+      +'<div class="fg"><div class="flabel">Poste visé</div><input class="finp" id="ec-poste" value="'+esc(cand.poste||'')+'"></div>'
+      +'<div class="fg"><div class="flabel">Référence</div><input class="finp" id="ec-ref" value="'+esc(cand.reference||'')+'"></div>'
+      +'<div class="fg"><div class="flabel">Source</div><input class="finp" id="ec-source" value="'+esc(cand.source||'')+'"></div>'
+      +'<div class="fg"><div class="flabel">Recommandé par</div><input class="finp" id="ec-recommande" value="'+esc(cand.recommande_par||'')+'"></div>'
+      +'<div class="fg"><div class="flabel">Préavis</div><input class="finp" id="ec-preavis" value="'+esc(cand.preavis||'')+'"></div>'
+      +'<div class="fg"><div class="flabel">Permis conduire</div><input class="finp" id="ec-permis" value="'+esc(cand.permis_conduire||'')+'"></div>'
+      +'<div class="fg" style="grid-column:1/-1;"><div class="flabel">Notes</div><textarea class="finp" id="ec-notes" rows="3" style="resize:vertical;">'+esc(cand.notes||'')+'</textarea></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px;">'
+      +'<button class="btn btn-ghost" onclick="toggleCandidatEdit()">Annuler</button>'
+      +'<button class="btn btn-primary" onclick="saveCandidatEdit()">Enregistrer</button>'
+      +'</div>';
+  }
+}
+
+function toggleCandidatEdit(){
+  var cand = REC.find(function(c){ return c.id===_curCandId; });
+  if(!cand) return;
+  var btn = document.getElementById('mc-edit-btn');
+  var isEdit = btn.textContent.includes('Annuler') || document.getElementById('ec-nom');
+  renderCandidatModal(cand, !isEdit);
+  btn.textContent = isEdit ? '✏️ Modifier' : '✏️ Annuler';
+}
+
+function saveCandidatEdit(){
+  var cand = REC.find(function(c){ return c.id===_curCandId; });
+  if(!cand) return;
+  var g = function(id){ var el=document.getElementById(id); return el&&el.value.trim()||null; };
+  var nom = g('ec-nom')||''; var prenom = g('ec-prenom')||'';
+  if(!nom||!prenom){ alert('Nom et prénom obligatoires.'); return; }
+  cand.nom=nom.toUpperCase(); cand.prenom=prenom;
+  cand.dob=g('ec-dob'); cand.nationalite=g('ec-nat');
+  cand.telephone=g('ec-tel'); cand.email=g('ec-email');
+  cand.adresse=g('ec-adresse'); cand.poste=g('ec-poste');
+  cand.reference=g('ec-ref'); cand.source=g('ec-source');
+  cand.recommande_par=g('ec-recommande'); cand.preavis=g('ec-preavis');
+  cand.permis_conduire=g('ec-permis');
+  var notesEl=document.getElementById('ec-notes'); cand.notes=notesEl?notesEl.value.trim()||null:null;
+  saveCandidat(cand, false);
+  renderCandidatModal(cand, false);
+  document.getElementById('mc-edit-btn').textContent='✏️ Modifier';
+  renderRecrutement();
+  showToast('Candidat mis à jour', true);
+}
+
+function updateCandidatStatut(val){
+  var cand = REC.find(function(c){ return c.id===_curCandId; });
+  if(!cand) return;
+  cand.statut = val;
+  saveCandidat(cand, false);
+  renderCandidatModal(cand, false);
+  renderRecrutement();
+  showToast('Statut mis à jour : '+REC_STATUTS[val].label, true);
+}
+
+// ── Import IA ────────────────────────────────────────────
+var _iaImportField = null;
+function openIAImport(field){
+  _iaImportField = field;
+  var zone = document.getElementById('ia-import-zone');
+  var inp  = document.getElementById('ia-json-input');
+  if(zone){ zone.style.display='block'; }
+  if(inp){ inp.value=''; inp.focus(); }
+}
+
+function saveIAImport(){
+  var cand = REC.find(function(c){ return c.id===_curCandId; });
+  if(!cand || !_iaImportField) return;
+  var raw = (document.getElementById('ia-json-input')||{value:''}).value.trim();
+  try {
+    var parsed = JSON.parse(raw);
+    cand[_iaImportField] = parsed;
+    saveCandidat(cand, false);
+    renderCandidatModal(cand, false);
+    showToast('Analyse importée', true);
+  } catch(e){
+    alert('JSON invalide. Vérifiez le format.\n\n'+e.message);
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// FLUX EMBAUCHE
+// ═══════════════════════════════════════════════════════════
+function ouvrirFluxEmbauche(candId){
+  var cand = REC.find(function(c){ return c.id===candId; });
+  if(!cand) return;
+  _embaucheCandidat = cand;
+  _embaucheProcessId = null;
+
+  // Étape 1 : choix du process
+  document.getElementById('mcp-sub').textContent = 'Candidat : '+cand.nom+' '+cand.prenom;
+  var body = document.getElementById('mcp-body');
+  body.innerHTML = DB.process_types.map(function(pt){
+    return '<div onclick="choisirProcessEmbauche(\''+pt.id+'\')" '
+      +'style="display:flex;align-items:center;gap:12px;padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;margin-bottom:8px;transition:all .15s;"'
+      +' onmouseenter="this.style.borderColor=\''+pt.color+'\';this.style.background=\'#fafaf9\'"'
+      +' onmouseleave="this.style.borderColor=\'var(--border)\';this.style.background=\'transparent\'">'
+      +'<span style="font-size:22px;">'+esc(pt.icon||'📋')+'</span>'
+      +'<div><div style="font-weight:600;font-size:13px;">'+esc(pt.name)+'</div>'
+      +'<div style="font-size:11px;color:var(--text3);">'+(pt.steps_template?pt.steps_template.length:0)+' étapes</div></div>'
+      +'</div>';
+  }).join('');
+
+  document.getElementById('modal-choix-process').classList.add('open');
+}
+
+function choisirProcessEmbauche(typeId){
+  _embaucheProcessId = typeId;
+  closeM('modal-choix-process');
+
+  // Étape 2 : fiche préremplie
+  var cand = _embaucheCandidat;
+  document.getElementById('emb-nom').value     = cand.nom||'';
+  document.getElementById('emb-prenom').value  = cand.prenom||'';
+  document.getElementById('emb-dob').value     = cand.dob||'';
+  document.getElementById('emb-nat').value     = cand.nationalite||'';
+  document.getElementById('emb-tel').value     = cand.telephone||'';
+  document.getElementById('emb-email').value   = cand.email||'';
+  document.getElementById('emb-adresse').value = cand.adresse||'';
+  document.getElementById('emb-fonction').value = cand.poste||'';
+  document.getElementById('emb-date').value    = new Date().toISOString().slice(0,10);
+
+  var pt = DB.process_types.find(function(t){ return t.id===_embaucheProcessId; });
+  var info = document.getElementById('embauche-info');
+  info.innerHTML = '✅ Process sélectionné : <strong>'+(pt?pt.name:'—')+'</strong>'
+    +' &nbsp;|&nbsp; Candidat : <strong>'+esc(cand.nom)+' '+esc(cand.prenom)+'</strong>'
+    +(cand.source?' &nbsp;|&nbsp; Source : '+esc(cand.source):'');
+
+  document.getElementById('modal-embauche-fiche').classList.add('open');
+}
+
+function confirmerEmbauche(){
+  if(!_embaucheCandidat || !_embaucheProcessId){ alert('Erreur : données manquantes.'); return; }
+
+  var g = function(id){ var el=document.getElementById(id); return el&&el.value.trim()||null; };
+  var nom = g('emb-nom'); var prenom = g('emb-prenom');
+  if(!nom||!prenom){ alert('Nom et prénom obligatoires.'); return; }
+
+  var cand = _embaucheCandidat;
+
+  // Créer l'agent
+  var agentId = 'ag_'+Date.now();
+  var agent = {
+    id: agentId,
+    nom: nom.toUpperCase(),
+    prenom: prenom,
+    statut: 'actif',
+    dob: g('emb-dob'),
+    nationalite: g('emb-nat'),
+    telephone: g('emb-tel'),
+    email: g('emb-email'),
+    adresse: g('emb-adresse'),
+    fonction: g('emb-fonction'),
+    date_embauche: g('emb-date'),
+    candidat_id: cand.id,
+    docs:{carte:{},ppa:{},permis:{},pi1:{},pi2:{},permis_conduire:{}},
+    conjoint:{}, baspe:{}, formations:[],
+    // Champs requis non nullables
+    cp:null, ville:null, pays:null, contact_urgence:null,
+    date_depart:null, taux_horaire:null, categorie_salaire:null,
+    taux_emploi:null, contrat:null, contrat_heures:null,
+    statut_marital:'Célibataire', nb_enfants:0,
+    matr_denonc_carte:null, matr_denonc_ppa:null,
+    avs:null, date_reglement:null, date_fiche:null
+  };
+
+  // Note auto pour le process
+  var noteProcess = 'Embauché via module Recrutement'
+    +(cand.reference?' — Réf. '+cand.reference:'')
+    +(cand.source?' — Source : '+cand.source:'')
+    +(cand.recommande_par?' — Recommandé par : '+cand.recommande_par:'');
+
+  // Créer le process
+  var proc = {
+    id: 'pr'+Date.now(),
+    agent_id: agentId,
+    type: _embaucheProcessId,
+    date: new Date().toISOString().slice(0,10),
+    notes: noteProcess,
+    steps: buildDefaultSteps(_embaucheProcessId),
+    checks: {}, journal: []
+  };
+
+  // Ajouter à DB locale
+  DB.agents.push(agent);
+  DB.process.push(proc);
+  try { localStorage.setItem('rdz_rh_v8', JSON.stringify(DB)); } catch(e){}
+
+  // Mettre à jour statut candidat
+  cand.statut = 'embauche';
+  saveCandidat(cand, false);
+
+  // Sauvegarder dans Supabase
+  if(currentToken){
+    var h = {'apikey':SUPA_ANON,'Authorization':'Bearer '+currentToken,'Content-Type':'application/json','Prefer':'return=minimal'};
+    var base = SUPA_URL+'/rest/v1';
+    var agPayload = Object.assign({}, agent, {updated_by: currentSession&&currentSession.user_id||null});
+    var prPayload = {id:proc.id,agent_id:proc.agent_id,type_id:proc.type,date:proc.date,notes:proc.notes,steps:proc.steps,updated_by:currentSession&&currentSession.user_id||null};
+
+    fetch(base+'/rh_agents',{method:'POST',headers:h,body:JSON.stringify([agPayload])})
+    .then(function(r){ if(!r.ok) r.text().then(function(t){ console.error('[EMB] agent:',r.status,t); }); })
+    .then(function(){
+      return fetch(base+'/rh_process',{method:'POST',headers:h,body:JSON.stringify([prPayload])});
+    }).then(function(r){ if(!r.ok) r.text().then(function(t){ console.error('[EMB] process:',r.status,t); }); })
+    .catch(function(e){ console.error('[EMB]',e); });
+  }
+
+  closeM('modal-embauche-fiche');
+  renderRecrutement();
+  buildDashboard();
+  renderAgents();
+  showToast('Agent créé et process lancé !', true);
+
+  // Ouvrir la fiche agent
+  setTimeout(function(){
+    curAgId = agentId;
+    editMode = false;
+    renderFiche();
+    document.getElementById('modal-agent').classList.add('open');
+  }, 300);
+}
+
 function exportExcel(){
   if(typeof XLSX==='undefined'){showToast('SheetJS non chargé',false);return;}
   var wb=XLSX.utils.book_new();
@@ -4380,6 +5009,7 @@ document.getElementById('excel-btn').addEventListener('click', exportExcel);
   if(sessionOk(s)){
     applySession(s);
     loadFromSupabase(s.token);
+    loadRecrutement();
   } else {
     localStorage.removeItem(SK);
     document.getElementById('rh-login').style.display='flex';
