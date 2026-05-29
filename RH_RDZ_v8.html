@@ -4752,6 +4752,10 @@ function openCandidatModal(id){
   document.getElementById('modal-candidat').classList.add('open');
 }
 
+function frow(label, val){
+  return '<div class="frow"><span class="fl">'+label+'</span><span class="fv">'+(val||'—')+'</span></div>';
+}
+
 function renderCandidatModal(cand, editMode){
   document.getElementById('mc-title').textContent = cand.nom+' '+cand.prenom;
   document.getElementById('mc-sub').textContent = cand.poste||'Candidat';
@@ -4774,22 +4778,22 @@ function renderCandidatModal(cand, editMode){
     body.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">'
       +'<div>'
       +'<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Identité</div>'
-      +frow('Nom', cand.nom)+frow('Prénom', cand.prenom)
-      +frow('Date de naissance', fDate(cand.dob))
-      +frow('Nationalité', cand.nationalite)
-      +frow('Téléphone', cand.telephone)
-      +frow('E-mail', cand.email)
-      +frow('Adresse', cand.adresse)
-      +frow('Permis conduire', cand.permis_conduire)
+      +'<div class="frow"><span class="fl">Nom</span><span class="fv">'+(cand.nom||'—')+'</span></div>'+'<div class="frow"><span class="fl">Prénom</span><span class="fv">'+(cand.prenom||'—')+'</span></div>'
+      +'<div class="frow"><span class="fl">Date de naissance</span><span class="fv">'+(fDate(cand.dob||'—')+'</span></div>')
+      +'<div class="frow"><span class="fl">Nationalité</span><span class="fv">'+(cand.nationalite||'—')+'</span></div>'
+      +'<div class="frow"><span class="fl">Téléphone</span><span class="fv">'+(cand.telephone||'—')+'</span></div>'
+      +'<div class="frow"><span class="fl">E-mail</span><span class="fv">'+(cand.email||'—')+'</span></div>'
+      +'<div class="frow"><span class="fl">Adresse</span><span class="fv">'+(cand.adresse||'—')+'</span></div>'
+      +'<div class="frow"><span class="fl">Permis conduire</span><span class="fv">'+(cand.permis_conduire||'—')+'</span></div>'
       +'</div>'
       +'<div>'
       +'<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Candidature</div>'
-      +frow('Poste visé', cand.poste)
-      +frow('Référence', cand.reference)
-      +frow('Source', cand.source)
-      +frow('Recommandé par', cand.recommande_par)
-      +frow('Préavis', cand.preavis)
-      +frow('Reçu le', fDate(cand.date_reception))
+      +'<div class="frow"><span class="fl">Poste visé</span><span class="fv">'+(cand.poste||'—')+'</span></div>'
+      +'<div class="frow"><span class="fl">Référence</span><span class="fv">'+(cand.reference||'—')+'</span></div>'
+      +'<div class="frow"><span class="fl">Source</span><span class="fv">'+(cand.source||'—')+'</span></div>'
+      +'<div class="frow"><span class="fl">Recommandé par</span><span class="fv">'+(cand.recommande_par||'—')+'</span></div>'
+      +'<div class="frow"><span class="fl">Préavis</span><span class="fv">'+(cand.preavis||'—')+'</span></div>'
+      +'<div class="frow"><span class="fl">Reçu le</span><span class="fv">'+(fDate(cand.date_reception||'—')+'</span></div>')
       +(cand.notes?'<div style="margin-top:12px;"><div style="font-size:11px;color:var(--text3);margin-bottom:4px;">Notes</div><div style="font-size:12.5px;color:var(--text2);white-space:pre-wrap;">'+esc(cand.notes)+'</div></div>':'')
       +'</div>'
       +'</div>'
