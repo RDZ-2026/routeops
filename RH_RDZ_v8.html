@@ -4454,21 +4454,56 @@ function loadRecrutement(){
 }
 
 // ── Sauvegarde auto candidat ─────────────────────────────
+// ── Refresh token Supabase ───────────────────────────────
+function refreshToken(callback){
+  var s = null;
+  try { s = JSON.parse(localStorage.getItem(SK)); } catch(e){}
+  if(!s || !s.refresh) { callback(); return; }
+  fetch(SUPA_URL+'/auth/v1/token?grant_type=refresh_token',{
+    method:'POST',
+    headers:{'Content-Type':'application/json','apikey':SUPA_ANON},
+    body:JSON.stringify({refresh_token:s.refresh})
+  }).then(function(r){ return r.json(); })
+  .then(function(data){
+    if(data.access_token){
+      s.token      = data.access_token;
+      s.refresh    = data.refresh_token;
+      s.expires_at = data.expires_at;
+      localStorage.setItem(SK, JSON.stringify(s));
+      currentToken = data.access_token;
+      if(currentSession) currentSession.token = data.access_token;
+    }
+    callback();
+  }).catch(function(){ callback(); });
+}
+
+function withToken(callback){
+  var s = null;
+  try { s = JSON.parse(localStorage.getItem(SK)); } catch(e){}
+  // Refresh if expires in less than 5 minutes
+  if(s && s.expires_at && s.expires_at - Math.floor(Date.now()/1000) < 300){
+    refreshToken(callback);
+  } else {
+    callback();
+  }
+}
+
 function saveCandidat(cand, isNew){
   if(!currentToken) return;
-  var method = isNew ? 'POST' : 'PATCH';
-  var url = SUPA_URL+'/rest/v1/rec_candidats'+(isNew?'':'?id=eq.'+cand.id);
-  var headers = {
-    'apikey':SUPA_ANON,'Authorization':'Bearer '+currentToken,
-    'Content-Type':'application/json',
-    'Prefer': isNew ? 'return=representation' : 'return=minimal'
-  };
-  if(!isNew) headers['Prefer'] = 'return=minimal';
-  fetch(url,{method:method,headers:headers,body:JSON.stringify(cand)})
-  .then(function(r){
-    if(!r.ok) r.text().then(function(t){ console.error('[REC] save error:',r.status,t); });
-    else { setSyncState('ok','Sync '+new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})); }
-  }).catch(function(e){ console.error('[REC] save error:',e); });
+  withToken(function(){
+    var method  = isNew ? 'POST' : 'PATCH';
+    var url     = SUPA_URL+'/rest/v1/rec_candidats'+(isNew?'':'?id=eq.'+cand.id);
+    var headers = {
+      'apikey':SUPA_ANON,'Authorization':'Bearer '+currentToken,
+      'Content-Type':'application/json',
+      'Prefer': isNew ? 'return=representation' : 'return=minimal'
+    };
+    fetch(url,{method:method,headers:headers,body:JSON.stringify(cand)})
+    .then(function(r){
+      if(!r.ok) r.text().then(function(t){ console.error('[REC] save error:',r.status,t); });
+      else { setSyncState('ok','Sync '+new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'})); }
+    }).catch(function(e){ console.error('[REC] save error:',e); });
+  });
 }
 
 function deleteCandidat(id){
@@ -4926,14 +4961,45 @@ function saveIAImport(){
   var cand = REC.find(function(c){ return c.id===_curCandId; });
   if(!cand || !_iaImportField) return;
   var raw = (document.getElementById('ia-json-input')||{value:''}).value.trim();
+  if(!raw){ alert('Rien à importer — collez le JSON dans le champ.'); return; }
   try {
     var parsed = JSON.parse(raw);
-    cand[_iaImportField] = parsed;
+
+    // Accepter le JSON complet (avec preanalyse imbriqué) ou direct
+    var data = parsed;
+    if(_iaImportField === 'preanalyse'){
+      // Chercher dans preanalyse, meta+preanalyse, ou direct
+      if(parsed.preanalyse)          data = parsed.preanalyse;
+      else if(parsed.score_global)   data = parsed; // format direct score_global
+      else if(parsed.score)          data = parsed; // format direct score
+      // Normaliser : score_global → score
+      if(data.score_global && !data.score) data.score = data.score_global;
+      if(data.scores_par_theme && !data.themes){
+        data.themes = data.scores_par_theme.map(function(t){
+          return { label: t.theme, note: t.score };
+        });
+      }
+      if(data.questions_prioritaires_entretien && !data.questions){
+        data.questions = data.questions_prioritaires_entretien;
+      }
+      if(data.points_a_creuser && !data.points_a_creuser.length && parsed.points_a_creuser){
+        data.points_a_creuser = parsed.points_a_creuser;
+      }
+    } else if(_iaImportField === 'rapport_entretien'){
+      if(parsed.rapport_entretien)   data = parsed.rapport_entretien;
+      else if(parsed.note_globale)   data = parsed;
+    }
+
+    cand[_iaImportField] = data;
     saveCandidat(cand, false);
+    // Fermer la zone d'import
+    var zone = document.getElementById('ia-import-zone');
+    if(zone) zone.style.display = 'none';
+    // Rafraîchir la fiche
     renderCandidatModal(cand, false);
-    showToast('Analyse importée', true);
+    showToast('✅ Analyse importée et sauvegardée', true);
   } catch(e){
-    alert('JSON invalide. Vérifiez le format.\n\n'+e.message);
+    alert('JSON invalide — vérifiez le format.\n\n' + e.message);
   }
 }
 
