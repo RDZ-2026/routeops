@@ -4490,6 +4490,173 @@ function switchRecTab(el, tab){
 }
 
 // ── Rendu grille ─────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════
+// RENDU PRÉ-ANALYSE CV
+// ═══════════════════════════════════════════════════════════
+function renderPreanalyse(pa){
+  if(!pa || !pa.score) return '';
+
+  function stars(n, max){ max=max||10; var filled=Math.round(n); var out=''; for(var i=1;i<=max;i++) out+='<span style="color:'+(i<=filled?'#C8102E':'#e2e0dd');out+=';font-size:14px;">★</span>'; return out; }
+  function pills(arr, color){ return (arr||[]).map(function(s){ return '<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 9px;background:'+color+'22;color:'+color+';border-radius:20px;font-size:11px;">'+esc(s)+'</span>'; }).join(''); }
+  function starsSmall(n, max){ max=max||10; var out=''; for(var i=1;i<=max;i++) out+='<span style="color:'+(i<=Math.round(n)?'#C8102E':'#e2e0dd')+';">★</span>'; return out; }
+
+  var html = '<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">'
+    +'<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">📋 Pré-analyse CV</div>'
+
+    // Score + verdict
+    +'<div style="display:flex;align-items:center;gap:16px;padding:14px 16px;background:var(--bg);border-radius:10px;margin-bottom:14px;">'
+    +'<div style="text-align:center;min-width:60px;">'
+    +'<div style="font-size:32px;font-weight:800;color:var(--red);line-height:1;">'+pa.score+'</div>'
+    +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;">Score /10</div>'
+    +'</div>'
+    +'<div>'
+    +'<div style="font-weight:700;font-size:13px;color:var(--text);">'+esc(pa.verdict||'')+'</div>'
+    +(pa.synthese?'<div style="font-size:12px;color:var(--text2);margin-top:4px;line-height:1.5;">'+esc(pa.synthese)+'</div>':'')
+    +'</div></div>'
+
+    // 4 colonnes : points forts CV, points forts LM, points à creuser, alertes
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">'
+    // Points forts CV
+    +(pa.points_forts_cv&&pa.points_forts_cv.length?
+      '<div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;">'
+      +'<div style="font-size:10px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">✅ Points forts CV</div>'
+      +(pa.points_forts_cv||[]).map(function(s){ return '<div style="font-size:11.5px;color:#1a1917;margin-bottom:3px;padding-left:10px;border-left:2px solid #16a34a;">'+esc(s)+'</div>'; }).join('')
+      +'</div>':'')
+    // Points forts LM
+    +(pa.points_forts_lm&&pa.points_forts_lm.length?
+      '<div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;">'
+      +'<div style="font-size:10px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">✅ Points forts LM</div>'
+      +(pa.points_forts_lm||[]).map(function(s){ return '<div style="font-size:11.5px;color:#1a1917;margin-bottom:3px;padding-left:10px;border-left:2px solid #16a34a;">'+esc(s)+'</div>'; }).join('')
+      +'</div>':'')
+    // Points à creuser
+    +(pa.points_a_creuser&&pa.points_a_creuser.length?
+      '<div style="background:#fffbeb;border-radius:8px;padding:10px 12px;">'
+      +'<div style="font-size:10px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">🔍 Points à creuser</div>'
+      +(pa.points_a_creuser||[]).map(function(s){ return '<div style="font-size:11.5px;color:#1a1917;margin-bottom:3px;padding-left:10px;border-left:2px solid #d97706;">'+esc(s)+'</div>'; }).join('')
+      +'</div>':'')
+    // Alertes
+    +(pa.alertes&&pa.alertes.length?
+      '<div style="background:#fef2f2;border-radius:8px;padding:10px 12px;">'
+      +'<div style="font-size:10px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">⚠️ Alertes</div>'
+      +(pa.alertes||[]).map(function(s){ return '<div style="font-size:11.5px;color:#1a1917;margin-bottom:3px;padding-left:10px;border-left:2px solid #dc2626;">'+esc(s)+'</div>'; }).join('')
+      +'</div>':'')
+    +'</div>'
+
+    // Évaluation par thème
+    +(pa.themes&&pa.themes.length?
+      '<div style="margin-bottom:12px;padding:12px 14px;background:var(--bg);border-radius:8px;">'
+      +'<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">Évaluation par thème</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">'
+      +(pa.themes||[]).map(function(t){
+        var n = parseFloat(t.note)||0; var pct = (n/10)*100;
+        return '<div style="display:flex;align-items:center;gap:8px;">'
+          +'<div style="font-size:11px;color:var(--text2);width:130px;flex-shrink:0;">'+esc(t.label)+'</div>'
+          +'<div style="flex:1;height:5px;background:#e2e0dd;border-radius:3px;overflow:hidden;">'
+          +'<div style="height:100%;width:'+pct+'%;background:var(--red);border-radius:3px;"></div></div>'
+          +'<div style="font-size:11px;font-weight:600;color:var(--text2);width:28px;">'+t.note+'</div>'
+          +'</div>';
+      }).join('')
+      +'</div></div>':'')
+
+    // Questions prioritaires
+    +(pa.questions&&pa.questions.length?
+      '<div style="padding:12px 14px;background:#eff6ff;border-radius:8px;border-left:3px solid #2563eb;">'
+      +'<div style="font-size:10px;font-weight:700;color:#2563eb;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;">❓ Questions prioritaires à poser</div>'
+      +(pa.questions||[]).map(function(q,i){ return '<div style="font-size:11.5px;color:#1a1917;margin-bottom:4px;"><span style="font-weight:700;color:#2563eb;margin-right:6px;">'+(i+1)+'.</span>'+esc(q)+'</div>'; }).join('')
+      +'</div>':'')
+
+    +'</div>';
+  return html;
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDU RAPPORT ENTRETIEN
+// ═══════════════════════════════════════════════════════════
+function renderRapportEntretien(re){
+  if(!re || !re.note_globale) return '';
+
+  function bar(n, max){
+    max=max||5; var pct=(n/max)*100;
+    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;">'
+      +'<div style="flex:1;height:5px;background:#e2e0dd;border-radius:3px;overflow:hidden;">'
+      +'<div style="height:100%;width:'+pct+'%;background:var(--red);border-radius:3px;"></div></div>'
+      +'<div style="font-size:11px;font-weight:600;color:var(--text2);width:28px;">'+n+'/'+max+'</div>'
+      +'</div>';
+  }
+
+  var avisColor = re.avis&&re.avis.toLowerCase().includes('favorable') ? '#16a34a'
+    : re.avis&&re.avis.toLowerCase().includes('défavorable') ? '#dc2626' : '#d97706';
+
+  var html = '<div style="margin-top:14px;padding-top:16px;border-top:1px solid var(--border);">'
+    +'<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;">🎤 Rapport d\'entretien</div>'
+
+    // Note + avis
+    +'<div style="display:flex;align-items:center;gap:16px;padding:14px 16px;background:var(--bg);border-radius:10px;margin-bottom:14px;">'
+    +'<div style="text-align:center;min-width:60px;">'
+    +'<div style="font-size:32px;font-weight:800;color:var(--red);line-height:1;">'+re.note_globale+'</div>'
+    +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;">Note /5</div>'
+    +'</div>'
+    +'<div style="flex:1;">'
+    +'<div style="font-weight:700;font-size:13px;color:'+avisColor+';">'+esc(re.avis||'')+'</div>'
+    +(re.date_entretien?'<div style="font-size:11px;color:var(--text3);margin-top:2px;">'+fDate(re.date_entretien)+(re.intervieweur?' — '+esc(re.intervieweur):'')+'</div>':'')
+    +(re.postes_recommandes&&re.postes_recommandes.length?
+      '<div style="margin-top:6px;">'+re.postes_recommandes.map(function(p){
+        return '<span style="display:inline-block;margin:2px 3px 0 0;padding:2px 8px;background:'+avisColor+'22;color:'+avisColor+';border-radius:12px;font-size:10.5px;font-weight:600;">'+esc(p)+'</span>';
+      }).join('')+'</div>':'')
+    +'</div></div>'
+
+    // Sections critères
+    +(re.sections&&re.sections.length?
+      re.sections.map(function(sec){
+        return '<div style="margin-bottom:10px;padding:10px 12px;border:1px solid var(--border);border-radius:8px;">'
+          +'<div style="font-size:10.5px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px;">'+esc(sec.titre||'')+'</div>'
+          +(sec.criteres&&sec.criteres.length?
+            sec.criteres.map(function(cr){
+              return '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">'
+                +'<div style="font-size:11.5px;color:var(--text2);">'+esc(cr.label)+'</div>'
+                +'<div style="display:flex;align-items:center;gap:6px;">'
+                +bar(cr.note,5)
+                +'</div></div>';
+            }).join(''):'')
+          +(sec.observation?'<div style="margin-top:6px;font-size:11.5px;color:var(--text2);font-style:italic;padding:6px 8px;background:var(--bg);border-radius:5px;">'+esc(sec.observation)+'</div>':'')
+          +(sec.profil?'<div style="margin-top:6px;font-size:11.5px;color:var(--text2);padding:6px 8px;background:var(--bg);border-radius:5px;"><strong>Profil :</strong> '+esc(sec.profil)+'</div>':'')
+          +(sec.resilience?'<div style="margin-top:4px;font-size:11.5px;color:var(--text2);padding:6px 8px;background:var(--bg);border-radius:5px;"><strong>Résilience :</strong> '+esc(sec.resilience)+'</div>':'')
+          +'</div>';
+      }).join(''):'')
+
+    // Disponibilités
+    +(re.disponibilites&&re.disponibilites.length?
+      '<div style="margin-bottom:10px;">'
+      +'<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Disponibilités</div>'
+      +'<div>'+re.disponibilites.map(function(d){
+        return '<span style="display:inline-block;margin:2px 4px 2px 0;padding:3px 9px;background:#eff6ff;color:#2563eb;border-radius:20px;font-size:11px;font-weight:500;">'+esc(d)+'</span>';
+      }).join('')+'</div></div>':'')
+
+    // Points forts / vigilance
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;">'
+    +(re.points_forts&&re.points_forts.length?
+      '<div style="background:#f0fdf4;border-radius:8px;padding:10px 12px;">'
+      +'<div style="font-size:10px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">✅ Points forts</div>'
+      +(re.points_forts||[]).map(function(s){ return '<div style="font-size:11.5px;color:#1a1917;margin-bottom:3px;padding-left:8px;border-left:2px solid #16a34a;">'+esc(s)+'</div>'; }).join('')
+      +'</div>':'')
+    +(re.points_vigilance&&re.points_vigilance.length?
+      '<div style="background:#fffbeb;border-radius:8px;padding:10px 12px;">'
+      +'<div style="font-size:10px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">⚠️ Points de vigilance</div>'
+      +(re.points_vigilance||[]).map(function(s){ return '<div style="font-size:11.5px;color:#1a1917;margin-bottom:3px;padding-left:8px;border-left:2px solid #d97706;">'+esc(s)+'</div>'; }).join('')
+      +'</div>':'')
+    +'</div>'
+
+    // Commentaire général
+    +(re.commentaire?
+      '<div style="padding:12px 14px;background:var(--bg);border-radius:8px;border-left:3px solid var(--anth,#2d2d2d);">'
+      +'<div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Commentaire général</div>'
+      +'<div style="font-size:12px;color:var(--text2);line-height:1.6;">'+esc(re.commentaire)+'</div>'
+      +'</div>':'')
+
+    +'</div>';
+  return html;
+}
+
 function renderRecrutement(){
   var grid  = document.getElementById('rec-grid');
   var empty = document.getElementById('rec-empty');
@@ -4519,25 +4686,25 @@ function renderRecrutement(){
     var retenuBtn = cand.statut==='retenu'
       ? '<button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%;" onclick="event.stopPropagation();ouvrirFluxEmbauche(\''+cand.id+'\')">✅ Embaucher</button>'
       : '';
-    return '<div class="cand-card" style="--ccard-color:'+st.color+';" onclick="openCandidatModal(\''+cand.id+'\')">'
-      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;">'
-      +'<div>'
-      +'<div class="cand-name">'+esc(cand.nom)+' '+esc(cand.prenom)+'</div>'
-      +(cand.poste?'<div class="cand-poste">'+esc(cand.poste)+'</div>':'')
-      +'</div>'
-      +'<span style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;background:'+st.bg+';color:'+st.color+';">'+st.label+'</span>'
-      +'</div>'
-      +'<div class="cand-meta">'
-      +(cand.source?'<span>📥 '+esc(cand.source)+'</span>':'')
-      +(cand.recommande_par?'<span>👤 '+esc(cand.recommande_par)+'</span>':'')
-      +'<span>📅 '+fDate(cand.date_reception)+'</span>'
-      +'</div>'
-      +(scoreCV||noteEnt?'<div class="cand-scores">'
-        +(scoreCV?'<span class="score-pill">CV '+scoreCV+'/10</span>':'')
-        +(noteEnt?'<span class="score-pill">Entretien '+noteEnt+'/5</span>':'')
-        +'</div>':'')
-      +retenuBtn
-      +'</div>';
+    return `<div class="cand-card" style="--ccard-color:${st.color};" onclick="openCandidatModal('${cand.id}')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div>
+          <div class="cand-name">${esc(cand.nom)} ${esc(cand.prenom)}</div>
+          ${cand.poste?`<div class="cand-poste">${esc(cand.poste)}</div>`:''}
+        </div>
+        <span style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;background:${st.bg};color:${st.color};">${st.label}</span>
+      </div>
+      <div class="cand-meta">
+        ${cand.source?`<span>📥 ${esc(cand.source)}</span>`:''}
+        ${cand.recommande_par?`<span>👤 ${esc(cand.recommande_par)}</span>`:''}
+        <span>📅 ${fDate(cand.date_reception)}</span>
+      </div>
+      ${(scoreCV||noteEnt)?`<div class="cand-scores">
+        ${scoreCV?`<span class="score-pill">CV ${scoreCV}/10</span>`:''}
+        ${noteEnt?`<span class="score-pill">Entretien ${noteEnt}/5</span>`:''}
+      </div>`:''}
+      ${cand.statut==='retenu'?`<button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%;" onclick="event.stopPropagation();ouvrirFluxEmbauche('${cand.id}')">✅ Embaucher</button>`:''}
+    </div>`;
   }).join('');
 }
 
@@ -4645,15 +4812,19 @@ function renderCandidatModal(cand, editMode){
         +'</div>'
         +'</div>':'')
 
+      // Préanalyse CV + Rapport entretien (rendus par fonctions dédiées)
+      + renderPreanalyse(cand.preanalyse)
+      + renderRapportEntretien(cand.rapport_entretien)
       // Import IA
       +'<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">'
-      +'<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Import analyse IA</div>'
+      +'<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">📎 Import analyse IA</div>'
       +'<div style="display:flex;gap:8px;margin-bottom:8px;">'
-      +'<button class="btn btn-ghost btn-sm" onclick="openIAImport(\'preanalyse\')">📋 Coller analyse CV</button>'
+      +'<button class="btn btn-ghost btn-sm" onclick="openIAImport(\'preanalyse\')">📋 Coller pré-analyse CV</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="openIAImport(\'rapport_entretien\')">🎤 Coller rapport entretien</button>'
       +'</div>'
-      +'<div id="ia-import-zone" style="display:none;">'
-      +'<textarea id="ia-json-input" class="finp" rows="5" placeholder="Collez le JSON ici…" style="width:100%;margin-bottom:8px;font-family:monospace;font-size:12px;resize:vertical;"></textarea>'
+      +'<div id="ia-import-zone" style="display:none;background:var(--bg);border-radius:8px;padding:12px;">'
+      +'<div id="ia-import-label" style="font-size:12px;font-weight:600;color:var(--text2);margin-bottom:8px;"></div>'
+      +'<textarea id="ia-json-input" class="finp" rows="8" placeholder="Collez le JSON généré par l\'assistant IA ici…" style="width:100%;margin-bottom:8px;font-family:monospace;font-size:11px;resize:vertical;"></textarea>'
       +'<div style="display:flex;gap:8px;">'
       +'<button class="btn btn-primary btn-sm" onclick="saveIAImport()">✓ Importer</button>'
       +'<button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'ia-import-zone\').style.display=\'none\'">Annuler</button>'
@@ -4739,8 +4910,10 @@ function updateCandidatStatut(val){
 var _iaImportField = null;
 function openIAImport(field){
   _iaImportField = field;
-  var zone = document.getElementById('ia-import-zone');
-  var inp  = document.getElementById('ia-json-input');
+  var zone  = document.getElementById('ia-import-zone');
+  var inp   = document.getElementById('ia-json-input');
+  var label = document.getElementById('ia-import-label');
+  if(label) label.textContent = field==='preanalyse' ? 'Pré-analyse CV (JSON)' : 'Rapport d\'entretien (JSON)';
   if(zone){ zone.style.display='block'; }
   if(inp){ inp.value=''; inp.focus(); }
 }
