@@ -4721,22 +4721,28 @@ function renderRecrutement(){
     var retenuBtn = cand.statut==='retenu'
       ? '<button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%;" onclick="event.stopPropagation();ouvrirFluxEmbauche(\''+cand.id+'\')">✅ Embaucher</button>'
       : '';
+    var age = cand.dob ? Math.floor((Date.now()-new Date(cand.dob))/31557600000) : null;
+    var ville = cand.adresse ? (cand.adresse.split(',').pop()||'').trim() : null;
+    var age = cand.dob ? Math.floor((Date.now()-new Date(cand.dob))/31557600000) : null;
+    var villeCard = cand.ville || (cand.adresse?(cand.adresse.split(',').pop()||'').trim():null);
     return `<div class="cand-card" style="--ccard-color:${st.color};" onclick="openCandidatModal('${cand.id}')">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
         <div>
           <div class="cand-name">${esc(cand.nom)} ${esc(cand.prenom)}</div>
           ${cand.poste?`<div class="cand-poste">${esc(cand.poste)}</div>`:''}
         </div>
-        <span style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;background:${st.bg};color:${st.color};">${st.label}</span>
+        <span style="font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:20px;background:${st.bg};color:${st.color};flex-shrink:0;margin-left:8px;">${st.label}</span>
       </div>
       <div class="cand-meta">
+        ${age?`<span>👤 ${age} ans</span>`:''}
+        ${cand.nationalite?`<span>🌍 ${esc(cand.nationalite)}</span>`:''}
+        ${villeCard?`<span>📍 ${esc(villeCard)}</span>`:''}
         ${cand.source?`<span>📥 ${esc(cand.source)}</span>`:''}
-        ${cand.recommande_par?`<span>👤 ${esc(cand.recommande_par)}</span>`:''}
         <span>📅 ${fDate(cand.date_reception)}</span>
       </div>
-      ${(scoreCV||noteEnt)?`<div class="cand-scores">
-        ${scoreCV?`<span class="score-pill">CV ${scoreCV}/10</span>`:''}
-        ${noteEnt?`<span class="score-pill">Entretien ${noteEnt}/5</span>`:''}
+      ${(scoreCV||noteEnt)?`<div class="cand-scores" style="margin-top:8px;">
+        ${scoreCV?`<span class="score-pill" style="background:#fef2f2;color:#c0272d;font-weight:700;">📋 CV ${scoreCV}/10</span>`:''}
+        ${noteEnt?`<span class="score-pill" style="background:#eff6ff;color:#2563eb;font-weight:700;">🎤 ${noteEnt}/5</span>`:''}
       </div>`:''}
       ${cand.statut==='retenu'?`<button class="btn btn-primary btn-sm" style="margin-top:10px;width:100%;" onclick="event.stopPropagation();ouvrirFluxEmbauche('${cand.id}')">✅ Embaucher</button>`:''}
     </div>`;
@@ -4810,7 +4816,32 @@ function renderCandidatModal(cand, editMode){
 
   if(!editMode){
     // Vue lecture
-    body.innerHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">'
+    // Calcul age + scores
+    var fAge = cand.dob ? Math.floor((Date.now()-new Date(cand.dob))/31557600000) : null;
+    var fScoreCV  = cand.preanalyse && cand.preanalyse.score ? cand.preanalyse.score : null;
+    var fVerdict  = cand.preanalyse && cand.preanalyse.verdict ? cand.preanalyse.verdict : null;
+    var fNoteEnt  = cand.rapport_entretien && cand.rapport_entretien.note_globale ? cand.rapport_entretien.note_globale : null;
+    var fAvis     = cand.rapport_entretien && cand.rapport_entretien.avis ? cand.rapport_entretien.avis : null;
+    var fVille    = cand.ville || (cand.adresse ? (cand.adresse.split(',').pop()||'').trim() : null);
+
+    var resumeBar = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:12px 14px;background:var(--bg);border-radius:10px;margin-bottom:16px;align-items:center;">'
+      +(fAge?'<span style="font-size:12px;font-weight:600;color:var(--text);">👤 '+fAge+' ans</span>':'')
+      +(cand.nationalite?'<span style="font-size:12px;color:var(--text2);">🌍 '+esc(cand.nationalite)+'</span>':'')
+      +(fVille?'<span style="font-size:12px;color:var(--text2);">📍 '+esc(fVille)+'</span>':'')
+      +'<div style="margin-left:auto;display:flex;gap:10px;">'
+      +(fScoreCV?'<div style="text-align:center;padding:4px 12px;background:#fef2f2;border-radius:8px;">'
+        +'<div style="font-size:16px;font-weight:800;color:#c0272d;">'+fScoreCV+'/10</div>'
+        +'<div style="font-size:9px;color:#9a9794;text-transform:uppercase;letter-spacing:.4px;">CV</div>'
+        +(fVerdict?'<div style="font-size:9.5px;color:#6b6962;margin-top:2px;max-width:140px;">'+esc(fVerdict)+'</div>':'')
+        +'</div>':'')
+      +(fNoteEnt?'<div style="text-align:center;padding:4px 12px;background:#eff6ff;border-radius:8px;">'
+        +'<div style="font-size:16px;font-weight:800;color:#2563eb;">'+fNoteEnt+'/5</div>'
+        +'<div style="font-size:9px;color:#9a9794;text-transform:uppercase;letter-spacing:.4px;">Entretien</div>'
+        +(fAvis?'<div style="font-size:9.5px;color:#6b6962;margin-top:2px;max-width:140px;">'+esc(fAvis)+'</div>':'')
+        +'</div>':'')
+      +'</div></div>';
+
+    body.innerHTML = resumeBar + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">'
       +'<div>'
       +'<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;">Identité</div>'
       +'<div class="frow"><span class="fl">Nom</span><span class="fv">'+(cand.nom||'—')+'</span></div>'+'<div class="frow"><span class="fl">Prénom</span><span class="fv">'+(cand.prenom||'—')+'</span></div>'
