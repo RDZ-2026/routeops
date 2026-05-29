@@ -4986,8 +4986,66 @@ function saveIAImport(){
         data.points_a_creuser = parsed.points_a_creuser;
       }
     } else if(_iaImportField === 'rapport_entretien'){
-      if(parsed.rapport_entretien)   data = parsed.rapport_entretien;
-      else if(parsed.note_globale)   data = parsed;
+      if(parsed.rapport_entretien){ data = parsed.rapport_entretien; }
+      else if(parsed.note_globale){ data = parsed; }
+      else {
+        // Format complet avec meta, conclusion, scores_synthetiques
+        data = {};
+        var m = parsed.meta || {};
+        var sc = parsed.scores_synthetiques || {};
+        var cl = parsed.conclusion || {};
+        var pe = parsed.personnalite || {};
+        data.note_globale   = sc.note_globale || m.note_globale || null;
+        data.avis           = cl.verdict || m.verdict || null;
+        data.date_entretien = m.date_entretien || null;
+        data.intervieweur   = m.recruteur || null;
+        data.postes_recommandes = cl.postes_proposes || [];
+        data.points_forts   = cl.points_retenus || [];
+        data.points_vigilance = cl.points_redhibitoires_poste_fixe || [];
+        data.commentaire    = cl.commentaire_general || null;
+        // Sections critères depuis scores_synthetiques
+        data.sections = [];
+        var tenue = parsed.tenue_premier_contact || {};
+        if(tenue.scores){
+          var crit = [];
+          Object.keys(tenue.scores).forEach(function(k){ crit.push({label:k.replace(/_/g,' '), note:tenue.scores[k]}); });
+          data.sections.push({titre:'Tenue & premier contact', criteres:crit, observation:tenue.observations||null});
+        }
+        var pers = parsed.personnalite || {};
+        if(pers.scores){
+          var crit2 = [];
+          Object.keys(pers.scores).forEach(function(k){ crit2.push({label:k.replace(/_/g,' '), note:pers.scores[k]}); });
+          data.sections.push({titre:'Personnalité', criteres:crit2, profil:pers.profil||null});
+        }
+        var eq = parsed.comportement_equipe || {};
+        if(eq.scores){
+          var crit3 = [];
+          Object.keys(eq.scores).forEach(function(k){ crit3.push({label:k.replace(/_/g,' '), note:eq.scores[k]}); });
+          data.sections.push({titre:'Comportement en équipe', criteres:crit3, observation:eq.observations||null});
+        }
+        var op = parsed.operationnel || {};
+        if(op.scores){
+          var crit4 = [];
+          Object.keys(op.scores).forEach(function(k){ crit4.push({label:k.replace(/_/g,' '), note:op.scores[k]}); });
+          data.sections.push({titre:'Opérationnel', criteres:crit4});
+        }
+        var mo = parsed.motivation || {};
+        if(mo.scores){
+          var crit5 = [];
+          Object.keys(mo.scores).forEach(function(k){ crit5.push({label:k.replace(/_/g,' '), note:mo.scores[k]}); });
+          data.sections.push({titre:'Motivation & projet', criteres:crit5});
+        }
+        var fr = parsed.expression_francais || {};
+        if(fr.scores){
+          var crit6 = [];
+          Object.keys(fr.scores).forEach(function(k){ crit6.push({label:k.replace(/_/g,' '), note:fr.scores[k]}); });
+          data.sections.push({titre:'Expression français', criteres:crit6, observation:fr.note||null});
+        }
+        var disp = parsed.disponibilites || {};
+        data.disponibilites = disp.creneaux || [];
+        // Stocker aussi le JSON brut complet pour ne rien perdre
+        data._raw = parsed;
+      }
     }
 
     cand[_iaImportField] = data;
