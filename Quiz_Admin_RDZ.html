@@ -685,8 +685,10 @@ async function loadQuizzes() {
 
 async function loadAgents() {
   try {
-    agents = await sb('agents?select=id,nom,prenom&order=nom') || [];
+    const data = await sb('rh_agents?select=id,nom,prenom,statut,formations&statut=eq.actif&order=nom');
+    agents = data || [];
   } catch (e) {
+    console.warn('Impossible de charger rh_agents :', e);
     agents = [];
   }
   populateAgentSelects();
@@ -1294,6 +1296,8 @@ async function openCorrection(sessionId) {
 async function saveCorrection() {
   if (!correctionSession) return;
   const qs = await sb(`quiz_questions?template_id=eq.${correctionSession.template_id}&order=pos`);
+  const tmpl = quizzes.find(q => q.id === correctionSession.template_id);
+  const quizTemplate_passing = tmpl?.passing_score || 73;
   setSyncState('loading', 'Sauvegarde…');
   try {
     let totalPts = 0, earnedPts = 0;
@@ -1325,6 +1329,44 @@ async function saveCorrection() {
       body: JSON.stringify({ final_score: finalScore, status: 'corrected', corrected_at: new Date().toISOString() })
     });
     await loadSessions();
+
+    // ── Sync vers RH_RDZ (Supabase rh_agents.formations) ──
+    if (correctionSession.agent_id) {
+      try {
+        // 1. Charger les formations actuelles de l'agent
+        const agData = await sb(`rh_agents?id=eq.${correctionSession.agent_id}&select=id,formations`);
+        const agent = agData?.[0];
+        if (agent) {
+          const formations = Array.isArray(agent.formations) ? [...agent.formations] : [];
+          // Évite le doublon si session déjà synchronisée
+          const existingIdx = formations.findIndex(f => f.quiz_session_id === correctionSession.id);
+          const formEntry = {
+            id: existingIdx >= 0 ? formations[existingIdx].id : `form_quiz_${correctionSession.id}`,
+            quiz_session_id: correctionSession.id,
+            type: 'Quizz sécurité',
+            theme: correctionSession.quiz_templates?.title || 'Quiz formation',
+            foco: 'Sécurité générale',
+            date: (correctionSession.submitted_at || new Date().toISOString()).slice(0, 10),
+            org: 'RDZ Security Management',
+            note: `${finalScore}% — ${finalScore >= quizTemplate_passing ? 'RÉUSSI' : 'ÉCHEC'} (${correctionSession.quiz_templates?.title || ''})`,
+            exp: null
+          };
+          if (existingIdx >= 0) formations[existingIdx] = formEntry;
+          else formations.push(formEntry);
+          // 2. PATCH formations sur rh_agents
+          await sb(`rh_agents?id=eq.${correctionSession.agent_id}`, {
+            method: 'PATCH',
+            prefer: 'return=minimal',
+            body: JSON.stringify({ formations })
+          });
+          toast(`✓ Formation synchronisée dans RH_RDZ pour ${correctionSession.agent_name}`, 'ok', 4000);
+        }
+      } catch (rhErr) {
+        console.warn('Sync RH_RDZ échoué :', rhErr);
+        toast('Note : synchronisation RH_RDZ échouée — ' + rhErr.message, 'warn', 5000);
+      }
+    }
+
     closeM('modal-correction');
     setSyncState('ok', 'Sauvegardé');
     toast(`Correction enregistrée. Note finale : ${finalScore}%`, 'ok');

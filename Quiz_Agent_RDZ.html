@@ -372,9 +372,11 @@ async function init() {
     questions = await sb(`quiz_questions?template_id=eq.${quizId}&order=pos`) || [];
     if (!questions.length) { showError('Ce questionnaire ne contient aucune question.'); return; }
 
-    // Load agents for selection
+    // Chargement agents depuis Supabase rh_agents
+    agents = [];
     try {
-      agents = await sb('agents?select=id,nom,prenom&order=nom') || [];
+      const agData = await sb('rh_agents?select=id,nom,prenom&statut=eq.actif&order=nom');
+      agents = agData || [];
     } catch (_) { agents = []; }
 
     // Build welcome screen
