@@ -5945,8 +5945,8 @@ async function openCorrection(sessionId){
 }
 
 function saveToFormation(){
-  if(!correctionSession && !corrSession){ showToast('Aucune session active','err'); return; }
-  var session = correctionSession || corrSession;
+  if(!corrSession){ showToast('Aucune session active','err'); return; }
+  var session = corrSession;
   var agentName = session.agent_name || '';
   var score = (session.final_score !== null && session.final_score !== undefined)
     ? session.final_score : session.auto_score;
