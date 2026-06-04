@@ -2066,7 +2066,6 @@ function saveAgentEdit(){
   saveDB('agents');
   editMode=false; renderFiche(); renderAgents(); buildDashboard();
   // Debug : vérifier que les champs sont bien dans l'objet
-  console.log('[RH] saveAgentEdit date_reglement=', a.date_reglement, 'date_fiche=', a.date_fiche);
 }
 
 function deleteAgent(id){
@@ -4214,8 +4213,7 @@ function pushDirty(){
   var base=SUPA_URL+'/rest/v1';
   var tasks=[];
   if(dirty.agents&&DB.agents&&DB.agents.length){
-    console.log('[RH] pushDirty agents, count=', DB.agents.length, 'sample date_reglement=', DB.agents[0]&&DB.agents[0].date_reglement);
-  tasks.push(fetch(base+'/rh_agents',{method:'POST',headers:h,body:JSON.stringify(DB.agents.map(function(a){return{
+    tasks.push(fetch(base+'/rh_agents',{method:'POST',headers:h,body:JSON.stringify(DB.agents.map(function(a){return{
       id:a.id,nom:a.nom||null,prenom:a.prenom||null,statut:a.statut||'actif',
       dob:a.dob||null,nationalite:a.nationalite||null,avs:a.avs||null,
       fonction:a.fonction||null,telephone:a.telephone||null,email:a.email||null,
@@ -5557,17 +5555,33 @@ function renderQuizCards() {
           (q.target_site?'<span class="badge b-orange">'+esc(q.target_site)+'</span>':'')+
           (q.time_limit_min?'<span class="badge b-gray">⏱ '+q.time_limit_min+' min</span>':'')+
         '</div>'+
-        '<div style="display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid var(--border);">'+
-          '<span style="font-size:11.5px;color:var(--text3);"><strong style="color:var(--text);">'+q._qcount+'</strong> question'+(q._qcount!==1?'s':'')+' · <strong style="color:var(--text);">'+(q.passing_score||70)+'%</strong> requis</span>'+
-          '<div style="display:flex;gap:5px;" onclick="event.stopPropagation()">'+
-            '<button class="btn btn-ghost btn-xs" data-action="share" title="Partager">🔗</button>'+
-            '<button class="btn btn-ghost btn-xs" data-id="'+(q.id||'')+'" title="Modifier">✏️</button>'+
-            '<button class="btn btn-danger btn-xs" data-action="delete" title="Supprimer">🗑</button>'+
+        '<div style="display:flex;gap:5px;">'+
+            '<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openShareQuiz(\''+q.id+'\')" title="Partager">🔗</button>'+
+            '<button class="btn btn-ghost btn-xs" onclick="event.stopPropagation();openQuizEditor(\''+q.id+'\')" title="Modifier">✏️</button>'+
+            '<button class="btn btn-danger btn-xs" onclick="event.stopPropagation();confirmDeleteQuiz(\''+q.id+'\')" title="Supprimer">🗑</button>'+
           '</div>'+
+
         '</div>'+
       '</div>'+
     '</div>';
   }).join('');
+  // ── Event delegation ─────────────────────────────────
+  var cards = document.querySelectorAll('#quiz-cards-grid [data-id]');
+  cards.forEach(function(card){
+    card.addEventListener('click', function(e){
+      var qid = this.getAttribute('data-id');
+      // Check if click was on an action button
+      var action = e.target.closest('[data-action]');
+      if(action){
+        e.stopPropagation();
+        var act = action.getAttribute('data-action');
+        if(act==='share')  { openShareQuiz(qid); return; }
+        if(act==='delete') { confirmDeleteQuiz(qid); return; }
+        if(act==='edit')   { openQuizEditor(qid); return; }
+      }
+      openQuizEditor(qid);
+    });
+  });
 }
 
 // ════════════════════
