@@ -357,11 +357,6 @@ tbody tr:last-child td{border-bottom:none;}
           <button class="btn btn-primary btn-sm" onclick="openAddQuestion()">+ Ajouter une question</button>
         </div>
         <div class="q-list" id="q-list-editor">
-          <div class="empty-state" id="q-empty-editor" style="padding:30px 0;">
-            <div class="empty-icon">❓</div>
-            <div class="empty-title">Aucune question</div>
-            <div style="font-size:12.5px;">Cliquez sur "Ajouter une question" pour commencer.</div>
-          </div>
         </div>
       </div>
     </div>
@@ -823,15 +818,16 @@ async function editQuiz(id) {
 
 function renderEditorQuestions() {
   const list = document.getElementById('q-list-editor');
-  const empty = document.getElementById('q-empty-editor');
   document.getElementById('q-count-editor').textContent = editingQuestions.length;
   if (!editingQuestions.length) {
-    list.innerHTML = '';
-    list.appendChild(empty);
-    empty.style.display = 'block';
+    list.innerHTML = `
+      <div id="q-empty-editor" class="empty-state" style="padding:30px 0;">
+        <div class="empty-icon">❓</div>
+        <div class="empty-title">Aucune question</div>
+        <div style="font-size:12.5px;">Cliquez sur "Ajouter une question" pour commencer.</div>
+      </div>`;
     return;
   }
-  if (empty.parentNode) empty.parentNode.removeChild(empty);
   list.innerHTML = editingQuestions.map((q, i) => {
     const typeLabels = { qcm: '🔘 Choix unique', multiple: '☑️ Choix multiple', truefalse: '⚖️ Vrai/Faux', open: '✏️ Ouverte' };
     return `
