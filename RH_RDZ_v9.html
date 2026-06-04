@@ -5545,7 +5545,7 @@ function renderQuizCards() {
   }
   grid.innerHTML = filtered.map(function(q){
     var isActive = q.status==='active';
-    return '<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);position:relative;cursor:pointer;" onclick="openQuizEditor(''+q.id+'')">'+
+    return '<div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:18px 20px;box-shadow:var(--shadow);position:relative;cursor:pointer;" data-id="'+(q.id||'')+'">'+
       '<div style="position:absolute;top:0;left:0;width:4px;height:100%;border-radius:12px 0 0 12px;background:'+(isActive?'var(--green)':'var(--text3)')+';"></div>'+
       '<div style="padding-left:8px;">'+
         '<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:8px;">'+
@@ -5560,9 +5560,9 @@ function renderQuizCards() {
         '<div style="display:flex;align-items:center;justify-content:space-between;padding-top:10px;border-top:1px solid var(--border);">'+
           '<span style="font-size:11.5px;color:var(--text3);"><strong style="color:var(--text);">'+q._qcount+'</strong> question'+(q._qcount!==1?'s':'')+' · <strong style="color:var(--text);">'+(q.passing_score||70)+'%</strong> requis</span>'+
           '<div style="display:flex;gap:5px;" onclick="event.stopPropagation()">'+
-            '<button class="btn btn-ghost btn-xs" onclick="openShareQuiz(''+q.id+'')" title="Partager">🔗</button>'+
-            '<button class="btn btn-ghost btn-xs" onclick="openQuizEditor(''+q.id+'')" title="Modifier">✏️</button>'+
-            '<button class="btn btn-danger btn-xs" onclick="confirmDeleteQuiz(''+q.id+'')" title="Supprimer">🗑</button>'+
+            '<button class="btn btn-ghost btn-xs" data-action="share" title="Partager">🔗</button>'+
+            '<button class="btn btn-ghost btn-xs" data-id="'+(q.id||'')+'" title="Modifier">✏️</button>'+
+            '<button class="btn btn-danger btn-xs" data-action="delete" title="Supprimer">🗑</button>'+
           '</div>'+
         '</div>'+
       '</div>'+
@@ -5848,7 +5848,7 @@ function renderSessions(){
       '<td>'+(s.auto_score!==null?s.auto_score+'%':'—')+'</td>'+
       '<td>'+(pct!==null?'<strong style="color:'+(pct>=70?'var(--green)':'var(--red)')+';">'+pct+'%</strong><span style="display:inline-block;width:60px;height:5px;background:var(--bg2);border-radius:3px;margin-left:6px;vertical-align:middle;overflow:hidden;"><span style="display:block;height:100%;background:'+barCol+';width:'+pct+'%;"></span></span>':'—')+'</td>'+
       '<td>'+statusBadge+'</td>'+
-      '<td>'+(s.status==='submitted'||s.status==='corrected'?'<button class="btn btn-sm" style="background:var(--blue-l);color:var(--blue);border:1px solid #bfdbfe;" onclick="openCorrection(''+s.id+'')">✏️ Corriger</button>':'')+'</td>'+
+      '<td>'+(s.status==='submitted'||s.status==='corrected'?'<button class="btn btn-sm" style="background:var(--blue-l);color:var(--blue);border:1px solid #bfdbfe;" data-action="correction">✏️ Corriger</button>':'')+'</td>'+
     '</tr>';
   }).join('');
 }
