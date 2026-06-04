@@ -331,7 +331,9 @@ async function sb(path, opts = {}) {
   });
   if (!res.ok) { const t = await res.text().catch(() => ''); throw new Error(`${res.status}: ${t}`); }
   if (res.status === 204 || opts.noBody) return null;
-  return res.json();
+  const txt = await res.text().catch(() => '');
+  if (!txt || !txt.trim()) return null;
+  try { return JSON.parse(txt); } catch(e) { return null; }
 }
 
 // ════════════════════════════════════════
@@ -374,7 +376,7 @@ async function init() {
 
     // Load agents for selection
     try {
-      agents = await sb('agents?select=id,nom,prenom&order=nom') || [];
+      agents = await sb('rh_agents?select=id,nom,prenom&order=nom&statut=eq.actif') || [];
     } catch (_) { agents = []; }
 
     // Build welcome screen
@@ -721,12 +723,12 @@ async function submitQuiz() {
   // Save to Supabase
   try {
     if (answersPayload.length) {
-      await sb('quiz_answers', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(answersPayload) });
+      await sb('quiz_answers', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(answersPayload), noBody: true });
     }
     await sb(`quiz_sessions?id=eq.${sessionId}`, {
       method: 'PATCH', prefer: 'return=minimal',
       body: JSON.stringify({
-        submitted_at: new Date().toISOString(),
+        submitted_at: new Date(), noBody: true.toISOString(),
         auto_score: hasOpen ? autoScore : autoScore,
         final_score: hasOpen ? null : autoScore,
         status: hasOpen ? 'submitted' : 'corrected'
