@@ -716,7 +716,7 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="modal" style="max-width:600px;">
     <div class="mhdr">
       <div><div class="m-title">Nouveau candidat</div><div class="m-sub">Ajouter au vivier</div></div>
-      <button class="m-close" onclick="closeM('modal-new-candidat')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-new-candidat').classList.remove('open')">✕</button>
     </div>
     <div class="mbody">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -744,7 +744,7 @@ tbody tr:last-child td{border-bottom:none;}
       </div>
     </div>
     <div class="mftr">
-      <button class="btn btn-ghost" onclick="closeM('modal-new-candidat')">Annuler</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-new-candidat').classList.remove('open')">Annuler</button>
       <button class="btn btn-primary" onclick="saveNewCandidat()">Créer le candidat</button>
     </div>
   </div>
@@ -758,7 +758,7 @@ tbody tr:last-child td{border-bottom:none;}
       <div style="display:flex;gap:8px;align-items:center;">
         <select class="sel" id="mc-statut-sel" onchange="updateCandidatStatut(this.value)" style="font-size:12px;padding:5px 10px;"></select>
         <button class="btn btn-ghost btn-sm" id="mc-edit-btn" onclick="toggleCandidatEdit()">✏️ Modifier</button>
-        <button class="m-close" onclick="closeM('modal-candidat')">✕</button>
+        <button class="m-close" onclick="document.getElementById('modal-candidat').classList.remove('open')">✕</button>
       </div>
     </div>
     <div class="mbody" id="mc-body"></div>
@@ -770,11 +770,11 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="modal" style="max-width:520px;">
     <div class="mhdr">
       <div><div class="m-title">Choisir un process</div><div class="m-sub" id="mcp-sub">Sélectionnez le process à lancer pour ce candidat</div></div>
-      <button class="m-close" onclick="closeM('modal-choix-process')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-choix-process').classList.remove('open')">✕</button>
     </div>
     <div class="mbody" id="mcp-body"></div>
     <div class="mftr">
-      <button class="btn btn-ghost" onclick="closeM('modal-choix-process')">Annuler</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-choix-process').classList.remove('open')">Annuler</button>
     </div>
   </div>
 </div>
@@ -784,7 +784,7 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="modal modal-lg">
     <div class="mhdr">
       <div><div class="m-title">Créer la fiche agent</div><div class="m-sub">Vérifiez et complétez avant de créer</div></div>
-      <button class="m-close" onclick="closeM('modal-embauche-fiche')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-embauche-fiche').classList.remove('open')">✕</button>
     </div>
     <div class="mbody">
       <div id="embauche-info" style="background:var(--green-l);border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#166534;margin-bottom:16px;"></div>
@@ -801,7 +801,7 @@ tbody tr:last-child td{border-bottom:none;}
       </div>
     </div>
     <div class="mftr">
-      <button class="btn btn-ghost" onclick="closeM('modal-embauche-fiche')">Annuler</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-embauche-fiche').classList.remove('open')">Annuler</button>
       <button class="btn btn-primary" onclick="confirmerEmbauche()">✅ Créer l'agent et lancer le process</button>
     </div>
   </div>
@@ -886,7 +886,7 @@ tbody tr:last-child td{border-bottom:none;}
       <div style="display:flex;gap:8px;align-items:center;">
         <button class="btn btn-ghost btn-sm" id="ma-edit-btn" onclick="toggleAgentEdit()">✏️ Modifier</button>
         <button class="btn btn-ghost btn-sm" onclick="printFiche()">🖨️ Imprimer</button>
-        <button class="m-close" onclick="closeM('modal-agent')">✕</button>
+        <button class="m-close" onclick="document.getElementById('modal-agent').classList.remove('open')">✕</button>
       </div>
     </div>
     <div class="mbody" id="ma-body"></div>
@@ -901,7 +901,7 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="modal">
     <div class="mhdr">
       <div><div class="m-title">Nouvel Agent</div><div class="m-sub">Création de la fiche</div></div>
-      <button class="m-close" onclick="closeM('modal-newagent')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-newagent').classList.remove('open')">✕</button>
     </div>
     <div class="mbody" id="new-agent-body"></div>
   </div>
@@ -915,7 +915,7 @@ tbody tr:last-child td{border-bottom:none;}
       <div style="display:flex;gap:8px;align-items:center;">
         <button class="btn btn-ghost btn-sm" id="btn-print-proc" onclick="printProcess()" style="display:none;">🖨️ Imprimer</button>
         <button class="btn btn-danger btn-sm" id="btn-del-proc" onclick="deleteProcess()" style="display:none;">🗑 Supprimer</button>
-        <button class="m-close" onclick="closeM('modal-process')">✕</button>
+        <button class="m-close" onclick="document.getElementById('modal-process').classList.remove('open')">✕</button>
       </div>
     </div>
     <div class="mbody" id="mp-body"></div>
@@ -927,7 +927,7 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="modal modal-sm">
     <div class="mhdr">
       <div><div class="m-title">Nouveau Process RH</div><div class="m-sub">Sélectionner le type de process</div></div>
-      <button class="m-close" onclick="closeM('modal-newprocess')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-newprocess').classList.remove('open')">✕</button>
     </div>
     <div class="mbody">
       <div class="fgrid">
@@ -938,7 +938,7 @@ tbody tr:last-child td{border-bottom:none;}
         <div class="fg full"><div class="flabel">Notes</div><textarea class="ftxt" id="np-notes" style="min-height:50px;" placeholder="Informations…"></textarea></div>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="closeM('modal-newprocess')">Annuler</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('modal-newprocess').classList.remove('open')">Annuler</button>
         <button class="btn btn-primary" onclick="saveNewProcess()">✓ Créer</button>
       </div>
     </div>
@@ -950,7 +950,7 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="modal modal-sm">
     <div class="mhdr">
       <div><div class="m-title" id="ms-title">Étape</div><div class="m-sub">Process RH</div></div>
-      <button class="m-close" onclick="closeM('modal-step')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-step').classList.remove('open')">✕</button>
     </div>
     <div class="mbody">
       <div class="fgrid">
@@ -978,7 +978,7 @@ tbody tr:last-child td{border-bottom:none;}
         </div>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="closeM('modal-step')">Annuler</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('modal-step').classList.remove('open')">Annuler</button>
         <button class="btn btn-primary" onclick="saveStep()">✓ Enregistrer</button>
       </div>
     </div>
@@ -990,12 +990,12 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="modal modal-sm">
     <div class="mhdr">
       <div><div class="m-title" id="msec-title">Sous-section</div></div>
-      <button class="m-close" onclick="closeM('modal-section')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-section').classList.remove('open')">✕</button>
     </div>
     <div class="mbody">
       <div class="fg full" style="margin-bottom:16px;"><div class="flabel">Nom de la sous-section *</div><input class="finp" id="msec-name" placeholder="Ex: Dossier BASPE"></div>
       <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="closeM('modal-section')">Annuler</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('modal-section').classList.remove('open')">Annuler</button>
         <button class="btn btn-primary" onclick="saveSection()">✓ Enregistrer</button>
       </div>
     </div>
@@ -1007,7 +1007,7 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="modal modal-sm">
     <div class="mhdr">
       <div><div class="m-title" id="dd-title">Document</div><div class="m-sub" id="dd-sub"></div></div>
-      <button class="m-close" onclick="closeM('modal-doc')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-doc').classList.remove('open')">✕</button>
     </div>
     <div class="mbody" id="dd-body"></div>
   </div>
@@ -1018,7 +1018,7 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="modal modal-sm">
     <div class="mhdr">
       <div><div class="m-title" id="mf-title">Formation</div><div class="m-sub" id="mf-sub"></div></div>
-      <button class="m-close" onclick="closeM('modal-formation')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-formation').classList.remove('open')">✕</button>
     </div>
     <div class="mbody">
       <div class="fgrid">
@@ -1032,7 +1032,7 @@ tbody tr:last-child td{border-bottom:none;}
         <div class="fg full"><div class="flabel">Note / Résultat</div><input class="finp" id="ff-note" placeholder="Résultat, observations…"></div>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="closeM('modal-formation')">Annuler</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('modal-formation').classList.remove('open')">Annuler</button>
         <button class="btn btn-primary" onclick="saveFormation()">✓ Enregistrer</button>
       </div>
     </div>
@@ -1044,7 +1044,7 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="modal" style="max-width:700px;">
     <div class="mhdr">
       <div><div class="m-title">Types de Process RH</div><div class="m-sub">Gérer les types et leurs checklists par défaut</div></div>
-      <button class="m-close" onclick="closeM('modal-proc-types')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-proc-types').classList.remove('open')">✕</button>
     </div>
     <div class="mbody" id="mpt-body"></div>
   </div>
@@ -1055,7 +1055,7 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="modal modal-sm">
     <div class="mhdr">
       <div><div class="m-title" id="mpte-title">Type de process</div></div>
-      <button class="m-close" onclick="closeM('modal-proc-type-edit')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-proc-type-edit').classList.remove('open')">✕</button>
     </div>
     <div class="mbody">
       <div class="fgrid">
@@ -1070,7 +1070,7 @@ tbody tr:last-child td{border-bottom:none;}
         </div>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="closeM('modal-proc-type-edit')">Annuler</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('modal-proc-type-edit').classList.remove('open')">Annuler</button>
         <button class="btn btn-primary" onclick="saveProcType()">✓ Enregistrer</button>
       </div>
     </div>
@@ -1082,7 +1082,7 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="modal modal-sm">
     <div class="mhdr">
       <div><div class="m-title" id="mcf-title">Entrée Main Courante</div><div class="m-sub" id="mcf-sub"></div></div>
-      <button class="m-close" onclick="closeM('modal-mc-form')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-mc-form').classList.remove('open')">✕</button>
     </div>
     <div class="mbody">
       <div class="fgrid">
@@ -1095,7 +1095,7 @@ tbody tr:last-child td{border-bottom:none;}
         <div class="fg full"><div class="flabel">Suivi prévu</div><textarea class="ftxt" id="mcf-suivi" placeholder="Actions à prévoir…"></textarea></div>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-ghost" onclick="closeM('modal-mc-form')">Annuler</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('modal-mc-form').classList.remove('open')">Annuler</button>
         <button class="btn btn-primary" onclick="saveMC()">✓ Enregistrer</button>
       </div>
     </div>
@@ -1534,6 +1534,7 @@ function nav(el, panel) {
   ({agents:renderAgents,process:()=>{renderProcTabs();renderProcess();},documents:renderDocuments,alertes:renderAlertes,mc:renderMC,settings:renderSettings,formations:()=>{renderFormations();populateFormSelects();},habilitation:renderHabilitation,recrutement:renderRecrutement,quiz:initQuizPanel})[panel]?.();
 }
 function closeM(id){ document.getElementById(id).classList.remove('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
 document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('open');}));
 
 // ═══════════════════════════════════════
@@ -1643,7 +1644,7 @@ function renderFicheView(a){
         ${lastDone?`<div style="font-size:12px;color:var(--text2);margin-bottom:4px;">✅ Dernière action : <strong>${esc(lastDone.label)}</strong></div>`:''}
         ${nextPending?`<div style="font-size:12px;color:var(--orange);margin-bottom:4px;">▶ Prochaine : <strong>${esc(nextPending.label)}</strong></div>`:'<div style="font-size:12px;color:var(--green);">✓ Process terminé</div>'}
         ${p.notes?`<div style="font-size:11.5px;color:var(--text3);margin-top:4px;font-style:italic;">Note : ${esc(p.notes)}</div>`:''}
-        <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="openProcess('${p.id}');closeM('modal-agent')">Voir le détail →</button>
+        <button class="btn btn-ghost btn-sm" style="margin-top:8px;" onclick="openProcess('${p.id}');document.getElementById('modal-agent').classList.remove('open')">Voir le détail →</button>
       </div>`;
     });
   }
@@ -1749,7 +1750,7 @@ function renderFicheView(a){
     </tr>`).join('')}</tbody>
   </table>
   <div style="margin-top:10px;">
-    <button class="btn btn-ghost btn-sm" onclick="nav(document.getElementById('nav-quiz'),'quiz');closeM('modal-agent');setTimeout(()=>{quizTab('sessions');document.getElementById('sess-search').value='${a.nom} ${a.prenom}';renderSessions();},100);">📊 Voir résultats quiz →</button>
+    <button class="btn btn-ghost btn-sm" onclick="nav(document.getElementById('nav-quiz'),'quiz');document.getElementById('modal-agent').classList.remove('open');setTimeout(()=>{quizTab('sessions');document.getElementById('sess-search').value='${a.nom} ${a.prenom}';renderSessions();},100);">📊 Voir résultats quiz →</button>
   </div>`:''}
   ${agMC.length?`
   <div class="sep"></div>
@@ -1759,7 +1760,7 @@ function renderFicheView(a){
     <button class="btn btn-danger btn-sm" onclick="deleteAgent('${a.id}')">🗑 Supprimer</button>
     <button class="btn btn-ghost btn-sm" onclick="openAddFormation('${a.id}')">+ Formation</button>
     <button class="btn btn-ghost btn-sm" onclick="addMCEntryForAgent('${a.id}')">+ Entrée MC</button>
-    <button class="btn btn-ghost" onclick="closeM('modal-agent')">Fermer</button>
+    <button class="btn btn-ghost" onclick="document.getElementById('modal-agent').classList.remove('open')">Fermer</button>
   </div>`;
 }
 
@@ -2073,7 +2074,7 @@ function deleteAgent(id){
   DB.agents=DB.agents.filter(function(a){return a.id!==id;});
   DB.process=DB.process.filter(function(p){return p.agent_id!==id;});
   try{localStorage.setItem('rdz_rh_v8',JSON.stringify(DB));}catch(e){}
-  closeM('modal-agent'); renderAgents(); buildDashboard();
+  document.getElementById('modal-agent').classList.remove('open'); renderAgents(); buildDashboard();
   supaDelete('rh_agents','id',id);
   supaDelete('rh_process','agent_id',id);
   showToast('Agent supprimé',true);
@@ -2122,7 +2123,7 @@ function openNewAgent(){
     </div>
   </div>
   <div class="modal-actions">
-    <button class="btn btn-ghost" onclick="closeM('modal-newagent')">Annuler</button>
+    <button class="btn btn-ghost" onclick="document.getElementById('modal-newagent').classList.remove('open')">Annuler</button>
     <button class="btn btn-primary" onclick="saveNewAgent()">✓ Créer + démarrer le process</button>
   </div>`;
   document.getElementById('modal-newagent').classList.add('open');
@@ -2147,7 +2148,7 @@ function saveNewAgent(){
       permis_conduire:{pays:null,emission:null,exp:null}},
     baspe:{demande:null,note_demande:null,envoi:null,retour:null,retour_is:null,note_is:null}});
   DB.process.push({id:'pr'+Date.now(),agent_id:id,type:'recrutement',date:new Date().toISOString().split('T')[0],notes:'',checks:{}});
-  saveDB(); closeM('modal-newagent'); renderAgents(); buildDashboard(); populateSelects();
+  saveDB(); document.getElementById('modal-newagent').classList.remove('open'); renderAgents(); buildDashboard(); populateSelects();
   curAgId=id; editMode=false; renderFiche(); document.getElementById('modal-agent').classList.add('open');
 }
 
@@ -2368,8 +2369,8 @@ function renderProcModal(){
   </div>
   <div id="journal-entries">${journalHtml||'<div style=\"font-size:12px;color:var(--text3);font-style:italic;padding:4px 0;\">Aucune note pour l’instant.</div>'}</div>
   <div class="modal-actions" style="margin-top:16px;">
-    ${a?`<button class="btn btn-ghost btn-sm" onclick="openFiche('${a.id}');closeM('modal-process')">👤 Fiche agent</button>`:''}
-    <button class="btn btn-ghost" onclick="closeM('modal-process')">Fermer</button>
+    ${a?`<button class="btn btn-ghost btn-sm" onclick="openFiche('${a.id}');document.getElementById('modal-process').classList.remove('open')">👤 Fiche agent</button>`:''}
+    <button class="btn btn-ghost" onclick="document.getElementById('modal-process').classList.remove('open')">Fermer</button>
   </div>`;
   document.getElementById('mp-body').innerHTML=html;
 }
@@ -2381,7 +2382,7 @@ function deleteProcess(){
   var pid=curProcId;
   DB.process=DB.process.filter(function(p){return p.id!==pid;});
   try{localStorage.setItem('rdz_rh_v8',JSON.stringify(DB));}catch(e){}
-  closeM('modal-process'); renderProcess(); buildDashboard();
+  document.getElementById('modal-process').classList.remove('open'); renderProcess(); buildDashboard();
   supaDelete('rh_process','id',pid);
   showToast('Process supprimé',true);
 }
@@ -2561,7 +2562,7 @@ function saveProcType(){
     const newId='pt_'+Date.now();
     DB.process_types.push({id:newId,name,icon,color,badge_class,marks_depart,steps_template:[]});
   }
-  saveDB('proc_types');closeM('modal-proc-type-edit');renderManageTypes();renderProcTabs();
+  saveDB('proc_types');document.getElementById('modal-proc-type-edit').classList.remove('open');renderManageTypes();renderProcTabs();
 }
 function deleteProcType(id){
   const inUse=DB.process.filter(p=>p.type===id).length;
@@ -2635,8 +2636,8 @@ function renderTypeStepsEditor(t){
     <button class="btn btn-ghost btn-sm" onclick="addTypeStep('${esc(editingTypeStepsId)}',null)">+ Nouvelle étape</button>
   </div>
   <div class="modal-actions">
-    <button class="btn btn-ghost" onclick="closeM('modal-process');document.getElementById('modal-proc-types').style.display='flex';">← Retour aux types</button>
-    <button class="btn btn-ghost" onclick="closeM('modal-process')">Fermer</button>
+    <button class="btn btn-ghost" onclick="document.getElementById('modal-process').classList.remove('open');document.getElementById('modal-proc-types').style.display='flex';">← Retour aux types</button>
+    <button class="btn btn-ghost" onclick="document.getElementById('modal-process').classList.remove('open')">Fermer</button>
   </div>`;
   document.getElementById('mp-body').innerHTML=html;
 }
@@ -2898,7 +2899,7 @@ function saveStep(){
       else t.steps_template.push(ns);
     }
     delete modal.dataset.editIdx;
-    saveDB('proc_types'); closeM('modal-step'); renderTypeStepsEditor(t);
+    saveDB('proc_types'); document.getElementById('modal-step').classList.remove('open'); renderTypeStepsEditor(t);
     return;
   }
 
@@ -2914,7 +2915,7 @@ function saveStep(){
     else p.steps.push(ns);
   }
   delete modal.dataset.mode;
-  saveDB();closeM('modal-step');renderProcModal();renderProcess();
+  saveDB();document.getElementById('modal-step').classList.remove('open');renderProcModal();renderProcess();
 }
 let editingSection=null;
 function addNewSection(){editingSection=null;document.getElementById('msec-title').textContent='Nouvelle sous-section';document.getElementById('msec-name').value='';document.getElementById('modal-section').classList.add('open');}
@@ -2924,8 +2925,8 @@ function saveSection(){
   const name=document.getElementById('msec-name').value.trim();
   if(!name){alert('Nom requis.');return;}
   if(editingSection){p.steps.filter(s=>s.section===editingSection).forEach(s=>s.section=name);}
-  else{addStepToSection(name);closeM('modal-section');return;}
-  saveDB();closeM('modal-section');renderProcModal();
+  else{addStepToSection(name);document.getElementById('modal-section').classList.remove('open');return;}
+  saveDB();document.getElementById('modal-section').classList.remove('open');renderProcModal();
 }
 
 function previewProcType(){
@@ -2959,7 +2960,7 @@ function saveNewProcess(){
   if(pt.marks_depart){const a=DB.agents.find(x=>x.id===agId);if(a){a.statut='parti';a.date_depart=document.getElementById('np-date').value;}}
   const newProc={id:'pr'+Date.now(),agent_id:agId,type:typeId,date:document.getElementById('np-date').value,notes:document.getElementById('np-notes').value,checks:{},steps:buildDefaultSteps(typeId)};
   DB.process.push(newProc);
-  saveDB();closeM('modal-newprocess');renderProcess();buildDashboard();
+  saveDB();document.getElementById('modal-newprocess').classList.remove('open');renderProcess();buildDashboard();
   // Auto-open the process
   curProcId=newProc.id; renderProcModal(); document.getElementById('modal-process').classList.add('open');
 }
@@ -3409,7 +3410,7 @@ function openDocModal(agId,docKey){
     ${doc?.exp?`<div style="margin-top:12px;">${expBadge(doc.exp)}</div>`:''}
     <div class="modal-actions">
       <button class="btn btn-danger btn-sm" onclick="clearDoc('${agId}','${docKey}')">🗑 Effacer</button>
-      <button class="btn btn-ghost" onclick="closeM('modal-doc')">Annuler</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-doc').classList.remove('open')">Annuler</button>
       <button class="btn btn-primary" onclick="saveDoc('${agId}','${docKey}')">✓ Enregistrer</button>
     </div>`;
   document.getElementById('modal-doc').classList.add('open');
@@ -3423,7 +3424,7 @@ function saveDoc(agId,docKey){
   else if(docKey==='permis_conduire') a.docs.permis_conduire={pays:g('dd-pc-pays'),emission:g('dd-emission'),exp:g('dd-exp')};
   else if(docKey==='carte') a.docs.carte={num:g('dd-num'),emission:g('dd-emission'),exp:g('dd-exp'),situation:g('dd-carte-situation')||null};
   else a.docs[docKey]={num:g('dd-num'),emission:g('dd-emission'),exp:g('dd-exp')};
-  saveDB();closeM('modal-doc');renderDocuments();buildDashboard();
+  saveDB();document.getElementById('modal-doc').classList.remove('open');renderDocuments();buildDashboard();
 }
 
 function clearDoc(agId,docKey){
@@ -3434,7 +3435,7 @@ function clearDoc(agId,docKey){
   else if(docKey==='permis_conduire') a.docs.permis_conduire={pays:null,emission:null,exp:null};
   else if(docKey==='carte') a.docs.carte={num:null,emission:null,exp:null,situation:null};
   else a.docs[docKey]={num:null,emission:null,exp:null};
-  saveDB();closeM('modal-doc');renderDocuments();buildDashboard();
+  saveDB();document.getElementById('modal-doc').classList.remove('open');renderDocuments();buildDashboard();
 }
 
 // ═══════════════════════════════════════
@@ -3579,7 +3580,7 @@ function saveMC(){
     DB.main_courante.unshift({id:'mc'+Date.now(),date:g('mcf-date'),agent:g('mcf-agent'),
       site:g('mcf-site'),categorie:g('mcf-cat'),mesure:g('mcf-mesure'),fait,suivi:g('mcf-suivi')});
   }
-  saveDB();closeM('modal-mc-form');renderMC();buildDashboard();
+  saveDB();document.getElementById('modal-mc-form').classList.remove('open');renderMC();buildDashboard();
   // If fiche agent is open, refresh
   if(curAgId&&!editMode) renderFiche();
 }
@@ -3848,7 +3849,7 @@ function saveFormation(){
   } else {
     a.formations.push({id:'form_'+Date.now(),type,theme,foco,date:g('ff-date'),exp:g('ff-exp'),org:g('ff-org'),note:g('ff-note')});
   }
-  saveDB(); closeM('modal-formation'); renderFormations(); buildDashboard();
+  saveDB(); document.getElementById('modal-formation').classList.remove('open'); renderFormations(); buildDashboard();
 }
 
 // ═══════════════════════════════════════
@@ -4872,7 +4873,7 @@ function saveNewCandidat(){
   };
   REC.unshift(cand);
   saveCandidat(cand, true);
-  closeM('modal-new-candidat');
+  document.getElementById('modal-new-candidat').classList.remove('open');
   renderRecrutement();
   showToast('Candidat créé', true);
 }
@@ -4996,7 +4997,7 @@ function renderCandidatModal(cand, editMode){
       // Bouton embauche si retenu
       +(cand.statut==='retenu'?
         '<div style="margin-top:18px;padding-top:16px;border-top:1px solid var(--border);">'
-        +'<button class="btn btn-primary" style="width:100%;" onclick="closeM(\'modal-candidat\');ouvrirFluxEmbauche(\''+cand.id+'\')">✅ Embaucher ce candidat</button>'
+        +'<button class="btn btn-primary" style="width:100%;" data-embauche-id="'+cand.id+'">✅ Embaucher ce candidat</button>'
         +'</div>':'')
 
       // Bouton supprimer
@@ -5213,7 +5214,7 @@ function ouvrirFluxEmbauche(candId){
 
 function choisirProcessEmbauche(typeId){
   _embaucheProcessId = typeId;
-  closeM('modal-choix-process');
+  document.getElementById('modal-choix-process').classList.remove('open');
 
   // Étape 2 : fiche préremplie
   var cand = _embaucheCandidat;
@@ -5312,7 +5313,7 @@ function confirmerEmbauche(){
     .catch(function(e){ console.error('[EMB]',e); });
   }
 
-  closeM('modal-embauche-fiche');
+  document.getElementById('modal-embauche-fiche').classList.remove('open');
   renderRecrutement();
   buildDashboard();
   renderAgents();
@@ -5699,7 +5700,7 @@ async function deleteQuiz(id) {
 // ════════════════════
 // QUESTION FORM
 // ════════════════════
-function openAddQuestion() { editingQIdx=null; resetQuestionForm(); selectQType('qcm'); addQOption();addQOption();addQOption(); openM('modal-question'); }
+function openAddQuestion() { editingQIdx=null; resetQuestionForm(); selectQType('qcm'); addQOption();addQOption();addQOption(); document.getElementById('modal-question').classList.add('open'); }
 function editQuestion(idx) {
   editingQIdx=idx;
   var q=editingQs[idx];
@@ -5721,7 +5722,7 @@ function editQuestion(idx) {
     var ans=q.correct_answers&&q.correct_answers[0];
     document.querySelectorAll('input[name=mq-tf]').forEach(function(r){r.checked=r.value===String(ans);});
   }
-  openM('modal-question');
+  document.getElementById('modal-question').classList.add('open');
 }
 function resetQuestionForm(){
   document.getElementById('mq-text').value=''; document.getElementById('mq-pts').value=1; document.getElementById('mq-explain').value='';
@@ -5779,7 +5780,7 @@ function saveQuestion(){
   var q={id:editingQIdx!==null?editingQs[editingQIdx].id:quuid(), type:currentQType, text:text, options:options, correct_answers:correct_answers, points:pts, explanation:expl};
   if(editingQIdx!==null) editingQs[editingQIdx]=q; else editingQs.push(q);
   renderEditorQuestions();
-  closeM('modal-question');
+  document.getElementById('modal-question').classList.remove('open');
 }
 
 // ════════════════════
@@ -5801,7 +5802,7 @@ function openShareQuiz(id){
     DB.agents.filter(function(a){return a.statut==='actif';}).map(function(a){
       return '<option value="'+a.id+'">'+esc(a.nom)+' '+esc(a.prenom)+'</option>';
     }).join('');
-  openM('modal-share-quiz');
+  document.getElementById('modal-share-quiz').classList.add('open');
 }
 function generateNomLink(){
   var sel=document.getElementById('share-agent-sel');
@@ -5932,7 +5933,7 @@ async function openCorrection(sessionId){
       '<div style="font-size:13px;">Score auto : <strong>'+autoPct+'%</strong>'+(openCount>0?' · <span style="color:var(--orange);">⚠ '+openCount+' question(s) ouverte(s) à noter</span>':'')+'</div>'+
     '</div>';
     body.innerHTML=html;
-    openM('modal-correction');
+    document.getElementById('modal-correction').classList.add('open');
   } catch(e){ showToast('Erreur : '+e.message,'err'); }
 }
 
@@ -5991,7 +5992,7 @@ async function saveCorrection(){
       } catch(rhErr){ console.warn('Sync formations échoué:',rhErr); }
     }
     await loadQuizSessions();
-    closeM('modal-correction');
+    document.getElementById('modal-correction').classList.remove('open');
     showToast('Correction enregistrée — Note finale : '+finalScore+'%','ok');
   } catch(e){ showToast('Erreur sauvegarde : '+e.message,'err'); }
 }
@@ -6029,7 +6030,7 @@ function showToast(msg, type){
   <div class="modal" style="max-width:720px;">
     <div class="mhdr">
       <div><div class="m-title" id="mq-modal-title">Nouvelle question</div><div class="m-sub">Définissez la question et la réponse attendue</div></div>
-      <button class="m-close" onclick="closeM('modal-question')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-question').classList.remove('open')">✕</button>
     </div>
     <div class="mbody">
       <div class="flabel" style="margin-bottom:8px;">Type *</div>
@@ -6064,7 +6065,7 @@ function showToast(msg, type){
       </div>
     </div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeM('modal-question')">Annuler</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-question').classList.remove('open')">Annuler</button>
       <button class="btn btn-primary" onclick="saveQuestion()">✓ Enregistrer</button>
     </div>
   </div>
@@ -6075,7 +6076,7 @@ function showToast(msg, type){
   <div class="modal" style="max-width:460px;">
     <div class="mhdr">
       <div><div class="m-title">Partager le questionnaire</div><div class="m-sub" id="share-quiz-name"></div></div>
-      <button class="m-close" onclick="closeM('modal-share-quiz')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-share-quiz').classList.remove('open')">✕</button>
     </div>
     <div class="mbody">
       <div class="flabel" style="margin-bottom:6px;">Lien générique</div>
@@ -6097,11 +6098,11 @@ function showToast(msg, type){
   <div class="modal" style="max-width:880px;">
     <div class="mhdr">
       <div><div class="m-title" id="corr-m-title">Correction</div><div class="m-sub" id="corr-m-sub"></div></div>
-      <button class="m-close" onclick="closeM('modal-correction')">✕</button>
+      <button class="m-close" onclick="document.getElementById('modal-correction').classList.remove('open')">✕</button>
     </div>
     <div class="mbody" id="corr-m-body" style="max-height:65vh;overflow-y:auto;"></div>
     <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeM('modal-correction')">Fermer</button>
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-correction').classList.remove('open')">Fermer</button>
       <button class="btn btn-primary" onclick="saveCorrection()">✓ Enregistrer la correction</button>
     </div>
   </div>
