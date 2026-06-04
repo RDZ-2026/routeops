@@ -5863,9 +5863,16 @@ function renderSessions(){
       '<td>'+(s.auto_score!==null?s.auto_score+'%':'—')+'</td>'+
       '<td>'+(pct!==null?'<strong style="color:'+(pct>=70?'var(--green)':'var(--red)')+';">'+pct+'%</strong><span style="display:inline-block;width:60px;height:5px;background:var(--bg2);border-radius:3px;margin-left:6px;vertical-align:middle;overflow:hidden;"><span style="display:block;height:100%;background:'+barCol+';width:'+pct+'%;"></span></span>':'—')+'</td>'+
       '<td>'+statusBadge+'</td>'+
-      '<td>'+(s.status==='submitted'||s.status==='corrected'?'<button class="btn btn-sm" style="background:var(--blue-l);color:var(--blue);border:1px solid #bfdbfe;" data-action="correction">✏️ Corriger</button>':'')+'</td>'+
+      '<td>'+(s.status==='submitted'||s.status==='corrected'?'<button class="btn btn-sm" style="background:var(--blue-l);color:var(--blue);border:1px solid #bfdbfe;" data-action="correction" data-sid="'+s.id+'">✏️ Corriger</button>':'')+'</td>'+
     '</tr>';
   }).join('');
+  // Wire Corriger buttons
+  document.querySelectorAll('[data-action="correction"]').forEach(function(btn){
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      openCorrection(this.getAttribute('data-sid'));
+    });
+  });
 }
 
 // ════════════════════
