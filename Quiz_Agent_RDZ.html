@@ -330,8 +330,10 @@ async function sb(path, opts = {}) {
     }
   });
   if (!res.ok) { const t = await res.text().catch(() => ''); throw new Error(`${res.status}: ${t}`); }
-  if (res.status === 204 || opts.noBody) return null;
-  return res.json();
+  if (res.status === 204 || res.status === 201 || opts.noBody) return null;
+  const txt = await res.text();
+  if (!txt || txt.trim() === '') return null;
+  return JSON.parse(txt);
 }
 
 // ════════════════════════════════════════
@@ -373,10 +375,18 @@ async function init() {
     if (!questions.length) { showError('Ce questionnaire ne contient aucune question.'); return; }
 
     // Chargement agents depuis Supabase rh_agents
+    // Utilise le token de session RH si disponible (RLS), sinon tente anon
     agents = [];
     try {
-      const agData = await sb('rh_agents?select=id,nom,prenom&statut=eq.actif&order=nom');
-      agents = agData || [];
+      let authHeader = `Bearer ${SB_KEY}`;
+      try {
+        const sess = JSON.parse(localStorage.getItem('rdz_session') || localStorage.getItem('sb-session') || '{}');
+        if (sess?.access_token) authHeader = `Bearer ${sess.access_token}`;
+      } catch (_) {}
+      const res = await fetch(`${SB_URL}/rest/v1/rh_agents?select=id,nom,prenom&statut=eq.actif&order=nom`, {
+        headers: { 'apikey': SB_KEY, 'Authorization': authHeader }
+      });
+      if (res.ok) agents = await res.json() || [];
     } catch (_) { agents = []; }
 
     // Build welcome screen

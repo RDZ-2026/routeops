@@ -599,8 +599,11 @@ async function sb(path, opts = {}) {
     const txt = await res.text().catch(() => '');
     throw new Error(`Supabase ${res.status}: ${txt}`);
   }
-  if (res.status === 204 || opts.noBody) return null;
-  return res.json();
+  // 204 No Content ou corps vide (return=minimal renvoie 201 sans corps)
+  if (res.status === 204 || res.status === 201 || opts.noBody) return null;
+  const txt = await res.text();
+  if (!txt || txt.trim() === '') return null;
+  return JSON.parse(txt);
 }
 
 function setSyncState(s, label) {
