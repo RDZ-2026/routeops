@@ -477,13 +477,12 @@ async function startQuiz() {
     const session = {
       id: uuid(),
       template_id: quizTemplate.id,
-      agent_name: agentName,
-      agent_id: null, // stored as text in agent_name instead
-      agent_rdz_id: agentId || null, // our custom ID
+      agent_name: agentName || null,
+      agent_id: null,
       started_at: new Date().toISOString(),
       status: 'pending'
     };
-    await sb('quiz_sessions', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(session) });
+    await sb('quiz_sessions', { method: 'POST', prefer: 'return=minimal', noBody: true, body: JSON.stringify(session) });
     sessionId = session.id;
   } catch (e) {
     console.error('Session create error:', e);
@@ -563,7 +562,7 @@ function renderQuestion() {
     qBody = `<div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Cochez toutes les bonnes réponses</div><div class="options">` +
       (q.options || []).map((opt, i) => {
         const checked = savedArr.includes(opt) ? 'selected' : '';
-        return `<label class="opt-label ${checked}" onclick="toggleMulti('${q.id}','${escAttr(opt)}',this)">
+        return `<label class="opt-label ${checked}" onclick="toggleMultiIdx('${q.id}',${i},this)" data-val="${escAttr(opt)}">
           <input type="checkbox" class="opt-check" value="${escAttr(opt)}" ${checked ? 'checked' : ''}>
           <div class="opt-indicator opt-check-indicator"></div>
           <span class="opt-text">${esc(opt)}</span>
@@ -611,6 +610,10 @@ function selectOptIdx(qId, idx, el) {
   selectOpt(qId, 'qcm', val, el);
 }
 
+function toggleMultiIdx(qId, idx, el) {
+  var val = el.getAttribute('data-val') || String(idx);
+  toggleMulti(qId, val, el);
+}
 function toggleMulti(qId, val, el) {
   if (!Array.isArray(answers[qId])) answers[qId] = [];
   const idx = answers[qId].indexOf(val);
