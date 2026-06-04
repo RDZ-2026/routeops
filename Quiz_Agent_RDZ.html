@@ -726,9 +726,9 @@ async function submitQuiz() {
       await sb('quiz_answers', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(answersPayload), noBody: true });
     }
     await sb(`quiz_sessions?id=eq.${sessionId}`, {
-      method: 'PATCH', prefer: 'return=minimal',
+      method: 'PATCH', prefer: 'return=minimal', noBody: true,
       body: JSON.stringify({
-        submitted_at: new Date(), noBody: true.toISOString(),
+        submitted_at: new Date().toISOString(),
         auto_score: hasOpen ? autoScore : autoScore,
         final_score: hasOpen ? null : autoScore,
         status: hasOpen ? 'submitted' : 'corrected'
