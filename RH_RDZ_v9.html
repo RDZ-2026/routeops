@@ -5937,6 +5937,35 @@ async function openCorrection(sessionId){
   } catch(e){ showToast('Erreur : '+e.message,'err'); }
 }
 
+function saveToFormation(){
+  if(!correctionSession && !corrSession){ showToast('Aucune session active','err'); return; }
+  var session = correctionSession || corrSession;
+  var agentName = session.agent_name || '';
+  var score = (session.final_score !== null && session.final_score !== undefined)
+    ? session.final_score : session.auto_score;
+  var quizTitle = (session.quiz_templates && session.quiz_templates.title)
+    ? session.quiz_templates.title : 'Quiz Formation';
+  var dateStr = (session.submitted_at||session.started_at||new Date().toISOString()).slice(0,10);
+  if(!currentToken){ showToast('Non connecté','err'); return; }
+  var nom = agentName.trim().split(' ')[0]||'';
+  var prenom = agentName.trim().split(' ').slice(1).join(' ')||'';
+  var agent = DB.agents.find(function(a){
+    return a.nom.toUpperCase()===nom.toUpperCase() && a.prenom.toLowerCase()===prenom.toLowerCase();
+  }) || DB.agents.find(function(a){
+    return (a.nom+' '+a.prenom).toLowerCase().includes(nom.toLowerCase());
+  });
+  if(!agent){ showToast('Agent "'+agentName+'" non trouvé dans RH','err'); return; }
+  if(!agent.formations) agent.formations=[];
+  agent.formations.push({
+    date:dateStr, type:'Quiz Formation', theme:quizTitle, site:'', formateur:'Auto',
+    note: score!==null&&score!==undefined ? score+'%('+(score>=70?'Reussi':'Insuffisant')+')' : 'Non note',
+    quiz_session_id: session.id
+  });
+  saveDB('agents');
+  showToast('Score enregistre dans les formations de '+agent.nom+' '+agent.prenom, true);
+}
+
+
 async function saveCorrection(){
   if(!corrSession) return;
   var tmpl=quizTemplates.find(function(q){return q.id===corrSession.template_id;});
@@ -6103,6 +6132,7 @@ function showToast(msg, type){
     <div class="mbody" id="corr-m-body" style="max-height:65vh;overflow-y:auto;"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="document.getElementById('modal-correction').classList.remove('open')">Fermer</button>
+      <button class="btn btn-ghost" onclick="saveToFormation()" title="Ajouter dans les formations de la fiche agent">📚 Enregistrer en formation</button>
       <button class="btn btn-primary" onclick="saveCorrection()">✓ Enregistrer la correction</button>
     </div>
   </div>
