@@ -563,7 +563,7 @@ function renderQuestion() {
       (q.options || []).map((opt, i) => {
         const checked = savedArr.includes(opt) ? 'selected' : '';
         return `<label class="opt-label ${checked}" onclick="toggleMultiIdx('${q.id}',${i},this)" data-val="${escAttr(opt)}">
-          <input type="checkbox" class="opt-check" value="${escAttr(opt)}" ${checked ? 'checked' : ''}>
+          <input type="checkbox" class="opt-check" onclick="event.stopPropagation()" value="${escAttr(opt)}" ${checked ? 'checked' : ''}>
           <div class="opt-indicator opt-check-indicator"></div>
           <span class="opt-text">${esc(opt)}</span>
         </label>`;
@@ -617,8 +617,16 @@ function toggleMultiIdx(qId, idx, el) {
 function toggleMulti(qId, val, el) {
   if (!Array.isArray(answers[qId])) answers[qId] = [];
   const idx = answers[qId].indexOf(val);
-  if (idx >= 0) { answers[qId].splice(idx, 1); el.classList.remove('selected'); }
-  else { answers[qId].push(val); el.classList.add('selected'); }
+  const cb = el.querySelector('.opt-check');
+  if (idx >= 0) {
+    answers[qId].splice(idx, 1);
+    el.classList.remove('selected');
+    if (cb) cb.checked = false;
+  } else {
+    answers[qId].push(val);
+    el.classList.add('selected');
+    if (cb) cb.checked = true;
+  }
   if (answers[qId].length === 0) delete answers[qId];
   updateDot(qId);
 }
