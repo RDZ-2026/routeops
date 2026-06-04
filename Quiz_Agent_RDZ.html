@@ -330,10 +330,8 @@ async function sb(path, opts = {}) {
     }
   });
   if (!res.ok) { const t = await res.text().catch(() => ''); throw new Error(`${res.status}: ${t}`); }
-  if (res.status === 204 || res.status === 201 || opts.noBody) return null;
-  const txt = await res.text();
-  if (!txt || txt.trim() === '') return null;
-  return JSON.parse(txt);
+  if (res.status === 204 || opts.noBody) return null;
+  return res.json();
 }
 
 // ════════════════════════════════════════
@@ -374,19 +372,9 @@ async function init() {
     questions = await sb(`quiz_questions?template_id=eq.${quizId}&order=pos`) || [];
     if (!questions.length) { showError('Ce questionnaire ne contient aucune question.'); return; }
 
-    // Chargement agents depuis Supabase rh_agents
-    // Utilise le token de session RH si disponible (RLS), sinon tente anon
-    agents = [];
+    // Load agents for selection
     try {
-      let authHeader = `Bearer ${SB_KEY}`;
-      try {
-        const sess = JSON.parse(localStorage.getItem('rdz_session') || localStorage.getItem('sb-session') || '{}');
-        if (sess?.access_token) authHeader = `Bearer ${sess.access_token}`;
-      } catch (_) {}
-      const res = await fetch(`${SB_URL}/rest/v1/rh_agents?select=id,nom,prenom&statut=eq.actif&order=nom`, {
-        headers: { 'apikey': SB_KEY, 'Authorization': authHeader }
-      });
-      if (res.ok) agents = await res.json() || [];
+      agents = await sb('agents?select=id,nom,prenom&order=nom') || [];
     } catch (_) { agents = []; }
 
     // Build welcome screen
@@ -490,7 +478,8 @@ async function startQuiz() {
       id: uuid(),
       template_id: quizTemplate.id,
       agent_name: agentName,
-      agent_id: agentId || null,
+      agent_id: null, // stored as text in agent_name instead
+      agent_rdz_id: agentId || null, // our custom ID
       started_at: new Date().toISOString(),
       status: 'pending'
     };
@@ -563,7 +552,7 @@ function renderQuestion() {
   if (q.type === 'qcm') {
     qBody = `<div class="options">` + (q.options || []).map((opt, i) => {
       const selected = saved === opt ? 'selected' : '';
-      return `<label class="opt-label ${selected}" onclick="selectOpt('${q.id}','qcm','${escAttr(opt)}',this)">
+      return `<label class="opt-label ${selected}" onclick="selectOptIdx('${q.id}',${i},this)" data-val="${escAttr(opt)}">
         <input type="radio" class="opt-radio" name="q-${q.id}" value="${escAttr(opt)}" ${selected ? 'checked' : ''}>
         <div class="opt-indicator"></div>
         <span class="opt-text">${esc(opt)}</span>
@@ -614,6 +603,12 @@ function selectOpt(qId, type, val, el) {
   });
   el.classList.add('selected');
   updateDot(qId);
+}
+
+function selectOptIdx(qId, idx, el) {
+  // Read value from data attribute to avoid apostrophe issues in onclick
+  var val = el.getAttribute('data-val') || idx;
+  selectOpt(qId, 'qcm', val, el);
 }
 
 function toggleMulti(qId, val, el) {
