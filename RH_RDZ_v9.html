@@ -5863,6 +5863,7 @@ function renderSessions(){
       '<td><strong>'+esc(s.agent_name||'—')+'</strong></td>'+
       '<td>'+esc((s.quiz_templates&&s.quiz_templates.title)||'—')+'</td>'+
       '<td style="font-size:12px;color:var(--text3);">'+fDateTime(s.submitted_at||s.started_at)+'</td>'+
+      '<td style="font-size:12px;color:var(--text2);">'+((s.submitted_at&&s.started_at)?fDuration(s.started_at,s.submitted_at):'—')+'</td>'+
       '<td>'+(s.auto_score!==null?s.auto_score+'%':'—')+'</td>'+
       '<td>'+(pct!==null?'<strong style="color:'+(pct>=70?'var(--green)':'var(--red)')+';">'+pct+'%</strong><span style="display:inline-block;width:60px;height:5px;background:var(--bg2);border-radius:3px;margin-left:6px;vertical-align:middle;overflow:hidden;"><span style="display:block;height:100%;background:'+barCol+';width:'+pct+'%;"></span></span>':'—')+'</td>'+
       '<td>'+statusBadge+'</td>'+
@@ -5945,6 +5946,33 @@ async function openCorrection(sessionId){
     body.innerHTML=html;
     document.getElementById('modal-correction').classList.add('open');
   } catch(e){ showToast('Erreur : '+e.message,'err'); }
+}
+
+function printCorrection(){
+  var title = document.getElementById('corr-m-title');
+  var sub   = document.getElementById('corr-m-sub');
+  var body  = document.getElementById('corr-m-body');
+  if(!body) return;
+  var html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8">'
+    + '<title>Correction — RDZ</title>'
+    + '<style>'
+    + 'body{font-family:Arial,sans-serif;font-size:11px;color:#1a1917;padding:14mm 16mm;}'
+    + '.header{border-bottom:2px solid #C8102E;padding-bottom:10px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:flex-end;}'
+    + '.title{font-size:18px;font-weight:700;} .sub{font-size:12px;color:#6b6962;margin-top:3px;}'
+    + '.date{font-size:11px;color:#9a9794;text-align:right;}'
+    + '@media print{body{padding:10mm 12mm;} @page{size:A4;margin:0;}}'
+    + '</style></head><body>'
+    + '<div class="header">'
+    + '<div><div class="title">' + (title ? title.textContent : 'Correction') + '</div>'
+    + '<div class="sub">' + (sub ? sub.textContent : '') + '</div></div>'
+    + '<div class="date">RDZ Security Management — ' + new Date().toLocaleDateString('fr-CH') + '</div>'
+    + '</div>'
+    + body.innerHTML
+    + '</body></html>';
+  var w = window.open('','_blank','width=900,height=800');
+  w.document.write(html);
+  w.document.close();
+  setTimeout(function(){ w.print(); }, 400);
 }
 
 function saveToFormation(){
@@ -6037,6 +6065,15 @@ async function saveCorrection(){
 }
 
 // ── helper datetime ──
+function fDuration(start, end){
+  var ms = new Date(end) - new Date(start);
+  if(isNaN(ms) || ms < 0) return '—';
+  var min = Math.floor(ms / 60000);
+  var sec = Math.floor((ms % 60000) / 1000);
+  if(min === 0) return sec + 's';
+  return min + 'min' + (sec > 0 ? ' ' + sec + 's' : '');
+}
+
 function fDateTime(iso){ if(!iso) return '—'; var d=new Date(iso); return d.toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'}); }
 function showToast(msg, type){ 
   var t=document.createElement('div');
@@ -6142,6 +6179,7 @@ function showToast(msg, type){
     <div class="mbody" id="corr-m-body" style="max-height:65vh;overflow-y:auto;"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="document.getElementById('modal-correction').classList.remove('open')">Fermer</button>
+      <button class="btn btn-ghost" onclick="printCorrection()" title="Sauvegarder en PDF">📄 PDF</button>
       <button class="btn btn-ghost" onclick="saveToFormation()" title="Ajouter dans les formations de la fiche agent">📚 Enregistrer en formation</button>
       <button class="btn btn-primary" onclick="saveCorrection()">✓ Enregistrer la correction</button>
     </div>
