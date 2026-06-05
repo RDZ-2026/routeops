@@ -1743,7 +1743,10 @@ function renderFicheView(a){
       <th style="padding:7px 10px;font-size:10px;color:var(--text3);text-transform:uppercase;">Note</th>
     </tr></thead>
     <tbody>${(a.formations||[]).sort((x,y)=>(y.date||'').localeCompare(x.date||'')).map(f=>`<tr style="border-bottom:1px solid var(--border);">
-      <td style="padding:7px 10px;">${esc(f.type||'—')}</td>
+      <td style="padding:7px 10px;">
+        ${esc(f.type||'—')}
+        ${f.type==='Quiz Formation'&&f.theme?`<div style="font-size:11px;color:var(--text3);margin-top:2px;">📝 ${esc(f.theme)}</div>`:''}
+      </td>
       <td style="padding:7px 10px;">${fDate(f.date)}</td>
       <td style="padding:7px 10px;" class="${expClass(f.exp)}">${fDate(f.exp)}</td>
       <td style="padding:7px 10px;font-size:12px;color:var(--text2);">${esc(f.note||'—')}</td>
