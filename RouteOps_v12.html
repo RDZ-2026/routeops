@@ -1328,8 +1328,11 @@ function buildJournee(){
     btn.addEventListener('click',function(){
       const sh=S.sheets.find(s=>s.id===this.dataset.id);
       if(!confirm('Supprimer "'+( sh?.name||'cette feuille')+'" ?'))return;
-      S.sheets=S.sheets.filter(s=>s.id!==this.dataset.id);
-      saveAll();buildJournee();
+      const delId=this.dataset.id;
+      S.sheets=S.sheets.filter(s=>s.id!==delId);
+      saveAll('sheets');
+      _deleteFromDB('sheets', delId);
+      buildJournee();
     });
   });
 }
@@ -1641,7 +1644,9 @@ function deleteSheet(id){
   const sh=S.sheets.find(s=>s.id===id);
   if(!confirm('Supprimer "'+sh?.name+'" ?')) return;
   S.sheets=S.sheets.filter(s=>s.id!==id);
-  saveAll();buildJournee();
+  saveAll('sheets');
+  _deleteFromDB('sheets', id);
+  buildJournee();
 }
 
 function printJournee(){
@@ -2587,7 +2592,9 @@ function deleteTemplate(id){
   const t=S.sheets.find(s=>s.id===id);
   if(!confirm('Supprimer le modèle "'+t?.name+'" ?'))return;
   S.sheets=S.sheets.filter(s=>s.id!==id);
-  saveAll();buildModelsList();
+  saveAll('sheets');
+  _deleteFromDB('sheets', id);
+  buildModelsList();
 }
 
 // ═══════════════════════════════════════════════════
@@ -3305,6 +3312,21 @@ Réponds en français, de façon concise et opérationnelle.`;
 }
 
 
+
+
+// ── Suppression immédiate dans Supabase ──
+function _deleteFromDB(table, id){
+  const s = _loadSession()
+  if(!s || !id) return
+  const h = {
+    'apikey': SUPABASE_ANON,
+    'Authorization': 'Bearer ' + s.access_token
+  }
+  fetch(SUPABASE_URL+'/rest/v1/'+table+'?id=eq.'+id, {
+    method: 'DELETE',
+    headers: h
+  }).catch(e => console.error('_deleteFromDB error:', e))
+}
 
 // ═══════════════════════════════════════════════════
 // COPIER / COLLER MISSIONS ENTRE FEUILLES
