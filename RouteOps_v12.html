@@ -529,6 +529,8 @@ td input:focus{background:var(--accent-light);border:1px solid var(--accent);out
       <button class="btn btn-green btn-sm" onclick="saveEditorSheet()">💾 Sauvegarder comme modèle</button>
       <button class="btn btn-amber btn-sm" onclick="showModalSaveAsDate()">📅 Enregistrer pour une date</button>
       <span id="ed-saved" style="font-size:11px;color:var(--green);display:none">✓ Sauvegardé</span>
+      <button onclick="copySelectedTasks()" class="btn btn-outline btn-sm" title="Copier les missions cochées" style="font-size:11px">📋 Copier sélection</button>
+      <button onclick="pasteTasksHere()" class="btn btn-outline btn-sm" id="btn-paste-tasks" style="font-size:11px;display:none" title="Coller les missions copiées">📌 Coller</button>
     </div>
   </div>
 
@@ -2004,7 +2006,8 @@ function renderEditorRows(shId){
       <div class="ec" style="font-size:11px;color:var(--text3)">
         ${row.travelMin>0?`<span style="background:var(--surface3);border-radius:3px;padding:1px 6px;font-family:var(--mono)">+${row.travelMin}'</span>`:'—'}
       </div>
-      <div class="ec" style="gap:3px;justify-content:flex-end">
+      <div class="ec" style="gap:3px;justify-content:flex-end;align-items:center">
+        <input type="checkbox" class="task-copy-cb" data-idx="${i}" style="width:13px;height:13px;cursor:pointer;accent-color:var(--accent);flex-shrink:0" title="Sélectionner pour copier">
         ${i>0?`<button class="btn btn-ghost btn-icon btn-sm" onclick="moveRow('${shId}',${i},-1)">↑</button>`:'<span style="width:28px"></span>'}
         ${i<sh.tasks.length-1?`<button class="btn btn-ghost btn-icon btn-sm" onclick="moveRow('${shId}',${i},1)">↓</button>`:'<span style="width:28px"></span>'}
         ${isFixed?`<button class="btn btn-ghost btn-icon btn-sm" onclick="clearFixed('${shId}',${i})" title="Retirer fixe">🔓</button>`:''}
@@ -3301,6 +3304,51 @@ Réponds en français, de façon concise et opérationnelle.`;
   }
 }
 
+
+
+// ═══════════════════════════════════════════════════
+// COPIER / COLLER MISSIONS ENTRE FEUILLES
+// ═══════════════════════════════════════════════════
+
+var _taskClipboard = []
+
+function copySelectedTasks(){
+  const sh = S.sheets.find(s => s.id === currentSheetId)
+  if(!sh) return
+  const checkboxes = document.querySelectorAll('.task-copy-cb:checked')
+  if(!checkboxes.length){ alert('Cochez au moins une mission à copier.'); return }
+  _taskClipboard = []
+  checkboxes.forEach(cb => {
+    const idx = parseInt(cb.dataset.idx)
+    if(sh.tasks[idx]) _taskClipboard.push({...sh.tasks[idx]})
+  })
+  document.querySelectorAll('.task-copy-cb').forEach(cb => cb.checked = false)
+  const btn = document.getElementById('btn-paste-tasks')
+  if(btn){
+    btn.style.display = 'inline-flex'
+    btn.textContent = `📌 Coller (${_taskClipboard.length})`
+  }
+  const names = _taskClipboard.map(t => getMission(t.mId)?.name || '?').join(', ')
+  _showCopyToast(`${_taskClipboard.length} mission${_taskClipboard.length>1?'s':''} copiée${_taskClipboard.length>1?'s':''} : ${names}`)
+}
+
+function pasteTasksHere(){
+  if(!_taskClipboard.length) return
+  const sh = S.sheets.find(s => s.id === currentSheetId)
+  if(!sh) return
+  _taskClipboard.forEach(task => sh.tasks.push({...task}))
+  saveAll('sheets')
+  renderEditorRows(sh.id)
+  _showCopyToast(`${_taskClipboard.length} mission${_taskClipboard.length>1?'s':''} collée${_taskClipboard.length>1?'s':''}`)
+}
+
+function _showCopyToast(msg){
+  const t = document.createElement('div')
+  t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e40af;color:white;padding:9px 18px;border-radius:8px;font-size:13px;font-weight:500;z-index:9999;box-shadow:0 4px 20px rgba(0,0,0,.2)'
+  t.textContent = msg
+  document.body.appendChild(t)
+  setTimeout(() => t.remove(), 2500)
+}
 
 // ═══════════════════════════════════════════════════
 // INIT — AUTH + AUTOSAVE
