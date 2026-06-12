@@ -3404,8 +3404,9 @@ function _dureeToMin(d){
 function _autoFixIds(){
   const fixId = id => {
     if(!id) return _uuid()
-    if(/^[a-z][0-9a-f]{8}-/.test(id)) return id.slice(1)  // lettre+uuid → enlever lettre
-    if(!id.includes('-')) return _uuid()                    // ID court → nouveau UUID
+    if(!id.includes('-')) return _uuid()                              // ID court → nouveau UUID
+    const m = id.match(/^([a-z]+)([0-9a-f]{8}-[0-9a-f]{4}-)/)       // préfixe lettres + UUID
+    if(m) return id.slice(m[1].length)                                // enlever le préfixe
     return id
   }
   const sMap={}, mMap={}
