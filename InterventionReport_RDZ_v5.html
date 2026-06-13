@@ -834,14 +834,7 @@ function renderList(){
   document.getElementById('k-act').textContent=all.filter(r=>r.statut_cloture==='action').length;
   document.getElementById('k-month').textContent=all.filter(r=>(r.date||'').startsWith(ym)).length;
   document.getElementById('tbl-body').innerHTML=filtered.length
-    ?filtered.map(r=>{ var cat=catObj(r.categorie); var excerpt=(r.constats||'').split('\n')[0].slice(0,55); return `<div class="tbl-row" onclick="viewReport('${r.id}')">
-        <div class="tc mono">${r.date?fmtDate(r.date):'—'}</div>
-        <div class="tc mono" style="font-size:11px;">${(r.heure||'—').slice(0,5)}</div>
-        <div class="tc"><span class="tc b">${esc(r.client_name||'—')}</span> <span style="color:var(--text3)">· ${esc(r.mission_name||'—')}</span>${excerpt?`<br><span style="font-size:11px;color:var(--text3);font-style:italic;">${esc(excerpt)}${r.constats&&r.constats.length>55?'…':''}</span>`:''}</div>
-        <div class="tc">${cat.icone} ${esc(cat.label)}</div>
-        <div class="tc">${clBadge(r.statut_cloture)}</div>
-        <div class="tc" style="color:var(--text3)">›</div>
-      </div>`; }).join('')
+    ?filtered.map(r=>{ var cat=catObj(r.categorie); var excerpt=(r.constats||'').split('\n')[0].slice(0,55); var excerptHtml=excerpt?('<br><span style="font-size:11px;color:var(--text3);font-style:italic;">'+esc(excerpt)+(r.constats&&r.constats.length>55?'…':'')+'</span>'):''; return '<div class="tbl-row" onclick="viewReport(''+r.id+'')">'+'<div class="tc mono">'+(r.date?fmtDate(r.date):'—')+'</div>'+'<div class="tc mono" style="font-size:11px;">'+(r.heure||'—').slice(0,5)+'</div>'+'<div class="tc"><span class="tc b">'+esc(r.client_name||'—')+'</span> <span style="color:var(--text3)">· '+esc(r.mission_name||'—')+'</span>'+excerptHtml+'</div>'+'<div class="tc">'+cat.icone+' '+esc(cat.label)+'</div>'+'<div class="tc">'+clBadge(r.statut_cloture)+'</div>'+'<div class="tc" style="color:var(--text3)">›</div></div>'; }).join('')
     :'<div class="empty"><div style="font-size:32px;margin-bottom:10px;">📋</div><div style="font-size:14px;font-weight:600;color:var(--text2)">Aucun résultat</div></div>';
 }
 
