@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rapports d'Intervention — RDZ Security</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════
+   TOKENS RDZ
+═══════════════════════════════════════════════════════════ */
+:root{
+  --red:#c0272d;--red-d:#a31f24;--red-l:#fdf0f2;
+  --bg:#f2f2f4;--white:#fff;
+  --anth:#2d2d2d;--anth2:#3a3a3a;
+  --border:#e2e2e6;--border2:#d0d0d6;
+  --text:#2d2d2d;--text2:#4b5563;--text3:#9ca3af;
+  --green:#16a34a;--green-l:#f0fdf4;
+  --orange:#ea580c;--orange-l:#fff7ed;
+  --blue:#2563eb;--blue-l:#eff6ff;
+  --shadow:0 1px 3px rgba(0,0,0,.07),0 4px 12px rgba(0,0,0,.05);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.14);
+  --r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13.5px;}
+
+/* ═══════════════════════════════════════════════════════════
+   TOPBAR
+═══════════════════════════════════════════════════════════ */
+.topbar{
+  background:var(--anth2);color:white;height:56px;
+  display:flex;align-items:center;padding:0 20px;gap:12px;
+  box-shadow:0 2px 12px rgba(0,0,0,.3);
+  border-bottom:3px solid var(--red);position:sticky;top:0;z-index:300;flex-shrink:0;
+}
+.tb-back{display:flex;align-items:center;gap:6px;color:rgba(255,255,255,.55);font-size:12px;cursor:pointer;text-decoration:none;padding:6px 10px;border-radius:6px;border:1px solid rgba(255,255,255,.12);transition:all .15s;}
+.tb-back:hover{background:rgba(255,255,255,.08);color:white;}
+.tb-div{width:1px;height:28px;background:rgba(255,255,255,.15);}
+.tb-mark{width:32px;height:32px;background:var(--red);border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono';font-size:11px;font-weight:600;color:white;flex-shrink:0;}
+.tb-title{font-family:'DM Mono';font-size:13px;font-weight:600;color:white;}
+.tb-sub{font-size:9.5px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:8px;}
+.sync-badge{display:flex;align-items:center;gap:5px;font-size:11px;color:rgba(255,255,255,.5);padding:4px 10px;border-radius:20px;border:1px solid rgba(255,255,255,.1);white-space:nowrap;}
+.sync-badge.ok{color:#4ade80;border-color:rgba(74,222,128,.3);}
+.sync-badge.saving{color:#facc15;border-color:rgba(250,204,21,.3);}
+.sync-badge.error{color:#f87171;border-color:rgba(248,113,113,.3);}
+.sync-badge.offline{color:var(--orange);border-color:rgba(234,88,12,.3);}
+.dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+
+/* ═══════════════════════════════════════════════════════════
+   PANELS
+═══════════════════════════════════════════════════════════ */
+.panel{display:none;}
+.panel.active{display:block;}
+
+/* ═══════════════════════════════════════════════════════════
+   LIST PANEL
+═══════════════════════════════════════════════════════════ */
+.list-wrap{max-width:1100px;margin:0 auto;padding:32px 24px 80px;}
+.list-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:28px;flex-wrap:wrap;}
+.list-title{font-family:'DM Mono';font-size:22px;font-weight:600;color:var(--anth);}
+.list-sub{font-size:13px;color:var(--text2);margin-top:4px;}
+.btn-new{display:inline-flex;align-items:center;gap:7px;padding:10px 20px;background:var(--red);color:white;border:none;border-radius:8px;font-family:'DM Sans';font-size:13.5px;font-weight:600;cursor:pointer;transition:background .15s;white-space:nowrap;}
+.btn-new:hover{background:var(--red-d);}
+
+/* KPIs */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:24px;}
+.kpi{background:white;border:1.5px solid var(--border);border-radius:var(--r);padding:16px 18px;box-shadow:var(--shadow);}
+.kpi-num{font-family:'DM Mono';font-size:26px;font-weight:600;color:var(--anth);line-height:1;}
+.kpi-label{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-top:5px;}
+.kpi-sub{font-size:11.5px;color:var(--text2);margin-top:3px;}
+
+/* Filters */
+.filters{background:white;border:1.5px solid var(--border);border-radius:var(--r);padding:14px 16px;margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;box-shadow:var(--shadow);}
+.filter-group{display:flex;align-items:center;gap:6px;}
+.filter-group label{font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;}
+.fsel{font-family:'DM Sans';font-size:12.5px;padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);cursor:pointer;outline:none;}
+.fsel:focus{border-color:var(--red);}
+.finput{font-family:'DM Sans';font-size:12.5px;padding:6px 10px;border:1.5px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);outline:none;width:180px;}
+.finput:focus{border-color:var(--red);}
+.filter-sep{width:1px;height:24px;background:var(--border);flex-shrink:0;}
+
+/* Table */
+.tbl-wrap{background:white;border:1.5px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;}
+.tbl-head{display:grid;grid-template-columns:100px 80px 1fr 140px 130px 90px 48px;gap:0;background:var(--bg);border-bottom:1.5px solid var(--border);padding:0 16px;}
+.tbl-head span{font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;padding:10px 8px 10px 0;}
+.tbl-row{display:grid;grid-template-columns:100px 80px 1fr 140px 130px 90px 48px;gap:0;border-bottom:1px solid var(--border);padding:0 16px;cursor:pointer;transition:background .12s;align-items:center;}
+.tbl-row:last-child{border-bottom:none;}
+.tbl-row:hover{background:#fafafa;}
+.tbl-cell{font-size:13px;color:var(--text2);padding:11px 8px 11px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tbl-cell.bold{font-weight:600;color:var(--text);}
+.tbl-cell.mono{font-family:'DM Mono';font-size:12px;}
+.empty-state{padding:64px 24px;text-align:center;color:var(--text3);}
+.empty-state .em-icon{font-size:40px;margin-bottom:12px;}
+.empty-state .em-title{font-size:15px;font-weight:600;color:var(--text2);margin-bottom:6px;}
+.empty-state .em-sub{font-size:13px;}
+
+/* Badges cloture */
+.badge{display:inline-flex;align-items:center;gap:4px;font-size:10.5px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;}
+.b-regle{background:#f0fdf4;color:#16a34a;}
+.b-action{background:var(--orange-l);color:var(--orange);}
+.b-info{background:var(--blue-l);color:var(--blue);}
+.b-probleme{background:var(--red-l);color:var(--red);}
+.b-draft{background:var(--bg);color:var(--text3);}
+.b-offline{background:#fff7ed;color:#b45309;}
+
+/* ═══════════════════════════════════════════════════════════
+   FORM PANEL
+═══════════════════════════════════════════════════════════ */
+.form-wrap{max-width:800px;margin:0 auto;padding:28px 24px 80px;}
+.form-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:24px;flex-wrap:wrap;}
+.btn-back{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:white;border:1.5px solid var(--border);border-radius:7px;font-family:'DM Sans';font-size:12.5px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s;}
+.btn-back:hover{background:var(--bg);color:var(--text);}
+.btn-save{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;background:var(--red);color:white;border:none;border-radius:8px;font-family:'DM Sans';font-size:13px;font-weight:600;cursor:pointer;transition:background .15s;}
+.btn-save:hover{background:var(--red-d);}
+.btn-save:disabled{opacity:.5;cursor:not-allowed;}
+.btn-print{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:white;border:1.5px solid var(--border);border-radius:7px;font-family:'DM Sans';font-size:12.5px;font-weight:500;color:var(--text2);cursor:pointer;transition:all .15s;}
+.btn-print:hover{background:var(--bg);}
+.btn-del{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:white;border:1.5px solid #fca5a5;border-radius:7px;font-family:'DM Sans';font-size:12.5px;font-weight:500;color:var(--red);cursor:pointer;transition:all .15s;margin-left:auto;}
+.btn-del:hover{background:var(--red-l);}
+.form-toolbar-sep{flex:1;}
+
+/* The report card */
+.report-card{background:white;border:1.5px solid var(--border);border-radius:14px;box-shadow:var(--shadow);overflow:hidden;}
+.rpt-hdr{background:var(--anth);padding:20px 28px;}
+.rpt-hdr-top{height:4px;background:var(--red);margin:-20px -28px 16px;}
+.rpt-hdr-row{display:flex;align-items:center;justify-content:space-between;gap:16px;}
+.rpt-hdr-left{flex:1;}
+.rpt-eyebrow{font-size:9.5px;letter-spacing:3px;text-transform:uppercase;color:var(--red);margin-bottom:6px;font-family:'DM Mono';}
+.rpt-title-input{font-size:18px;font-weight:700;color:white;border:none;border-bottom:1px solid rgba(255,255,255,.2);background:transparent;outline:none;width:100%;font-family:'DM Sans';padding:2px 0;}
+.rpt-title-input::placeholder{color:rgba(255,255,255,.3);}
+.rpt-title-input:focus{border-bottom-color:var(--red);}
+.rpt-logo{background:white;border-radius:8px;padding:6px 12px;flex-shrink:0;}
+.rpt-logo img{height:44px;width:auto;display:block;}
+
+/* Meta row */
+.rpt-meta{display:grid;grid-template-columns:repeat(4,1fr);background:#f0f0f2;border-bottom:1.5px solid var(--border);}
+.meta-cell{padding:12px 14px;border-right:1px solid var(--border);}
+.meta-cell:last-child{border-right:none;}
+.meta-cell label{display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text3);margin-bottom:5px;font-weight:700;}
+.meta-input{font-size:13px;color:var(--text);font-weight:600;border:none;border-bottom:1px solid var(--border2);background:transparent;width:100%;font-family:'DM Sans';padding:2px 0;outline:none;}
+.meta-input:focus{border-bottom-color:var(--red);}
+.meta-select{font-size:13px;color:var(--text);font-weight:600;border:none;border-bottom:1px solid var(--border2);background:transparent;width:100%;font-family:'DM Sans';padding:2px 0;outline:none;cursor:pointer;appearance:none;}
+.meta-select:focus{border-bottom-color:var(--red);}
+
+/* Body sections */
+.rpt-body{padding:20px 28px;}
+.sec-block{margin-bottom:28px;border:1.5px solid var(--border);border-radius:8px;overflow:hidden;}
+.sec-block:last-child{margin-bottom:0;}
+.sec-title{font-size:11.5px;font-weight:700;letter-spacing:1.8px;text-transform:uppercase;color:var(--red);background:#e8e8eb;padding:8px 14px;}
+.sec-body{padding:16px 14px 14px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;}
+.field-row.full{grid-template-columns:1fr;}
+.field{display:flex;flex-direction:column;gap:4px;}
+.field label{font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:600;}
+.field input,.field textarea,.field select{font-family:'DM Sans';font-size:13.5px;color:var(--text);border:none;border-bottom:1.5px solid var(--border2);padding:5px 0;background:transparent;outline:none;width:100%;transition:border-color .2s;}
+.field input:focus,.field textarea:focus,.field select:focus{border-bottom-color:var(--red);}
+.field textarea{resize:vertical;line-height:1.6;min-height:80px;}
+.field select{cursor:pointer;appearance:none;}
+
+/* Statut clôture */
+.cloture-wrap{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px;}
+.cloture-wrap input[type=radio]{display:none;}
+.cloture-wrap label{flex:1;min-width:120px;padding:9px 8px;border:1.5px solid var(--border);border-radius:7px;text-align:center;font-size:11.5px;color:var(--text3);cursor:pointer;transition:all .2s;background:white;user-select:none;white-space:nowrap;}
+#cl-regle:checked+label{border-color:#16a34a;background:#f0fdf4;color:#16a34a;font-weight:700;}
+#cl-action:checked+label{border-color:var(--orange);background:var(--orange-l);color:var(--orange);font-weight:700;}
+#cl-info:checked+label{border-color:var(--blue);background:var(--blue-l);color:var(--blue);font-weight:700;}
+#cl-probleme:checked+label{border-color:var(--red);background:var(--red-l);color:var(--red);font-weight:700;}
+
+/* Photos */
+.photo-zone{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.photo-item{display:flex;flex-direction:column;gap:6px;position:relative;}
+.photo-box{border:1.5px solid var(--border);border-radius:8px;background:#fafafa;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:48px;}
+.photo-box img{width:100%;height:auto;max-height:280px;object-fit:contain;display:block;}
+.photo-caption-input{font-family:'DM Sans';font-size:11.5px;color:var(--text2);border:none;border-bottom:1px solid var(--border);outline:none;background:transparent;padding:4px 0;width:100%;}
+.photo-caption-input:focus{border-bottom-color:var(--red);}
+.btn-add-photo{background:transparent;border:1.5px dashed var(--red);color:var(--red);font-size:12px;font-weight:600;padding:8px 18px;border-radius:7px;cursor:pointer;font-family:'DM Sans';letter-spacing:.5px;transition:background .15s;}
+.btn-add-photo:hover{background:var(--red-l);}
+.photo-del{position:absolute;top:6px;right:6px;background:rgba(192,39,45,.85);color:white;border:none;border-radius:50%;width:22px;height:22px;font-size:13px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.photo-del:hover{background:var(--red);}
+
+/* Report footer */
+.rpt-ftr{background:var(--anth);padding:12px 28px;display:flex;align-items:center;justify-content:space-between;border-top:3px solid var(--red);}
+.rpt-ftr-left{display:flex;align-items:center;gap:10px;}
+.ftr-logo{background:white;border-radius:6px;padding:4px 10px;}
+.ftr-logo img{height:26px;width:auto;display:block;}
+.ftr-text{font-size:10px;color:rgba(255,255,255,.5);line-height:1.6;}
+.ftr-coords{font-size:10px;color:rgba(255,255,255,.35);line-height:1.7;text-align:right;}
+
+/* Report ID badge */
+.rpt-id{font-family:'DM Mono';font-size:11px;background:rgba(255,255,255,.08);color:rgba(255,255,255,.5);padding:3px 10px;border-radius:4px;letter-spacing:.5px;}
+.offline-banner{background:var(--orange-l);border:1px solid rgba(234,88,12,.3);border-radius:8px;padding:10px 14px;margin-bottom:16px;font-size:12.5px;color:var(--orange);display:none;align-items:center;gap:8px;}
+.offline-banner.show{display:flex;}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--anth2);color:white;padding:10px 20px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;}
+.toast.show{opacity:1;}
+.toast.ok{background:#166534;}
+.toast.err{background:#991b1b;}
+
+/* Auth overlay */
+.auth-overlay{position:fixed;inset:0;background:var(--anth2);display:flex;align-items:center;justify-content:center;z-index:1000;}
+.auth-box{background:white;border-radius:14px;padding:36px 32px;width:360px;box-shadow:var(--shadow-lg);}
+.auth-logo{text-align:center;margin-bottom:24px;}
+.auth-mark{width:52px;height:52px;background:var(--red);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-family:'DM Mono';font-size:16px;font-weight:700;color:white;margin-bottom:12px;}
+.auth-title{font-family:'DM Mono';font-size:17px;font-weight:600;color:var(--anth);}
+.auth-sub{font-size:12.5px;color:var(--text3);margin-top:4px;}
+.auth-field{margin-bottom:14px;}
+.auth-label{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;display:block;}
+.auth-input{width:100%;font-family:'DM Sans';font-size:14px;padding:10px 12px;border:1.5px solid var(--border);border-radius:7px;outline:none;color:var(--text);}
+.auth-input:focus{border-color:var(--red);}
+.auth-btn{width:100%;padding:11px;background:var(--red);color:white;border:none;border-radius:8px;font-family:'DM Sans';font-size:14px;font-weight:600;cursor:pointer;margin-top:6px;}
+.auth-btn:hover{background:var(--red-d);}
+.auth-err{font-size:12.5px;color:var(--red);margin-top:8px;text-align:center;min-height:18px;}
+
+/* Confirm dialog */
+.confirm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:500;display:none;align-items:center;justify-content:center;}
+.confirm-overlay.open{display:flex;}
+.confirm-box{background:white;border-radius:12px;padding:28px;width:340px;box-shadow:var(--shadow-lg);}
+.confirm-title{font-weight:700;font-size:15px;margin-bottom:8px;}
+.confirm-msg{font-size:13px;color:var(--text2);margin-bottom:20px;line-height:1.5;}
+.confirm-btns{display:flex;gap:8px;justify-content:flex-end;}
+.btn-cancel{padding:8px 16px;background:var(--bg);border:1.5px solid var(--border);border-radius:7px;font-family:'DM Sans';font-size:13px;cursor:pointer;}
+.btn-confirm-del{padding:8px 16px;background:var(--red);color:white;border:none;border-radius:7px;font-family:'DM Sans';font-size:13px;font-weight:600;cursor:pointer;}
+
+/* ═══════════════════════════════════════════════════════════
+   PRINT
+═══════════════════════════════════════════════════════════ */
+@media print{
+  .topbar,.form-toolbar,.offline-banner,.toast{display:none !important;}
+  body{background:white;padding:0;}
+  .form-wrap{padding:0;max-width:100%;}
+  .report-card{border:none;box-shadow:none;border-radius:0;}
+  .rpt-hdr{background:#1a1a1a !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .rpt-hdr-top{background:var(--red) !important;}
+  .rpt-meta{background:#f0f0f2 !important;}
+  .rpt-ftr{background:#1a1a1a !important;border-top-color:var(--red) !important;}
+  .sec-title{background:#e0e0e0 !important;}
+  .photo-zone input[type=file]{display:none;}
+  .photo-item{break-inside:avoid;}
+  .sec-block{break-inside:avoid;}
+  .cloture-wrap label{border-width:1.5px !important;}
+  #cl-regle:checked+label{border-color:#16a34a !important;background:#f0fdf4 !important;color:#16a34a !important;}
+  #cl-action:checked+label{border-color:var(--orange) !important;background:var(--orange-l) !important;color:var(--orange) !important;}
+  #cl-info:checked+label{border-color:var(--blue) !important;background:var(--blue-l) !important;color:var(--blue) !important;}
+  #cl-probleme:checked+label{border-color:var(--red) !important;background:var(--red-l) !important;color:var(--red) !important;}
+  .btn-add-photo,.photo-del{display:none !important;}
+  .rpt-title-input,.meta-input,.field input,.field textarea,.meta-select,.field select{border-bottom:1px solid #ddd !important;}
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE
+═══════════════════════════════════════════════════════════ */
+@media(max-width:680px){
+  .rpt-meta{grid-template-columns:repeat(2,1fr);}
+  .rpt-meta .meta-cell:nth-child(2){border-right:none;}
+  .field-row{grid-template-columns:1fr;}
+  .photo-zone{grid-template-columns:1fr;}
+  .rpt-hdr-row{flex-direction:column;}
+  .rpt-logo{display:none;}
+  .cloture-wrap label{min-width:100px;}
+  .tbl-head,.tbl-row{grid-template-columns:90px 70px 1fr 110px 80px;}
+  .tbl-head span:nth-child(6),.tbl-head span:nth-child(7),
+  .tbl-row .tbl-cell:nth-child(6),.tbl-row .tbl-cell:nth-child(7){display:none;}
+  .list-wrap,.form-wrap{padding:16px 14px 60px;}
+  .kpi-row{grid-template-columns:repeat(2,1fr);}
+  .filters{gap:8px;}
+  .tb-sub{display:none;}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH OVERLAY -->
+<div class="auth-overlay" id="auth-overlay">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="auth-mark">RDZ</div>
+      <div class="auth-title">Rapports d'Intervention</div>
+      <div class="auth-sub">Connexion requise</div>
+    </div>
+    <div class="auth-field">
+      <label class="auth-label">Email</label>
+      <input class="auth-input" type="email" id="auth-email" placeholder="prenom.nom@rdz-security.ch" autocomplete="email">
+    </div>
+    <div class="auth-field">
+      <label class="auth-label">Mot de passe</label>
+      <input class="auth-input" type="password" id="auth-pass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="auth-btn" id="auth-btn" onclick="doLogin()">Connexion</button>
+    <div class="auth-err" id="auth-err"></div>
+  </div>
+</div>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <a class="tb-back" href="RDZ_index.html">← Accueil</a>
+  <div class="tb-div"></div>
+  <div class="tb-mark">📋</div>
+  <div>
+    <div class="tb-title">Rapports d'Intervention</div>
+    <div class="tb-sub">RDZ Security Management</div>
+  </div>
+  <div class="tb-right">
+    <div class="sync-badge" id="sync-badge"><span class="dot"></span><span id="sync-txt">—</span></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- CONFIRM DIALOG -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-title">Supprimer ce rapport ?</div>
+    <div class="confirm-msg">Cette action est irréversible. Le rapport sera définitivement supprimé.</div>
+    <div class="confirm-btns">
+      <button class="btn-cancel" onclick="closeConfirm()">Annuler</button>
+      <button class="btn-confirm-del" id="btn-confirm-del">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PANEL : LISTE
+═══════════════════════════════════════════════════════════ -->
+<div class="panel active" id="panel-list">
+<div class="list-wrap">
+
+  <div class="list-header">
+    <div>
+      <div class="list-title">Rapports d'Intervention</div>
+      <div class="list-sub">Suivi de toutes les interventions terrain</div>
+    </div>
+    <button class="btn-new" onclick="openNewReport()">+ Nouveau rapport</button>
+  </div>
+
+  <div class="kpi-row" id="kpi-row">
+    <div class="kpi"><div class="kpi-num" id="kpi-total">—</div><div class="kpi-label">Total</div></div>
+    <div class="kpi"><div class="kpi-num" style="color:var(--green)" id="kpi-regle">—</div><div class="kpi-label">Réglés</div></div>
+    <div class="kpi"><div class="kpi-num" style="color:var(--red)" id="kpi-prob">—</div><div class="kpi-label">Problèmes</div></div>
+    <div class="kpi"><div class="kpi-num" style="color:var(--orange)" id="kpi-action">—</div><div class="kpi-label">Actions à venir</div></div>
+    <div class="kpi"><div class="kpi-num" style="color:var(--text3)" id="kpi-month">—</div><div class="kpi-label">Ce mois</div></div>
+  </div>
+
+  <div class="filters">
+    <div class="filter-group">
+      <label>Recherche</label>
+      <input class="finput" type="search" id="f-search" placeholder="Site, agent, type…" oninput="renderList()">
+    </div>
+    <div class="filter-sep"></div>
+    <div class="filter-group">
+      <label>Statut</label>
+      <select class="fsel" id="f-statut" onchange="renderList()">
+        <option value="">Tous</option>
+        <option value="regle">✔ Terminé</option>
+        <option value="action">📅 Action à venir</option>
+        <option value="info">ℹ️ Pour info</option>
+        <option value="probleme">⚠️ Problème</option>
+        <option value="draft">Brouillon</option>
+      </select>
+    </div>
+    <div class="filter-sep"></div>
+    <div class="filter-group">
+      <label>Agent</label>
+      <select class="fsel" id="f-agent" onchange="renderList()">
+        <option value="">Tous</option>
+      </select>
+    </div>
+    <div class="filter-sep"></div>
+    <div class="filter-group">
+      <label>Mois</label>
+      <input class="fsel" type="month" id="f-month" onchange="renderList()">
+    </div>
+  </div>
+
+  <div class="tbl-wrap" id="tbl-wrap">
+    <div class="tbl-head">
+      <span>Date</span>
+      <span>Heure</span>
+      <span>Site / Client</span>
+      <span>Agent</span>
+      <span>Type</span>
+      <span>Statut</span>
+      <span></span>
+    </div>
+    <div id="tbl-body">
+      <div class="empty-state"><div class="em-icon">📋</div><div class="em-title">Aucun rapport</div><div class="em-sub">Créez votre premier rapport d'intervention.</div></div>
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PANEL : FORMULAIRE
+═══════════════════════════════════════════════════════════ -->
+<div class="panel" id="panel-form">
+<div class="form-wrap">
+
+  <div class="form-toolbar">
+    <button class="btn-back" onclick="goList()">← Liste</button>
+    <button class="btn-save" id="btn-save" onclick="saveReport()">💾 Enregistrer</button>
+    <button class="btn-print" onclick="printReport()">🖨️ Imprimer</button>
+    <div class="form-toolbar-sep"></div>
+    <button class="btn-del" id="btn-del" style="display:none" onclick="confirmDelete()">🗑 Supprimer</button>
+  </div>
+
+  <div class="offline-banner" id="offline-banner">
+    ⚠️ Mode hors ligne — ce rapport sera synchronisé automatiquement dès la reconnexion.
+  </div>
+
+  <div class="report-card">
+
+    <!-- HEADER -->
+    <div class="rpt-hdr">
+      <div class="rpt-hdr-top"></div>
+      <div class="rpt-hdr-row">
+        <div class="rpt-hdr-left">
+          <div class="rpt-eyebrow">Rapport d'intervention</div>
+          <input class="rpt-title-input" type="text" id="rpt-titre" placeholder="Client — Nom du site…" maxlength="120">
+        </div>
+        <div class="rpt-logo">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAACXBIWXMAABcRAAAXEQHKJvM/AAAG0ElEQVR42u2cW2wUVRjH/9vudnfbbS8UaAtFoFVAxVqoxRaJl1CjMSZqNMYHH4wmxhgjJsYHE2NijIkvxBcTNcYHL8QHL2CIl5hoohEJUikIlZZCS4G2dNvd3e7O+LAzm93ZmZ2z7exl5/yS80Cmbfd8//Od853znTNHSSktFnQhSQCAAEABAI8A2AKAB+ACUAOQB5AHIAHkAGQBZABkAKQBpACkACSBJIAEkACQABIH4gDiQBxAHIgDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcQBxIA4gDsQBxIE4gDgQBxAH4gDiQBxAHIgDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcSAOIA7EAcSBOIA4EAcQB+IA4kAcSByIA4gDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcSAOIA7EAcSBOIA4EAcQB+IA4kAcSByIA4gDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcSAOIA7EAcSBOIA4EAcQB+IA4kAcSByIA4gDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcQBxIG4cJwDiQBxAHIgDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcSAOIA7EAcSBOIA4EAcQB+IA4kAcSByIA4gDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcQBxIG4cJwDiQBxAHIgDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcSAOIA7EAcSBOIA4EAcQB+IA4kAcSByIA4gDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcQBxIG4c" alt="RDZ">
+        </div>
+      </div>
+    </div>
+
+    <!-- META -->
+    <div class="rpt-meta">
+      <div class="meta-cell">
+        <label>Date</label>
+        <input class="meta-input" type="date" id="rpt-date">
+      </div>
+      <div class="meta-cell">
+        <label>Heure</label>
+        <input class="meta-input" type="time" id="rpt-heure">
+      </div>
+      <div class="meta-cell">
+        <label>Agent</label>
+        <select class="meta-select" id="rpt-agent">
+          <option value="">— Sélectionner —</option>
+        </select>
+      </div>
+      <div class="meta-cell">
+        <label>Nature d'activité</label>
+        <input class="meta-input" type="text" id="rpt-nature" placeholder="Ronde, intervention…">
+      </div>
+    </div>
+
+    <!-- BODY -->
+    <div class="rpt-body">
+
+      <!-- Section 1 -->
+      <div class="sec-block">
+        <div class="sec-title">1 — Informations générales</div>
+        <div class="sec-body">
+          <div class="field-row full">
+            <div class="field">
+              <label>Localisation précise</label>
+              <input type="text" id="rpt-localisation" placeholder="Ex: Bâtiment A, sous-sol, parking Nord…">
+            </div>
+          </div>
+          <div class="field-row full" style="margin-top:10px;">
+            <div class="field">
+              <label>Type d'intervention</label>
+              <input type="text" id="rpt-type" placeholder="Ex: Intrusion, alarme, incident, ronde…">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 2 -->
+      <div class="sec-block">
+        <div class="sec-title">2 — Constats sur place</div>
+        <div class="sec-body">
+          <div class="field-row full">
+            <div class="field">
+              <label>Détail des constats</label>
+              <textarea id="rpt-constats" placeholder="Décrire les constats effectués sur place…" rows="4"></textarea>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 3 -->
+      <div class="sec-block">
+        <div class="sec-title">3 — Mesures prises</div>
+        <div class="sec-body">
+          <div class="field-row full">
+            <div class="field">
+              <label>Actions effectuées</label>
+              <textarea id="rpt-actions" placeholder="Décrire les actions effectuées…" rows="4"></textarea>
+            </div>
+          </div>
+          <div>
+            <div style="font-size:10.5px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-top:14px;margin-bottom:8px;">Statut de clôture</div>
+            <div class="cloture-wrap">
+              <input type="radio" name="cloture" id="cl-regle" value="regle">
+              <label for="cl-regle">✔ Situation terminée</label>
+              <input type="radio" name="cloture" id="cl-action" value="action">
+              <label for="cl-action">📅 Action à venir</label>
+              <input type="radio" name="cloture" id="cl-info" value="info">
+              <label for="cl-info">ℹ️ Pour information</label>
+              <input type="radio" name="cloture" id="cl-probleme" value="probleme">
+              <label for="cl-probleme">⚠️ Problème en cours</label>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4 -->
+      <div class="sec-block">
+        <div class="sec-title">4 — Photos</div>
+        <div class="sec-body">
+          <div class="photo-zone" id="photo-zone"></div>
+          <div style="margin-top:14px;">
+            <button class="btn-add-photo" onclick="addPhoto()">+ Ajouter une photo</button>
+            <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoFile(this)">
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /rpt-body -->
+
+    <!-- FOOTER -->
+    <div class="rpt-ftr">
+      <div class="rpt-ftr-left">
+        <div class="ftr-logo">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAACXBIWXMAABcRAAAXEQHKJvM/AAAG0ElEQVR42u2cW2wUVRjH/9vudnfbbS0UaAtFoFVAxVqoxRaJl1CjMSZqNMYHH4wmxhgjJsYHE2NijIkvxBcTNcYHL8QHL2CIl5hoohEJUikIlZZCS4G2dNvd3e7O+LAzm93ZmZ2z7exl5/yS80Cmbfd8//Od853znTNHSSktFnQhSQCAAEABAI8A2AKAB+ACUAOQB5AHIAHkAGQBZABkAKQBpAAkgSSABJAAkAAQB+IA4kAcQByIA4gDcQBxIA4gDsQBxIE4gDgQBxAH4gDiQBxAHIgDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcSAOIA7EAcSBOIA4EAcQB+IA4kAcSByIA4gDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcSAOIA7EAcSBOIA4EAcQB+IA4kAcSByIA4gDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcSAOIA7EAcSBOIA4EAcQB+IA4kAcSByIA4gDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcQBxIG4cJwDiQBxAHIgDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcSAOIA7EAcSBOIA4EAcQB+IA4kAcSByIA4gDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcQBxIG4cJwDiQBxAHIgDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcSAOIA7EAcSBOIA4EAcQB+IA4kAcSByIA4gDiANxAHEgDiAOxAHEgTiAOBAHEAfiAOJAHEAciAOIA3EAcSAOIA7EAcSBOIA4EAcQB+IA4kAcQByIA4gDcQBxIG4c" alt="RDZ">
+        </div>
+        <div class="ftr-text">RDZ Security Management SA © 2026<br>Document confidentiel — Usage interne</div>
+      </div>
+      <div>
+        <div class="rpt-id" id="rpt-id-badge">—</div>
+        <div class="ftr-coords" style="margin-top:4px;">contact@rdz-security-management.ch<br>+41 22 552 26 99 · Quai du Seujet 22, Genève</div>
+      </div>
+    </div>
+
+  </div><!-- /report-card -->
+</div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// CONFIG
+// ═══════════════════════════════════════════════════════════
+const SUPA_URL  = 'https://trdhtlcenmjlcvzuplid.supabase.co';
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
+const SK = 'rdz_session';
+const LS_KEY = 'rdz_intervention_reports';
+const LS_PENDING = 'rdz_intervention_pending';
+
+var currentToken = null;
+var currentSession = null;
+var DB = { reports: [], agents: [] };
+var editingId = null;
+var photoCount = 0;
+var isOnline = navigator.onLine;
+var pendingSync = [];
+
+// ═══════════════════════════════════════════════════════════
+// ONLINE/OFFLINE
+// ═══════════════════════════════════════════════════════════
+window.addEventListener('online', function(){
+  isOnline = true;
+  document.getElementById('offline-banner').classList.remove('show');
+  setSyncState('saving', 'Synchronisation…');
+  syncPending();
+});
+window.addEventListener('offline', function(){
+  isOnline = false;
+  document.getElementById('offline-banner').classList.add('show');
+  setSyncState('offline', 'Hors ligne');
+});
+
+// ═══════════════════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════════════════
+function authH(token){ return {'apikey':SUPA_ANON,'Authorization':'Bearer '+(token||SUPA_ANON),'Content-Type':'application/json','Prefer':'return=representation'}; }
+
+document.getElementById('auth-pass').addEventListener('keydown', function(e){ if(e.key==='Enter') doLogin(); });
+
+function doLogin(){
+  var email = document.getElementById('auth-email').value.trim();
+  var pass  = document.getElementById('auth-pass').value;
+  var err   = document.getElementById('auth-err');
+  var btn   = document.getElementById('auth-btn');
+  if(!email||!pass){ err.textContent='Email et mot de passe requis.'; return; }
+  btn.disabled=true; btn.textContent='Connexion…'; err.textContent='';
+  fetch(SUPA_URL+'/auth/v1/token?grant_type=password',{
+    method:'POST', headers:{'apikey':SUPA_ANON,'Content-Type':'application/json'},
+    body:JSON.stringify({email:email,password:pass})
+  }).then(function(r){return r.json();}).then(function(d){
+    if(d.access_token){
+      currentToken=d.access_token;
+      currentSession={user_id:d.user&&d.user.id,email:d.user&&d.user.email};
+      try{localStorage.setItem(SK,JSON.stringify({token:d.access_token,expires_at:Date.now()+3600000,user_id:d.user&&d.user.id,email:d.user&&d.user.email}));}catch(e){}
+      document.getElementById('auth-overlay').style.display='none';
+      loadData();
+    } else {
+      err.textContent = (d.error_description||d.msg||'Identifiants incorrects.');
+      btn.disabled=false; btn.textContent='Connexion';
+    }
+  }).catch(function(){
+    err.textContent='Erreur réseau.'; btn.disabled=false; btn.textContent='Connexion';
+  });
+}
+
+function initAuth(){
+  try{
+    var s=localStorage.getItem(SK);
+    if(s){ var p=JSON.parse(s); if(p.token&&p.expires_at>Date.now()+60000){ currentToken=p.token; currentSession={user_id:p.user_id,email:p.email}; document.getElementById('auth-overlay').style.display='none'; loadData(); return;} }
+  }catch(e){}
+  document.getElementById('auth-overlay').style.display='flex';
+}
+
+// ═══════════════════════════════════════════════════════════
+// SYNC STATE
+// ═══════════════════════════════════════════════════════════
+function setSyncState(state, txt){
+  var b=document.getElementById('sync-badge');
+  var t=document.getElementById('sync-txt');
+  b.className='sync-badge '+state;
+  t.textContent=txt||'';
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOAD DATA
+// ═══════════════════════════════════════════════════════════
+function loadData(){
+  setSyncState('saving','Chargement…');
+  if(!isOnline){ loadFromLocal(); return; }
+  var h=authH(currentToken);
+  var base=SUPA_URL+'/rest/v1';
+  Promise.all([
+    fetch(base+'/intervention_reports?order=date.desc,heure.desc&select=*',{headers:h}).then(function(r){return r.ok?r.json():[];}),
+    fetch(base+'/rh_agents?order=nom&select=id,nom,prenom,statut&statut=eq.actif',{headers:h}).then(function(r){return r.ok?r.json():[];})
+  ]).then(function(results){
+    var rpts=results[0], ags=results[1];
+    if(Array.isArray(rpts)) DB.reports=rpts;
+    if(Array.isArray(ags)) DB.agents=ags;
+    try{localStorage.setItem(LS_KEY,JSON.stringify(DB));}catch(e){}
+    loadPending();
+    populateAgentSelects();
+    renderList();
+    var t=new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'});
+    setSyncState('ok','Sync '+t);
+    syncPending();
+  }).catch(function(e){
+    console.error('loadData:',e);
+    loadFromLocal();
+  });
+}
+
+function loadFromLocal(){
+  try{var s=localStorage.getItem(LS_KEY); if(s){var d=JSON.parse(s); DB.reports=d.reports||[]; DB.agents=d.agents||[];}}catch(e){}
+  loadPending();
+  populateAgentSelects();
+  renderList();
+  setSyncState('offline','Données locales');
+  if(!isOnline) document.getElementById('offline-banner').classList.add('show');
+}
+
+function loadPending(){
+  try{var s=localStorage.getItem(LS_PENDING); if(s){pendingSync=JSON.parse(s)||[];}}catch(e){}
+}
+
+// ═══════════════════════════════════════════════════════════
+// PENDING SYNC
+// ═══════════════════════════════════════════════════════════
+function addToPending(op){ pendingSync.push(op); try{localStorage.setItem(LS_PENDING,JSON.stringify(pendingSync));}catch(e){} }
+
+function syncPending(){
+  if(!isOnline||!currentToken||!pendingSync.length) return;
+  var ops=[].concat(pendingSync); pendingSync=[];
+  try{localStorage.setItem(LS_PENDING,'[]');}catch(e){}
+  var h=authH(currentToken);
+  var base=SUPA_URL+'/rest/v1';
+  ops.forEach(function(op){
+    if(op.type==='upsert'){
+      fetch(base+'/intervention_reports',{method:'POST',headers:Object.assign({},h,{'Prefer':'resolution=merge-duplicates,return=representation'}),body:JSON.stringify(op.data)})
+        .then(function(r){ if(!r.ok){ addToPending(op); r.text().then(function(t){console.error('[IR] sync upsert err:',t);}); }})
+        .catch(function(){ addToPending(op); });
+    } else if(op.type==='delete'){
+      fetch(base+'/intervention_reports?id=eq.'+op.id,{method:'DELETE',headers:h})
+        .catch(function(){ addToPending(op); });
+    }
+  });
+  setSyncState('ok','Sync '+new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'}));
+}
+
+// ═══════════════════════════════════════════════════════════
+// POPULATE SELECTS
+// ═══════════════════════════════════════════════════════════
+function agentName(ag){ return (ag.prenom||'')+' '+(ag.nom||''); }
+
+function populateAgentSelects(){
+  var opts = '<option value="">— Sélectionner —</option>';
+  var fOpts = '<option value="">Tous</option>';
+  DB.agents.forEach(function(a){
+    var n=agentName(a).trim();
+    if(!n) return;
+    opts += '<option value="'+esc(a.id)+'">'+esc(n)+'</option>';
+    fOpts += '<option value="'+esc(a.id)+'">'+esc(n)+'</option>';
+  });
+  document.getElementById('rpt-agent').innerHTML=opts;
+  document.getElementById('f-agent').innerHTML=fOpts;
+}
+
+function agentNameById(id){
+  var a=DB.agents.find(function(x){return String(x.id)===String(id);});
+  return a ? agentName(a).trim() : (id||'—');
+}
+
+// ═══════════════════════════════════════════════════════════
+// RENDER LIST
+// ═══════════════════════════════════════════════════════════
+function renderList(){
+  var search=(document.getElementById('f-search').value||'').toLowerCase();
+  var fStatut=document.getElementById('f-statut').value;
+  var fAgent=document.getElementById('f-agent').value;
+  var fMonth=document.getElementById('f-month').value;
+
+  // merge pending into display list (local-first)
+  var all=[].concat(DB.reports);
+  pendingSync.filter(function(op){return op.type==='upsert';}).forEach(function(op){
+    var idx=all.findIndex(function(r){return r.id===op.data.id;});
+    var merged=Object.assign({},op.data,{_offline:true});
+    if(idx>=0) all[idx]=merged; else all.unshift(merged);
+  });
+  pendingSync.filter(function(op){return op.type==='delete';}).forEach(function(op){
+    all=all.filter(function(r){return r.id!==op.id;});
+  });
+
+  // Sort by date desc
+  all.sort(function(a,b){
+    var da=(a.date||'')+(a.heure||'');
+    var db=(b.date||'')+(b.heure||'');
+    return db>da?1:db<da?-1:0;
+  });
+
+  // Filtered
+  var filtered=all.filter(function(r){
+    if(fStatut&&(r.statut_cloture||'draft')!==fStatut) return false;
+    if(fAgent&&String(r.agent_id)!==String(fAgent)) return false;
+    if(fMonth&&!(r.date||'').startsWith(fMonth)) return false;
+    if(search){
+      var hay=[r.titre,r.site,r.type_intervention,agentNameById(r.agent_id)].join(' ').toLowerCase();
+      if(!hay.includes(search)) return false;
+    }
+    return true;
+  });
+
+  // KPIs
+  var now=new Date(); var ym=now.getFullYear()+'-'+(String(now.getMonth()+1).padStart(2,'0'));
+  document.getElementById('kpi-total').textContent=all.length;
+  document.getElementById('kpi-regle').textContent=all.filter(function(r){return r.statut_cloture==='regle';}).length;
+  document.getElementById('kpi-prob').textContent=all.filter(function(r){return r.statut_cloture==='probleme';}).length;
+  document.getElementById('kpi-action').textContent=all.filter(function(r){return r.statut_cloture==='action';}).length;
+  document.getElementById('kpi-month').textContent=all.filter(function(r){return (r.date||'').startsWith(ym);}).length;
+
+  // Table
+  var html='';
+  if(!filtered.length){
+    html='<div class="empty-state"><div class="em-icon">📋</div><div class="em-title">'+(all.length?'Aucun résultat':'Aucun rapport')+'</div><div class="em-sub">'+(all.length?'Modifiez les filtres.':'Créez votre premier rapport.')+'</div></div>';
+  } else {
+    filtered.forEach(function(r){
+      html += '<div class="tbl-row" onclick="editReport(\''+r.id+'\')">';
+      html += '<div class="tbl-cell mono">'+(r.date?fmtDate(r.date):'—')+'</div>';
+      html += '<div class="tbl-cell mono">'+(r.heure||'—')+'</div>';
+      html += '<div class="tbl-cell bold">'+esc(r.titre||r.site||'—')+'</div>';
+      html += '<div class="tbl-cell">'+esc(agentNameById(r.agent_id))+'</div>';
+      html += '<div class="tbl-cell">'+esc(r.type_intervention||'—')+'</div>';
+      html += '<div class="tbl-cell">'+clBadge(r.statut_cloture,r._offline)+'</div>';
+      html += '<div class="tbl-cell" style="color:var(--text3);font-size:16px;">›</div>';
+      html += '</div>';
+    });
+  }
+  document.getElementById('tbl-body').innerHTML=html;
+}
+
+function clBadge(s, offline){
+  if(offline) return '<span class="badge b-offline">⚡ Offline</span>';
+  var map={regle:['b-regle','✔ Terminé'],action:['b-action','📅 Action'],info:['b-info','ℹ️ Info'],probleme:['b-probleme','⚠️ Problème']};
+  if(map[s]) return '<span class="badge '+map[s][0]+'">'+map[s][1]+'</span>';
+  return '<span class="badge b-draft">Brouillon</span>';
+}
+
+// ═══════════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════════
+function showPanel(id){
+  document.querySelectorAll('.panel').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('panel-'+id).classList.add('active');
+}
+
+function goList(){
+  showPanel('list');
+  renderList();
+}
+
+function openNewReport(){
+  editingId=null; photoCount=0;
+  clearForm();
+  var now=new Date();
+  document.getElementById('rpt-date').value=toISO(now);
+  document.getElementById('rpt-heure').value=now.toTimeString().slice(0,5);
+  document.getElementById('rpt-id-badge').textContent='NOUVEAU';
+  document.getElementById('btn-del').style.display='none';
+  if(!isOnline) document.getElementById('offline-banner').classList.add('show');
+  else document.getElementById('offline-banner').classList.remove('show');
+  showPanel('form');
+  document.getElementById('rpt-titre').focus();
+}
+
+function editReport(id){
+  var r=DB.reports.find(function(x){return x.id===id;});
+  // also check pending
+  if(!r){
+    var op=pendingSync.filter(function(o){return o.type==='upsert'&&o.data.id===id;});
+    if(op.length) r=op[op.length-1].data;
+  }
+  if(!r) return;
+  editingId=id; photoCount=0;
+  clearForm();
+  document.getElementById('rpt-titre').value=r.titre||'';
+  document.getElementById('rpt-date').value=r.date||'';
+  document.getElementById('rpt-heure').value=r.heure||'';
+  document.getElementById('rpt-agent').value=r.agent_id||'';
+  document.getElementById('rpt-nature').value=r.nature||'';
+  document.getElementById('rpt-localisation').value=r.localisation||'';
+  document.getElementById('rpt-type').value=r.type_intervention||'';
+  document.getElementById('rpt-constats').value=r.constats||'';
+  document.getElementById('rpt-actions').value=r.actions||'';
+  if(r.statut_cloture){ var el=document.getElementById('cl-'+r.statut_cloture); if(el) el.checked=true; }
+  var photos=r.photos||[];
+  photos.forEach(function(p){ appendPhoto(p.src,p.caption); });
+  document.getElementById('rpt-id-badge').textContent='#'+id.slice(-6).toUpperCase();
+  document.getElementById('btn-del').style.display='';
+  if(!isOnline) document.getElementById('offline-banner').classList.add('show');
+  else document.getElementById('offline-banner').classList.remove('show');
+  showPanel('form');
+}
+
+function clearForm(){
+  ['rpt-titre','rpt-date','rpt-heure','rpt-nature','rpt-localisation','rpt-type','rpt-constats','rpt-actions'].forEach(function(id){document.getElementById(id).value='';});
+  document.getElementById('rpt-agent').value='';
+  document.querySelectorAll('input[name="cloture"]').forEach(function(r){r.checked=false;});
+  document.getElementById('photo-zone').innerHTML='';
+}
+
+// ═══════════════════════════════════════════════════════════
+// SAVE
+// ═══════════════════════════════════════════════════════════
+function saveReport(){
+  var titre=document.getElementById('rpt-titre').value.trim();
+  if(!titre){ showToast('Le titre (site/client) est requis.',false); document.getElementById('rpt-titre').focus(); return; }
+  var cl=''; document.querySelectorAll('input[name="cloture"]').forEach(function(r){if(r.checked) cl=r.value;});
+  var photos=[];
+  document.querySelectorAll('#photo-zone .photo-item').forEach(function(item){
+    var img=item.querySelector('img');
+    var cap=item.querySelector('.photo-caption-input');
+    if(img) photos.push({src:img.src,caption:cap?cap.value:''});
+  });
+
+  var data={
+    id: editingId||(genId()),
+    titre:titre,
+    date:document.getElementById('rpt-date').value,
+    heure:document.getElementById('rpt-heure').value,
+    agent_id:document.getElementById('rpt-agent').value||null,
+    nature:document.getElementById('rpt-nature').value,
+    localisation:document.getElementById('rpt-localisation').value,
+    type_intervention:document.getElementById('rpt-type').value,
+    constats:document.getElementById('rpt-constats').value,
+    actions:document.getElementById('rpt-actions').value,
+    statut_cloture:cl||'draft',
+    photos:photos,
+    updated_at:new Date().toISOString(),
+    created_by:currentSession&&currentSession.user_id||null
+  };
+  if(!editingId) data.created_at=data.updated_at;
+
+  var btn=document.getElementById('btn-save');
+  btn.disabled=true; btn.textContent='Enregistrement…';
+
+  // Update local DB immediately
+  var idx=DB.reports.findIndex(function(r){return r.id===data.id;});
+  if(idx>=0) DB.reports[idx]=data; else DB.reports.unshift(data);
+  try{localStorage.setItem(LS_KEY,JSON.stringify(DB));}catch(e){}
+
+  editingId=data.id;
+  document.getElementById('rpt-id-badge').textContent='#'+data.id.slice(-6).toUpperCase();
+  document.getElementById('btn-del').style.display='';
+
+  if(!isOnline||!currentToken){
+    addToPending({type:'upsert',data:data});
+    btn.disabled=false; btn.textContent='💾 Enregistrer';
+    showToast('Sauvegardé localement — sync au retour en ligne.',true);
+    setSyncState('offline','Hors ligne');
+    return;
+  }
+
+  var h=authH(currentToken);
+  fetch(SUPA_URL+'/rest/v1/intervention_reports',{
+    method:'POST',
+    headers:Object.assign({},h,{'Prefer':'resolution=merge-duplicates,return=representation'}),
+    body:JSON.stringify(data)
+  }).then(function(r){
+    btn.disabled=false; btn.textContent='💾 Enregistrer';
+    if(r.ok){
+      showToast('Rapport enregistré.',true);
+      setSyncState('ok','Sync '+new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'}));
+    } else {
+      r.text().then(function(t){ console.error('[IR] save err:',t); showToast('Erreur Supabase.',false); });
+      addToPending({type:'upsert',data:data});
+    }
+  }).catch(function(e){
+    console.error('[IR] save catch:',e);
+    btn.disabled=false; btn.textContent='💾 Enregistrer';
+    addToPending({type:'upsert',data:data});
+    showToast('Sauvegardé localement.',true);
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// DELETE
+// ═══════════════════════════════════════════════════════════
+var _pendingDelete=null;
+function confirmDelete(){
+  _pendingDelete=editingId;
+  document.getElementById('confirm-overlay').classList.add('open');
+  document.getElementById('btn-confirm-del').onclick=doDelete;
+}
+function closeConfirm(){ document.getElementById('confirm-overlay').classList.remove('open'); _pendingDelete=null; }
+function doDelete(){
+  if(!_pendingDelete) return;
+  var id=_pendingDelete;
+  closeConfirm();
+  DB.reports=DB.reports.filter(function(r){return r.id!==id;});
+  try{localStorage.setItem(LS_KEY,JSON.stringify(DB));}catch(e){}
+  if(!isOnline||!currentToken){
+    addToPending({type:'delete',id:id});
+    showToast('Supprimé localement.',true);
+  } else {
+    fetch(SUPA_URL+'/rest/v1/intervention_reports?id=eq.'+id,{method:'DELETE',headers:authH(currentToken)})
+      .then(function(r){ if(r.ok) showToast('Rapport supprimé.',true); else{ addToPending({type:'delete',id:id}); showToast('Supprimé localement.',true);} })
+      .catch(function(){ addToPending({type:'delete',id:id}); showToast('Supprimé localement.',true); });
+  }
+  goList();
+}
+
+// ═══════════════════════════════════════════════════════════
+// PHOTOS
+// ═══════════════════════════════════════════════════════════
+function addPhoto(){ document.getElementById('photo-input').click(); }
+
+function handlePhotoFile(input){
+  var file=input.files[0]; if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(e){ appendPhoto(e.target.result,''); };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+function appendPhoto(src,caption){
+  photoCount++;
+  var zone=document.getElementById('photo-zone');
+  var item=document.createElement('div');
+  item.className='photo-item';
+  item.innerHTML=
+    '<button class="photo-del" onclick="this.closest(\'.photo-item\').remove()" title="Supprimer">×</button>'+
+    '<div class="photo-box"><img src="'+src+'" alt="Photo '+photoCount+'"></div>'+
+    '<input class="photo-caption-input" type="text" placeholder="Légende…" value="'+esc(caption||'')+'">';
+  zone.appendChild(item);
+}
+
+// ═══════════════════════════════════════════════════════════
+// PRINT
+// ═══════════════════════════════════════════════════════════
+function printReport(){ window.print(); }
+
+// ═══════════════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════════════
+function genId(){ return 'rpt_'+Date.now()+'_'+Math.random().toString(36).slice(2,7); }
+function toISO(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function fmtDate(s){ if(!s) return '—'; var p=s.split('-'); return p[2]+'.'+p[1]+'.'+p[0]; }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+var _toastTimer=null;
+function showToast(msg,ok){
+  var t=document.getElementById('toast');
+  t.textContent=msg;
+  t.className='toast show '+(ok?'ok':'err');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(function(){t.className='toast';},3000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+initAuth();
+</script>
+</body>
+</html>
