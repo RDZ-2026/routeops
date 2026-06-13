@@ -768,9 +768,10 @@ function renderStep(){
   else if(s==='agent'){
     hiddenNext=true;
     var needSearch=DB.agents.length>SEARCH_THRESHOLD;
-    var items=DB.agents.map(a=>{
-      var n=((a.prenom||'')+' '+(a.nom||'')).trim();
-      var initials=n.split(' ').map(w=>w[0]||'').join('').slice(0,2).toUpperCase();
+    var sortedAgents=[...DB.agents].sort((a,b)=>(a.nom||'').localeCompare(b.nom||'','fr'));
+    var items=sortedAgents.map(a=>{
+      var n=((a.nom||'')+' '+(a.prenom||'')).trim();
+      var initials=((a.nom||'').slice(0,1)+(a.prenom||'').slice(0,1)).toUpperCase();
       var colors=['#C8102E','#2563eb','#16a34a','#7c3aed','#ea580c','#0891b2','#d97706'];
       var bg=colors[(a.id||'x').charCodeAt(0)%colors.length];
       return `<div class="tile tile-h${WZ.agentId===a.id?' sel':''}" onclick="autoNext('agent',{id:'${a.id}',name:'${esc(n)}'},this)">
@@ -779,20 +780,17 @@ function renderStep(){
         <div class="tile-check">✓</div>
       </div>`;
     }).join('');
-    body=(needSearch?search('agt-list'):'')+'<div class="tiles-scroll"><div class="tile-grid" id="agt-list" style="grid-template-columns:1fr;">'+(items||noData())+'</div></div>';
+    body=(needSearch?search('agt-list'):'')+'<div class="tiles-scroll"><div class="tile-grid" id="agt-list">'+(items||noData())+'</div></div>';
   }
   else if(s==='client'){
     hiddenNext=true;
     var needSearch=DB.clients.length>SEARCH_THRESHOLD;
     var items=DB.clients.map(c=>{
-      var initials=(c.raison_sociale||'').slice(0,2).toUpperCase();
-      return `<div class="tile tile-h${WZ.clientId===c.id?' sel':''}" onclick="autoNext('client',{id:'${c.id}',name:'${esc(c.raison_sociale)}'},this)">
-        <div class="tile-av" style="background:#2563eb;color:white;">${initials}</div>
-        <div class="tile-h-info"><div class="tile-h-name">${esc(c.raison_sociale)}</div></div>
-        <div class="tile-check">✓</div>
+      return `<div class="tile t-b${WZ.clientId===c.id?' sel':''}" onclick="autoNext('client',{id:'${c.id}',name:'${esc(c.raison_sociale)}'},this)" style="min-height:56px;">
+        <div class="tile-lbl" style="font-size:13px;">${esc(c.raison_sociale)}</div>
       </div>`;
     }).join('');
-    body=(needSearch?search('cl-list'):'')+'<div class="tiles-scroll"><div class="tile-grid" id="cl-list" style="grid-template-columns:1fr;">'+(items||noData())+'</div></div>';
+    body=(needSearch?search('cl-list'):'')+'<div class="tiles-scroll"><div class="tile-grid" id="cl-list">'+(items||noData())+'</div></div>';
   }
   else if(s==='site'){
     hiddenNext=true;
@@ -855,7 +853,8 @@ function renderStep(){
     var thumbs=WZ.photos.map((p,i)=>`<div class="photo-thumb"><img src="${p.src}"><button class="ph-del" onclick="removePhoto(${i})">×</button></div>`).join('');
     body=`<div class="photo-row" id="ph-row">${thumbs}</div>
     <button class="btn-add-ph" onclick="document.getElementById('photo-input').click()">📷 Ajouter une photo</button>
-    <div class="wz-hint">Optionnel · La caméra s'ouvre directement sur mobile.</div>`;
+    <div class="wz-hint">Optionnel · La caméra s'ouvre directement sur mobile.</div>
+    ${WZ.photos.length?'<div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;" id="ph-caps">'+WZ.photos.map((p,i)=>`<div style="display:flex;align-items:center;gap:8px;"><img src="${p.src}" style="width:40px;height:40px;object-fit:cover;border-radius:6px;border:1px solid var(--border);flex-shrink:0;"><input class="wz-input" style="font-size:12.5px;padding:7px 10px;" type="text" placeholder="Légende photo ${i+1}…" value="${esc(p.caption||'')}" oninput="WZ.photos[${i}].caption=this.value"></div>`).join('')+'</div>':''}`;
   }
   else if(s==='recap'){
     var cat=DB.categories.find(c=>c.id===WZ.categorieId)||{icone:'',label:'—'};
