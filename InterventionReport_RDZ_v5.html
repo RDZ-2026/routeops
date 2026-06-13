@@ -834,7 +834,22 @@ function renderList(){
   document.getElementById('k-act').textContent=all.filter(r=>r.statut_cloture==='action').length;
   document.getElementById('k-month').textContent=all.filter(r=>(r.date||'').startsWith(ym)).length;
   document.getElementById('tbl-body').innerHTML=filtered.length
-    ?filtered.map(r=>{ var cat=catObj(r.categorie); var excerpt=(r.constats||'').split('\n')[0].slice(0,55); var excerptHtml=excerpt?('<br><span style="font-size:11px;color:var(--text3);font-style:italic;">'+esc(excerpt)+(r.constats&&r.constats.length>55?'…':'')+'</span>'):''; return '<div class="tbl-row" onclick="viewReport(''+r.id+'')">'+'<div class="tc mono">'+(r.date?fmtDate(r.date):'—')+'</div>'+'<div class="tc mono" style="font-size:11px;">'+(r.heure||'—').slice(0,5)+'</div>'+'<div class="tc"><span class="tc b">'+esc(r.client_name||'—')+'</span> <span style="color:var(--text3)">· '+esc(r.mission_name||'—')+'</span>'+excerptHtml+'</div>'+'<div class="tc">'+cat.icone+' '+esc(cat.label)+'</div>'+'<div class="tc">'+clBadge(r.statut_cloture)+'</div>'+'<div class="tc" style="color:var(--text3)">›</div></div>'; }).join('')
+    ?filtered.map(r=>{
+      var cat=catObj(r.categorie);
+      var excerpt=(r.constats||'').split('\n')[0].slice(0,55);
+      var excerptHtml=excerpt?('<br><span style="font-size:11px;color:var(--text3);font-style:italic;">'+esc(excerpt)+(r.constats&&r.constats.length>55?'\u2026':'')+'</span>'):'';
+      return [
+        '<div class="tbl-row" onclick="viewReport(\'' + r.id + '\')">',
+        '<div class="tc mono">'+(r.date?fmtDate(r.date):'\u2014')+'</div>',
+        '<div class="tc mono" style="font-size:11px;">'+(r.heure||'\u2014').slice(0,5)+'</div>',
+        '<div class="tc"><span class="tc b">'+esc(r.client_name||'\u2014')+'</span>',
+        ' <span style="color:var(--text3)">\u00b7 '+esc(r.mission_name||'\u2014')+'</span>'+excerptHtml+'</div>',
+        '<div class="tc">'+cat.icone+' '+esc(cat.label)+'</div>',
+        '<div class="tc">'+clBadge(r.statut_cloture)+'</div>',
+        '<div class="tc" style="color:var(--text3)">\u203a</div>',
+        '</div>'
+      ].join('');
+    }).join('')
     :'<div class="empty"><div style="font-size:32px;margin-bottom:10px;">📋</div><div style="font-size:14px;font-weight:600;color:var(--text2)">Aucun résultat</div></div>';
 }
 
@@ -899,7 +914,7 @@ function renderStep(){
     var needSearch=sites.length>SEARCH_THRESHOLD;
     var items=sites.map(m=>`<div class="tile tile-h${WZ.missionId===m.id?' sel':''}" onclick="autoNext('site',{id:'${m.id}',name:'${esc(m.titre)}'},this)">
       <div class="tile-av" style="background:#d1fae5;color:#065f46;font-size:18px;">📍</div>
-      <div class="tile-h-info"><div class="tile-h-name">${esc(m.titre)}</div>${m.adresse?`<div class="tile-h-sub">${esc(m.adresse)}</div>`:''}</div>
+      <div class="tile-h-info"><div class="tile-h-name">${esc(m.titre)}</div>${m.adresse?('<div class="tile-h-sub">'+esc(m.adresse)+'</div>'):''}</div>
       <div class="tile-check">✓</div>
     </div>`).join('');
     body=`<div style="font-size:12.5px;color:var(--text3);margin-bottom:10px;">Client : <strong style="color:var(--text)">${esc(WZ.clientName)}</strong></div>`+
@@ -1081,7 +1096,7 @@ function loadReportView(r){
   ['regle','action','info','probleme'].forEach(k=>{ document.getElementById('cl-'+k).className='cl-opt'+(r.statut_cloture===k?' '+clMap[k]:''); });
   var photos=r.photos||[];
   document.getElementById('rv-photos-sec').style.display=photos.length?'':'none';
-  document.getElementById('rv-photos').innerHTML=photos.map(p=>`<div class="photo-item"><div class="photo-box"><img src="${p.src}"></div>${p.caption?`<div class="photo-cap">${esc(p.caption)}</div>`:''}</div>`).join('');
+  document.getElementById('rv-photos').innerHTML=photos.map(p=>`<div class="photo-item"><div class="photo-box"><img src="${p.src}"></div>${p.caption?('<div class="photo-cap">'+esc(p.caption)+'</div>'):''}</div>`).join('');
   document.getElementById('btn-del-rpt').style.display='';
   showPanel('report'); showBackBtn();
 }
@@ -1455,9 +1470,9 @@ function renderBarChart(containerId, counts, allReports, type, color){
       <div class="bar-lbl" title="${esc(key)}">${esc(key)}</div>
       <div class="bar-track">
         <div class="bar-fill" style="width:${pct}%;background:${color};">
-          ${!valOutside?`<span class="bar-val">${val}</span>`:''}
+          ${!valOutside?('<span class="bar-val">'+val+'</span>'):''}
         </div>
-        ${valOutside?`<span class="bar-val outside">${val}</span>`:''}
+        ${valOutside?('<span class="bar-val outside">'+val+'</span>'):''}
       </div>
     </div>`;
   }).join('');
