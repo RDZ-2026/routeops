@@ -799,15 +799,36 @@ function addPending(op){ pending.push(op); savePending(); }
 function syncPending(){
   if(!isOnline||!tok||!pending.length) return;
   var ops=[...pending]; pending=[]; savePending();
-  ops.forEach(op=>{
-    if(op.type==='upsert')
-      fetch(SB+'/rest/v1/intervention_reports',{method:'POST',headers:Object.assign({},hdr(tok),{'Prefer':'resolution=merge-duplicates,return=representation'}),body:JSON.stringify(op.data)})
-        .catch(()=>addPending(op));
-    else if(op.type==='delete')
+  ops.forEach(function(op){
+    if(op.type==='upsert'){
+      // Nettoyer les champs inconnus de Supabase avant envoi
+      var data=cleanForSupabase(op.data);
+      fetch(SB+'/rest/v1/intervention_reports',{method:'POST',headers:Object.assign({},hdr(tok),{'Prefer':'resolution=merge-duplicates,return=representation'}),body:JSON.stringify(data)})
+        .then(function(r){
+          if(!r.ok) r.json().then(function(err){
+            console.error('[syncPending 400] id='+op.data.id, JSON.stringify(err));
+            showToast('Erreur sync : '+(err.message||err.hint||err.code||'voir console'),false);
+            addPending(op);
+          }).catch(function(){ addPending(op); });
+        })
+        .catch(function(){ addPending(op); });
+    } else if(op.type==='delete'){
       fetch(SB+'/rest/v1/intervention_reports?id=eq.'+op.id,{method:'DELETE',headers:hdr(tok)})
-        .catch(()=>addPending(op));
+        .catch(function(){ addPending(op); });
+    }
   });
   setSyncState('ok','Sync '+now());
+}
+
+/* Colonnes autorisées dans Supabase — doit correspondre exactement à la table */
+function cleanForSupabase(r){
+  var allowed=['id','date','heure','agent_id','agent_name','client_id','client_name',
+               'mission_id','mission_name','localisation','categorie','nature',
+               'constats','actions','statut_cloture','photos',
+               'created_at','updated_at','created_by'];
+  var clean={};
+  allowed.forEach(function(k){ if(r[k]!==undefined) clean[k]=r[k]; });
+  return clean;
 }
 
 /* ════ LISTE ════ */
@@ -1074,7 +1095,7 @@ function doSave(){
     fetch(SB+'/rest/v1/intervention_reports',{
       method:'POST',
       headers:Object.assign({},hdr(tok),{'Prefer':'resolution=merge-duplicates,return=representation'}),
-      body:JSON.stringify(data)
+      body:JSON.stringify(cleanForSupabase(data))
     }).then(function(r){
       if(r.ok){
         setSyncState('ok','Sync '+now());
@@ -1551,7 +1572,7 @@ function syncAll(){
       setSyncState('ok','Sync '+now());
       return;
     }
-    fetch(SB+'/rest/v1/intervention_reports',{method:'POST',headers:h,body:JSON.stringify(toSync[i])})
+    fetch(SB+'/rest/v1/intervention_reports',{method:'POST',headers:h,body:JSON.stringify(cleanForSupabase(toSync[i]))})
       .then(function(r){
         if(r.ok){ done++; sendNext(i+1); }
         else { r.json().then(function(err){ console.error('[SyncAll 400] rapport '+toSync[i].id, JSON.stringify(err)); errors++; sendNext(i+1); }).catch(function(){ errors++; sendNext(i+1); }); }
