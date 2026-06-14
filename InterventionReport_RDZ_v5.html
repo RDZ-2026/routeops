@@ -90,7 +90,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .tbl-row:last-child{border-bottom:none;}
 .tbl-row:hover{background:#fafafa;}
 .tc{font-size:12.5px;color:var(--text2);padding:9px 8px 9px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.tc.wrap{white-space:normal;overflow:visible;padding-top:9px;padding-bottom:9px;line-height:1.4;}
+.tc.wrap{white-space:normal;overflow:visible;padding-top:8px;padding-bottom:8px;line-height:1.4;}
 .tc.b{font-weight:600;color:var(--text);}
 .tc.mono{font-family:'DM Mono';font-size:11.5px;}
 .empty{padding:50px 20px;text-align:center;color:var(--text3);}
@@ -395,7 +395,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <div class="list-wrap">
   <div class="list-hdr">
     <div><div class="list-title">Rapports d'Intervention</div><div style="font-size:12.5px;color:var(--text3);margin-top:3px;">Historique des interventions terrain</div></div>
-    <button class="btn-new" onclick="startWizard()">+ Nouveau rapport</button>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button class="btn-sm" id="btn-sync-all" onclick="syncAll()" title="Synchroniser tous les rapports locaux vers Supabase">☁️ Sync</button>
+      <button class="btn-new" onclick="startWizard()">+ Nouveau rapport</button>
+    </div>
   </div>
   <div class="kpis">
     <div class="kpi"><div class="kpi-n" id="k-total">—</div><div class="kpi-l">Total</div></div>
@@ -773,6 +776,7 @@ function loadAll(){
     try{pending=JSON.parse(localStorage.getItem(LS_PND)||'[]');}catch(e){}
     populateClientFilter(); renderList();
     setSyncState('ok','Sync '+now()); syncPending();
+    migrateOldData();
   }).catch(()=>loadLocal());
 }
 function loadLocal(){
@@ -782,6 +786,7 @@ function loadLocal(){
   }catch(e){}
   try{pending=JSON.parse(localStorage.getItem(LS_PND)||'[]');}catch(e){}
   populateClientFilter(); renderList(); setSyncState('err','Hors ligne');
+  migrateOldData();
 }
 function populateClientFilter(){
   document.getElementById('f-cl').innerHTML='<option value="">Tous clients</option>'+
@@ -1062,10 +1067,27 @@ function doSave(){
   if(i>=0) DB.reports[i]=data; else DB.reports.unshift(data);
   try{localStorage.setItem(LS_DB,JSON.stringify(DB));}catch(e){}
   editingId=id;
-  if(!isOnline||!tok){ addPending({type:'upsert',data}); showToast('Sauvegardé localement ✓',true); }
-  else fetch(SB+'/rest/v1/intervention_reports',{method:'POST',headers:Object.assign({},hdr(tok),{'Prefer':'resolution=merge-duplicates,return=representation'}),body:JSON.stringify(data)})
-    .then(r=>{ if(!r.ok) addPending({type:'upsert',data}); showToast('Rapport enregistré ✓',true); })
-    .catch(()=>{ addPending({type:'upsert',data}); showToast('Sauvegardé localement ✓',true); });
+  if(!isOnline||!tok){
+    addPending({type:'upsert',data});
+    showToast('Hors ligne — sera synchronisé automatiquement',true);
+  } else {
+    fetch(SB+'/rest/v1/intervention_reports',{
+      method:'POST',
+      headers:Object.assign({},hdr(tok),{'Prefer':'resolution=merge-duplicates,return=representation'}),
+      body:JSON.stringify(data)
+    }).then(r=>{
+      if(r.ok){
+        setSyncState('ok','Sync '+now());
+        showToast('Rapport enregistré dans Supabase ✓',true);
+      } else {
+        addPending({type:'upsert',data});
+        showToast('Erreur Supabase — sauvegardé localement',false);
+      }
+    }).catch(()=>{
+      addPending({type:'upsert',data});
+      showToast('Réseau indisponible — sauvegardé localement',false);
+    });
+  }
   loadReportView(data);
 }
 function saveReport(){
@@ -1505,6 +1527,86 @@ function drillDown(key, type, label){
 }
 
 function closeDrill(){ document.getElementById('drill-wrap').style.display='none'; }
+
+/* ════ SYNC ALL LOCAL → SUPABASE ════ */
+function syncAll(){
+  if(!isOnline||!tok){ showToast('Hors ligne — connexion requise.',false); return; }
+  var btn=document.getElementById('btn-sync-all');
+  btn.textContent='☁️ Sync…'; btn.disabled=true;
+  // Envoyer tous les rapports locaux
+  var toSync=[...DB.reports];
+  if(!toSync.length){ btn.textContent='☁️ Sync'; btn.disabled=false; showToast('Aucun rapport à synchroniser.',true); return; }
+  var done=0, errors=0;
+  var h=Object.assign({},hdr(tok),{'Prefer':'resolution=merge-duplicates,return=representation'});
+  // Envoyer par batch de 1 pour éviter les timeouts
+  function sendNext(i){
+    if(i>=toSync.length){
+      btn.textContent='☁️ Sync'; btn.disabled=false;
+      // Aussi vider les pending
+      syncPending();
+      showToast('Sync terminée : '+done+' rapport(s) envoyé(s)'+(errors?' — '+errors+' erreur(s)':'')+' ✓',errors===0);
+      setSyncState('ok','Sync '+now());
+      return;
+    }
+    fetch(SB+'/rest/v1/intervention_reports',{method:'POST',headers:h,body:JSON.stringify(toSync[i])})
+      .then(r=>{ if(r.ok) done++; else errors++; sendNext(i+1); })
+      .catch(()=>{ errors++; sendNext(i+1); });
+  }
+  sendNext(0);
+}
+
+/* ════ MIGRATION ANCIENNES VERSIONS → v5 ════ */
+function migrateOldData(){
+  var oldKeys=['rdz_ir_db','rdz_ir3_db','rdz_ir4_db','rdz_ir5_db'];
+  var oldPending=['rdz_ir_pending','rdz_ir3_pending','rdz_ir4_pending','rdz_ir5_pending'];
+  var migrated=0, pendingMigrated=0;
+
+  oldKeys.forEach(function(key){
+    if(key===LS_DB) return; // skip current version
+    try{
+      var raw=localStorage.getItem(key);
+      if(!raw) return;
+      var d=JSON.parse(raw);
+      var reports=d.reports||[];
+      if(!reports.length) return;
+      reports.forEach(function(r){
+        // Ne pas écraser si déjà présent dans DB actuelle
+        if(!DB.reports.find(function(x){return x.id===r.id;})){
+          DB.reports.push(r);
+          migrated++;
+        }
+      });
+      console.log('[Migration] '+key+' : '+reports.length+' rapport(s) trouvé(s)');
+    }catch(e){ console.warn('[Migration] Erreur sur '+key,e); }
+  });
+
+  oldPending.forEach(function(key){
+    if(key===LS_PND) return;
+    try{
+      var raw=localStorage.getItem(key);
+      if(!raw) return;
+      var ops=JSON.parse(raw);
+      if(!Array.isArray(ops)||!ops.length) return;
+      ops.forEach(function(op){
+        if(!pending.find(function(x){return JSON.stringify(x)===JSON.stringify(op);})){
+          pending.push(op);
+          pendingMigrated++;
+        }
+      });
+    }catch(e){}
+  });
+
+  if(migrated>0||pendingMigrated>0){
+    // Sauvegarder la DB fusionnée
+    try{localStorage.setItem(LS_DB,JSON.stringify(DB));}catch(e){}
+    savePending();
+    renderList();
+    showToast(migrated+' rapport(s) récupéré(s) des versions précédentes ✓',true);
+    console.log('[Migration] Total migré : '+migrated+' rapports, '+pendingMigrated+' pending');
+    // Sync immédiate si en ligne
+    if(isOnline&&tok) syncAll();
+  }
+}
 
 initAuth();
 </script>
