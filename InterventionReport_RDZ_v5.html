@@ -90,7 +90,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .tbl-row:last-child{border-bottom:none;}
 .tbl-row:hover{background:#fafafa;}
 .tc{font-size:12.5px;color:var(--text2);padding:9px 8px 9px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.tc.wrap{white-space:normal;overflow:visible;padding-top:10px;padding-bottom:10px;}
+.tc.wrap{white-space:normal;overflow:visible;padding-top:9px;padding-bottom:9px;line-height:1.4;}
 .tc.b{font-weight:600;color:var(--text);}
 .tc.mono{font-family:'DM Mono';font-size:11.5px;}
 .empty{padding:50px 20px;text-align:center;color:var(--text3);}
@@ -332,9 +332,8 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 @media(max-width:600px){
   .kpis{grid-template-columns:repeat(3,1fr);}
   .kpis .kpi:nth-child(n+4){display:none;}
-  .tbl-head,.tbl-row{grid-template-columns:80px 1fr 80px 26px;}
-  .tbl-head span:nth-child(2),.tbl-row .tc:nth-child(2),
-  .tbl-head span:nth-child(4),.tbl-row .tc:nth-child(4){display:none;}
+  .tbl-head,.tbl-row{grid-template-columns:78px 1fr 80px 20px;}
+  .tbl-head span:nth-child(2),.tbl-row .tc:nth-child(2){display:none;}
   .meta{grid-template-columns:1fr 1fr;}
   .meta-cell:nth-child(2){border-right:none;}
   .hdr-row{flex-direction:column;}
@@ -418,7 +417,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <input class="fsel" type="month" id="f-mo" onchange="renderList()">
   </div>
   <div class="tbl">
-    <div class="tbl-head" style="grid-template-columns:90px 50px 1fr 130px 100px 32px;"><span>Date</span><span>Heure</span><span>Client · Site · Constat</span><span>Catégorie</span><span>Statut</span><span></span></div>
+    <div class="tbl-head"><span>Date</span><span>Heure</span><span>Client · Site · Constat</span><span>Statut</span><span></span></div>
     <div id="tbl-body"><div class="empty"><div style="font-size:32px;margin-bottom:10px;">📋</div><div style="font-size:14px;font-weight:600;color:var(--text2)">Aucun rapport</div></div></div>
   </div>
 </div>
@@ -843,9 +842,10 @@ function renderList(){
         '<div class="tbl-row" onclick="viewReport(\'' + r.id + '\')">',
         '<div class="tc mono">'+(r.date?fmtDate(r.date):'\u2014')+'</div>',
         '<div class="tc mono" style="font-size:11px;">'+(r.heure||'\u2014').slice(0,5)+'</div>',
-        '<div class="tc wrap"><span style="font-weight:600;color:var(--text);">'+esc(r.client_name||'\u2014')+'</span>',
-        ' <span style="color:var(--text3)">\u00b7 '+esc(r.mission_name||'\u2014')+'</span>'+excerptHtml+'</div>',
-        '<div class="tc">'+cat.icone+' '+esc(cat.label)+'</div>',
+        '<div class="tc wrap">'+
+        '<div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.4;">'+esc(r.client_name||'\u2014')+'<span style="color:var(--red);font-weight:400;font-size:13px;margin:0 5px;">\u00b7</span><span style="font-weight:600;color:var(--text2);">'+esc(r.mission_name||'\u2014')+'</span></div>'+
+        '<div style="font-size:11px;color:var(--text3);margin-top:2px;">'+cat.icone+' '+esc(cat.label)+'</div>'+
+        ((r.constats||'')?'<div style="font-size:11.5px;color:var(--text3);margin-top:2px;font-style:italic;">'+(r.constats||'').split('\n')[0].slice(0,65)+(r.constats.length>65?'\u2026':'')+'</div>':'')+'</div>',
         '<div class="tc">'+clBadge(r.statut_cloture)+'</div>',
         '<div class="tc" style="color:var(--text3)">\u203a</div>',
         '</div>'
