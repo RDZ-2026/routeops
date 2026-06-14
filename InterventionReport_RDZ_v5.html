@@ -1075,15 +1075,18 @@ function doSave(){
       method:'POST',
       headers:Object.assign({},hdr(tok),{'Prefer':'resolution=merge-duplicates,return=representation'}),
       body:JSON.stringify(data)
-    }).then(r=>{
+    }).then(function(r){
       if(r.ok){
         setSyncState('ok','Sync '+now());
         showToast('Rapport enregistré dans Supabase ✓',true);
       } else {
+        r.json().then(function(err){
+          console.error('[Supabase 400]', JSON.stringify(err));
+          showToast('Erreur Supabase : '+(err.message||err.hint||JSON.stringify(err)),false);
+        }).catch(function(){ showToast('Erreur Supabase inconnue',false); });
         addPending({type:'upsert',data});
-        showToast('Erreur Supabase — sauvegardé localement',false);
       }
-    }).catch(()=>{
+    }).catch(function(){
       addPending({type:'upsert',data});
       showToast('Réseau indisponible — sauvegardé localement',false);
     });
@@ -1549,8 +1552,11 @@ function syncAll(){
       return;
     }
     fetch(SB+'/rest/v1/intervention_reports',{method:'POST',headers:h,body:JSON.stringify(toSync[i])})
-      .then(r=>{ if(r.ok) done++; else errors++; sendNext(i+1); })
-      .catch(()=>{ errors++; sendNext(i+1); });
+      .then(function(r){
+        if(r.ok){ done++; sendNext(i+1); }
+        else { r.json().then(function(err){ console.error('[SyncAll 400] rapport '+toSync[i].id, JSON.stringify(err)); errors++; sendNext(i+1); }).catch(function(){ errors++; sendNext(i+1); }); }
+      })
+      .catch(function(){ errors++; sendNext(i+1); });
   }
   sendNext(0);
 }
