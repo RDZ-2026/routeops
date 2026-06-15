@@ -906,7 +906,7 @@ function renderStep(){
     body=`<div class="dt-row">
       <div class="dt-field"><label>Date</label><input class="wz-input" type="date" id="wz-d" value="${WZ.date}" oninput="WZ.date=this.value"></div>
       <div class="dt-field"><label>Heure</label><input class="wz-input" type="time" id="wz-h" value="${WZ.heure}" oninput="WZ.heure=this.value"></div>
-    </div><div class="wz-hint">Pré-rempli à l'heure actuelle.</div>`;
+    </div><div class="wz-hint">Pré-rempli à l’heure actuelle.</div>`;
   }
   else if(s==='agent'){
     hiddenNext=true;
@@ -949,8 +949,10 @@ function renderStep(){
       '<div class="tiles-scroll"><div class="tile-grid" id="site-list" style="grid-template-columns:1fr;">'+(sites.length?items:naSite())+'</div></div>';
   }
   else if(s==='localisation'){
-    body='<input class="wz-input" type="text" id="wz-loc" value="'+(WZ.localisation||'').replace(/"/g,"&quot;")+'" placeholder="Ex : Bât. A · sous-sol · couloir Nord…" oninput="WZ.localisation=this.value">'+
-    '<div class="wz-hint">Optionnel — précise le lieu exact dans le site « '+esc(WZ.missionName||'')+' »</div>';
+    var locVal=(WZ.localisation||'').replace(/"/g,'&quot;');
+    var locSite=esc(WZ.missionName||'');
+    body='<input class="wz-input" type="text" id="wz-loc" value="'+locVal+'" placeholder="Ex : Bat. A, sous-sol, couloir Nord..." oninput="WZ.localisation=this.value">'
+      +'<div class="wz-hint">Optionnel — lieu exact dans le site '+locSite+'</div>';
   }
   else if(s==='categorie'){
     hiddenNext=true;
@@ -994,9 +996,9 @@ function renderStep(){
     }
     var suggs=DB.suggestions.filter(function(sg){return sg.nature_id===WZ.natureId&&sg.actif&&sg.type==='mesure';}).sort(function(a,b){return a.ordre-b.ordre;});
     var actionsVal=WZ.actions||'';
-    var chips=suggs.map(function(sg){
+    var chips=suggs.map(function(sg,si){
       var isSel=actionsVal.indexOf(sg.texte)>=0;
-      return '<div class="chip'+(isSel?' sel':'')+'" onclick="toggleChip2(this,''+sg.texte.replace(/'/g,"\'")+'')">'+(sg.texte)+'</div>';
+      return '<div class="chip'+(isSel?' sel':'')+'" data-ci="'+si+'" onclick="chipClick(this,true)">'+(sg.texte)+'</div>';
     }).join('');
     body=(chips?'<div class="chips-label">Suggestions rapides</div><div class="chips">'+chips+'</div>':'')+
       '<textarea class="wz-textarea" id="wz-actions" placeholder="Qu'avez-vous fait ?" oninput="WZ.actions=this.value">'+actionsVal+'</textarea>';
@@ -1068,16 +1070,30 @@ function wzNext(){
 }
 function wzPrev(){ if(step>0){ step--; renderStep(); window.scrollTo(0,54); } }
 function filterTiles(inp,listId){ var q=inp.value.toLowerCase(); var list=document.getElementById(listId); if(!list) return; list.querySelectorAll('.tile').forEach(t=>{ t.style.display=t.textContent.toLowerCase().includes(q)?'':'none'; }); }
-function toggleChip(el,txt){
-  if(WZ.constats.includes(txt)){ WZ.constats=WZ.constats.replace('\n'+txt,'').replace(txt,'').trim(); el.classList.remove('sel'); }
-  else { WZ.constats=(WZ.constats?WZ.constats+'\n':'')+txt; el.classList.add('sel'); }
-  var ta=document.getElementById('wz-constats'); if(ta) ta.value=WZ.constats;
+function chipClick(el, isAction){
+  var txt=el.textContent||el.innerText||'';
+  if(!isAction){
+    if((WZ.constats||'').indexOf(txt)>=0){
+      WZ.constats=(WZ.constats||'').replace('\n'+txt,'').replace(txt,'').trim();
+      el.classList.remove('sel');
+    } else {
+      WZ.constats=(WZ.constats?WZ.constats+'\n':'')+txt;
+      el.classList.add('sel');
+    }
+    var ta=document.getElementById('wz-constats'); if(ta) ta.value=WZ.constats;
+  } else {
+    if((WZ.actions||'').indexOf(txt)>=0){
+      WZ.actions=(WZ.actions||'').replace('\n'+txt,'').replace(txt,'').trim();
+      el.classList.remove('sel');
+    } else {
+      WZ.actions=(WZ.actions?WZ.actions+'\n':'')+txt;
+      el.classList.add('sel');
+    }
+    var ta=document.getElementById('wz-actions'); if(ta) ta.value=WZ.actions;
+  }
 }
-function toggleChip2(el,txt){
-  if(WZ.actions.includes(txt)){ WZ.actions=WZ.actions.replace('\n'+txt,'').replace(txt,'').trim(); el.classList.remove('sel'); }
-  else { WZ.actions=(WZ.actions?WZ.actions+'\n':'')+txt; el.classList.add('sel'); }
-  var ta=document.getElementById('wz-actions'); if(ta) ta.value=WZ.actions;
-}
+function toggleChip(el,txt){ chipClick(el,false); }
+function toggleChip2(el,txt){ chipClick(el,true); }
 function handlePhoto(inp){ var f=inp.files[0]; if(!f) return; var rd=new FileReader(); rd.onload=function(e){ WZ.photos.push({src:e.target.result,caption:''}); renderStep(); }; rd.readAsDataURL(f); inp.value=''; }
 function removePhoto(i){ WZ.photos.splice(i,1); renderStep(); }
 
