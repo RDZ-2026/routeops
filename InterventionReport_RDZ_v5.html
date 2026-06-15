@@ -983,10 +983,10 @@ function renderStep(){
     var constatsVal=WZ.constats||'';
     var chips=suggs.map(function(sg){
       var isSel=constatsVal.indexOf(sg.texte)>=0;
-      return '<div class="chip'+(isSel?' sel':'')+'" onclick="toggleChip(this,''+sg.texte.replace(/'/g,"\'")+'')">'+(sg.texte)+'</div>';
+      return '<div class="chip'+(isSel?' sel':'')+'" data-ci="'+si+'" onclick="chipClick(this,false)">'+(sg.texte)+'</div>';
     }).join('');
     body=(chips?'<div class="chips-label">Suggestions rapides</div><div class="chips">'+chips+'</div>':'')+
-      '<textarea class="wz-textarea" id="wz-constats" placeholder="Qu'avez-vous trouvé ?" oninput="WZ.constats=this.value">'+constatsVal+'</textarea>'+
+      '<textarea class="wz-textarea" id="wz-constats" placeholder="Que constatez-vous ?" oninput="WZ.constats=this.value">'+constatsVal+'</textarea>'+
       '<div class="wz-hint">Tapez sur une suggestion ou rédigez librement.</div>';
   }
   else if(s==='actions'){
@@ -1001,7 +1001,7 @@ function renderStep(){
       return '<div class="chip'+(isSel?' sel':'')+'" data-ci="'+si+'" onclick="chipClick(this,true)">'+(sg.texte)+'</div>';
     }).join('');
     body=(chips?'<div class="chips-label">Suggestions rapides</div><div class="chips">'+chips+'</div>':'')+
-      '<textarea class="wz-textarea" id="wz-actions" placeholder="Qu'avez-vous fait ?" oninput="WZ.actions=this.value">'+actionsVal+'</textarea>';
+      '<textarea class="wz-textarea" id="wz-actions" placeholder="Quelles actions avez-vous prises ?" oninput="WZ.actions=this.value">'+actionsVal+'</textarea>';
   }
   else if(s==='cloture'){
     hiddenNext=true;
