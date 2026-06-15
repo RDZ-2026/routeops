@@ -917,7 +917,7 @@ function renderStep(){
       var initials=((a.nom||'').slice(0,1)+(a.prenom||'').slice(0,1)).toUpperCase();
       var colors=['#C8102E','#2563eb','#16a34a','#7c3aed','#ea580c','#0891b2','#d97706'];
       var bg=colors[(a.id||'x').charCodeAt(0)%colors.length];
-      return `<div class="tile tile-h${WZ.agentId===a.id?' sel':''}" onclick="autoNext('agent',{id:'${a.id}',name:'${esc(n)}'},this)">
+      return `<div class="tile tile-h${String(WZ.agentId)===String(a.id)?' sel':''}" onclick="autoNext('agent',{id:'${a.id}',name:'${esc(n)}'},this)">
         <div class="tile-av" style="background:${bg};color:white;">${initials}</div>
         <div class="tile-h-info"><div class="tile-h-name">${esc(n)}</div></div>
         <div class="tile-check">✓</div>
@@ -929,7 +929,7 @@ function renderStep(){
     hiddenNext=true;
     var needSearch=DB.clients.length>SEARCH_THRESHOLD;
     var items=DB.clients.map(c=>{
-      return `<div class="tile t-b${WZ.clientId===c.id?' sel':''}" onclick="autoNext('client',{id:'${c.id}',name:'${esc(c.raison_sociale)}'},this)" style="min-height:56px;">
+      return `<div class="tile t-b${String(WZ.clientId)===String(c.id)?' sel':''}" onclick="autoNext('client',{id:'${c.id}',name:'${esc(c.raison_sociale)}'},this)" style="min-height:56px;">
         <div class="tile-lbl" style="font-size:13px;">${esc(c.raison_sociale)}</div>
       </div>`;
     }).join('');
@@ -939,7 +939,7 @@ function renderStep(){
     hiddenNext=true;
     var sites=DB.missions.filter(m=>m.client_id===WZ.clientId);
     var needSearch=sites.length>SEARCH_THRESHOLD;
-    var items=sites.map(m=>`<div class="tile tile-h${WZ.missionId===m.id?' sel':''}" onclick="autoNext('site',{id:'${m.id}',name:'${esc(m.titre)}'},this)">
+    var items=sites.map(m=>`<div class="tile tile-h${String(WZ.missionId)===String(m.id)?' sel':''}" onclick="autoNext('site',{id:'${m.id}',name:'${esc(m.titre)}'},this)">
       <div class="tile-av" style="background:#d1fae5;color:#065f46;font-size:18px;">📍</div>
       <div class="tile-h-info"><div class="tile-h-name">${esc(m.titre)}</div>${m.adresse?('<div class="tile-h-sub">'+esc(m.adresse)+'</div>'):''}</div>
       <div class="tile-check">✓</div>
@@ -955,7 +955,7 @@ function renderStep(){
   else if(s==='categorie'){
     hiddenNext=true;
     var activeCats=DB.categories.filter(c=>c.actif).sort((a,b)=>a.ordre-b.ordre);
-    var items=activeCats.map(c=>`<div class="tile ${CATCOLOR[c.couleur]||''}${WZ.categorieId===c.id?' sel':''}" onclick="autoNext('cat',{id:'${c.id}',name:'${esc(c.label)}'},this)">
+    var items=activeCats.map(c=>`<div class="tile ${CATCOLOR[c.couleur]||''}${String(WZ.categorieId)===String(c.id)?' sel':''}" onclick="autoNext('cat',{id:'${c.id}',name:'${esc(c.label)}'},this)">
       <div class="tile-ico">${c.icone}</div>
       <div class="tile-lbl">${esc(c.label)}</div>
     </div>`).join('');
@@ -965,7 +965,7 @@ function renderStep(){
     hiddenNext=true;
     var nats=DB.natures.filter(n=>n.category_id===WZ.categorieId&&n.actif).sort((a,b)=>a.ordre-b.ordre);
     var needSearch=nats.length>SEARCH_THRESHOLD;
-    var items=nats.map(n=>`<div class="tile tile-h${WZ.natureId===n.id?' sel':''}" onclick="autoNext('nature',{id:'${n.id}',name:'${esc(n.label)}'},this)">
+    var items=nats.map(n=>`<div class="tile tile-h${String(WZ.natureId)===String(n.id)?' sel':''}" onclick="autoNext('nature',{id:'${n.id}',name:'${esc(n.label)}'},this)">
       <div class="tile-h-info"><div class="tile-h-name">${esc(n.label)}</div></div>
       <div class="tile-check">✓</div>
     </div>`).join('');
@@ -973,20 +973,20 @@ function renderStep(){
   }
   else if(s==='constats'){
     var suggs=DB.suggestions.filter(sg=>sg.nature_id===WZ.natureId&&sg.actif&&sg.type==='constat').sort((a,b)=>a.ordre-b.ordre);
-    var chips=suggs.map(sg=>`<div class="chip${WZ.constats.includes(sg.texte)?' sel':''}" onclick="toggleChip(this,'${esc(sg.texte)}')">${esc(sg.texte)}</div>`).join('');
+    var chips=suggs.map(sg=>`<div class="chip${(WZ.constats||'').includes(sg.texte)?' sel':''}" onclick="toggleChip(this,'${esc(sg.texte)}')">${esc(sg.texte)}</div>`).join('');
     body=(chips?`<div class="chips-label">Suggestions rapides</div><div class="chips">${chips}</div>`:'')+
       `<textarea class="wz-textarea" id="wz-constats" placeholder="Qu'avez-vous trouvé ?" oninput="WZ.constats=this.value">${esc(WZ.constats)}</textarea>
       <div class="wz-hint">Tapez sur une suggestion ou rédigez librement.</div>`;
   }
   else if(s==='actions'){
     var suggs=DB.suggestions.filter(sg=>sg.nature_id===WZ.natureId&&sg.actif&&sg.type==='mesure').sort((a,b)=>a.ordre-b.ordre);
-    var chips=suggs.map(sg=>`<div class="chip${WZ.actions.includes(sg.texte)?' sel':''}" onclick="toggleChip2(this,'${esc(sg.texte)}')">${esc(sg.texte)}</div>`).join('');
+    var chips=suggs.map(sg=>`<div class="chip${(WZ.actions||'').includes(sg.texte)?' sel':''}" onclick="toggleChip2(this,'${esc(sg.texte)}')">${esc(sg.texte)}</div>`).join('');
     body=(chips?`<div class="chips-label">Suggestions rapides</div><div class="chips">${chips}</div>`:'')+
       `<textarea class="wz-textarea" id="wz-actions" placeholder="Qu'avez-vous fait ?" oninput="WZ.actions=this.value">${esc(WZ.actions)}</textarea>`;
   }
   else if(s==='cloture'){
     hiddenNext=true;
-    var items=CLOTURES.map(c=>`<div class="tile${WZ.cloture===c.id?' sel':''}" onclick="autoNext('cloture',{id:'${c.id}',name:'${c.lbl}'},this)" style="min-height:76px;">
+    var items=CLOTURES.map(c=>`<div class="tile${String(WZ.cloture)===String(c.id)?' sel':''}" onclick="autoNext('cloture',{id:'${c.id}',name:'${c.lbl}'},this)" style="min-height:76px;">
       <div class="tile-ico">${c.ico}</div>
       <div class="tile-lbl">${c.lbl}</div>
     </div>`).join('');
@@ -1148,12 +1148,20 @@ function loadReportView(r){
   showPanel('report'); showBackBtn();
 }
 function editFromReport(){
-  var r=DB.reports.find(x=>x.id===editingId); if(!r) return;
-  WZ={date:r.date||'',heure:r.heure||'',agentId:r.agent_id,agentName:r.agent_name||'',
-      clientId:r.client_id,clientName:r.client_name||'',missionId:r.mission_id,missionName:r.mission_name||'',
-      localisation:r.localisation||'',categorieId:r.categorie,categorieLbl:'',
-      natureId:null,natureLbl:r.nature||'',constats:r.constats||'',actions:r.actions||'',
-      cloture:r.statut_cloture||null,photos:r.photos||[]};
+  var r=DB.reports.find(function(x){return x.id===editingId;}); if(!r) return;
+  var natObj=DB.natures.find(function(n){return n.label===r.nature&&n.category_id===r.categorie;})||null;
+  var catObj2=DB.categories.find(function(cat){return cat.id===r.categorie;})||null;
+  WZ={
+    date:r.date||'', heure:r.heure||'',
+    agentId:r.agent_id||null, agentName:r.agent_name||'',
+    clientId:r.client_id||null, clientName:r.client_name||'',
+    missionId:r.mission_id||null, missionName:r.mission_name||'',
+    localisation:r.localisation||'',
+    categorieId:r.categorie||null, categorieLbl:catObj2?catObj2.label:'',
+    natureId:natObj?natObj.id:null, natureLbl:r.nature||'',
+    constats:r.constats||'', actions:r.actions||'',
+    cloture:r.statut_cloture||null, photos:r.photos||[]
+  };
   step=0; showPanel('wizard'); showBackBtn(); renderStep();
 }
 
