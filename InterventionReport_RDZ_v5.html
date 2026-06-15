@@ -949,8 +949,8 @@ function renderStep(){
       '<div class="tiles-scroll"><div class="tile-grid" id="site-list" style="grid-template-columns:1fr;">'+(sites.length?items:naSite())+'</div></div>';
   }
   else if(s==='localisation'){
-    body=`<input class="wz-input" type="text" id="wz-loc" value="${esc(WZ.localisation)}" placeholder="Ex : Bât. A · sous-sol · couloir Nord…" oninput="WZ.localisation=this.value">
-    <div class="wz-hint">Optionnel — précise le lieu exact dans le site « ${esc(WZ.missionName)} »</div>`;
+    body='<input class="wz-input" type="text" id="wz-loc" value="'+(WZ.localisation||'').replace(/"/g,"&quot;")+'" placeholder="Ex : Bât. A · sous-sol · couloir Nord…" oninput="WZ.localisation=this.value">'+
+    '<div class="wz-hint">Optionnel — précise le lieu exact dans le site « '+esc(WZ.missionName||'')+' »</div>';
   }
   else if(s==='categorie'){
     hiddenNext=true;
@@ -972,17 +972,34 @@ function renderStep(){
     body=(needSearch?search('nat-list'):'')+'<div class="tiles-scroll"><div class="tile-grid" id="nat-list" style="grid-template-columns:1fr;">'+(items||noData())+'</div></div>';
   }
   else if(s==='constats'){
-    var suggs=DB.suggestions.filter(sg=>sg.nature_id===WZ.natureId&&sg.actif&&sg.type==='constat').sort((a,b)=>a.ordre-b.ordre);
-    var chips=suggs.map(sg=>`<div class="chip${(WZ.constats||'').includes(sg.texte)?' sel':''}" onclick="toggleChip(this,'${esc(sg.texte)}')">${esc(sg.texte)}</div>`).join('');
-    body=(chips?`<div class="chips-label">Suggestions rapides</div><div class="chips">${chips}</div>`:'')+
-      `<textarea class="wz-textarea" id="wz-constats" placeholder="Qu'avez-vous trouvé ?" oninput="WZ.constats=this.value">${esc(WZ.constats)}</textarea>
-      <div class="wz-hint">Tapez sur une suggestion ou rédigez librement.</div>`;
+    // Résoudre natureId si manquant (cas édition d'un rapport existant)
+    if(!WZ.natureId && WZ.natureLbl){
+      var natFind=DB.natures.find(function(n){return n.label===WZ.natureLbl;});
+      if(natFind) WZ.natureId=natFind.id;
+    }
+    var suggs=DB.suggestions.filter(function(sg){return sg.nature_id===WZ.natureId&&sg.actif&&sg.type==='constat';}).sort(function(a,b){return a.ordre-b.ordre;});
+    var constatsVal=WZ.constats||'';
+    var chips=suggs.map(function(sg){
+      var isSel=constatsVal.indexOf(sg.texte)>=0;
+      return '<div class="chip'+(isSel?' sel':'')+'" onclick="toggleChip(this,''+sg.texte.replace(/'/g,"\'")+'')">'+(sg.texte)+'</div>';
+    }).join('');
+    body=(chips?'<div class="chips-label">Suggestions rapides</div><div class="chips">'+chips+'</div>':'')+
+      '<textarea class="wz-textarea" id="wz-constats" placeholder="Qu'avez-vous trouvé ?" oninput="WZ.constats=this.value">'+constatsVal+'</textarea>'+
+      '<div class="wz-hint">Tapez sur une suggestion ou rédigez librement.</div>';
   }
   else if(s==='actions'){
-    var suggs=DB.suggestions.filter(sg=>sg.nature_id===WZ.natureId&&sg.actif&&sg.type==='mesure').sort((a,b)=>a.ordre-b.ordre);
-    var chips=suggs.map(sg=>`<div class="chip${(WZ.actions||'').includes(sg.texte)?' sel':''}" onclick="toggleChip2(this,'${esc(sg.texte)}')">${esc(sg.texte)}</div>`).join('');
-    body=(chips?`<div class="chips-label">Suggestions rapides</div><div class="chips">${chips}</div>`:'')+
-      `<textarea class="wz-textarea" id="wz-actions" placeholder="Qu'avez-vous fait ?" oninput="WZ.actions=this.value">${esc(WZ.actions)}</textarea>`;
+    if(!WZ.natureId && WZ.natureLbl){
+      var natFind2=DB.natures.find(function(n){return n.label===WZ.natureLbl;});
+      if(natFind2) WZ.natureId=natFind2.id;
+    }
+    var suggs=DB.suggestions.filter(function(sg){return sg.nature_id===WZ.natureId&&sg.actif&&sg.type==='mesure';}).sort(function(a,b){return a.ordre-b.ordre;});
+    var actionsVal=WZ.actions||'';
+    var chips=suggs.map(function(sg){
+      var isSel=actionsVal.indexOf(sg.texte)>=0;
+      return '<div class="chip'+(isSel?' sel':'')+'" onclick="toggleChip2(this,''+sg.texte.replace(/'/g,"\'")+'')">'+(sg.texte)+'</div>';
+    }).join('');
+    body=(chips?'<div class="chips-label">Suggestions rapides</div><div class="chips">'+chips+'</div>':'')+
+      '<textarea class="wz-textarea" id="wz-actions" placeholder="Qu'avez-vous fait ?" oninput="WZ.actions=this.value">'+actionsVal+'</textarea>';
   }
   else if(s==='cloture'){
     hiddenNext=true;
