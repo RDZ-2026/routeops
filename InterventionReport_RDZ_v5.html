@@ -6,10 +6,11 @@
 <title>Rapport d'Intervention — RDZ Security</title>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+/* ════ TOKENS ════ */
 :root{
   --red:#C8102E;--red-d:#a31f24;--red-l:rgba(200,16,46,.07);
   --bg:#f2f2f4;--white:#fff;
-  --anth:#2d2d2d;--anth2:#3a3a3a;
+  --anth:#2d2d2d;--anth2:#3a3a3a;--anth-rpt:#1a1a1a;
   --border:#e2e2e6;--border2:#d0d0d6;
   --text:#2d2d2d;--text2:#4b5563;--text3:#9ca3af;
   --green:#1e6b1e;--green-l:#f0f8f0;
@@ -21,7 +22,7 @@
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
 body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px;}
 
-/* ── TOPBAR ── */
+/* ════ TOPBAR ════ */
 .topbar{background:var(--anth2);height:54px;display:flex;align-items:center;padding:0 16px;gap:10px;border-bottom:3px solid var(--red);position:sticky;top:0;z-index:200;}
 .tb-mark{width:34px;height:34px;background:var(--red);border-radius:8px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono';font-size:12px;font-weight:600;color:white;flex-shrink:0;}
 .tb-info{flex:1;}
@@ -32,22 +33,20 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .sync-pill.ok{color:#4ade80;border-color:rgba(74,222,128,.3);}
 .sync-pill.err{color:#f87171;border-color:rgba(248,113,113,.3);}
 .sync-dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
-.btn-tb{padding:6px 12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:7px;color:rgba(255,255,255,.75);font-size:12px;font-family:'DM Sans';cursor:pointer;display:none;}
-.btn-tb.show{display:block;}
-.btn-tb.admin{color:#fbbf24;border-color:rgba(251,191,36,.3);}
-.btn-tb.admin.show{display:block;}
+.btn-back-top{display:none;padding:6px 12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:7px;color:rgba(255,255,255,.75);font-size:12px;font-family:'DM Sans';cursor:pointer;}
+.btn-back-top.show{display:block;}
 
-/* ── PANELS ── */
+/* ════ PANELS ════ */
 .panel{display:none;}
 .panel.active{display:block;}
 
-/* ── TOAST ── */
+/* ════ TOAST ════ */
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--anth);color:white;padding:10px 18px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);z-index:999;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;}
 .toast.show{opacity:1;}
 .toast.ok{background:#15803d;}
 .toast.err{background:#991b1b;}
 
-/* ── AUTH ── */
+/* ════ AUTH ════ */
 .auth-ov{position:fixed;inset:0;background:var(--anth2);display:flex;align-items:center;justify-content:center;z-index:500;}
 .auth-box{background:white;border-radius:14px;padding:32px 26px;width:320px;box-shadow:var(--shadow-lg);}
 .auth-mark{width:44px;height:44px;background:var(--red);border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono';font-size:14px;font-weight:700;color:white;margin:0 auto 12px;}
@@ -59,7 +58,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .auth-btn{width:100%;padding:12px;background:var(--red);color:white;border:none;border-radius:9px;font-family:'DM Sans';font-size:14px;font-weight:700;cursor:pointer;margin-top:2px;}
 .auth-err{font-size:12px;color:var(--red);text-align:center;margin-top:8px;min-height:16px;}
 
-/* ── CONFIRM ── */
+/* ════ CONFIRM ════ */
 .confirm-ov{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;display:none;align-items:center;justify-content:center;}
 .confirm-ov.open{display:flex;}
 .confirm-box{background:white;border-radius:12px;padding:24px;width:300px;box-shadow:var(--shadow-lg);}
@@ -74,23 +73,25 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .list-hdr{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:18px;flex-wrap:wrap;}
 .list-title{font-family:'DM Mono';font-size:19px;font-weight:600;}
 .btn-new{display:inline-flex;align-items:center;gap:7px;padding:11px 20px;background:var(--red);color:white;border:none;border-radius:10px;font-family:'DM Sans';font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(200,16,46,.25);}
+
 .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;margin-bottom:16px;}
 .kpi{background:white;border:1.5px solid var(--border);border-radius:10px;padding:12px 10px;box-shadow:var(--shadow);text-align:center;}
 .kpi-n{font-family:'DM Mono';font-size:22px;font-weight:600;}
 .kpi-l{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:3px;}
+
 .filters{background:white;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:12px;display:flex;gap:7px;flex-wrap:wrap;align-items:center;box-shadow:var(--shadow);}
 .fsearch{font-family:'DM Sans';font-size:13px;padding:7px 10px;border:1.5px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);outline:none;flex:1;min-width:120px;}
 .fsearch:focus{border-color:var(--red);}
 .fsel{font-family:'DM Sans';font-size:12px;padding:7px 8px;border:1.5px solid var(--border);border-radius:7px;background:var(--bg);color:var(--text);cursor:pointer;outline:none;}
 .fsel:focus{border-color:var(--red);}
+
 .tbl{background:white;border:1.5px solid var(--border);border-radius:10px;overflow:hidden;box-shadow:var(--shadow);}
-.tbl-head{display:grid;grid-template-columns:88px 44px 1fr 110px 24px;padding:0 14px;background:var(--bg);border-bottom:1.5px solid var(--border);}
-.tbl-head span{font-size:9.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:8px 8px 8px 0;}
-.tbl-row{display:grid;grid-template-columns:88px 44px 1fr 110px 24px;padding:0 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;align-items:start;}
+.tbl-head{display:grid;grid-template-columns:90px 1fr 130px 100px 32px;padding:0 12px;background:var(--bg);border-bottom:1.5px solid var(--border);}
+.tbl-head span{font-size:9.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;padding:8px 6px 8px 0;}
+.tbl-row{display:grid;grid-template-columns:90px 1fr 130px 100px 32px;padding:0 12px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;align-items:center;}
 .tbl-row:last-child{border-bottom:none;}
 .tbl-row:hover{background:#fafafa;}
-.tc{font-size:12.5px;color:var(--text2);padding:10px 8px 10px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:top;}
-.tc.wrap{white-space:normal;overflow:visible;padding:10px 8px 10px 0;line-height:1.4;}
+.tc{font-size:12.5px;color:var(--text2);padding:10px 6px 10px 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tc.b{font-weight:600;color:var(--text);}
 .tc.mono{font-family:'DM Mono';font-size:11.5px;}
 .empty{padding:50px 20px;text-align:center;color:var(--text3);}
@@ -103,78 +104,123 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 /* ════════ WIZARD ════════ */
 .wz-wrap{max-width:480px;margin:0 auto;padding:16px 14px 80px;}
+
+/* Barre de progression */
 .wz-progress-bar{height:4px;background:var(--border);border-radius:2px;margin-bottom:16px;overflow:hidden;}
 .wz-progress-fill{height:100%;background:var(--red);border-radius:2px;transition:width .3s ease;}
 .wz-step-info{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
 .wz-step-num{font-size:11px;font-weight:700;color:var(--text3);font-family:'DM Mono';}
 .wz-step-lbl{font-size:11px;color:var(--text3);}
+
+/* Card wizard */
 .wz-card{background:white;border:1.5px solid var(--border);border-radius:16px;padding:20px;box-shadow:var(--shadow);animation:fadeUp .18s ease;}
 @keyframes fadeUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:translateY(0);}}
 .wz-q{font-size:19px;font-weight:700;color:var(--anth);margin-bottom:16px;line-height:1.3;}
 .wz-hint{font-size:12px;color:var(--text3);margin-top:10px;line-height:1.5;}
 
-/* ── TUILES ── */
+/* ──── TUILES ────
+   Philosophie :
+   - 2 colonnes par défaut (mobile d'abord)
+   - tap target min 64px
+   - auto-avance à la sélection
+   - > 10 items → barre de recherche au-dessus
+*/
 .tile-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+/* liste scrollable pour > 10 items */
 .tiles-scroll{max-height:55vh;overflow-y:auto;padding-right:2px;}
 .tiles-scroll::-webkit-scrollbar{width:3px;}
 .tiles-scroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
-.tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:14px 8px;min-height:64px;border:2px solid var(--border);border-radius:12px;background:white;cursor:pointer;transition:border-color .1s,background .1s,transform .06s;text-align:center;user-select:none;}
+
+.tile{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;padding:14px 8px;min-height:64px;
+  border:2px solid var(--border);border-radius:12px;
+  background:white;cursor:pointer;
+  transition:border-color .1s,background .1s,transform .06s;
+  text-align:center;user-select:none;-webkit-user-select:none;
+}
 .tile:active{transform:scale(.95);}
 .tile.sel{border-color:var(--red);background:var(--red-l);}
+/* Variantes de couleur par catégorie */
 .tile.t-v.sel{border-color:#16a34a;background:#f0fdf4;}
 .tile.t-b.sel{border-color:#2563eb;background:#eff6ff;}
 .tile.t-o.sel{border-color:#d97706;background:#fffbeb;}
 .tile.t-p.sel{border-color:#7c3aed;background:#f5f3ff;}
 .tile.t-c.sel{border-color:#0891b2;background:#ecfeff;}
 .tile.t-g.sel{border-color:#78716c;background:#fafaf9;}
+
 .tile-ico{font-size:24px;line-height:1;}
 .tile-lbl{font-size:12.5px;font-weight:600;color:var(--text);line-height:1.25;}
 .tile-sub{font-size:10px;color:var(--text3);line-height:1.3;}
-.tile.tile-h{flex-direction:row;justify-content:flex-start;gap:11px;padding:12px 13px;min-height:56px;text-align:left;}
+
+/* Tuile horizontale (agents, clients, sites, natures) */
+.tile.tile-h{
+  flex-direction:row;justify-content:flex-start;
+  gap:11px;padding:12px 13px;min-height:56px;text-align:left;
+}
 .tile-av{width:36px;height:36px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;flex-shrink:0;font-family:'DM Mono';}
 .tile-h-info{flex:1;min-width:0;}
 .tile-h-name{font-size:13.5px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tile-h-sub{font-size:11px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .tile-check{font-size:16px;color:var(--red);opacity:0;flex-shrink:0;}
 .tile.sel .tile-check{opacity:1;}
+
+/* Barre de recherche interne (si > 10 items) */
 .wz-search{position:relative;margin-bottom:10px;}
 .wz-search input{width:100%;font-family:'DM Sans';font-size:13.5px;padding:9px 12px 9px 34px;border:1.5px solid var(--border);border-radius:9px;outline:none;color:var(--text);background:var(--bg);}
 .wz-search input:focus{border-color:var(--red);background:white;}
 .wz-search-ico{position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;}
+
+/* Textarea & input libres */
 .wz-textarea{width:100%;font-family:'DM Sans';font-size:14px;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;outline:none;color:var(--text);resize:vertical;min-height:90px;line-height:1.6;}
 .wz-textarea:focus{border-color:var(--red);}
 .wz-input{width:100%;font-family:'DM Sans';font-size:14px;padding:11px 13px;border:1.5px solid var(--border);border-radius:10px;outline:none;color:var(--text);}
 .wz-input:focus{border-color:var(--red);}
-.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+
+/* Chips constats rapides */
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;}
 .chip{padding:7px 12px;border:1.5px solid var(--border);border-radius:20px;font-size:12px;font-weight:500;color:var(--text2);cursor:pointer;background:white;user-select:none;}
 .chip:active{transform:scale(.97);}
 .chip.sel{border-color:var(--red);background:var(--red-l);color:var(--red);font-weight:700;}
-.chips-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px;}
+
+/* date/heure */
 .dt-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .dt-field label{display:block;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:5px;}
+
+/* Nav bas */
 .wz-nav{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:16px;}
 .btn-prev{padding:11px 18px;background:var(--bg);border:1.5px solid var(--border);border-radius:10px;font-family:'DM Sans';font-size:14px;font-weight:600;color:var(--text2);cursor:pointer;flex-shrink:0;}
 .btn-next{flex:1;padding:13px;background:var(--red);color:white;border:none;border-radius:10px;font-family:'DM Sans';font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 2px 8px rgba(200,16,46,.25);}
 .btn-next:disabled{opacity:.3;cursor:not-allowed;box-shadow:none;}
+
+/* Récap */
 .recap-block{background:var(--bg);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:9px;}
 .recap-row{display:flex;gap:8px;align-items:flex-start;}
 .rl{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;min-width:74px;padding-top:2px;flex-shrink:0;}
 .rv{font-size:13.5px;color:var(--text);font-weight:500;flex:1;line-height:1.5;}
+
+/* Photos wizard */
 .photo-row{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
 .photo-thumb{position:relative;width:72px;height:72px;border-radius:9px;overflow:hidden;border:1.5px solid var(--border);}
 .photo-thumb img{width:100%;height:100%;object-fit:cover;}
 .ph-del{position:absolute;top:3px;right:3px;background:rgba(0,0,0,.55);color:white;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;}
 .btn-add-ph{display:inline-flex;align-items:center;gap:6px;padding:10px 14px;border:2px dashed rgba(200,16,46,.4);color:var(--red);border-radius:10px;background:var(--red-l);font-family:'DM Sans';font-size:13px;font-weight:600;cursor:pointer;}
 
-/* ════════ RAPPORT ════════ */
+/* toolbar rapport */
 .rpt-toolbar{max-width:820px;margin:0 auto;display:flex;align-items:center;gap:8px;padding:16px 14px 0;flex-wrap:wrap;}
 .btn-sm{display:inline-flex;align-items:center;gap:5px;padding:8px 14px;background:white;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans';font-size:12.5px;font-weight:500;color:var(--text2);cursor:pointer;}
 .btn-sm:hover{background:var(--bg);}
 .btn-sm.red{background:var(--red);color:white;border-color:var(--red);}
 .btn-sm.danger{color:var(--red);border-color:#fca5a5;}
 .rpt-spacer{flex:1;}
-/* Rapport fidèle au modèle original */
+
+/* ════════════════════════════════════════════
+   RAPPORT FORMALISÉ
+   Reproduction EXACTE du modèle original
+════════════════════════════════════════════ */
 .page{max-width:800px;margin:20px auto 80px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,.1);}
+
+/* Header */
 .hdr{background:#1a1a1a;padding:1.5rem 2rem;}
 .hdr-top{height:4px;background:#C8102E;margin:-1.5rem -2rem 1.25rem;}
 .hdr-row{display:flex;align-items:center;justify-content:space-between;gap:1.5rem;}
@@ -183,31 +229,42 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .hdr-left{flex:1;}
 .hdr-label{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:#C8102E;margin-bottom:6px;}
 .hdr-value{font-size:20px;font-weight:700;color:#fff;line-height:1.3;}
+
+/* Meta grille */
 .meta{display:grid;grid-template-columns:repeat(4,1fr);background:#f0f0f0;}
 .meta-cell{padding:.9rem 1rem;border-right:1px solid #ddd;}
 .meta-cell:last-child{border-right:none;}
 .meta-cell label{display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#999;margin-bottom:5px;}
 .meta-cell .mv{font-size:13px;color:#1a1a1a;font-weight:600;}
+
+/* Corps */
 .body{padding:1.5rem 2rem;}
 .sec{margin-bottom:2.5rem;border:1.5px solid #d0d0d0;border-radius:8px;overflow:hidden;}
 .sec:last-child{margin-bottom:0;}
-.sec-title{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#C8102E;background:#d0d0d0;padding:.7rem 1rem;}
+.sec-title{font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#C8102E;background:#d0d0d0;padding:.7rem 1rem;margin:0;}
 .sec-body{padding:1.5rem 1rem 1rem;}
-.field-row.full{display:grid;grid-template-columns:1fr;margin-bottom:10px;}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:10px;}
+.field-row.full{grid-template-columns:1fr;}
 .field{display:flex;flex-direction:column;gap:4px;}
 .field label{font-size:11px;color:#999;text-transform:uppercase;letter-spacing:1px;}
 .field .fv{font-size:13px;color:#1a1a1a;padding:5px 0;border-bottom:1px solid #eee;min-height:28px;line-height:1.6;white-space:pre-wrap;}
+
+/* Statut clôture — reproduit exactement le CSS original */
 .cloture-wrap{display:flex;gap:8px;flex-wrap:nowrap;margin-top:14px;}
-.cl-opt{flex:1;padding:.55rem .3rem;border:1.5px solid #ddd;border-radius:6px;text-align:center;font-size:11px;color:#888;background:#fff;white-space:nowrap;}
+.cl-opt{flex:1;padding:.55rem .3rem;border:1.5px solid #ddd;border-radius:6px;text-align:center;font-size:11px;color:#888;background:#fff;white-space:nowrap;font-weight:400;}
 .cl-opt.cl-regle-on{border-color:#1e6b1e;background:#f0f8f0;color:#1e6b1e;font-weight:700;}
 .cl-opt.cl-action-on{border-color:#b45c00;background:#fff8f0;color:#b45c00;font-weight:700;}
 .cl-opt.cl-info-on{border-color:#1a5a8a;background:#f0f6ff;color:#1a5a8a;font-weight:700;}
 .cl-opt.cl-probleme-on{border-color:#C8102E;background:#fdf5f5;color:#C8102E;font-weight:700;}
+
+/* Photos dans le rapport */
 .photo-zone{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 .photo-item{display:flex;flex-direction:column;gap:6px;}
 .photo-box{border:1.5px solid #e0e0e0;border-radius:8px;background:#fafafa;overflow:hidden;}
 .photo-box img{width:100%;height:auto;max-height:300px;object-fit:contain;display:block;}
 .photo-cap{font-size:11px;color:#888;padding:4px 0;}
+
+/* Pied de page */
 .ftr{background:#1a1a1a;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;border-top:3px solid #C8102E;}
 .ftr-left{display:flex;align-items:center;gap:.75rem;}
 .ftr-logo{background:#fff;border-radius:6px;padding:5px 10px;}
@@ -215,64 +272,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .ftr-text{font-size:10px;color:#aaa;line-height:1.6;}
 .ftr-coords{font-size:10px;color:#888;line-height:1.7;text-align:right;}
 
-/* ════════ ADMIN ════════ */
-.adm-wrap{max-width:900px;margin:0 auto;padding:20px 14px 80px;}
-.adm-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap;}
-.adm-title{font-family:'DM Mono';font-size:19px;font-weight:600;}
-.adm-cols{display:grid;grid-template-columns:260px 1fr;gap:16px;}
-.adm-panel{background:white;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);}
-.adm-panel-hdr{padding:12px 16px;background:var(--bg);border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
-.adm-panel-title{font-size:12px;font-weight:700;color:var(--text);text-transform:uppercase;letter-spacing:.6px;}
-.adm-list{max-height:65vh;overflow-y:auto;}
-.adm-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;}
-.adm-item:last-child{border-bottom:none;}
-.adm-item:hover{background:var(--bg);}
-.adm-item.active{background:var(--red-l);border-left:3px solid var(--red);}
-.adm-item-ico{font-size:18px;flex-shrink:0;}
-.adm-item-txt{flex:1;min-width:0;}
-.adm-item-name{font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.adm-item-sub{font-size:11px;color:var(--text3);}
-.adm-item-badge{font-size:10px;padding:2px 7px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text3);flex-shrink:0;}
-.adm-inactive{opacity:.45;}
-/* Formulaire admin */
-.adm-form{padding:16px;}
-.adm-form-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;padding-bottom:10px;border-bottom:1.5px solid var(--border);}
-.adm-field{margin-bottom:12px;}
-.adm-field label{display:block;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;}
-.adm-input{width:100%;font-family:'DM Sans';font-size:13.5px;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;color:var(--text);}
-.adm-input:focus{border-color:var(--red);}
-.adm-select{width:100%;font-family:'DM Sans';font-size:13.5px;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;color:var(--text);cursor:pointer;background:white;}
-.adm-select:focus{border-color:var(--red);}
-.adm-toggle{display:flex;align-items:center;gap:10px;}
-.toggle-sw{position:relative;width:40px;height:22px;cursor:pointer;flex-shrink:0;}
-.toggle-sw input{opacity:0;width:0;height:0;}
-.toggle-track{position:absolute;inset:0;background:var(--border2);border-radius:22px;transition:background .2s;}
-.toggle-sw input:checked~.toggle-track{background:var(--red);}
-.toggle-knob{position:absolute;width:18px;height:18px;background:white;border-radius:50%;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
-.toggle-sw input:checked~.toggle-track~.toggle-knob{left:20px;}
-.adm-btns{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap;}
-.adm-btn{padding:9px 16px;border:none;border-radius:8px;font-family:'DM Sans';font-size:13px;font-weight:600;cursor:pointer;}
-.adm-btn.primary{background:var(--red);color:white;}
-.adm-btn.ghost{background:var(--bg);border:1.5px solid var(--border);color:var(--text2);}
-.adm-btn.danger{background:white;border:1.5px solid #fca5a5;color:var(--red);}
-/* Suggestions admin */
-.sugg-section{margin-bottom:16px;}
-.sugg-section-title{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;}
-.sugg-list{display:flex;flex-direction:column;gap:6px;}
-.sugg-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border);}
-.sugg-row.inactive{opacity:.4;}
-.sugg-txt{flex:1;font-size:12.5px;color:var(--text);}
-.sugg-actions{display:flex;gap:4px;}
-.sugg-btn{padding:3px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;background:white;color:var(--text2);}
-.sugg-btn:hover{background:var(--bg);}
-.sugg-btn.del{color:var(--red);border-color:#fca5a5;}
-.sugg-add{width:100%;padding:8px;border:1.5px dashed var(--border);border-radius:8px;font-family:'DM Sans';font-size:12.5px;color:var(--text3);cursor:pointer;background:transparent;text-align:left;}
-.sugg-add:hover{border-color:var(--red);color:var(--red);}
-/* Tabs admin */
-.adm-tabs{display:flex;gap:4px;margin-bottom:16px;}
-.adm-tab{padding:8px 16px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans';font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;background:white;}
-.adm-tab.active{background:var(--red);color:white;border-color:var(--red);}
-
+/* ════ PRINT : identique au modèle original ════ */
 
 /* ════════ STATS ════════ */
 .stats-wrap{max-width:1000px;margin:0 auto;padding:20px 14px 80px;}
@@ -296,24 +296,85 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 .bar-track{flex:1;height:20px;background:var(--bg);border-radius:4px;overflow:hidden;position:relative;}
 .bar-fill{height:100%;border-radius:4px;transition:width .4s ease;display:flex;align-items:center;padding-left:6px;}
 .bar-val{font-size:11px;font-weight:700;color:white;line-height:1;}
-.bar-val.outside{color:var(--text2);position:absolute;right:0;transform:translateX(calc(100% + 6px));white-space:nowrap;}
+.bar-val.outside{color:var(--text2);position:absolute;right:0;transform:translateX(calc(100%+6px));white-space:nowrap;}
 .chart-empty{padding:24px;text-align:center;color:var(--text3);font-size:13px;}
-/* Drill-down liste */
 .drill-panel{background:white;border:1.5px solid var(--border);border-radius:12px;padding:16px;box-shadow:var(--shadow);margin-top:0;}
 .drill-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
-.drill-close{font-size:18px;cursor:pointer;color:var(--text3);line-height:1;}
+.drill-close{font-size:18px;cursor:pointer;color:var(--text3);}
 .drill-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;transition:background .1s;}
 .drill-row:hover{background:var(--bg);}
 .drill-date{font-family:'DM Mono';font-size:11.5px;color:var(--text3);white-space:nowrap;}
 .drill-info{flex:1;min-width:0;}
 .drill-name{font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .drill-sub{font-size:11.5px;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-@media(max-width:600px){
-  .stats-charts{grid-template-columns:1fr;}
-  .stats-kpis{grid-template-columns:1fr 1fr;}
-  .bar-lbl{min-width:80px;max-width:100px;}
+@media(max-width:600px){.stats-charts{grid-template-columns:1fr;}.stats-kpis{grid-template-columns:1fr 1fr;}.bar-lbl{min-width:80px;max-width:100px;}}
+.adm-tab{padding:8px 16px;border:1.5px solid var(--border);border-radius:8px;font-family:'DM Sans';font-size:13px;font-weight:500;color:var(--text2);cursor:pointer;background:white;}
+.adm-tab.active{background:var(--red);color:white;border-color:var(--red);}
+.adm-input{width:100%;font-family:'DM Sans';font-size:13.5px;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;color:var(--text);}
+.sugg-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--bg);border-radius:8px;border:1px solid var(--border);margin-bottom:6px;}
+.sugg-row.inactive{opacity:.4;}
+.sugg-txt{flex:1;font-size:12.5px;color:var(--text);}
+.sugg-btn{padding:3px 8px;border:1px solid var(--border);border-radius:5px;font-size:11px;cursor:pointer;background:white;color:var(--text2);}
+.sugg-btn.del{color:var(--red);border-color:#fca5a5;}
+.sugg-add{width:100%;padding:8px;border:1.5px dashed var(--border);border-radius:8px;font-family:'DM Sans';font-size:12.5px;color:var(--text3);cursor:pointer;background:transparent;text-align:left;margin-top:6px;}
+.sugg-add:hover{border-color:var(--red);color:var(--red);}
+.sugg-section{margin-bottom:16px;}
+.adm-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;}
+.adm-item:hover{background:var(--bg);}
+.adm-item.active{background:var(--red-l);border-left:3px solid var(--red);}
+.adm-item-ico{font-size:18px;flex-shrink:0;}
+.adm-item-txt{flex:1;min-width:0;}
+.adm-item-name{font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.adm-item-badge{font-size:10px;padding:2px 7px;background:var(--bg);border:1px solid var(--border);border-radius:10px;color:var(--text3);flex-shrink:0;}
+.adm-inactive{opacity:.45;}
+
+/* ════════ RAPPORT OUVERTURES ════════ */
+.ouv-wrap{max-width:1000px;margin:0 auto;padding:20px 14px 80px;}
+.ouv-toolbar{display:flex;align-items:center;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.ouv-filters{background:white;border:1.5px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:20px;display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;box-shadow:var(--shadow);}
+.ouv-filter-group{display:flex;flex-direction:column;gap:5px;}
+.ouv-filter-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;}
+.ouv-filter-input{font-family:'DM Sans';font-size:13px;padding:8px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;color:var(--text);background:white;cursor:pointer;}
+.ouv-filter-input:focus{border-color:var(--red);}
+.btn-gen{padding:9px 18px;background:var(--red);color:white;border:none;border-radius:8px;font-family:'DM Sans';font-size:13.5px;font-weight:700;cursor:pointer;align-self:flex-end;}
+
+/* Page imprimable */
+.ouv-page{background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 20px rgba(0,0,0,.1);}
+.ouv-hdr{background:#f4f4f4;padding:20px 28px;display:flex;align-items:center;gap:20px;border-bottom:3px solid var(--red);}
+.ouv-hdr-logo img{height:52px;width:auto;display:block;}
+.ouv-hdr-title{font-size:18px;font-weight:700;color:#1a1a1a;flex:1;text-align:center;}
+.ouv-recap{margin:20px 28px;border:1px solid #ddd;border-collapse:collapse;width:320px;}
+.ouv-recap td,.ouv-recap th{border:1px solid #ddd;padding:7px 12px;font-size:13px;}
+.ouv-recap .recap-lbl{color:#444;}
+.ouv-recap .recap-n{text-align:center;font-weight:600;color:#1a1a1a;}
+.ouv-recap .recap-total{background:#e8e8e8;font-weight:700;}
+.ouv-recap .recap-total td{color:#1a1a1a;}
+.ouv-body{padding:0 28px 28px;}
+.ouv-tbl{width:100%;border-collapse:collapse;font-size:12.5px;}
+.ouv-tbl th{background:#e8e8e8;padding:9px 10px;text-align:left;font-size:11px;font-weight:700;color:#333;border:1px solid #ccc;text-transform:uppercase;letter-spacing:.5px;}
+.ouv-tbl td{padding:8px 10px;border:1px solid #ddd;color:#333;vertical-align:top;}
+.ouv-tbl tr:nth-child(even) td{background:#fafafa;}
+.ouv-tbl .col-date{font-weight:700;white-space:nowrap;}
+.ouv-tbl .col-heure{white-space:nowrap;}
+.ouv-tbl .col-loc{font-weight:600;color:var(--red);}
+.ouv-empty{padding:40px;text-align:center;color:var(--text3);font-size:14px;}
+@media print{
+  .ouv-toolbar,.ouv-filters,.toast{display:none!important;}
+  body{background:white;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .ouv-wrap{padding:0;max-width:100%;}
+  .ouv-page{box-shadow:none;border-radius:0;}
+  .ouv-hdr{background:#f4f4f4!important;border-bottom-color:var(--red)!important;}
+  .ouv-recap .recap-total{background:#e8e8e8!important;}
+  .ouv-tbl th{background:#e8e8e8!important;}
+  .ouv-tbl tr:nth-child(even) td{background:#fafafa!important;}
+  .ouv-tbl{break-inside:auto;}
+  .ouv-tbl tr{break-inside:avoid;}
 }
-/* ── PRINT ── */
+@media(max-width:600px){
+  .ouv-hdr{flex-direction:column;text-align:center;}
+  .ouv-recap{width:100%;}
+  .ouv-body{padding:0 12px 20px;}
+}
 @media print{
   .topbar,.rpt-toolbar,.toast{display:none!important;}
   body{background:#fff;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
@@ -321,14 +382,19 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .hdr{background:#1a1a1a!important;}
   .hdr-top{background:#C8102E!important;}
   .meta{background:#f0f0f0!important;}
+  .meta-cell{border-right-color:#ddd!important;}
   .ftr{background:#1a1a1a!important;border-top-color:#C8102E!important;}
-  .sec{break-inside:avoid;}
+  .ftr-text,.ftr-coords{color:#aaa!important;}
+  .photo-item{break-inside:avoid;}
   .photo-zone{break-inside:avoid;}
+  .sec{break-inside:avoid;}
   .cl-opt.cl-regle-on{border-color:#1e6b1e!important;background:#f0f8f0!important;color:#1e6b1e!important;}
   .cl-opt.cl-action-on{border-color:#b45c00!important;background:#fff8f0!important;color:#b45c00!important;}
   .cl-opt.cl-info-on{border-color:#1a5a8a!important;background:#f0f6ff!important;color:#1a5a8a!important;}
   .cl-opt.cl-probleme-on{border-color:#C8102E!important;background:#fdf5f5!important;color:#C8102E!important;}
 }
+
+/* ════ RESPONSIVE ════ */
 @media(max-width:600px){
   .kpis{grid-template-columns:repeat(3,1fr);}
   .kpis .kpi:nth-child(n+4){display:none;}
@@ -340,7 +406,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
   .logo-wrap{display:none;}
   .photo-zone{grid-template-columns:1fr;}
   .cloture-wrap{flex-wrap:wrap;}
-  .adm-cols{grid-template-columns:1fr;}
+  .cl-opt{min-width:120px;}
 }
 </style>
 </head>
@@ -364,11 +430,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 <!-- CONFIRM -->
 <div class="confirm-ov" id="confirm-ov">
   <div class="confirm-box">
-    <div class="confirm-t" id="confirm-title">Confirmer</div>
-    <div class="confirm-msg" id="confirm-msg">Cette action est irréversible.</div>
+    <div class="confirm-t">Supprimer ce rapport ?</div>
+    <div class="confirm-msg">Cette action est irréversible.</div>
     <div class="confirm-btns">
       <button class="btn-c" onclick="closeConfirm()">Annuler</button>
-      <button class="btn-cd" id="btn-confirm-del">Confirmer</button>
+      <button class="btn-cd" id="btn-confirm-del">Supprimer</button>
     </div>
   </div>
 </div>
@@ -381,22 +447,23 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <div class="tb-sub">RDZ Security Management</div>
   </div>
   <div class="tb-right">
-    <button class="btn-tb admin show" id="btn-stats" onclick="goStats()">📊 Stats</button>
-    <button class="btn-tb admin show" id="btn-admin" onclick="goAdmin()">⚙️ Admin</button>
-    <button class="btn-tb" id="btn-back-top" onclick="goList()">← Liste</button>
+    <button class="btn-tb admin show" id="btn-ouv" onclick="goOuvertures()" style="display:inline-block;padding:6px 12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:7px;color:#fbbf24;font-size:12px;font-family:'DM Sans';cursor:pointer;">🔑 Rapport ouvertures</button>
+    <button class="btn-tb admin show" id="btn-stats" onclick="goStats()" style="display:inline-block;padding:6px 12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:7px;color:#fbbf24;font-size:12px;font-family:'DM Sans';cursor:pointer;">📊 Stats</button>
+    <button class="btn-tb admin show" id="btn-admin" onclick="goAdmin()" style="display:inline-block;padding:6px 12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:7px;color:#fbbf24;font-size:12px;font-family:'DM Sans';cursor:pointer;">⚙️ Admin</button>
+    <button class="btn-back-top" id="btn-back-top" onclick="goList()" style="display:none;padding:6px 12px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:7px;color:rgba(255,255,255,.75);font-size:12px;font-family:'DM Sans';cursor:pointer;">← Liste</button>
     <div class="sync-pill" id="sync-pill"><span class="sync-dot"></span><span id="sync-txt">—</span></div>
   </div>
 </div>
 <div class="toast" id="toast"></div>
 <input type="file" id="photo-input" accept="image/*" capture="environment" style="display:none" onchange="handlePhoto(this)">
 
-<!-- ══════════ PANEL LISTE ══════════ -->
+<!-- ══════════════ PANEL LISTE ══════════════ -->
 <div class="panel active" id="panel-list">
 <div class="list-wrap">
   <div class="list-hdr">
     <div><div class="list-title">Rapports d'Intervention</div><div style="font-size:12.5px;color:var(--text3);margin-top:3px;">Historique des interventions terrain</div></div>
     <div style="display:flex;gap:8px;align-items:center;">
-      <button class="btn-sm" id="btn-sync-all" onclick="syncAll()" title="Synchroniser tous les rapports locaux vers Supabase">☁️ Sync</button>
+      <button class="btn-sm" id="btn-sync-all" onclick="syncAll()" title="Synchroniser vers Supabase">☁️ Sync</button>
       <button class="btn-new" onclick="startWizard()">+ Nouveau rapport</button>
     </div>
   </div>
@@ -426,11 +493,11 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 </div>
 </div>
 
-<!-- ══════════ PANEL WIZARD ══════════ -->
+<!-- ══════════════ PANEL WIZARD ══════════════ -->
 <div class="panel" id="panel-wizard">
 <div class="wz-wrap">
   <div class="wz-step-info">
-    <span class="wz-step-num" id="wz-step-num">Étape 1/12</span>
+    <span class="wz-step-num" id="wz-step-num">Étape 1/11</span>
     <span class="wz-step-lbl" id="wz-step-lbl"></span>
   </div>
   <div class="wz-progress-bar"><div class="wz-progress-fill" id="wz-fill"></div></div>
@@ -438,7 +505,7 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 </div>
 </div>
 
-<!-- ══════════ PANEL RAPPORT ══════════ -->
+<!-- ══════════════ PANEL RAPPORT ══════════════ -->
 <div class="panel" id="panel-report">
   <div class="rpt-toolbar">
     <button class="btn-sm" onclick="goList()">← Liste</button>
@@ -446,8 +513,10 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
     <button class="btn-sm" onclick="window.print()">🖨️ Imprimer / PDF</button>
     <button class="btn-sm" onclick="editFromReport()">✏️ Modifier</button>
     <div class="rpt-spacer"></div>
-    <button class="btn-sm danger" id="btn-del-rpt" style="display:none" onclick="confirmDeleteReport()">🗑 Supprimer</button>
+    <button class="btn-sm danger" id="btn-del-rpt" style="display:none" onclick="confirmDelete()">🗑 Supprimer</button>
   </div>
+
+  <!-- Le rapport reproduit exactement le modèle fourni -->
   <div class="page">
     <div class="hdr">
       <div class="hdr-top"></div>
@@ -456,29 +525,37 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           <div class="hdr-label">Rapport d'intervention</div>
           <div class="hdr-value" id="rv-titre">—</div>
         </div>
-        <div class="logo-wrap" style="background:transparent;padding:0;border-radius:0;">
-          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAJsAAAA8CAYAAABxeMjaAAAloElEQVR42u2deXwV1d3/32dm7p6bPQSCbAkRBAICAVRQ3BWr4C6C4Ibaam3r3tZWn9a92kfbWpe6ICouVFEfBbeqgILsIKussi8he+5+Z+b8/ph7JzfJTQiCpf7Keb3OKzfJzNm+n/Pdz7lCSik5Uo6Uf0NRjizBkfLvKtrhHoBpmpimeWh2jqKgKO3fP4ZhcCgYuxACIcQB9f1DrkO6oqoqQojDSmtxOMWoaZoHRaC2QKSq6mHpW9f1Awb9DzWW5kVKeVgBd9jAlpz46tWreW3qVOrr61EUBckBDkeC1+ulR48eDBk6hEGDBtsETHKcFq+YJkJRmDt3Lu+++w7RSAQhRLt7FoDT6SI7J5uOHTvRo3t3So8+mi5dujQBvKIo+yVuEmjLli3j7bffoq6uDkV8j3VIO06BKU2KexQzYeJE8vPzDy/g5GEouq5LKaWcNesLmen3S0AKkBxk9Xo98qQTT5TvvfuulFJK0zSlaZpp+548+UWpCHHQfQLSoamyQ0GBPOnEE+X9990n1637tkV/ba3DtGlvSpfLeUjG0rwm1/Xo0lK5YcMGaZqmNAzjcJBdHhbOluQ6p55yMnO+/JKC/Hx0w0AcAvEZDAaJx3VuvPFG/vLXvyCEYnO45K6uqamhf/9+1FTX4PP5DlpXMk0TXdeJRCLE4jo52Vlcetll3HPPvRQVFaUV68llr6utZcCAAezbV4Hf7/9B9DZN09izt4Kxl13K62+82S414/8LMZokeCAQ4NhjB7B3zx4cDgeHahhJRbiyqporJ05g8ktTbFElpUyIrKWcOGIELpfrkBE31UjQdZ3aunq6dDmK5557jrPOOrsFgZO/f/rJJ5xzziiys7PRdf2HIbIQxONxioqKWP7NCjwez2ERp4fN9SGlhAS3OdTGga7rdCjIZ8rLr/DE44+jqmoTUEkp7Xoo55PkcAAF+XlUV1UxevRo3nlnOqqqYhhGC85WX1+PaUp+6D2f3GiH0616eP1sP+DE4/E4WZl+HnzwAbZt29YCcO3lVM3rgfTvdrtxu1xcOXEiy5cvazKGpPXZq3dvXC6n3WdbfX/fsQgh0HWdvPz8w8bV/qOdukIIVFVtd023k51OJ5VV1bz4wvO2bnWgfq/mNQkUVVXRNK1Nl4VhGDidTiKRCD+/6Sbi8XgTn6BpmvTr15fRo8dQVV1jc9vW+k6thmG0ez6qqhKNxTnt1NMQQjThsP9VTt22dmI4HG6n+JJkZWWmJbbb5WTGjBn87vf3oGnaAQFdJtwcqX0ZhkEoFCIajSEBt8uJ1+ttFcy6rpOdncXceV/z1lv/5PLLx6HrOpqmJYwWePqZZ3C5XXz80cfE47F2i0RN04gk3DZtObqDwRDdunXlxptuQkp5WIyD/0iwCSEIh8OUlZXxwAMP2rpda2LYME1mz/qCJ598EofD0YI7uVwuNm/ezLatWykuKdkvB6iprWPSpGu5665ft7TapCQai1FbW8vWrVtYunQps774gmXLlqFpGj6fLy3XME2Jw6Hx/HPPMXbs5XabSZDk5OQwZcrL7N271/Y3ktbPJpCmiUyI6fHjLmf9+vW43e60QE9a4Lqu89xzz1NYWIhpGijKEbA14Wq5ubmcceaZ7Xpn1KhR7Nq1m9dee43s7KwmBFdVlUAgwLbt2/cLNiEEpmmSk5NDcXFxm88ef/zxjB17ObquM3PmTO655/esXrWKrKysFoAzDAOf18vixYtZv24dvXr3bhI1SIrPwsJCCgsL2zXnm278GStXriQ7O7tVsagoClXVNTzzzNOcccYZNkf98RsIUoJutFT6pQTDAF23ajv0jCTgkpalruvEYrG0NRQKAtCvXz+MhP+ueVuGYRAKBts9FV3XMU2TWCzWUl8yDAzDwEiMS1NVRo8ezawvZjHypJHU19WlFVOaplHfEGDu3LlgmpjJtTBNhClRpMTUdasaRuNnXceMxTANg1jMErH3338fTz39TJtAczgcVFXXcNedd3DDDT897EA7NJxNSmvRVBU0tfFvElCEJQJTFl80ypb9hFpAFQJTSpQ2FsnpdFJTU8Nbb7+F253eb5ZsiyRh9qMgCwmKaaJIae3G/cQtdSnJzsnh9bffZsjgQVRVVLTqO1y+YgUoCsLpPKCdrwNOVWXam29w7z33kpvTBtBUlX2VVVx68UU8/OBD6NGotQF03VoNgUWX1PFJWoru1I2b/CxE62rNDwY2Ka2qKKCqyHCY8JPP4r72SpTcHBtVZmUlxtp16N+uR9bV4TjzdBz9+yEyfG0MWloATQlov/jCC3z40YcoioLL5bIfM6XJN8uXs2HDhrTRANM0cTid5PboYYNeZGW1DTaPCzQNkQpyCUiLE0nDAFPav6uGSSwSocDl4qfjxvObBx8gPze3iZNWmiaaprJ55UqMVasx9ETGSbK9BPGFz4vavTvmzp3IaAyhqYS+mov/nFEs+G4zk66/Hr8/o1WvkaYo1ASDHH/ySCa/OQ0UBe1QGwRJBiPEfjfiwYPNNK1OTEnDz36JDIeR4TDR994n8sY01G5dLQA2BDC2bsOsqIBY3AqAP/Ek7rJ+1GdlIuvqLYI22WES4XKjb9hE6MrrkA4Ht27fzD8++Rg1GehrttAejzst0ARgSEmm203Wo08QzM1FUwShqiqEQ2vZkGmC04G+cjXmX5+iYcNGxN4KZF0dMhqz/m8YSF23uGNCRZCGgWkYeCWM0GNk+P0YzaIB0jTRfF72LltG7RnnNjqVkxMSFqCFpqIUdULW1SPDYQxNw7OvktUP/5nL6itsd4qRhoOrQEiadHY4mWxoyCuuodbjQcvOQmRlIjweZCCAsWcvBEPgdCI8bnA4EV4PwuVCeD3g8SB8PoTPi5KRgfBnILIyUXJyEHl51jNqihRrJ6f73uEqWV2DsW07wUf+TPStdxDZWQh/BoTCyFjMWkQ1IS4cDkukIpC6jhoKU2fonE6ECiSOFAauAAFgKAqzhIfXYmEmxuopyMzC3I/3Pp1YCiIZrDj4wHQSNQ38QjBfGoxRYjhpmumhAtVIbjQ1HsdBVcLAQFUSC9oogkTyc0K0SCHQgFopOT1SS4U0W8wrjKRY0fg0Iw8XAqOZayUJOGIxUFVMRcEBxDWNc2v2sNzUyVJV9DQkUxKiVgDTfbmcoJvURqOoSY5svyMS6o3SKJ2QjWLU9vckxKViqUHC4QCvFyU3B6VjIWpJMZ4brkXrc0y7AacdMEcTAmPjJmovuAxZWQWahnJUZ+t/cd3aLW5XiuhJsNwULIgMnzWf+mj6KIKU4FBR/dn8KwxKVCINgwN1RapAVErOdLjwe7MIS9MKzOsxaNjXqogQbhdk5CLMRHJAOqMn3fIAHiS+qMCQsgmYkzTUpcRsbX9LWxG1npcSl1CY1FDJYgzyWgFakswhKXnRm81JqoNKFTSPJ73+la5/QXOvYuN4kqCMxjB37MTYspXYZ7OIffwvcmZ9hFJY2CjtDpk1mgBbbN58jI2bwOuxOki1MqUEw7SqaaafWEIc7U8vkIZBTNcRCd/SgZrZYaCLojLe4SGg66hGot929E1SVBqGbTXaNbn4aSv7NXwaB9mKziMlhpTkCIV7IvVMj0fIQ6QFGgnjpxrJvW4/45weKpEWF0kdc9IbkGIF27RJcu1kZlLzeSR1M4cGbjfCn4HS5SjMHTsJ/eWplsbGQXM2aSntMhIl+to0lKyshJL8w8U3BTBIdfBGPIySEDvt5WgGEJAmT3qy6aqo1Eh5cClM7VhQBYhISUhKlGYiOklKlxA4EEhFgUjE4mBeb5O2dSkpkPBMLMjj0QB5QqG1fBCHorBPjzPJ4eVOh5dKXW8kahvOcAzDUnfiuiVmU7eCLUZTrE+7KqAIhBpFZGUSefV1PFdPQD26dL/cTTvgBY/HMbZvt5R90wRNS+wS0xpIqltDVRt3UHLiyUVVxH4IJwhIyXinhzfiYVYaOpmifYCrT7gsnnBnMdbhoUZK1ISYQ1VBqvufZ3K3Jy3uWAyczqYETFpkib9ppsk+06BammhpYgCmBK8QOIRADwTQyvqCYRJfshThtFQPQ0pyHA4+cqncGa4nUyit6qqaolAZDjMqI4vHsgpokJa/TtieDLNxDqk6raIgcnLQunRGPboUJduyzqVhWvPUdaSuI8MRiMeR0QhEYshIBBmJWJskHEZGY5hbtxGbOx/PIQVbwk8l/Bn47vktgdt/YymxFfsQbjfC40ZGgpby7PNZYrCuDuF2WzpIMobncFgKdTjSJqcQQhBXBJlC47mMPM4NVtOAidMwMffDqo/TnPzOm8XJDhe1pomaMn5ZW4vUY6RFQ6NX11p0YRFGBoKoRxVZVlwk2mgkuFzIWBykRJcSl8fNcjNOrZTkNtsYIsFtcyW4NI2YouD52fU4Tz6J+qtvwDXmXPSKClz+TDZ9u5ZJLz6HyPCimOnnq2ka9XV1HDtgAFOnvk5WRgZxQE1YtlIm/IlJjpxUHaQEVUPJyUakiSe3q8R1ZDSKDAYxa2pQj+qcGJR6CA2EhLnrHnsJzpEnYu7ZS+zLuegrVxGb+TGO8kHIWBx9yTJQBM5RZ2Gs+RZj+w7UnsUWV9xbAbqOWtIDNq6GeKwluxfCeiYQpF5A37jO04ZkbKgWLSsLIVtm6CsJBXmo5uQjdzZmTR1VArSEpYgpkS4njgvPx5Pth3881cTZnMqtRF4WIrcjIhCA2lpcl1yA97prCD74J0RmJpgmrvPOIfzci0hTovXtg3LqSJxduvD2hHFom6vA5WqymYSqotfVUTJhIp7f34PmcuHs1BEUheyZ79jPNZgGE884nSoFshIWZrowVDgcpqBDIf98cxo5JSUYgOP7+stka0plijhNFasODeHQEBk+lMIObb18CPxsUqJ06ojSqSPawAEWjXbstK3S2EefgkPDecZp6KvXYqxZi/PsM8HQia9YheJ2o/UqRQwaiNyzxxJPqcpqPI4o6IDadxDuYIDY+MsZs/k7Ht+zk5+9/ip5bjdGM65oAl5F4etomHty83j0jnuRXi+az2u1b5rQsRDnyBPxbFiPfOqvlgqQCghNQ9bV47p+DNp995NdV4cai1l+Q9Mk681Xm+xexzlnIRMZHyrwyttv8dmmjWR5PC39YEKAYdJ3xHBEcQ/UVEPIlBiGjqqqXHXRhSz+fBYFebnE02TuNqYICd58801KSkowdOvdxiiAYP+WSsvozgGBNPVzO6MK3w9sSdac3BlJ90dCH3Cec5bNJbS+x6D1PaYxvHTSCOtDIJB+gEIgIxG0o3vi++BtvCki6KfAlvxcHnn0UQry85rkh1k6kcTvcPDYru307JjHDWMvx0gAwfYsmCaytrbNxZECDI8b6XaBolgO2qTPKdGnoigoCaABvPLSS9x00434NEda14ZhGHg9bgYPOLbRGtQ0y5UkDTSnkzvvuJ3p7/1f2rmlZnHU1Tfw8stTGD5iBNFoFE3TmoFbtvBDHtJzo+nCWD9ouCqJZkVpGgtNVUZTDYRkhoNhIBLRhzbbTg3qmyaKBAPJQ3/6Exs2bWT69HfSEkUCOarGzZePo6PTxZgLL0RPEESapuWc3M9udrlcqEJY8VRLQWqiXCdLRUUFCxbMZ/KLL/L++x/g83nTpl4nxV7P0lL6lZVZYbhE24ZhoGka/3j2WR597M/k5+WmBVoSbOFwmCf/9jcmTJhoj7X9DMnyM/54A/E28FI+pxKzuXWiqk2f3x+YEy4XAZb1KyWTJ7/Elu+2sGrVSjIzM5vGIKVE0VQ8/gwmXn0Vn3QuYtiw46wIw35AZqUCefhw5kz2VVRgmhKRYjULwDBMAoEGdu/Zw9YtW9i1axdSSrKyslo916AoCuFIlPPOPQ+Xy2VnYCTz5T777DN+8YubycnOajW4nsyEyc7OZtWqlUy69lqLU4m2XEcWJ+xZWso111xDQUHBYT03ethOVzU0NDBw4LHs2b0bp9NpE0lRFBoaGhg5ciSf/uuzFouTJNDGjRs56cQR1Dc04HI6W4SrVFUlHA6Tl5/P7Fmz6d6jh81Fli5dYp+uaj59IQTRaJRQOJJW80nqyJqm4XQ6bc7SFkiSc1i8eAnFJSX2UUaAaDTKccOG8e23a8nIyNhvynZSjNIOzUykcPvSnj2ZMXMmPXv2tDN9f5yc7d9YkqeUevbsydTXXuecUaMwNdMmahMu5fOxffsO7r77bl57/fV2nSySUuJyufAkHa3NuUCijSQX2x84HA4HFfsq+d3dd1NcUmJvluTPZUuXsnbtGvx+f7vOBgghyMvNaeT6bXGpxFgdDgcbNm7krjvvYPo77x62E1Y/yluMVFVF13VOOeUU/vbk36itq0+7U3Vdx5/hY/78r6mvr2+RNt4W4IxE8qah601rInnSNM39Es3pdLJvXyUjhg/nt3ffjZm4kiHZB8DWbduIxw/svKg9rnTjSzPWaDRKpj+DRYsWUV1dfdiO9B3ec6OteGbao1Nomoau60yadB133nEHVdU1rYKpuS71Qy908uRVxb5KBg48ljenTcPj8ViO4JTjegBejwdF+ffoUEngHa5y2MDm8Xhwu92WEZtyAYvD4SAW1+nWrVvCEDX3K1IffuQRLrjgfPZVVuFMyYB1OBw0BIIMGDCArKws25DIy8vH4XDYJ9jbe06ztZp6tE8IQX19PdXV1Vw+diyf/uszioqKWtxUlJzvgAED7GsXDsVY0lVVVYnH4xQUFJCXl/ffI0aTTkmHw8H4ceMJhsLE43FbLFVVVeHPyODnN/9iv1wu9bDu5MkvMWjQQCr2Vdr/r6qqIjcnh//5wx9tJd00Tbp3786YMedTXVNri8QDrcnzEbFYjGAwQHV1DZVV1Qnxfirvvfd/vPb66+Tm5qa9EktRFAzDoFv37kyYMJGa2rrvPZb91VAoRDgS5Ve33IozYUwdDov0sFwsIxMJe6Ypuffee3h5ystEImEURaG4uIQHH3qIk08+ud33liWf27FjBzfdeCPz5s3FNE369u3L/z7+BOXl5U3u+wBoaGjgtttuZeaMGcRisRYGxn53qaLgcDjx+bwUFBRQUlLCkCFDGXnyyZSVldnjauv0elK8R6NRfn3XXUx/ZzrRSOSQifpkv/kFBdxyy61cd911/7a74P5jwNa81NXVUVNTjcPhpHPnzk0AdKAuFYBt27ah67p9HK+ttiorKwkEAge80xVF4HJZ6eg+n6/FWEzTPODDwDU1NdTV1R1SriOEoFOnTvYBnP/KywCb+83ScarvbXSkLGhrbSW5yqHa5ckrUw/01smDAefBrvN/JWdLtRYPBfGbX97S3r6/r5g6VNziUN+slE63/Y8DW1JZT7Vo2grFpFuw5PtJPSm1vdZA0eJ0VMrzzdtozUpNfb6t99OBs7XxHcg7rW2cdBsg9dm2AJE619TnWrtyoTm99jevtmjb2nxSJUNbm6SJBZ4KtoOR6YdaLB2sSP1PKAerI/2Y594uzial5Ntv11kuCH8GXbp0JTc3h9raWnbv3o2mOazgdOKtrt264kxxpu7Zs4ft23cQj8fIy8uje4/uxKIxtm7dRn5+Hh07drS9+5s3b0ZVVUpKSohGo2zfsYNwKIxpGni9Xjp37mzfEFRfX8+OHTvILygg0+9n27btqKqCYZhIJKpi3X2WlZVFMBgkEgnTpUsX/H4/ALW1tezcuQufz0v37t1tIMRiMbZs2YphGOTl5dKhQwd7Hb77bguRaISszEw6d+5svxOJRtm6dSumYdKhsAN5ubn2/yorK9m7twKfz0f37t3stjZt2oSiqBQX97DXKhQKsX37dqSUdOzYiezsLLud5E/DMNm2bRt1dbWomkaHDh3Iz8tDVVW2bNlCJBJN+PesJAF/pp9OHTtSV1fH7t27Aeh81FH4MzIAiEQSYzdNCgs7kJubS1VVFXsTp/iVxM1KQhEU9+hBQ0MDO3buxOFw0DNxV4oQgq1btxGJRCgpKWb37j1EElZ0qr9QUQTdunWzdUUtVbHet28fDz/yKEuXLkNKk2AwyKizz+a++/7AV1/N5X8ffwKP10sw0HhvxksvvUD3bt2or6/nuedf4IsvZtkWVTQaZeqrL1NRsY+bf/Errhg/jltu+aVN/NvvuAu/P5Opr05hzZq13PXr36Jpqn0NVMfCQq6ddC2nnnIyCxYs5De/vZvrrpvE8BNO4KqrryUrKxO3242qWu/s21fJpGuvwefz8rcn/87VV13Fz39+IwB///vTvPf++/z6zjvo3r27HZTfsWMnt952B5FImPLych5+6IGERbudX916G8FAgOOOG8YD999nv/Pll1/x8MOPAHDaaafy29/8Gl3XcTgcfDBjJi+99DKZmX4eeugB+vbpQzgS4e7f3UNGRgbPP/esLQE++vgTnnzy7yAEF5w/hpt/fpPtLlEUhdmz5/Da62+wceNG4vE4Ukr8fj//ePYZjjqqMw8/8ijfffed5Z+Tkvq6es4+60zuv/+PzJ49h7/89UlActVVVzLhivEAzJo9m8ce+zOmaXL11Vcx4YrxfPLJpzz73At4PR7C4bB11ZjbxQfvv8eSJUu57/4HcDic3HH7rZx++mkAPPGXv7JhwwZefWUKf/zjfaxavZrMTIselu8xiNfrY+qrU2xHsg02RVF45dWpLFiwgEsvvYTy8sFs27rN5kSapiGlpO8xxzB06BDMxM7LzckhHo/z8CN/YvbsOQwaNIizzzqTzMxMtm/fTpcuXdi1azdut7vJxSZCCJxOJ06nw/5d1+MMHHgs4y4fy9pvv2XKlJd59tl/cOKI4bhcLsshaZh06tSRX/7i57jcbmbO/JDq6mouvvgiPG43ZWVllJQU88GMmcyaPZurrppIMBjkq7lzGVJezujR5yW4hiWewpEwQkBubg6bN29m7969FBYWsnDhQvR4nMzMTGKxeBP9Y8GCBWRnZ+P3+1m1ajWBQMB2f2iqgtttpRG9/PKrPPLwg6iKgtPptMNpSdG6cOFCCgoKcDgcLFu2nFgsZkc2PvnkUx5+5E94vV4uuOB8epaUEIlE2LNnD3l5eYAVe9U0jUsuvojsnByi0SjdE5GXSCSC0+nA5XKzfPlyrhg/DiEE8+cvwOfzEY/H7dCVw+EAaVJePoj+ZWX2pkrS3KKTk9def4Pjjz8er9djZ70AXHLJxZxy6ils2riJr+bOZdCgQRw7oD+KqtrrIhKHuO1F3LFjJ16vl/LBgxl+wgkMP+GEJrHIcCRKr169uPjii5rI4tlz5jB37jwGDRzIww89iM/nbfJ/K0zUUolsrsTquk5+fh4DBvRnwID+zJ49m+++20IsFrNZcTQWJS8vjwkTrgBg7tx57N27lzGjR1OYkg9/wflj+Mtf/8bXX8+nvr6empparpw4AU3TEtzDei4cChOLxejfv4ylS5ezavUaCgsL+eqruRQXFxMKhQgEAjbYgqEQy5Yuo6x/fzoXFfHSlJdZs3YtQ4cMSYgRaxP26tWLxYsXM3fuPIYPPwFD15votVVV1axYsZJTTzkFh9PB9OnvsHHjRvr06UN9fT2vvDoVp9PFr399JyOGD29Trxs79lIyMvxN/h4MBtE0jd69j2bNmrVUVVXh8XhYtWoV/cvKWP7NNwQTNzsJRSESCTPw2GO54ILzW7RvmCalpT1ZsWIl77z7LleMH4dpNn47zplnngHAxx9/wgczZtK3bx8uu+zSlvHsVDk7bNhQlixZwp8efYxhc4Zy1plnMHjwYNtP4/W4WbxkCdU11cTjcbKzsrjxxp+xYsVK4vE4I0eehM/nJRaL2YFyZ5rbetqKddbW1rJ+wwaWL/+GzZu/Y/CgQfh8PqKxaBPrKflNKknLKhAIkJ+fZ6dAnzf6PP7v/Q+Y9s+3CAaDnHzySRZHTsw1mc4TDoeJRqP07t2b9es3sHrVao4/bhjr1q9n/PhxfP31fEKhELFYDKfTydo1a9m1ezdXX30VJSUlvDh5MosWLbbBJhSFaDTGmWeezq5du5jy8isce+wAtIRTNUmgFStXUFVVxbBhQ3G5XEyd+joLFy2mT58+bNiwgV27dlHWrx8jhg/HNE1WrFhBbV09pmHQvUd3inv0QEprLo/9+XEyMjIIBoKcdtopjBhh5fkJIejfvz/z5y9k46ZNOJ1OGhoaGDK0nCVLlxIJN+pZHo+PL2bNZuOmTcRiMQryC7j++kkoqkI4FOKEE04gHoszbdo/Ofcn5+ByNV5AmPRehMNWFCgajdoZJ6n011JN3EsSHOuDD2bw0Ucf8/nnXzDhivFceeVEDNNE0zQqKyupqKggFovZIjYYDCKEgj8z03ZOJoPTrVlozbmcNWEPa9as5aabbiYWi9OrVyl33HF7i/BNMricaqkl+0tOPNPvZ+zYy3jqqafx+Xxce83VaQGeBFK3rl3p1q0rGzZuZPHiJRiGybChQ5g7dx6xWIx4PI7T6WThokU4nS66dO1CYWEHioqKWLp0GZFIBLfbnUjdDtG9WzfOO/cnPPn3p5k1ew5ZmZmEwuFGEbpgEX5/JkVFRbhcLjp0KGDxosVcdeVEgqEQ8XiczMRROyEEzz3/At+sWAkSrrhiHD+94Xpbv1u5chWKolBbW0vv3r1tmkgp6dunDxkZGaxetQbTNOnYsSPH9O5NPB4nEo0kiYKmaezevZudO3cSjUbtRAiBIBaPk5np55JLLuaW225nxoyZZGT4Wrhzkj+T9EnL2VIfGHvZpZwz6mxmzZ7NlJdfYdo/3+L888fg9XoIBAKcM2oU118/CcNoFEVJi2/Ld98luIZp63QAqqbaAfikjyzJnZJ6nBCCSCRC/7IyLrroQt56ezpLly5l/vz5jBp19oE5OxNgHjZ0CM8//wJHHdWZ0tLStH7BQDCIaUpyc3MZMGAA06e/w/sfzKCkpJiSkhKklHaigGEYfPPNCnwZPu699w92G3v37mXduvUMGNDfOucgBOFwhPPPH8O0f77Fhx9+SDweR1EsxT8UCrFm7Vrcbhe33X6HzdW3bd9ORUUFnTp2xOVysWPHTpuj3nrLr/jyq3lMnvySla6UgIJhGDxw/x/p2rVrE04SjUSRUtKtW1eOLu3JosWLiEZjDB06hPz8ggRXjyTooxEMBhh3+WVcdtmlNp1siaMo1NfVc/qFp1HWrx8fffIJhR06WBnW3zfro7a21kq0y8xk9HnnkZ+XTywWs07wqBYoXC4XXq8Xvz+DjIQ5PWzoUDweN59/MYtFixajqtaBjuSAO3fujM/n49t16wgGgyiKwjcrVlJbW0tRUZHF2aSVoZCdnc2QIeWMHXsp8Xiczz7/wgZJuu+Cau3b8JKgTnLt1rJgQ6EQmqbidDoYNHAg0WiMlStXMmzoEDttKBaLoSgK27dvZ+vWrXTtchQXX3wRl1x8EX36HEMwGGTZ8uU2AFRVIxqNkpGRwSUXX8z69RvYt6/SNhDWrVvPrl27KC4u5pJEO6WlPWloaODr+QsoKSmha5cubNmylckvTSEajVJSUsLRR5cmQKs0mXtmZmaCJn47TT0cCeNwOMjMzGTgwIFs2bKVvXv3Mnz4CaiqgsPptA2EZHsej8duJ0lbACWRyiWEYMKEK6jYW8HWrdustPpmDue2vq9LSxVtDz30CNt37KBnzxL27tnLmrVrGTJkCAUFBSxevARFUZjz5ZesXLUKIQShUIibb76J8vLBnHvuT3jnnXe5+3f30KdPb3w+H/v2VfI/9/6ekuJihpSX8/kXX3D7HXdRVNSJhQsX4XA4Oe/cn1g6oW4QDkeIRCJWGlC37uTn57NmzRoLEKpGMBhqcfLIOi8QTsv5knpENBptdQFqqqttt0LPniV4PG4qKyspLy+3F7C2to54PM78BQvZvXsP48eP44rx4wBYsnQps2bNYd68r7nqyolIaRIKBW397Pzzx/D555/z3ZYt5OTkADBv3jwqKys57bRTGTP6PHtDzpnzFXPmzGH0eefy05/dwP33P8jUqa8xb97XFBUVUVlZiWHotmIfjUaIRqPc+z9/xOl0Eo1E6Na9G7//3d1UJ666VxSF/v3LeObZAF26HMUxvXsTDIYwDZPamhoA4omslw9mzGTOl1/Zuuz99/0Bh8NBIBCwRebIk07ko48+YuHCRfYXr6UagqFQqNXTYVojF5Acc0xvqmtq2LhhIx6vl8suvZTLLx+LEILMzEzKyvrh8XiJRqMJTtPIvX75i5vp3asXs2bNZueuXezbt4+cHOv2RSEEt912C/kF+SxbtpzVq9dQWlrKxRddyJAh5bYo7tevL126HIWiKOTkZHPaaaeyYMFCdu7cSXZONr16HW07XZOlR48eaJqa9kib0+nkmN696VTUsdWwVnZ2Nv3798fj8eJyuTjvvHOpqqqiV6+jASgt7YmuxwmHI9TW1FJePpjywYNsTlnasycjR55IIBCkoaGBTkWd6Nu3L36/HyEEfn8GV145kVenvkZpaU8MwyAQCHLcsGEM6N/fbqdv3z6MGDHcNpKGlJfzv39+jA9mzGDduvXs3LmDjAw/PznnHIYOtYyR4uJiPG5P4mYyiVAUFGEZP507d6ZjYSGmaXL00aWce+459OjRA5fLRSQapV+/PrbDPDcvl7KyMrweD9EE8JLZw1lZWZSV9SMvP88W91dOnEggECArKxtNa3To5+TkUFbWz6ZRCymULjaa6u/5PiWJ7HRp2rphYOiG/a0m7QnpHO7UmIQOvd/zuOnG2fxv7Z1ve7NXfrThquYT2l/yXzqfT/Pgt3VLY8vYaXtiqYcDZAeSMdLecbZ3Hs2fSzeW7zO+g3nvUNIlLWc7WCKn25nt+d+RcnCc9UcXiD9SjpQfqihHluBIOQK2I+UI2I6UI+UI2I6UI2A7Uo6UZPl//xe/uD2YshsAAAAASUVORK5CYII=" alt="RDZ Security Management" style="height:56px;width:auto;display:block;">
+        <div class="logo-wrap">
+          <!-- Logo RDZ base64 original -->
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAACXBIWXMAABcRAAAXEQHKJvM/AAAFD0lEQVR42u3BMQEAAADCoPVP7WsIoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeAMBuAABHgAAAABJRU5ErkJggg==" alt="RDZ Security Management">
         </div>
       </div>
     </div>
+
     <div class="meta">
       <div class="meta-cell"><label>Date</label><div class="mv" id="rv-date">—</div></div>
       <div class="meta-cell"><label>Heure</label><div class="mv" id="rv-heure">—</div></div>
       <div class="meta-cell"><label>Agent</label><div class="mv" id="rv-agent">—</div></div>
       <div class="meta-cell"><label>Nature d'activité</label><div class="mv" id="rv-nature-act">—</div></div>
     </div>
+
     <div class="body">
       <div class="sec">
         <div class="sec-title">1 — Informations générales</div>
         <div class="sec-body">
-          <div class="field-row full"><div class="field"><label>Localisation précise</label><div class="fv" id="rv-loc">—</div></div></div>
+          <div class="field-row full"><div class="field"><label>Localisation / N° chambre</label><div class="fv" id="rv-loc">—</div></div></div>
+          <div class="field-row full" id="rv-resident-row" style="display:none"><div class="field"><label>Résident</label><div class="fv" id="rv-resident">—</div></div></div>
           <div class="field-row full" style="margin-top:1rem;"><div class="field"><label>Type d'intervention</label><div class="fv" id="rv-type">—</div></div></div>
         </div>
       </div>
+
       <div class="sec">
         <div class="sec-title">2 — Constats sur place</div>
-        <div class="sec-body"><div class="field-row full"><div class="field"><label>Détail des constats</label><div class="fv" id="rv-constats">—</div></div></div></div>
+        <div class="sec-body">
+          <div class="field-row full"><div class="field"><label>Détail des constats</label><div class="fv" id="rv-constats">—</div></div></div>
+        </div>
       </div>
+
       <div class="sec">
         <div class="sec-title">3 — Mesures prises</div>
         <div class="sec-body">
@@ -494,221 +571,43 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
           </div>
         </div>
       </div>
+
       <div class="sec" id="rv-photos-sec" style="display:none">
         <div class="sec-title">4 — Photos</div>
-        <div class="sec-body"><div class="photo-zone" id="rv-photos"></div></div>
+        <div class="sec-body">
+          <div class="photo-zone" id="rv-photos"></div>
+        </div>
       </div>
     </div>
+
     <div class="ftr">
       <div class="ftr-left">
-        <div class="ftr-text">RDZ Security Management SA © 2026 · Document confidentiel</div>
+        <div class="ftr-logo">
+          <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAQAAAAEACAYAAABccqhmAAAACXBIWXMAABcRAAAXEQHKJvM/AAAFD0lEQVR42u3BMQEAAADCoPVP7WsIoAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAeAMBuAABHgAAAABJRU5ErkJggg==" alt="RDZ">
+        </div>
+        <div class="ftr-text">RDZ Security Management SA © 2026<br>Document confidentiel</div>
       </div>
       <div class="ftr-coords">contact@rdz-security-management.ch<br>+41 22 552 26 99 · Quai du Seujet 22, Genève</div>
     </div>
   </div>
 </div>
 
-
-<!-- ══════════ PANEL STATS ══════════ -->
-<div class="panel" id="panel-stats">
-<div class="stats-wrap">
-  <div class="stats-hdr">
-    <div><div class="stats-title">📊 Statistiques</div><div style="font-size:12.5px;color:var(--text3);margin-top:3px;">Analyse des interventions par période</div></div>
-    <button class="btn-sm" onclick="goList()">← Retour</button>
-  </div>
-  <div class="period-tabs">
-    <button class="period-tab active" onclick="setPeriod('veille')" id="pt-veille">Veille</button>
-    <button class="period-tab" onclick="setPeriod('semaine')" id="pt-semaine">Cette semaine</button>
-    <button class="period-tab" onclick="setPeriod('mois')" id="pt-mois">Ce mois</button>
-    <button class="period-tab" onclick="setPeriod('mois_prec')" id="pt-mois_prec">Mois précédent</button>
-    <button class="period-tab" onclick="setPeriod('annee')" id="pt-annee">Cette année</button>
-  </div>
-  <div style="font-size:11.5px;color:var(--text3);margin:10px 0 16px;" id="period-label"></div>
-
-  <!-- KPIs top 3 -->
-  <div class="stats-kpis">
-    <div class="stats-kpi">
-      <div class="stats-kpi-n" id="sk-total">—</div>
-      <div class="stats-kpi-lbl">Rapports</div>
-      <div class="stats-kpi-sub" id="sk-top-site">—</div>
-    </div>
-    <div class="stats-kpi">
-      <div class="stats-kpi-n" id="sk-top-cat-n">—</div>
-      <div class="stats-kpi-lbl">Catégorie principale</div>
-      <div class="stats-kpi-sub" id="sk-top-cat">—</div>
-    </div>
-    <div class="stats-kpi">
-      <div class="stats-kpi-n" id="sk-top-agent-n">—</div>
-      <div class="stats-kpi-lbl">Agent le + actif</div>
-      <div class="stats-kpi-sub" id="sk-top-agent">—</div>
-    </div>
-  </div>
-
-  <!-- Charts -->
-  <div class="stats-charts full">
-    <div class="chart-card">
-      <div class="chart-title">📍 Rapports par site</div>
-      <div id="chart-site"></div>
-    </div>
-  </div>
-  <div class="stats-charts" style="margin-bottom:16px;">
-    <div class="chart-card">
-      <div class="chart-title">📋 Par catégorie</div>
-      <div id="chart-cat"></div>
-    </div>
-    <div class="chart-card">
-      <div class="chart-title">🔎 Par nature</div>
-      <div id="chart-nat"></div>
-    </div>
-  </div>
-
-  <!-- Drill-down -->
-  <div id="drill-wrap" style="display:none;">
-    <div class="drill-panel">
-      <div class="drill-title">
-        <span id="drill-title-txt">Rapports</span>
-        <span class="drill-close" onclick="closeDrill()">×</span>
-      </div>
-      <div id="drill-list"></div>
-    </div>
-  </div>
-</div>
-</div>
-
-<!-- ══════════ PANEL ADMIN ══════════ -->
-<div class="panel" id="panel-admin">
-<div class="adm-wrap">
-  <div class="adm-hdr">
-    <div><div class="adm-title">⚙️ Paramétrage</div><div style="font-size:12.5px;color:var(--text3);margin-top:3px;">Catégories · Natures · Suggestions</div></div>
-    <button class="btn-sm" onclick="goList()">← Retour</button>
-  </div>
-  <div class="adm-tabs">
-    <button class="adm-tab active" onclick="admTab('cat')" id="tab-cat">Catégories</button>
-    <button class="adm-tab" onclick="admTab('nat')" id="tab-nat">Natures</button>
-    <button class="adm-tab" onclick="admTab('sugg')" id="tab-sugg">Suggestions</button>
-  </div>
-
-  <!-- Tab catégories -->
-  <div id="adm-cat">
-    <div class="adm-cols">
-      <div class="adm-panel">
-        <div class="adm-panel-hdr">
-          <span class="adm-panel-title">Catégories</span>
-          <button class="btn-sm" onclick="admNewCat()">+ Nouvelle</button>
-        </div>
-        <div class="adm-list" id="adm-cat-list"></div>
-      </div>
-      <div class="adm-panel" id="adm-cat-form-panel" style="display:none">
-        <div class="adm-form">
-          <div class="adm-form-title" id="adm-cat-form-title">Nouvelle catégorie</div>
-          <div class="adm-field"><label>Libellé</label><input class="adm-input" id="cat-label" placeholder="Ex : Alarmes"></div>
-          <div class="adm-field"><label>Icône</label><input class="adm-input" id="cat-icone" placeholder="🚨" maxlength="4"></div>
-          <div class="adm-field">
-            <label>Couleur</label>
-            <select class="adm-select" id="cat-couleur">
-              <option value="r">🔴 Rouge</option>
-              <option value="p">🟣 Violet</option>
-              <option value="b">🔵 Bleu</option>
-              <option value="o">🟠 Orange</option>
-              <option value="v">🟢 Vert</option>
-              <option value="c">🩵 Cyan</option>
-              <option value="g">⚫ Gris</option>
-            </select>
-          </div>
-          <div class="adm-field">
-            <label>Ordre d'affichage</label>
-            <input class="adm-input" id="cat-ordre" type="number" min="0" placeholder="0">
-          </div>
-          <div class="adm-field">
-            <label style="margin-bottom:8px;">Active</label>
-            <div class="adm-toggle">
-              <label class="toggle-sw"><input type="checkbox" id="cat-actif" checked><span class="toggle-track"></span><span class="toggle-knob"></span></label>
-              <span style="font-size:13px;color:var(--text2)">Visible dans le wizard</span>
-            </div>
-          </div>
-          <div class="adm-btns">
-            <button class="adm-btn primary" onclick="admSaveCat()">Enregistrer</button>
-            <button class="adm-btn ghost" onclick="admCancelCat()">Annuler</button>
-            <button class="adm-btn danger" id="adm-cat-del-btn" style="display:none" onclick="admDeleteCat()">Supprimer</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tab natures -->
-  <div id="adm-nat" style="display:none">
-    <div class="adm-cols">
-      <div class="adm-panel">
-        <div class="adm-panel-hdr">
-          <span class="adm-panel-title">Catégorie</span>
-        </div>
-        <div class="adm-list" id="adm-nat-cats"></div>
-      </div>
-      <div class="adm-panel">
-        <div class="adm-panel-hdr">
-          <span class="adm-panel-title" id="adm-nat-panel-title">Natures</span>
-          <button class="btn-sm" id="adm-nat-add-btn" style="display:none" onclick="admNewNat()">+ Nouvelle</button>
-        </div>
-        <div class="adm-list" id="adm-nat-list"><div style="padding:20px;color:var(--text3);text-align:center;font-size:13px;">Sélectionnez une catégorie</div></div>
-        <div id="adm-nat-form" style="display:none;padding:14px;border-top:1.5px solid var(--border);">
-          <div class="adm-field"><label>Libellé</label><input class="adm-input" id="nat-label" placeholder="Ex : INCENDIE — Alarme maîtrisée"></div>
-          <div class="adm-field">
-            <label>Ordre</label><input class="adm-input" id="nat-ordre" type="number" min="0" placeholder="0">
-          </div>
-          <div class="adm-field">
-            <div class="adm-toggle">
-              <label class="toggle-sw"><input type="checkbox" id="nat-actif" checked><span class="toggle-track"></span><span class="toggle-knob"></span></label>
-              <span style="font-size:13px;color:var(--text2)">Active</span>
-            </div>
-          </div>
-          <div class="adm-btns">
-            <button class="adm-btn primary" onclick="admSaveNat()">Enregistrer</button>
-            <button class="adm-btn ghost" onclick="admCancelNat()">Annuler</button>
-            <button class="adm-btn danger" id="adm-nat-del-btn" style="display:none" onclick="admDeleteNat()">Supprimer</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Tab suggestions -->
-  <div id="adm-sugg" style="display:none">
-    <div class="adm-cols">
-      <div class="adm-panel">
-        <div class="adm-panel-hdr"><span class="adm-panel-title">Nature</span></div>
-        <div style="padding:10px;">
-          <select class="adm-select" id="sugg-cat-sel" onchange="admLoadSuggNatures()" style="margin-bottom:8px;"></select>
-          <div class="adm-list" id="adm-sugg-natures"></div>
-        </div>
-      </div>
-      <div class="adm-panel">
-        <div class="adm-panel-hdr">
-          <span class="adm-panel-title" id="adm-sugg-panel-title">Suggestions</span>
-        </div>
-        <div id="adm-sugg-content" style="padding:14px;">
-          <div style="color:var(--text3);text-align:center;font-size:13px;padding:20px 0;">Sélectionnez une nature</div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-</div>
-</div>
-
 <script>
+
 /* ════════════════════════════════════════════
    CONFIG
 ════════════════════════════════════════════ */
 const SB  = 'https://trdhtlcenmjlcvzuplid.supabase.co';
 const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
+const SB_RES  = 'https://pdewmubikmotqzbxmyeq.supabase.co';
+const KEY_RES = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkZXdtdWJpa21vdHF6YnhteWVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMDU3MjgsImV4cCI6MjA5NDg4MTcyOH0.SRuhERPmB5_7a58nJ5oMg4a8mujnoLBv8dxkxvyNWao';
 const SK  = 'rdz_session';
 const LS_DB  = 'rdz_ir5_db';
 const LS_PND = 'rdz_ir5_pending';
 const SEARCH_THRESHOLD = 10;
 
 var tok=null,sess=null,isOnline=navigator.onLine;
-var DB={reports:[],clients:[],missions:[],agents:[],categories:[],natures:[],suggestions:[]};
+var DB={reports:[],clients:[],missions:[],agents:[],categories:[],natures:[],suggestions:[],residents:[]};
 var pending=[];
 var editingId=null;
 
@@ -764,7 +663,8 @@ function loadAll(){
     fetch(SB+'/rest/v1/ir_categories?order=ordre.asc&select=*',{headers:h}).then(r=>r.ok?r.json():[]),
     fetch(SB+'/rest/v1/ir_natures?order=ordre.asc&select=*',{headers:h}).then(r=>r.ok?r.json():[]),
     fetch(SB+'/rest/v1/ir_suggestions?order=ordre.asc&select=*',{headers:h}).then(r=>r.ok?r.json():[]),
-  ]).then(([rpts,cls,ms,ags,cats,nats,suggs])=>{
+    fetch(SB_RES+'/rest/v1/residents?select=name_first,name_last,room_space,building&order=name_last.asc',{headers:{'apikey':KEY_RES,'Authorization':'Bearer '+KEY_RES}}).then(r=>r.ok?r.json():[]).catch(function(){return [];}),
+  ]).then(([rpts,cls,ms,ags,cats,nats,suggs,res])=>{
     if(Array.isArray(rpts))  DB.reports=rpts;
     if(Array.isArray(cls))   DB.clients=cls;
     if(Array.isArray(ms))    DB.missions=ms;
@@ -772,6 +672,7 @@ function loadAll(){
     if(Array.isArray(cats))  DB.categories=cats;
     if(Array.isArray(nats))  DB.natures=nats;
     if(Array.isArray(suggs)) DB.suggestions=suggs;
+    if(Array.isArray(res))   DB.residents=res;
     try{localStorage.setItem(LS_DB,JSON.stringify(DB));}catch(e){}
     try{pending=JSON.parse(localStorage.getItem(LS_PND)||'[]');}catch(e){}
     populateClientFilter(); renderList();
@@ -782,7 +683,7 @@ function loadAll(){
 function loadLocal(){
   try{var d=JSON.parse(localStorage.getItem(LS_DB)||'{}');
     DB.reports=d.reports||[];DB.clients=d.clients||[];DB.missions=d.missions||[];
-    DB.agents=d.agents||[];DB.categories=d.categories||[];DB.natures=d.natures||[];DB.suggestions=d.suggestions||[];
+    DB.agents=d.agents||[];DB.categories=d.categories||[];DB.natures=d.natures||[];DB.suggestions=d.suggestions||[];DB.residents=d.residents||[];
   }catch(e){}
   try{pending=JSON.parse(localStorage.getItem(LS_PND)||'[]');}catch(e){}
   populateClientFilter(); renderList(); setSyncState('err','Hors ligne');
@@ -823,7 +724,7 @@ function syncPending(){
 /* Colonnes autorisées dans Supabase — doit correspondre exactement à la table */
 function cleanForSupabase(r){
   var allowed=['id','date','heure','agent_id','agent_name','client_id','client_name',
-               'mission_id','mission_name','localisation','categorie','nature',
+               'mission_id','mission_name','localisation','resident_name','categorie','nature',
                'constats','actions','statut_cloture','photos',
                'created_at','updated_at','created_by'];
   var clean={};
@@ -881,7 +782,11 @@ function renderList(){
 }
 
 /* ════ WIZARD ════ */
-const STEPS=['datetime','agent','client','site','localisation','categorie','nature','constats','actions','cloture','photos','recap'];
+const STEPS_STANDARD=['datetime','agent','client','site','localisation','categorie','nature','constats','actions','cloture','photos','recap'];
+const STEPS_OUVERTURE=['datetime','agent','client','site','chambre','nature','resident','cloture','photos','recap'];
+const STEPS_PILE=['datetime','agent','client','site','localisation','nature','cloture','recap'];
+var STEPS=STEPS_STANDARD;
+function getStepsForCat(catId){ if(catId==='cat-ouverture') return STEPS_OUVERTURE; if(catId==='cat-pile') return STEPS_PILE; return STEPS_STANDARD; }
 var step=0;
 var WZ={};
 
@@ -889,11 +794,12 @@ function wzReset(){
   var n=new Date();
   WZ={date:n.toISOString().slice(0,10),heure:n.toTimeString().slice(0,5),
       agentId:null,agentName:'',clientId:null,clientName:'',
-      missionId:null,missionName:'',localisation:'',
+      missionId:null,missionName:'',localisation:'',chambre:'',
+      residentId:null,residentName:'',
       categorieId:null,categorieLbl:'',natureId:null,natureLbl:'',
       constats:'',actions:'',cloture:null,photos:[]};
 }
-function startWizard(){ editingId=null; wzReset(); step=0; showPanel('wizard'); showBackBtn(); renderStep(); }
+function startWizard(){ editingId=null; wzReset(); STEPS=STEPS_STANDARD; step=0; showPanel('wizard'); showBackBtn(); renderStep(); }
 
 function renderStep(){
   var total=STEPS.length;
@@ -953,6 +859,36 @@ function renderStep(){
     var locSite=esc(WZ.missionName||'');
     body='<input class="wz-input" type="text" id="wz-loc" value="'+locVal+'" placeholder="Ex : Bat. A, sous-sol, couloir Nord..." oninput="WZ.localisation=this.value">'
       +'<div class="wz-hint">Optionnel — lieu exact dans le site '+locSite+'</div>';
+  }
+  else if(s==='chambre'){
+    body='<input class="wz-input" type="text" id="wz-chambre" value="'+(WZ.chambre||'')+'" placeholder="Ex : 214, Studio B..." oninput="WZ.chambre=this.value" autocomplete="off">'
+      +'<div class="wz-hint">Numéro ou nom de la chambre / unité</div>';
+  }
+  else if(s==='resident'){
+    hiddenNext=true;
+    var resAll=DB.residents.slice();
+    var chambreQ=(WZ.chambre||'').toLowerCase();
+    if(chambreQ){ var cf=resAll.filter(function(r){return (r.room_space||'').toLowerCase().indexOf(chambreQ)>=0;}); if(cf.length) resAll=cf; }
+    resAll=resAll.slice(0,60);
+    var needSearch=DB.residents.length>SEARCH_THRESHOLD;
+    var items=resAll.map(function(r){
+      var fullName=((r.name_first||'')+' '+(r.name_last||'')).trim();
+      var room=r.room_space||'';
+      var isSel=WZ.residentName===fullName;
+      var d=document.createElement('div');
+      d.className='tile tile-h'+(isSel?' sel':'');
+      d.setAttribute('data-rname',fullName);
+      d.onclick=function(){autoNext('resident',{id:'res',name:this.getAttribute('data-rname')},this);};
+      d.innerHTML='<div class="tile-av" style="background:#7c3aed;color:white;font-size:16px;">👤</div>'
+        +'<div class="tile-h-info"><div class="tile-h-name">'+esc(fullName)+'</div>'
+        +(room?'<div class="tile-h-sub">Chambre '+esc(room)+'</div>':'')
+        +'</div><div class="tile-check">✓</div>';
+      return d.outerHTML;
+    }).join('');
+    body=(needSearch?search('res-list'):'')
+      +'<div class="tiles-scroll"><div class="tile-grid" id="res-list" style="grid-template-columns:1fr;">'
+      +(items||'<div style="padding:20px;text-align:center;color:var(--text3);">Aucun résident</div>')
+      +'</div></div>';
   }
   else if(s==='categorie'){
     hiddenNext=true;
@@ -1053,9 +989,10 @@ function autoNext(type, data, el){
   if(type==='agent'){  WZ.agentId=data.id;    WZ.agentName=data.name; }
   if(type==='client'){ WZ.clientId=data.id;   WZ.clientName=data.name; WZ.missionId=null; WZ.missionName=''; }
   if(type==='site'){   WZ.missionId=data.id;  WZ.missionName=data.name; }
-  if(type==='cat'){    WZ.categorieId=data.id; WZ.categorieLbl=data.name; WZ.natureId=null; WZ.natureLbl=''; WZ.constats=''; WZ.actions=''; }
+  if(type==='cat'){    WZ.categorieId=data.id; WZ.categorieLbl=data.name; WZ.natureId=null; WZ.natureLbl=''; WZ.constats=''; WZ.actions=''; STEPS=getStepsForCat(data.id); }
   if(type==='nature'){ WZ.natureId=data.id;   WZ.natureLbl=data.name; WZ.constats=''; WZ.actions=''; }
   if(type==='cloture'){WZ.cloture=data.id; }
+  if(type==='resident'){WZ.residentId=data.id; WZ.residentName=data.name; }
   var parent=el.closest('[id]')||el.parentElement;
   parent.querySelectorAll('.tile').forEach(t=>t.classList.remove('sel'));
   el.classList.add('sel');
@@ -1065,6 +1002,7 @@ function wzNext(){
   var s=STEPS[step];
   if(s==='constats'){ var el=document.getElementById('wz-constats'); if(el) WZ.constats=el.value; }
   if(s==='actions'){  var el=document.getElementById('wz-actions');  if(el) WZ.actions=el.value; }
+  if(s==='chambre'){  var el2=document.getElementById('wz-chambre'); if(el2) WZ.chambre=el2.value; }
   if(s==='recap'){ doSave(); return; }
   if(step<STEPS.length-1){ step++; renderStep(); window.scrollTo(0,54); }
 }
@@ -1109,7 +1047,8 @@ function doSave(){
     agent_id:WZ.agentId,agent_name:WZ.agentName,
     client_id:WZ.clientId,client_name:WZ.clientName,
     mission_id:WZ.missionId,mission_name:WZ.missionName,
-    localisation:WZ.localisation,
+    localisation:WZ.chambre||WZ.localisation,
+    resident_name:WZ.residentName||null,
     categorie:WZ.categorieId,nature:WZ.natureLbl,
     constats:WZ.constats,actions:WZ.actions,
     statut_cloture:WZ.cloture||'draft',
@@ -1193,9 +1132,10 @@ function editFromReport(){
     categorieId:r.categorie||null, categorieLbl:catObj2?catObj2.label:'',
     natureId:natObj?natObj.id:null, natureLbl:r.nature||'',
     constats:r.constats||'', actions:r.actions||'',
-    cloture:r.statut_cloture||null, photos:r.photos||[]
+    cloture:r.statut_cloture||null, photos:r.photos||[],
+    chambre:r.localisation||'', residentName:r.resident_name||''
   };
-  step=0; showPanel('wizard'); showBackBtn(); renderStep();
+  STEPS=getStepsForCat(WZ.categorieId); step=0; showPanel('wizard'); showBackBtn(); renderStep();
 }
 
 /* ════ DELETE RAPPORT ════ */
@@ -1425,8 +1365,128 @@ function admDeleteSugg(id){
 
 /* ════ NAV ════ */
 function showPanel(id){ document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active')); document.getElementById('panel-'+id).classList.add('active'); }
-function showBackBtn(){ document.getElementById('btn-back-top').classList.add('show'); document.getElementById('btn-admin').classList.remove('show'); document.getElementById('btn-stats').classList.remove('show'); }
-function goList(){ showPanel('list'); renderList(); document.getElementById('btn-back-top').classList.remove('show'); document.getElementById('btn-admin').classList.add('show'); document.getElementById('btn-stats').classList.add('show'); editingId=null; }
+function showBackBtn(){ document.getElementById('btn-back-top').classList.add('show'); document.getElementById('btn-admin').classList.remove('show'); document.getElementById('btn-stats').classList.remove('show'); document.getElementById('btn-ouv').classList.remove('show'); }
+/* ════════════════════════════════════════════
+   RAPPORT OUVERTURES DE PORTE
+════════════════════════════════════════════ */
+var currentPeriod='veille';
+
+function goOuvertures(){
+  showPanel('ouvertures');
+  document.getElementById('btn-back-top').classList.add('show');
+  document.getElementById('btn-admin').classList.remove('show');
+  document.getElementById('btn-stats').classList.remove('show');
+  document.getElementById('btn-ouv').classList.remove('show');
+  // Pré-remplir filtre client
+  var sel=document.getElementById('ouv-client');
+  sel.innerHTML='<option value="">Tous les clients</option>'+
+    DB.clients.map(function(cl){return '<option value="'+cl.id+'">'+esc(cl.raison_sociale)+'</option>';}).join('');
+  // Pré-remplir dates : lundi de la semaine courante → dimanche
+  var today=new Date();
+  var dow=today.getDay()||7;
+  var mon=new Date(today); mon.setDate(today.getDate()-(dow-1));
+  var sun=new Date(mon); sun.setDate(mon.getDate()+6);
+  document.getElementById('ouv-from').value=toISO2(mon);
+  document.getElementById('ouv-to').value=toISO2(sun);
+  genOuvertures();
+}
+
+function toISO2(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function getWeekNum(d){
+  var date=new Date(Date.UTC(d.getFullYear(),d.getMonth(),d.getDate()));
+  var dayNum=date.getUTCDay()||7;
+  date.setUTCDate(date.getUTCDate()+4-dayNum);
+  var yearStart=new Date(Date.UTC(date.getUTCFullYear(),0,1));
+  return Math.ceil((((date-yearStart)/86400000)+1)/7);
+}
+
+function genOuvertures(){
+  var clientId=document.getElementById('ouv-client').value;
+  var fromStr=document.getElementById('ouv-from').value;
+  var toStr=document.getElementById('ouv-to').value;
+  if(!fromStr||!toStr) return;
+
+  var from=new Date(fromStr+'T00:00:00');
+  var to=new Date(toStr+'T23:59:59');
+
+  // Filtrer rapports ouverture dans la période
+  var all=[...DB.reports];
+  pending.filter(function(o){return o.type==='upsert';}).forEach(function(o){
+    var i=all.findIndex(function(r){return r.id===o.data.id;});
+    if(i>=0) all[i]=o.data; else all.unshift(o.data);
+  });
+
+  var rows=all.filter(function(r){
+    // Catégorie ouverture
+    if(r.categorie!=='cat-ouverture') return false;
+    // Client
+    if(clientId&&r.client_id!==clientId) return false;
+    // Période
+    if(!r.date) return false;
+    var parts=r.date.split('-');
+    var rh=(r.heure||'00:00').split(':');
+    var dt=new Date(parseInt(parts[0]),parseInt(parts[1])-1,parseInt(parts[2]),parseInt(rh[0]),parseInt(rh[1]),0);
+    return dt>=from&&dt<=to;
+  }).sort(function(a,b){
+    return ((a.date||'')+(a.heure||''))>((b.date||'')+(b.heure||''))?1:-1;
+  });
+
+  // Récap par motif
+  var recap={oubliee:0,perdue:0,autre:0};
+  rows.forEach(function(r){
+    var n=(r.nature||'').toLowerCase();
+    if(n.indexOf('perdue')>=0||n.indexOf('badge')>=0) recap.perdue++;
+    else if(n.indexOf('oubli')>=0) recap.oubliee++;
+    else recap.autre++;
+  });
+
+  // Titre
+  var wk=getWeekNum(from);
+  var clientName='';
+  if(clientId){ var cl=DB.clients.find(function(x){return x.id===clientId;}); if(cl) clientName=cl.raison_sociale+' — '; }
+  var titre=clientName+'Rapport Semaine n°'+wk+' du '+fmtDate(fromStr);
+
+  // Génération HTML
+  var logoB64=document.querySelector('.rpt-logo img')?document.querySelector('.rpt-logo img').src:'';
+
+  var recapHtml='<table class="ouv-recap">'
+    +'<tr><td class="recap-lbl">Carte oubliée</td><td class="recap-n">'+recap.oubliee+'</td></tr>'
+    +'<tr><td class="recap-lbl">Carte perdue, édition nouveau badge</td><td class="recap-n">'+recap.perdue+'</td></tr>'
+    +'<tr><td class="recap-lbl">Autre</td><td class="recap-n">'+recap.autre+'</td></tr>'
+    +'<tr class="recap-total"><td><strong>TOTAL</strong></td><td class="recap-n"><strong>'+(recap.oubliee+recap.perdue+recap.autre)+'</strong></td></tr>'
+    +'</table>';
+
+  var tblHtml='';
+  if(!rows.length){
+    tblHtml='<div class="ouv-empty">Aucune ouverture de porte sur cette période.</div>';
+  } else {
+    tblHtml='<table class="ouv-tbl">'
+      +'<thead><tr><th>Date</th><th>Heure</th><th>Site</th><th>Localisation</th><th>Identité de la personne</th><th>Motifs</th></tr></thead>'
+      +'<tbody>'
+      +rows.map(function(r){
+        return '<tr>'
+          +'<td class="col-date">'+fmtDate(r.date||'')+'</td>'
+          +'<td class="col-heure">'+(r.heure||'—').slice(0,5)+'</td>'
+          +'<td>'+esc(r.client_name||'—')+' — '+esc(r.mission_name||'—')+'</td>'
+          +'<td class="col-loc">'+esc(r.localisation||r.chambre||'—')+'</td>'
+          +'<td>'+esc(r.resident_name||'—')+'</td>'
+          +'<td>'+esc(r.nature||'—')+'</td>'
+          +'</tr>';
+      }).join('')
+      +'</tbody></table>';
+  }
+
+  var logoHtml2=logoB64?('<img src="'+logoB64+'" alt="RDZ" style="height:52px;width:auto;display:block;">'):'';
+  document.getElementById('ouv-page').innerHTML=
+    '<div class="ouv-hdr"><div class="ouv-hdr-logo">'+logoHtml2+'</div><div class="ouv-hdr-title">'+esc(titre)+'</div></div>'
+    +'<div style="padding:20px 28px 10px;">'+recapHtml+'</div>'
+    +'<div class="ouv-body">'+tblHtml+'</div>';
+}
+
+function goList(){ showPanel('list'); renderList(); document.getElementById('btn-back-top').classList.remove('show'); document.getElementById('btn-admin').classList.add('show'); document.getElementById('btn-stats').classList.add('show'); document.getElementById('btn-ouv').classList.add('show'); editingId=null; }
 
 /* ════ CONFIRM ════ */
 var _confirmCb=null;
@@ -1677,6 +1737,167 @@ function migrateOldData(){
 }
 
 initAuth();
+
 </script>
+
+
+<!-- ══════════ PANEL RAPPORT OUVERTURES ══════════ -->
+<div class="panel" id="panel-ouvertures">
+<div class="ouv-wrap">
+
+  <div class="ouv-toolbar">
+    <button class="btn-sm" onclick="goList()">← Liste</button>
+    <button class="btn-sm red" onclick="window.print()">🖨️ Imprimer / PDF</button>
+  </div>
+
+  <div class="ouv-filters">
+    <div class="ouv-filter-group">
+      <span class="ouv-filter-label">Client</span>
+      <select class="ouv-filter-input" id="ouv-client" onchange="genOuvertures()" style="min-width:160px;">
+        <option value="">Tous les clients</option>
+      </select>
+    </div>
+    <div class="ouv-filter-group">
+      <span class="ouv-filter-label">Du</span>
+      <input class="ouv-filter-input" type="date" id="ouv-from" onchange="genOuvertures()">
+    </div>
+    <div class="ouv-filter-group">
+      <span class="ouv-filter-label">Au</span>
+      <input class="ouv-filter-input" type="date" id="ouv-to" onchange="genOuvertures()">
+    </div>
+    <button class="btn-gen" onclick="genOuvertures()">Générer</button>
+  </div>
+
+  <div id="ouv-page-wrap">
+    <div class="ouv-page" id="ouv-page">
+      <!-- généré dynamiquement -->
+    </div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════ PANEL STATS ══════════ -->
+<div class="panel" id="panel-stats">
+<div class="stats-wrap">
+  <div class="stats-hdr">
+    <div><div class="stats-title">📊 Statistiques</div><div style="font-size:12.5px;color:var(--text3);margin-top:3px;">Analyse des interventions par période</div></div>
+    <button class="btn-sm" onclick="goList()">← Retour</button>
+  </div>
+  <div class="period-tabs">
+    <button class="period-tab active" onclick="setPeriod('veille')" id="pt-veille">Veille</button>
+    <button class="period-tab" onclick="setPeriod('semaine')" id="pt-semaine">Cette semaine</button>
+    <button class="period-tab" onclick="setPeriod('mois')" id="pt-mois">Ce mois</button>
+    <button class="period-tab" onclick="setPeriod('mois_prec')" id="pt-mois_prec">Mois précédent</button>
+    <button class="period-tab" onclick="setPeriod('annee')" id="pt-annee">Cette année</button>
+  </div>
+  <div style="font-size:11.5px;color:var(--text3);margin:10px 0 16px;" id="period-label"></div>
+  <div class="stats-kpis">
+    <div class="stats-kpi"><div class="stats-kpi-n" id="sk-total">—</div><div class="stats-kpi-lbl">Rapports</div><div class="stats-kpi-sub" id="sk-top-site">—</div></div>
+    <div class="stats-kpi"><div class="stats-kpi-n" id="sk-top-cat-n">—</div><div class="stats-kpi-lbl">Catégorie principale</div><div class="stats-kpi-sub" id="sk-top-cat">—</div></div>
+    <div class="stats-kpi"><div class="stats-kpi-n" id="sk-top-agent-n">—</div><div class="stats-kpi-lbl">Agent le + actif</div><div class="stats-kpi-sub" id="sk-top-agent">—</div></div>
+  </div>
+  <div class="stats-charts full"><div class="chart-card"><div class="chart-title">📍 Rapports par site</div><div id="chart-site"></div></div></div>
+  <div class="stats-charts" style="margin-bottom:16px;">
+    <div class="chart-card"><div class="chart-title">📋 Par catégorie</div><div id="chart-cat"></div></div>
+    <div class="chart-card"><div class="chart-title">🔎 Par nature</div><div id="chart-nat"></div></div>
+  </div>
+  <div id="drill-wrap" style="display:none;">
+    <div class="drill-panel">
+      <div class="drill-title"><span id="drill-title-txt">Rapports</span><span class="drill-close" onclick="closeDrill()">×</span></div>
+      <div id="drill-list"></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══════════ PANEL ADMIN ══════════ -->
+<div class="panel" id="panel-admin">
+<div class="adm-wrap" style="max-width:900px;margin:0 auto;padding:20px 14px 80px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;gap:12px;flex-wrap:wrap;">
+    <div><div style="font-family:'DM Mono';font-size:19px;font-weight:600;">⚙️ Paramétrage</div><div style="font-size:12.5px;color:var(--text3);margin-top:3px;">Catégories · Natures · Suggestions</div></div>
+    <button class="btn-sm" onclick="goList()">← Retour</button>
+  </div>
+  <div style="display:flex;gap:4px;margin-bottom:16px;">
+    <button class="adm-tab active" onclick="admTab('cat')" id="tab-cat">Catégories</button>
+    <button class="adm-tab" onclick="admTab('nat')" id="tab-nat">Natures</button>
+    <button class="adm-tab" onclick="admTab('sugg')" id="tab-sugg">Suggestions</button>
+  </div>
+
+  <div id="adm-cat">
+    <div style="display:grid;grid-template-columns:260px 1fr;gap:16px;">
+      <div style="background:white;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);">
+        <div style="padding:12px 16px;background:var(--bg);border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;">Catégories</span>
+          <button class="btn-sm" onclick="admNewCat()">+ Nouvelle</button>
+        </div>
+        <div style="max-height:65vh;overflow-y:auto;" id="adm-cat-list"></div>
+      </div>
+      <div style="background:white;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);" id="adm-cat-form-panel" style="display:none">
+        <div style="padding:16px;">
+          <div style="font-size:13px;font-weight:700;margin-bottom:14px;padding-bottom:10px;border-bottom:1.5px solid var(--border);" id="adm-cat-form-title">Nouvelle catégorie</div>
+          <div style="margin-bottom:12px;"><label style="display:block;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">Libellé</label><input class="adm-input" id="cat-label" placeholder="Ex : Alarmes" style="width:100%;font-family:'DM Sans';font-size:13.5px;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;"></div>
+          <div style="margin-bottom:12px;"><label style="display:block;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">Icône</label><input class="adm-input" id="cat-icone" placeholder="🚨" maxlength="4" style="width:100%;font-family:'DM Sans';font-size:13.5px;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;"></div>
+          <div style="margin-bottom:12px;"><label style="display:block;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">Couleur</label>
+          <select id="cat-couleur" style="width:100%;font-family:'DM Sans';font-size:13.5px;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;cursor:pointer;background:white;">
+            <option value="r">🔴 Rouge</option><option value="p">🟣 Violet</option><option value="b">🔵 Bleu</option><option value="o">🟠 Orange</option><option value="v">🟢 Vert</option><option value="c">🩵 Cyan</option><option value="g">⚫ Gris</option>
+          </select></div>
+          <div style="margin-bottom:12px;"><label style="display:block;font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px;">Ordre</label><input id="cat-ordre" type="number" min="0" placeholder="0" style="width:100%;font-family:'DM Sans';font-size:13.5px;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;"></div>
+          <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px;">
+            <label style="position:relative;width:40px;height:22px;cursor:pointer;flex-shrink:0;"><input type="checkbox" id="cat-actif" checked style="opacity:0;width:0;height:0;"><span style="position:absolute;inset:0;background:var(--border2);border-radius:22px;" id="cat-actif-track"></span></label>
+            <span style="font-size:13px;color:var(--text2)">Active</span>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:16px;">
+            <button class="btn-sm red" onclick="admSaveCat()">Enregistrer</button>
+            <button class="btn-sm" onclick="admCancelCat()">Annuler</button>
+            <button class="btn-sm danger" id="adm-cat-del-btn" style="display:none;color:var(--red);border-color:#fca5a5;" onclick="admDeleteCat()">Supprimer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="adm-nat" style="display:none">
+    <div style="display:grid;grid-template-columns:260px 1fr;gap:16px;">
+      <div style="background:white;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);">
+        <div style="padding:12px 16px;background:var(--bg);border-bottom:1.5px solid var(--border);"><span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;">Catégorie</span></div>
+        <div style="max-height:65vh;overflow-y:auto;" id="adm-nat-cats"></div>
+      </div>
+      <div style="background:white;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);">
+        <div style="padding:12px 16px;background:var(--bg);border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;" id="adm-nat-panel-title">Natures</span>
+          <button class="btn-sm" id="adm-nat-add-btn" style="display:none" onclick="admNewNat()">+ Nouvelle</button>
+        </div>
+        <div style="max-height:55vh;overflow-y:auto;" id="adm-nat-list"><div style="padding:20px;color:var(--text3);text-align:center;font-size:13px;">Sélectionnez une catégorie</div></div>
+        <div id="adm-nat-form" style="display:none;padding:14px;border-top:1.5px solid var(--border);">
+          <div style="margin-bottom:10px;"><input id="nat-label" placeholder="Libellé de la nature" style="width:100%;font-family:'DM Sans';font-size:13.5px;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;"></div>
+          <div style="margin-bottom:10px;"><input id="nat-ordre" type="number" min="0" placeholder="Ordre (0)" style="width:100%;font-family:'DM Sans';font-size:13.5px;padding:9px 11px;border:1.5px solid var(--border);border-radius:8px;outline:none;"></div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn-sm red" onclick="admSaveNat()">Enregistrer</button>
+            <button class="btn-sm" onclick="admCancelNat()">Annuler</button>
+            <button class="btn-sm danger" id="adm-nat-del-btn" style="display:none;color:var(--red);border-color:#fca5a5;" onclick="admDeleteNat()">Supprimer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="adm-sugg" style="display:none">
+    <div style="display:grid;grid-template-columns:260px 1fr;gap:16px;">
+      <div style="background:white;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);">
+        <div style="padding:10px 14px;">
+          <select id="sugg-cat-sel" onchange="admLoadSuggNatures()" style="width:100%;font-family:'DM Sans';font-size:13px;padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;outline:none;cursor:pointer;background:white;margin-bottom:8px;"></select>
+          <div style="max-height:55vh;overflow-y:auto;" id="adm-sugg-natures"></div>
+        </div>
+      </div>
+      <div style="background:white;border:1.5px solid var(--border);border-radius:12px;overflow:hidden;box-shadow:var(--shadow);">
+        <div style="padding:12px 16px;background:var(--bg);border-bottom:1.5px solid var(--border);"><span style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;" id="adm-sugg-panel-title">Suggestions</span></div>
+        <div id="adm-sugg-content" style="padding:14px;"><div style="color:var(--text3);text-align:center;font-size:13px;padding:20px 0;">Sélectionnez une nature</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
 </body>
 </html>
