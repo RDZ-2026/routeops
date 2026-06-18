@@ -37,17 +37,19 @@ function renderList() {
   }
 
   document.getElementById('tbl-body').innerHTML = filtered.map(r => {
-    const type   = r.type || 'intervention';
+    const type   = r.type || 'standard';
+    const catObj = DB.categories.find(c => String(c.id)===String(r.categorie));
+    const wType  = catObj?.wizard_type || type;
     const d      = r.data || {};
     let excerpt  = '';
-    if (type === 'intervention' || type === 'ouverture')
-      excerpt = (r.constats || r.nature || '').split('\n')[0].slice(0,65);
-    else if (type === 'denonciation')
+    if (wType === 'denonciation')
       excerpt = (d.plaque||'') + (d.n_denonc ? ' — N°'+d.n_denonc : '');
-    else if (type === 'parking')
+    else if (wType === 'parking')
       excerpt = (d.nb_vehicules||0)+' véhicule(s)'+(d.infraction ? ' — infraction' : '');
-    else if (type === 'dlcc')
+    else if (wType === 'dlcc')
       excerpt = 'DLCC: '+(d.nb_dlcc||0)+' places · CLX: '+(d.nb_clx||0)+' véh.';
+    else
+      excerpt = (r.constats || r.nature || '').split('\n')[0].slice(0,65);
 
     return `<div class="tbl-row" onclick="viewReport('${r.id}')">
       <div class="tc mono">${r.date ? fmtDate(r.date) : '—'}</div>

@@ -38,7 +38,7 @@ let tok = null, sess = null, isOnline = navigator.onLine;
 const DB = {
   reports:[], clients:[], missions:[], agents:[],
   categories:[], natures:[], suggestions:[],
-  residents:[], siteTypes:[]
+  residents:[], siteCategories:[]
 };
 
 let pending = [];
@@ -105,20 +105,20 @@ function loadAll() {
     fetch(SB+'/rest/v1/ir_categories?order=ordre.asc&select=*',                              {headers:h}).then(r => r.ok ? r.json() : []),
     fetch(SB+'/rest/v1/ir_natures?order=ordre.asc&select=*',                                 {headers:h}).then(r => r.ok ? r.json() : []),
     fetch(SB+'/rest/v1/ir_suggestions?order=ordre.asc&select=*',                             {headers:h}).then(r => r.ok ? r.json() : []),
-    fetch(SB+'/rest/v1/site_report_types?select=*',                                          {headers:h}).then(r => r.ok ? r.json() : []),
+    fetch(SB+'/rest/v1/site_categories?select=*',                                            {headers:h}).then(r => r.ok ? r.json() : []),
     fetch(SB_RES+'/rest/v1/residents?select=name_first,name_last,room_space,building&order=name_last.asc',
       {headers:{ 'apikey':KEY_RES, 'Authorization':'Bearer '+KEY_RES }}).then(r => r.ok ? r.json() : []).catch(() => []),
   ])
-  .then(([rpts,cls,ms,ags,cats,nats,suggs,sTypes,res]) => {
-    if (Array.isArray(rpts))   DB.reports     = rpts;
-    if (Array.isArray(cls))    DB.clients     = cls;
-    if (Array.isArray(ms))     DB.missions    = ms;
-    if (Array.isArray(ags))    DB.agents      = ags;
-    if (Array.isArray(cats))   DB.categories  = cats;
-    if (Array.isArray(nats))   DB.natures     = nats;
-    if (Array.isArray(suggs))  DB.suggestions = suggs;
-    if (Array.isArray(sTypes)) DB.siteTypes   = sTypes;
-    if (Array.isArray(res))    DB.residents   = res;
+  .then(([rpts,cls,ms,ags,cats,nats,suggs,siteCats,res]) => {
+    if (Array.isArray(rpts))     DB.reports        = rpts;
+    if (Array.isArray(cls))      DB.clients        = cls;
+    if (Array.isArray(ms))       DB.missions       = ms;
+    if (Array.isArray(ags))      DB.agents         = ags;
+    if (Array.isArray(cats))     DB.categories     = cats;
+    if (Array.isArray(nats))     DB.natures        = nats;
+    if (Array.isArray(suggs))    DB.suggestions    = suggs;
+    if (Array.isArray(siteCats)) DB.siteCategories = siteCats;
+    if (Array.isArray(res))      DB.residents      = res;
     try { localStorage.setItem(LS_DB, JSON.stringify(DB)); } catch(e) {}
     try { pending = JSON.parse(localStorage.getItem(LS_PND) || '[]'); } catch(e) {}
     migrateOldReports();
@@ -139,9 +139,9 @@ function loadLocal() {
     DB.agents      = d.agents      || [];
     DB.categories  = d.categories  || [];
     DB.natures     = d.natures     || [];
-    DB.suggestions = d.suggestions || [];
-    DB.siteTypes   = d.siteTypes   || [];
-    DB.residents   = d.residents   || [];
+    DB.suggestions    = d.suggestions    || [];
+    DB.siteCategories = d.siteCategories || [];
+    DB.residents      = d.residents      || [];
   } catch(e) {}
   try { pending = JSON.parse(localStorage.getItem(LS_PND) || '[]'); } catch(e) {}
   migrateOldReports();

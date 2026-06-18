@@ -116,11 +116,7 @@
 <!-- ══ PANEL WIZARD ══ -->
 <div class="panel" id="panel-wizard">
 <div class="wz-wrap">
-  <div id="wz-type-select" style="display:none">
-    <div style="font-family:'DM Mono';font-size:18px;font-weight:600;margin-bottom:16px;color:var(--anth);">Quel type de rapport ?</div>
-    <div class="tile-grid" id="wz-type-tiles"></div>
-    <div style="margin-top:12px;"><button class="btn" onclick="goPanel('list')">← Retour</button></div>
-  </div>
+  <div id="wz-type-select" style="display:none"><!-- non utilisé --></div>
   <div id="wz-steps" style="display:none">
     <div class="wz-bar-info">
       <span class="wz-lbl" id="wz-step-lbl">Étape 1</span>
@@ -242,7 +238,7 @@
 <div class="admin-wrap">
   <div style="font-family:'DM Mono';font-size:19px;font-weight:600;margin-bottom:14px;">Administration</div>
   <div class="admin-tabs">
-    <button class="admin-tab active" onclick="admTab('types')" id="atab-types">Types par site</button>
+    <button class="admin-tab active" onclick="admTab('types')" id="atab-types">Catégories par site</button>
     <button class="admin-tab"        onclick="admTab('cats')"  id="atab-cats">Catégories</button>
     <button class="admin-tab"        onclick="admTab('nats')"  id="atab-nats">Natures</button>
     <button class="admin-tab"        onclick="admTab('suggs')" id="atab-suggs">Suggestions</button>
@@ -256,7 +252,7 @@
       </div>
       <div class="admin-panel" id="adm-types-form-panel" style="display:none;">
         <div style="padding:14px;">
-          <div style="font-size:13px;font-weight:700;margin-bottom:14px;padding-bottom:10px;border-bottom:1.5px solid var(--border);" id="adm-types-site-title">Types disponibles</div>
+          <div style="font-size:13px;font-weight:700;margin-bottom:14px;padding-bottom:10px;border-bottom:1.5px solid var(--border);" id="adm-types-site-title">Catégories disponibles</div>
           <div id="adm-types-checkboxes" style="display:flex;flex-direction:column;gap:10px;"></div>
           <div style="margin-top:14px;"><button class="btn primary" onclick="admSaveTypes()">Enregistrer</button></div>
         </div>
@@ -287,6 +283,15 @@
             </select>
           </div>
           <div class="admin-field"><label>Ordre</label><input class="admin-input" id="cat-ordre" type="number" min="0" placeholder="0"></div>
+          <div class="admin-field"><label>Formulaire (wizard)</label>
+            <select class="admin-select" id="cat-wizard-type">
+              <option value="standard">📋 Standard — Catégorie → Nature → Constats → Actions → Clôture</option>
+              <option value="ouverture">🔑 Ouverture de chambre — Chambre → Résident → Motif → Clôture</option>
+              <option value="denonciation">🚗 Dénonciation véhicule — Plaque (IA) → N° feuillet → 3 photos</option>
+              <option value="parking">🅿️ Contrôle parking — Nb véhicules → Plaques + photos macaron</option>
+              <option value="dlcc">📊 Comptage DLCC — 2 chiffres + photos</option>
+            </select>
+          </div>
           <div class="admin-field">
             <div style="display:flex;align-items:center;gap:8px;">
               <label class="toggle-sw"><input type="checkbox" id="cat-actif" checked><span class="toggle-track"></span><span class="toggle-knob"></span></label>

@@ -32,12 +32,15 @@ function viewReport(id) {
 }
 
 function loadReportView(r) {
-  const type = r.type || 'intervention';
+  // Déterminer le wizard_type depuis la catégorie ou le type stocké
+  const catObj   = DB.categories.find(c => String(c.id)===String(r.categorie));
+  const wType    = catObj?.wizard_type || r.type || 'standard';
   let html = '';
-  if (type==='intervention' || type==='ouverture') html = buildRptInterv(r);
-  else if (type==='denonciation') html = buildRptDenonc(r);
-  else if (type==='parking')      html = buildRptParking(r);
-  else if (type==='dlcc')         html = buildRptDlcc(r);
+  if (wType==='denonciation')      html = buildRptDenonc(r);
+  else if (wType==='parking')      html = buildRptParking(r);
+  else if (wType==='dlcc')         html = buildRptDlcc(r);
+  else if (wType==='ouverture')    html = buildRptInterv(r); // même template, champs résident affichés
+  else                              html = buildRptInterv(r); // standard
   document.getElementById('rpt-content').innerHTML = html;
   document.getElementById('btn-del-rpt').style.display = '';
   goPanel('report');
@@ -126,7 +129,8 @@ function buildRptInterv(r) {
     ? `<div class="rpt-photos">${photos.map(p=>`<div class="rpt-photo-item"><img src="${p.src}"><div class="rpt-photo-cap">${esc(p.caption||'')}</div></div>`).join('')}</div>`
     : '';
 
-  return rptH(r, "Rapport d'intervention")
+  const eyebrow = (catObj?.label) ? catObj.label.toUpperCase() : "Rapport d'intervention";
+  return rptH(r, eyebrow)
     + '<div class="rpt-body">'
     + rptSec('1 — Informations générales',
         rptField('Localisation précise', r.localisation)

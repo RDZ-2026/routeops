@@ -11,16 +11,26 @@ let photoContext = null;
 /* ── TYPE SELECT ── */
 function startNewReport() {
   wzType = null; wzStep = 0; WZ = {};
-  document.getElementById('wz-type-select').style.display = '';
-  document.getElementById('wz-steps').style.display = 'none';
-  document.getElementById('wz-type-tiles').innerHTML = REPORT_TYPES.map(t =>
-    `<div class="tile" onclick="selectRptType('${t.id}')">
-      <div class="tile-ico">${t.ico}</div>
-      <div class="tile-lbl">${t.lbl}</div>
-      <div class="tile-sub">${t.sub}</div>
-    </div>`
-  ).join('');
+  // Wizard démarre directement — le type est déterminé par la catégorie choisie
+  wzSteps = ['datetime','agent','client','site','categorie']; // steps de base, complétés après sélection catégorie
+  wzStep  = 0;
+  const now = new Date();
+  WZ = {
+    type:'intervention', date:now.toISOString().slice(0,10), heure:now.toTimeString().slice(0,5),
+    agentId:null, agentName:'', clientId:null, clientName:'', missionId:null, missionName:'',
+    localisation:'', chambre:'', residentName:'',
+    categorieId:null, categorieLbl:'', wizardType:'standard',
+    natureId:null, natureLbl:'',
+    constats:'', actions:'', cloture:null, photos:[],
+    plaque:'', nDenonc:'', photoPlaqueIdx:-1, photoFeuilletIdx:-1, photoPareBriseIdx:-1,
+    nbVehicules:0, infraction:false, vehicules:[],
+    nbDlcc:0, nbClx:0,
+  };
+  document.getElementById('wz-type-select').style.display = 'none';
+  document.getElementById('wz-steps').style.display = '';
+  document.getElementById('wz-type-lbl').textContent = '';
   goPanel('wizard');
+  renderWzStep();
 }
 
 function selectRptType(type) {
@@ -47,7 +57,9 @@ function selectRptType(type) {
 
 function wzEditReport(r) {
   wzType  = r.type || 'intervention';
-  wzSteps = getSteps(wzType);
+  const catObjEdit = DB.categories.find(c => String(c.id)===String(r.categorie));
+  WZ.wizardType = catObjEdit?.wizard_type || wzType;
+  wzSteps = getFullSteps(WZ.wizardType);
   wzStep  = 0;
   const d = r.data || {};
   WZ = {
@@ -82,14 +94,22 @@ function wzEditReport(r) {
 }
 
 function getSteps(type) {
+  // Utilisé pour l'édition (repart de l'étape 0)
+  return getFullSteps(type);
+}
+
+function getFullSteps(wizardType) {
+  // Étapes complètes selon le type de formulaire
+  // Les 5 premières étapes (datetime→agent→client→site→categorie) sont toujours identiques
+  // Ici on retourne la séquence COMPLÈTE depuis le début
   const s = {
-    intervention: ['datetime','agent','client','site','categorie','nature','constats','actions','cloture','photos','recap'],
-    ouverture:    ['datetime','agent','client','site','chambre','nature','resident','cloture','photos','recap'],
-    denonciation: ['datetime','agent','client','site','denonc_veh','denonc_plaque','denonc_feuillet','denonc_ndenonc','denonc_pb','recap'],
-    parking:      ['datetime','agent','client','site','parking_infos','parking_vehicules','recap'],
-    dlcc:         ['datetime','agent','client','dlcc_comptage','photos','recap'],
+    standard:     ['datetime','agent','client','site','categorie','nature','constats','actions','cloture','photos','recap'],
+    ouverture:    ['datetime','agent','client','site','categorie','chambre','nature','resident','cloture','photos','recap'],
+    denonciation: ['datetime','agent','client','site','categorie','denonc_veh','denonc_plaque','denonc_feuillet','denonc_ndenonc','denonc_pb','recap'],
+    parking:      ['datetime','agent','client','site','categorie','parking_infos','parking_vehicules','recap'],
+    dlcc:         ['datetime','agent','client','site','categorie','dlcc_comptage','photos','recap'],
   };
-  return s[type] || ['datetime','agent','client','site','recap'];
+  return s[wizardType] || s.standard;
 }
 
 /* ── RENDER STEP ── */
@@ -152,16 +172,37 @@ function renderWzStep() {
       + (ns?wzSrch('site-list'):'')
       + '<div class="tiles-scroll"><div class="tile-grid g1" id="site-list">'+(sites.length?items:naSite())+'</div></div>';
   }
-  /* catégorie */
+  /* catégorie — filtrée par site si configuré */
   else if (s === 'categorie') {
     hiddenNext = true;
-    const cats = DB.categories.filter(c=>c.actif).sort((a,b)=>a.ordre-b.ordre);
-    body = '<div class="tile-grid">'+cats.map(c => {
-      const cc  = CATCOLOR[c.couleur]||'sel';
-      const sel = String(WZ.categorieId) === String(c.id);
-      return `<div class="tile${sel?' '+cc:''}" onclick="autoNext('cat','${c.id}','${esc(c.label)}',this)">
-        <div class="tile-ico">${c.icone}</div><div class="tile-lbl">${esc(c.label)}</div></div>`;
-    }).join('')+'</div>';
+    // Catégories actives pour ce site (si configurées), sinon toutes les catégories actives
+    const siteCatIds = DB.siteCategories
+      .filter(sc => String(sc.mission_id)===String(WZ.missionId) && sc.actif)
+      .map(sc => String(sc.category_id));
+    let cats;
+    if (siteCatIds.length > 0) {
+      // Site configuré → afficher seulement ses catégories
+      cats = DB.categories
+        .filter(c => c.actif && siteCatIds.includes(String(c.id)))
+        .sort((a,b) => {
+          // Trier selon l'ordre défini dans site_categories
+          const oa = DB.siteCategories.find(sc => String(sc.category_id)===String(a.id) && String(sc.mission_id)===String(WZ.missionId))?.ordre ?? a.ordre;
+          const ob = DB.siteCategories.find(sc => String(sc.category_id)===String(b.id) && String(sc.mission_id)===String(WZ.missionId))?.ordre ?? b.ordre;
+          return oa - ob;
+        });
+    } else {
+      // Site non configuré → toutes les catégories actives
+      cats = DB.categories.filter(c => c.actif).sort((a,b) => a.ordre-b.ordre);
+    }
+    const notConfigured = siteCatIds.length === 0;
+    body = (notConfigured ? '<div style="font-size:11px;color:var(--orange);background:var(--orange-l);padding:8px 12px;border-radius:6px;margin-bottom:10px;">⚠️ Site non configuré — toutes les catégories affichées</div>' : '')
+      + '<div class="tile-grid">'+cats.map(c => {
+          const cc  = CATCOLOR[c.couleur]||'sel';
+          const sel = String(WZ.categorieId) === String(c.id);
+          return `<div class="tile${sel?' '+cc:''}" onclick="autoNext('cat','${c.id}','${esc(c.label)}',this)">
+            <div class="tile-ico">${c.icone}</div><div class="tile-lbl">${esc(c.label)}</div></div>`;
+        }).join('')
+      +'</div>';
   }
   /* nature */
   else if (s === 'nature') {
@@ -423,7 +464,17 @@ function autoNext(type, id, name, el) {
   if (type==='agent')   { WZ.agentId=id;    WZ.agentName=name; }
   if (type==='client')  { WZ.clientId=id;   WZ.clientName=name; WZ.missionId=null; WZ.missionName=''; }
   if (type==='site')    { WZ.missionId=id;  WZ.missionName=name; }
-  if (type==='cat')     { WZ.categorieId=id; WZ.categorieLbl=name; WZ.natureId=null; WZ.natureLbl=''; WZ.constats=''; WZ.actions=''; }
+  if (type==='cat')     {
+    WZ.categorieId=id; WZ.categorieLbl=name;
+    WZ.natureId=null; WZ.natureLbl=''; WZ.constats=''; WZ.actions='';
+    // Déterminer wizard_type depuis la catégorie
+    const catObj = DB.categories.find(c => String(c.id)===String(id));
+    WZ.wizardType = catObj?.wizard_type || 'standard';
+    WZ.type       = WZ.wizardType; // pour la sauvegarde
+    // Compléter les étapes selon le wizard_type
+    wzSteps = getFullSteps(WZ.wizardType);
+    document.getElementById('wz-type-lbl').textContent = name;
+  }
   if (type==='nature')  { WZ.natureId=id;   WZ.natureLbl=name; WZ.constats=''; WZ.actions=''; }
   if (type==='cloture') { WZ.cloture=id; }
   el.parentElement.querySelectorAll('.tile').forEach(t => {
@@ -554,7 +605,7 @@ function readDenoncAI(imgSrc) {
 function doSaveReport() {
   const id  = currentReportId || genId();
   const rpt = {
-    id, type:wzType, date:WZ.date, heure:WZ.heure,
+    id, type:WZ.wizardType||wzType||'intervention', date:WZ.date, heure:WZ.heure,
     agent_id:WZ.agentId, agent_name:WZ.agentName,
     client_id:WZ.clientId, client_name:WZ.clientName,
     mission_id:WZ.missionId, mission_name:WZ.missionName,
@@ -565,7 +616,7 @@ function doSaveReport() {
     constats:WZ.constats||'', actions:WZ.actions||'',
     statut_cloture:WZ.cloture||'draft',
     photos:WZ.photos,
-    data:buildDataJson(),
+    data:buildDataJson(WZ.wizardType||wzType),
     updated_at:new Date().toISOString(),
     created_by:sess?.uid||null,
   };
@@ -592,9 +643,10 @@ function doSaveReport() {
   loadReportView(rpt);
 }
 
-function buildDataJson() {
-  if (wzType==='denonciation') return { plaque:WZ.plaque, n_denonc:WZ.nDenonc };
-  if (wzType==='parking')      return { nb_vehicules:WZ.nbVehicules, infraction:WZ.infraction, vehicules:WZ.vehicules };
-  if (wzType==='dlcc')         return { nb_dlcc:WZ.nbDlcc, nb_clx:WZ.nbClx };
+function buildDataJson(wt) {
+  wt = wt || WZ.wizardType || wzType || 'standard';
+  if (wt==='denonciation') return { plaque:WZ.plaque, n_denonc:WZ.nDenonc };
+  if (wt==='parking')      return { nb_vehicules:WZ.nbVehicules, infraction:WZ.infraction, vehicules:WZ.vehicules };
+  if (wt==='dlcc')         return { nb_dlcc:WZ.nbDlcc, nb_clx:WZ.nbClx };
   return {};
 }

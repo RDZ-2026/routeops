@@ -20,16 +20,18 @@ function admTab(t) {
   if (t==='suggs') admRenderSuggCats();
 }
 
-/* ── TYPES PAR SITE ── */
+/* ── CATÉGORIES PAR SITE ── */
 function admRenderSiteTypes() {
   const ms = [...DB.missions].sort((a,b) => (a.titre||'').localeCompare(b.titre||'','fr'));
   document.getElementById('adm-types-missions').innerHTML = ms.map(m => {
-    const cl = DB.clients.find(c => c.id===m.client_id);
+    const cl      = DB.clients.find(c => c.id===m.client_id);
+    const nbCats  = DB.siteCategories.filter(sc => String(sc.mission_id)===String(m.id) && sc.actif).length;
     return `<div class="admin-item${admTypesSelMission===m.id?' active':''}" onclick="admSelMission('${m.id}')">
       <div class="admin-item-txt">
         <div class="admin-item-name">${esc(m.titre)}</div>
         <div class="admin-item-sub">${esc(cl?cl.raison_sociale:'')}</div>
       </div>
+      <div class="admin-item-badge">${nbCats ? nbCats+' cat.' : 'toutes'}</div>
     </div>`;
   }).join('');
 }
@@ -37,39 +39,54 @@ function admRenderSiteTypes() {
 function admSelMission(id) {
   admTypesSelMission = id;
   admRenderSiteTypes();
-  const cur = DB.siteTypes
-    .filter(st => String(st.mission_id)===String(id) && st.actif)
-    .map(st => st.report_type);
-  const m = DB.missions.find(x => x.id===id) || {};
-  document.getElementById('adm-types-site-title').textContent = m.titre || 'Types disponibles';
-  document.getElementById('adm-types-checkboxes').innerHTML = REPORT_TYPES.map(t =>
-    `<label style="display:flex;align-items:center;gap:10px;font-size:13.5px;cursor:pointer;padding:4px 0;">
-      <input type="checkbox" id="srt-${t.id}" ${cur.includes(t.id)?'checked':''}
+  const m   = DB.missions.find(x => x.id===id) || {};
+  const cur = DB.siteCategories
+    .filter(sc => String(sc.mission_id)===String(id) && sc.actif)
+    .map(sc => String(sc.category_id));
+  document.getElementById('adm-types-site-title').textContent = m.titre || 'Catégories disponibles';
+
+  // Afficher toutes les catégories avec checkbox
+  const cats = [...DB.categories].sort((a,b) => a.ordre-b.ordre);
+  document.getElementById('adm-types-checkboxes').innerHTML = cats.map(c =>
+    `<label style="display:flex;align-items:center;gap:10px;font-size:13.5px;cursor:pointer;padding:6px 0;border-bottom:1px solid var(--border);">
+      <input type="checkbox" id="sc-${c.id}" ${cur.includes(String(c.id))?'checked':''}
         style="width:16px;height:16px;cursor:pointer;accent-color:var(--red);">
-      <span>${t.ico} ${t.lbl}</span>
+      <span style="font-size:18px;">${c.icone}</span>
+      <div style="flex:1;">
+        <div style="font-weight:600;color:var(--text);">${esc(c.label)}</div>
+        <div style="font-size:11px;color:var(--text3);">${wzTypeLbl(c.wizard_type)}</div>
+      </div>
     </label>`
   ).join('');
   document.getElementById('adm-types-form-panel').style.display = '';
 }
 
+function wzTypeLbl(t) {
+  const m = { standard:'Formulaire standard', ouverture:'Ouverture de chambre',
+    denonciation:'Dénonciation véhicule', parking:'Contrôle parking', dlcc:'Comptage DLCC' };
+  return m[t] || t || 'Standard';
+}
+
 function admSaveTypes() {
   if (!admTypesSelMission) return;
-  const sel = REPORT_TYPES
-    .filter(t => document.getElementById('srt-'+t.id)?.checked)
-    .map(t => t.id);
-  DB.siteTypes = DB.siteTypes.filter(st => String(st.mission_id)!==String(admTypesSelMission));
-  sel.forEach(type => DB.siteTypes.push({mission_id:admTypesSelMission, report_type:type, actif:true}));
+  const cats = [...DB.categories].sort((a,b) => a.ordre-b.ordre);
+  const sel  = cats.filter(c => document.getElementById('sc-'+c.id)?.checked).map(c => String(c.id));
+  // Mettre à jour local
+  DB.siteCategories = DB.siteCategories.filter(sc => String(sc.mission_id)!==String(admTypesSelMission));
+  sel.forEach((catId, i) => DB.siteCategories.push({
+    mission_id:admTypesSelMission, category_id:catId, actif:true, ordre:i
+  }));
   try { localStorage.setItem(LS_DB, JSON.stringify(DB)); } catch(e) {}
+  admRenderSiteTypes();
+  // Sync Supabase
   if (isOnline && tok) {
-    fetch(SB+'/rest/v1/site_report_types?mission_id=eq.'+admTypesSelMission, {method:'DELETE', headers:hdr(tok)})
+    fetch(SB+'/rest/v1/site_categories?mission_id=eq.'+admTypesSelMission, {method:'DELETE', headers:hdr(tok)})
       .then(() => {
         if (!sel.length) return;
-        return fetch(SB+'/rest/v1/site_report_types', {
-          method:'POST', headers:hdr(tok),
-          body: JSON.stringify(sel.map(type => ({mission_id:admTypesSelMission, report_type:type, actif:true})))
-        });
+        const rows = sel.map((catId,i) => ({mission_id:admTypesSelMission, category_id:catId, actif:true, ordre:i}));
+        return fetch(SB+'/rest/v1/site_categories', {method:'POST', headers:hdr(tok), body:JSON.stringify(rows)});
       })
-      .then(() => showToast('Types enregistrés ✓', true))
+      .then(() => showToast('Catégories du site enregistrées ✓', true))
       .catch(() => showToast('Erreur sauvegarde', false));
   } else {
     showToast('Enregistré localement ✓', true);
@@ -98,6 +115,7 @@ function admNewCat() {
   document.getElementById('cat-couleur').value = 'r';
   document.getElementById('cat-ordre').value  = '0';
   document.getElementById('cat-actif').checked = true;
+  document.getElementById('cat-wizard-type').value = 'standard';
   document.getElementById('adm-cat-del').style.display = 'none';
 }
 
@@ -111,6 +129,7 @@ function admEditCat(id) {
   document.getElementById('cat-couleur').value = c.couleur|| 'r';
   document.getElementById('cat-ordre').value   = c.ordre  || 0;
   document.getElementById('cat-actif').checked = !!c.actif;
+  document.getElementById('cat-wizard-type').value = c.wizard_type || 'standard';
   document.getElementById('adm-cat-del').style.display = '';
 }
 
@@ -121,11 +140,12 @@ function admCancelCat() {
 
 function admSaveCat() {
   const data = {
-    label:   document.getElementById('cat-label').value.trim(),
-    icone:   document.getElementById('cat-icone').value.trim() || '📋',
-    couleur: document.getElementById('cat-couleur').value,
-    ordre:   parseInt(document.getElementById('cat-ordre').value) || 0,
-    actif:   document.getElementById('cat-actif').checked,
+    label:       document.getElementById('cat-label').value.trim(),
+    icone:       document.getElementById('cat-icone').value.trim() || '📋',
+    couleur:     document.getElementById('cat-couleur').value,
+    ordre:       parseInt(document.getElementById('cat-ordre').value) || 0,
+    actif:       document.getElementById('cat-actif').checked,
+    wizard_type: document.getElementById('cat-wizard-type').value || 'standard',
   };
   if (!data.label) { showToast('Libellé requis', false); return; }
   const h = hdr(tok);
