@@ -296,9 +296,9 @@ async function sb(path, opts={}){
 async function init(){
   const params = new URLSearchParams(window.location.search);
   agentId       = params.get('agent_id')||'';
-  agentName     = decodeURIComponent(params.get('agent_name')||'');
-  site          = decodeURIComponent(params.get('site')||'');
-  validatorName = decodeURIComponent(params.get('validator')||'');
+  agentName     = params.get('agent_name')||'';
+  site          = params.get('site')||'';
+  validatorName = params.get('validator')||'';
   validatorRole = params.get('role')||'formateur';
 
   if(!agentId||!site||!validatorName){
