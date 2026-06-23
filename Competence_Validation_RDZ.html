@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Validation Compétences — RDZ</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#C8102E;--red-d:#a50d25;--red-l:#fdf0f2;
+  --bg:#f5f4f2;--white:#fff;
+  --border:#e2e0dd;--border2:#d0cec9;
+  --text:#1a1917;--text2:#5a5753;--text3:#9a9794;
+  --green:#16a34a;--green-l:#f0fdf4;--green-b:#bbf7d0;
+  --orange:#d97706;--orange-l:#fffbeb;
+  --blue:#2563eb;--blue-l:#eff6ff;
+  --shadow:0 1px 4px rgba(0,0,0,.1);
+  --shadow-lg:0 8px 24px rgba(0,0,0,.14);
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh;}
+
+/* TOPBAR */
+.topbar{background:var(--red);color:white;padding:0 16px;height:52px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;}
+.topbar-logo{width:30px;height:30px;background:rgba(255,255,255,.2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+.topbar-title{font-size:15px;font-weight:700;}
+.topbar-sub{font-size:11px;opacity:.8;}
+
+/* CONTAINER */
+.container{max-width:600px;margin:0 auto;padding:16px 14px 80px;}
+
+/* SCREENS */
+.screen{display:none;}
+.screen.active{display:block;}
+
+/* CARDS */
+.card{background:var(--white);border:1px solid var(--border);border-radius:14px;padding:18px;box-shadow:var(--shadow);margin-bottom:14px;}
+.card-title{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.9px;margin-bottom:14px;}
+
+/* META BADGES */
+.badge-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;}
+.badge{display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;}
+.b-red{background:var(--red-l);color:var(--red);}
+.b-blue{background:var(--blue-l);color:var(--blue);}
+.b-green{background:var(--green-l);color:var(--green);}
+.b-orange{background:var(--orange-l);color:var(--orange);}
+.b-gray{background:var(--bg);color:var(--text2);border:1px solid var(--border2);}
+
+/* SECTION HEADER */
+.sec-hdr{font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.9px;margin:18px 0 8px;padding-left:2px;}
+
+/* CHECKLIST ITEM */
+.cl-item{background:var(--white);border:1.5px solid var(--border);border-radius:12px;padding:14px;margin-bottom:8px;transition:all .15s;}
+.cl-item.validated{border-color:var(--green);background:var(--green-l);}
+.cl-item.failed{border-color:var(--red);background:var(--red-l);}
+.cl-item.skipped{border-color:var(--border2);background:var(--bg);opacity:.8;}
+
+.cl-item-header{display:flex;align-items:flex-start;gap:10px;}
+.cl-item-icon{font-size:20px;flex-shrink:0;line-height:1.2;}
+.cl-item-title{font-size:14px;font-weight:600;flex:1;}
+.cl-item-level{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:3px;}
+.level-indispensable{color:var(--red);}
+.level-necessaire{color:var(--orange);}
+.level-confort{color:var(--green);}
+
+.cl-item-desc{font-size:12.5px;color:var(--text2);margin-top:6px;margin-left:30px;}
+.cl-item-note{margin-top:8px;margin-left:30px;}
+.cl-item-note textarea{width:100%;border:1px solid var(--border2);border-radius:8px;padding:8px 10px;font-family:'DM Sans';font-size:12.5px;color:var(--text);background:var(--white);resize:none;min-height:52px;outline:none;}
+.cl-item-note textarea:focus{border-color:var(--red);}
+
+/* ACTIONS BUTTONS */
+.cl-actions{display:flex;gap:6px;margin-top:10px;margin-left:30px;flex-wrap:wrap;}
+.cl-btn{flex:1;min-width:80px;padding:9px 6px;border-radius:9px;border:1.5px solid var(--border2);background:var(--white);font-family:'DM Sans';font-size:13px;font-weight:600;cursor:pointer;text-align:center;transition:all .12s;color:var(--text2);}
+.cl-btn.active-validated{background:var(--green);border-color:var(--green);color:white;}
+.cl-btn.active-failed{background:var(--red);border-color:var(--red);color:white;}
+.cl-btn.active-skipped{background:var(--border2);border-color:var(--border2);color:var(--text2);}
+.cl-btn:hover{opacity:.85;}
+
+/* PROGRESS BAR */
+.progress-wrap{background:var(--border);border-radius:4px;height:7px;overflow:hidden;margin-bottom:6px;}
+.progress-fill{height:100%;border-radius:4px;background:var(--red);transition:width .3s;}
+.progress-label{font-size:11.5px;color:var(--text3);text-align:right;}
+
+/* NOTE GLOBAL */
+.note-global textarea{width:100%;border:1px solid var(--border2);border-radius:10px;padding:12px 14px;font-family:'DM Sans';font-size:13.5px;color:var(--text);resize:none;min-height:80px;outline:none;background:var(--white);}
+.note-global textarea:focus{border-color:var(--red);}
+
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:13px 20px;border-radius:11px;border:none;font-family:'DM Sans';font-size:14px;font-weight:600;cursor:pointer;transition:all .15s;width:100%;}
+.btn-primary{background:var(--red);color:white;}
+.btn-primary:hover{background:var(--red-d);}
+.btn-primary:disabled{background:var(--text3);cursor:not-allowed;}
+.btn-ghost{background:var(--white);color:var(--text2);border:1.5px solid var(--border2);}
+
+/* SUMMARY SCREEN */
+.summ-item{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:10px;margin-bottom:6px;}
+.summ-icon{font-size:18px;flex-shrink:0;}
+.summ-text{font-size:13px;font-weight:500;flex:1;}
+.summ-badge{font-size:12px;font-weight:700;flex-shrink:0;}
+
+/* LOADING */
+.loader{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 16px;gap:14px;}
+.spin{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ERROR */
+.err-card{background:var(--white);border:1.5px solid var(--red-l);border-radius:14px;padding:24px;text-align:center;}
+.err-icon{font-size:40px;margin-bottom:12px;}
+.err-title{font-size:17px;font-weight:700;color:var(--red);margin-bottom:8px;}
+.err-msg{font-size:13.5px;color:var(--text2);}
+
+/* SUCCESS */
+.success-card{background:var(--white);border:1.5px solid var(--green-b);border-radius:14px;padding:28px 20px;text-align:center;}
+.success-icon{font-size:50px;margin-bottom:14px;}
+.success-title{font-size:20px;font-weight:700;color:var(--green);margin-bottom:8px;}
+.success-sub{font-size:13.5px;color:var(--text2);}
+
+/* TOAST */
+#toasts{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:999;display:flex;flex-direction:column;gap:6px;pointer-events:none;min-width:260px;max-width:90vw;}
+.toast{display:flex;align-items:center;gap:10px;padding:11px 16px;border-radius:10px;background:#1a1917;color:white;font-size:13px;font-weight:500;box-shadow:var(--shadow-lg);animation:toastIn .2s ease;}
+.toast.ok{background:#1a1917;}
+.toast.err{background:var(--red);}
+@keyframes toastIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+.toast.out{animation:toastOut .2s ease forwards;}
+@keyframes toastOut{to{opacity:0;transform:translateY(10px);}}
+
+/* STICKY SUBMIT */
+.sticky-bar{position:fixed;bottom:0;left:0;right:0;background:var(--white);border-top:1px solid var(--border);padding:12px 16px;box-shadow:0 -4px 16px rgba(0,0,0,.08);}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="topbar-logo">RDZ</div>
+  <div>
+    <div class="topbar-title">Validation Compétences</div>
+    <div class="topbar-sub">RDZ Security Management</div>
+  </div>
+</div>
+
+<!-- CONTAINER -->
+<div class="container">
+
+  <!-- LOADING -->
+  <div class="screen active" id="screen-loading">
+    <div class="loader"><div class="spin"></div><div style="color:var(--text3);font-size:13px;">Chargement…</div></div>
+  </div>
+
+  <!-- ERROR -->
+  <div class="screen" id="screen-error">
+    <div class="err-card">
+      <div class="err-icon">⚠️</div>
+      <div class="err-title">Lien invalide</div>
+      <div class="err-msg" id="err-msg">Ce lien est invalide ou les données sont manquantes.</div>
+    </div>
+  </div>
+
+  <!-- WELCOME -->
+  <div class="screen" id="screen-welcome">
+    <div class="card">
+      <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.9px;margin-bottom:6px;">Validation terrain</div>
+      <div style="font-size:20px;font-weight:700;margin-bottom:4px;" id="wlc-agent">—</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:14px;" id="wlc-validator">—</div>
+      <div class="badge-row" id="wlc-badges"></div>
+      <div style="font-size:13px;color:var(--text2);padding:12px;background:var(--bg);border-radius:10px;">
+        Validez chaque point de compétence. Vous pouvez passer un point (<strong>Non abordé</strong>) — il conservera son statut précédent. Un point échoué est perdu même s'il était acquis.
+      </div>
+    </div>
+    <div style="margin-top:8px;">
+      <div style="font-size:10.5px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:6px;">Légende des niveaux</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <span class="badge b-red">🔴 Indispensable</span>
+        <span class="badge b-orange">🟡 Nécessaire</span>
+        <span class="badge b-green">🟢 Confort</span>
+      </div>
+    </div>
+    <div style="margin-top:18px;">
+      <button class="btn btn-primary" onclick="startValidation()">▶ Commencer la validation</button>
+    </div>
+  </div>
+
+  <!-- VALIDATION -->
+  <div class="screen" id="screen-validation">
+    <!-- Progress -->
+    <div class="card" style="padding:14px 16px;">
+      <div class="progress-wrap"><div class="progress-fill" id="val-progress" style="width:0%;"></div></div>
+      <div class="progress-label" id="val-progress-label">0 / 0 abordés</div>
+    </div>
+
+    <!-- Items par catégorie -->
+    <div id="val-items"></div>
+
+    <!-- Note globale -->
+    <div class="card">
+      <div class="card-title">📝 Note globale <span style="font-weight:400;">(optionnel)</span></div>
+      <div class="note-global"><textarea id="global-note" placeholder="Observation générale sur la session…"></textarea></div>
+    </div>
+  </div>
+
+  <!-- SUMMARY -->
+  <div class="screen" id="screen-summary">
+    <div class="card">
+      <div class="card-title">Récapitulatif avant envoi</div>
+      <div id="summary-content"></div>
+    </div>
+    <button class="btn btn-primary" onclick="submitValidation()" style="margin-bottom:8px;">✓ Envoyer la validation</button>
+    <button class="btn btn-ghost" onclick="showScreen('screen-validation')">← Modifier</button>
+  </div>
+
+  <!-- SUCCESS -->
+  <div class="screen" id="screen-success">
+    <div class="success-card">
+      <div class="success-icon">✅</div>
+      <div class="success-title">Validation envoyée !</div>
+      <div class="success-sub" id="success-msg">Les compétences ont bien été enregistrées.</div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- STICKY BAR (validation screen) -->
+<div class="sticky-bar" id="sticky-bar" style="display:none;">
+  <button class="btn btn-primary" onclick="goToSummary()">Voir le récapitulatif →</button>
+</div>
+
+<div id="toasts"></div>
+
+<script>
+// ════════════════════════════════════════
+//  CONFIG SUPABASE
+// ════════════════════════════════════════
+const SB_URL = 'https://trdhtlcenmjlcvzuplid.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
+
+// ════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════
+let agentId = '';
+let agentName = '';
+let site = '';
+let validatorName = '';
+let validatorRole = 'formateur';
+let checklistItems = [];   // items du site depuis site_checklists
+let answers = {};          // {itemId: {result:'validated'|'failed'|'skipped', note:''}}
+
+// ════════════════════════════════════════
+//  UTILS
+// ════════════════════════════════════════
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  const bar = document.getElementById('sticky-bar');
+  if(bar) bar.style.display = id==='screen-validation' ? 'block' : 'none';
+  window.scrollTo(0,0);
+}
+
+function showError(msg){
+  document.getElementById('err-msg').textContent = msg;
+  showScreen('screen-error');
+}
+
+function toast(msg, type='ok', ms=3000){
+  const t = Object.assign(document.createElement('div'), {
+    className:`toast ${type}`,
+    innerHTML:`<span>${{ok:'✓',err:'✗'}[type]||'ℹ'}</span><span>${esc(msg)}</span>`
+  });
+  document.getElementById('toasts').appendChild(t);
+  setTimeout(()=>{ t.classList.add('out'); setTimeout(()=>t.remove(),200); }, ms);
+}
+
+// ════════════════════════════════════════
+//  SUPABASE
+// ════════════════════════════════════════
+async function sb(path, opts={}){
+  const res = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers:{
+      'apikey': SB_KEY,
+      'Content-Type': 'application/json',
+      ...(opts.prefer ? {'Prefer': opts.prefer} : {}),
+      ...(opts.headers||{})
+    }
+  });
+  if(!res.ok){ const t=await res.text().catch(()=>''); throw new Error(`${res.status}: ${t}`); }
+  if(res.status===204 || opts.noBody) return null;
+  const txt = await res.text().catch(()=>'');
+  return txt ? JSON.parse(txt) : null;
+}
+
+// ════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════
+async function init(){
+  const params = new URLSearchParams(window.location.search);
+  agentId       = params.get('agent_id')||'';
+  agentName     = decodeURIComponent(params.get('agent_name')||'');
+  site          = decodeURIComponent(params.get('site')||'');
+  validatorName = decodeURIComponent(params.get('validator')||'');
+  validatorRole = params.get('role')||'formateur';
+
+  if(!agentId||!site||!validatorName){
+    showError('Lien incomplet. Vérifiez que vous utilisez le lien généré depuis RH_RDZ.');
+    return;
+  }
+
+  try {
+    // Charger les items de checklist pour ce site
+    const items = await sb(`site_checklists?site=eq.${encodeURIComponent(site)}&active=eq.true&order=order_pos`);
+    checklistItems = items||[];
+
+    if(!checklistItems.length){
+      showError(`Aucun point de compétence configuré pour le site "${site}". Contactez un administrateur.`);
+      return;
+    }
+
+    // Initialiser toutes les réponses à 'skipped'
+    checklistItems.forEach(item => {
+      answers[item.id] = { result:'skipped', note:'' };
+    });
+
+    buildWelcome();
+    showScreen('screen-welcome');
+  } catch(e){
+    showError('Erreur de chargement : '+e.message);
+  }
+}
+
+// ════════════════════════════════════════
+//  WELCOME
+// ════════════════════════════════════════
+function buildWelcome(){
+  document.getElementById('wlc-agent').textContent = agentName;
+  document.getElementById('wlc-validator').textContent = `Validé par : ${validatorName} (${validatorRole})`;
+
+  const indispCount = checklistItems.filter(i=>i.level==='indispensable').length;
+  const necCount    = checklistItems.filter(i=>i.level==='necessaire').length;
+  const confCount   = checklistItems.filter(i=>i.level==='confort').length;
+
+  document.getElementById('wlc-badges').innerHTML = [
+    `<span class="badge b-blue">📍 ${esc(site)}</span>`,
+    `<span class="badge b-gray">${checklistItems.length} points</span>`,
+    indispCount ? `<span class="badge b-red">🔴 ${indispCount} indispensable${indispCount>1?'s':''}</span>` : '',
+    necCount    ? `<span class="badge b-orange">🟡 ${necCount} nécessaire${necCount>1?'s':''}</span>` : '',
+    confCount   ? `<span class="badge b-green">🟢 ${confCount} confort</span>` : '',
+  ].filter(Boolean).join('');
+}
+
+// ════════════════════════════════════════
+//  VALIDATION SCREEN
+// ════════════════════════════════════════
+function startValidation(){
+  buildValidationItems();
+  showScreen('screen-validation');
+  updateProgress();
+}
+
+const LEVEL_CONF = {
+  indispensable:{ label:'🔴 Indispensable', cls:'level-indispensable' },
+  necessaire:   { label:'🟡 Nécessaire',    cls:'level-necessaire' },
+  confort:      { label:'🟢 Confort',       cls:'level-confort' },
+};
+
+function buildValidationItems(){
+  const byCategory = {};
+  checklistItems.forEach(item => {
+    const cat = item.category||'Général';
+    if(!byCategory[cat]) byCategory[cat]=[];
+    byCategory[cat].push(item);
+  });
+
+  let html = '';
+  Object.keys(byCategory).sort().forEach(cat => {
+    html += `<div class="sec-hdr">${esc(cat)}</div>`;
+    byCategory[cat].forEach(item => {
+      const lc = LEVEL_CONF[item.level]||LEVEL_CONF.necessaire;
+      html += `<div class="cl-item" id="cl-${item.id}" data-id="${item.id}">
+        <div class="cl-item-header">
+          <div class="cl-item-icon" id="icon-${item.id}">⏭</div>
+          <div style="flex:1;">
+            <div class="cl-item-title">${esc(item.title)}</div>
+            <div class="cl-item-level ${lc.cls}">${lc.label}</div>
+          </div>
+        </div>
+        ${item.description?`<div class="cl-item-desc">${esc(item.description)}</div>`:''}
+        <div class="cl-actions">
+          <button class="cl-btn" id="btn-v-${item.id}" onclick="setResult('${item.id}','validated')">✅ Validé</button>
+          <button class="cl-btn" id="btn-f-${item.id}" onclick="setResult('${item.id}','failed')">❌ Échoué</button>
+          <button class="cl-btn active-skipped" id="btn-s-${item.id}" onclick="setResult('${item.id}','skipped')">⏭ Non abordé</button>
+        </div>
+        <div class="cl-item-note">
+          <textarea id="note-${item.id}" placeholder="Note optionnelle sur ce point…" oninput="answers['${item.id}'].note=this.value"></textarea>
+        </div>
+      </div>`;
+    });
+  });
+
+  document.getElementById('val-items').innerHTML = html;
+}
+
+function setResult(itemId, result){
+  answers[itemId].result = result;
+
+  // Update card style
+  const card = document.getElementById('cl-'+itemId);
+  card.className = 'cl-item ' + (result==='validated'?'validated':result==='failed'?'failed':'skipped');
+
+  // Update icon
+  const icon = document.getElementById('icon-'+itemId);
+  icon.textContent = result==='validated'?'✅':result==='failed'?'❌':'⏭';
+
+  // Update buttons
+  ['v','f','s'].forEach(k => {
+    const btn = document.getElementById(`btn-${k}-${itemId}`);
+    const map = {v:'validated',f:'failed',s:'skipped'};
+    btn.className = 'cl-btn' + (map[k]===result ? ` active-${result}` : '');
+  });
+
+  updateProgress();
+}
+
+function updateProgress(){
+  const aborde = Object.values(answers).filter(a=>a.result!=='skipped').length;
+  const total = checklistItems.length;
+  const pct = total ? Math.round(aborde/total*100) : 0;
+  document.getElementById('val-progress').style.width = pct+'%';
+  document.getElementById('val-progress-label').textContent = `${aborde} / ${total} abordés`;
+}
+
+// ════════════════════════════════════════
+//  SUMMARY
+// ════════════════════════════════════════
+function goToSummary(){
+  const validated = checklistItems.filter(i=>answers[i.id]?.result==='validated');
+  const failed    = checklistItems.filter(i=>answers[i.id]?.result==='failed');
+  const skipped   = checklistItems.filter(i=>answers[i.id]?.result==='skipped');
+
+  // Vérifier les indispensables
+  const indispFailed = checklistItems.filter(i=>i.level==='indispensable'&&answers[i.id]?.result==='failed');
+  const indispSkipped= checklistItems.filter(i=>i.level==='indispensable'&&answers[i.id]?.result==='skipped');
+
+  let html = '';
+
+  if(indispFailed.length){
+    html += `<div style="padding:12px 14px;background:var(--red-l);border:1px solid var(--red);border-radius:10px;margin-bottom:12px;">
+      <strong style="color:var(--red);">⚠ Attention</strong> — ${indispFailed.length} point(s) indispensable(s) échoué(s). L'agent ne pourra pas être certifié sur ce site.
+    </div>`;
+  }
+  if(indispSkipped.length){
+    html += `<div style="padding:12px 14px;background:var(--orange-l);border:1px solid var(--orange);border-radius:10px;margin-bottom:12px;">
+      <strong style="color:var(--orange);">ℹ ${indispSkipped.length} point(s) indispensable(s) non abordé(s)</strong> — ils conserveront leur statut précédent.
+    </div>`;
+  }
+
+  const mkRows = (items, icon) => items.map(i=>`
+    <div class="summ-item">
+      <span class="summ-icon">${icon}</span>
+      <div>
+        <div class="summ-text">${esc(i.title)}</div>
+        ${answers[i.id]?.note?`<div style="font-size:11.5px;color:var(--text3);font-style:italic;">💬 ${esc(answers[i.id].note)}</div>`:''}
+      </div>
+    </div>`).join('');
+
+  if(validated.length) html += `<div style="font-size:11px;font-weight:700;color:var(--green);text-transform:uppercase;letter-spacing:.8px;margin:10px 0 6px;">✅ Validés (${validated.length})</div>${mkRows(validated,'✅')}`;
+  if(failed.length)    html += `<div style="font-size:11px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:.8px;margin:10px 0 6px;">❌ Échoués (${failed.length})</div>${mkRows(failed,'❌')}`;
+  if(skipped.length)   html += `<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin:10px 0 6px;">⏭ Non abordés (${skipped.length})</div>${mkRows(skipped,'⏭')}`;
+
+  document.getElementById('summary-content').innerHTML = html;
+  showScreen('screen-summary');
+}
+
+// ════════════════════════════════════════
+//  SUBMIT
+// ════════════════════════════════════════
+async function submitValidation(){
+  const btn = document.querySelector('#screen-summary .btn-primary');
+  if(btn){ btn.textContent='Envoi en cours…'; btn.disabled=true; }
+
+  try {
+    // 1. Créer la session
+    const sessionPayload = [{
+      agent_id: agentId,
+      agent_name: agentName,
+      site: site,
+      validator_name: validatorName,
+      validator_role: validatorRole,
+      notes: document.getElementById('global-note')?.value?.trim()||null,
+      status: 'submitted',
+      submitted_at: new Date().toISOString()
+    }];
+
+    const sessions = await sb('competence_sessions', {
+      method:'POST',
+      prefer:'return=representation',
+      body: JSON.stringify(sessionPayload)
+    });
+
+    if(!sessions||!sessions[0]) throw new Error('Session non créée');
+    const sessionId = sessions[0].id;
+
+    // 2. Créer les résultats
+    const resultsPayload = checklistItems.map(item => ({
+      session_id: sessionId,
+      checklist_item_id: item.id,
+      result: answers[item.id]?.result||'skipped',
+      note: answers[item.id]?.note||null
+    }));
+
+    await sb('competence_results', {
+      method:'POST',
+      prefer:'return=minimal',
+      body: JSON.stringify(resultsPayload)
+    });
+
+    // Succès
+    const validated = Object.values(answers).filter(a=>a.result==='validated').length;
+    const failed    = Object.values(answers).filter(a=>a.result==='failed').length;
+    document.getElementById('success-msg').textContent =
+      `${validated} point(s) validé(s), ${failed} point(s) échoué(s) pour ${agentName} sur ${site}.`;
+    showScreen('screen-success');
+
+  } catch(e){
+    toast('Erreur lors de l\'envoi : '+e.message, 'err', 5000);
+    if(btn){ btn.textContent='✓ Envoyer la validation'; btn.disabled=false; }
+  }
+}
+
+// ════════════════════════════════════════
+//  GO
+// ════════════════════════════════════════
+init();
+</script>
+</body>
+</html>
