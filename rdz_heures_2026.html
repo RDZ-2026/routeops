@@ -1,0 +1,1063 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RDZ — Heures pointées 2026</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+:root {
+  --red: #c0272d;
+  --red-light: #FAE8E8;
+  --red-mid: #f5c2c2;
+  --anthracite: #2d2d2d;
+  --bg: #F5F5F5;
+  --card: #FFFFFF;
+  --border: #E2E2E2;
+  --text: #1E1E1E;
+  --text-sec: #5A5A5A;
+  --text-ter: #999;
+  --green: #3B6D11;
+  --green-bg: #EAF3DE;
+  --orange: #854F0B;
+  --orange-bg: #FAEEDA;
+  --bar-h: 6px;
+  --radius: 8px;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg); color: var(--text); font-size: 13px; }
+
+/* NAV */
+.nav { background: var(--anthracite); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 52px; }
+.nav-brand { display: flex; align-items: center; gap: 12px; }
+.nav-logo { height: 28px; }
+.nav-title { color: #fff; font-size: 15px; font-weight: 600; letter-spacing: 0.01em; }
+.nav-sub { color: #aaa; font-size: 12px; margin-top: 1px; }
+.nav-date { color: #888; font-size: 12px; font-family: 'DM Mono', monospace; }
+
+/* LAYOUT */
+.page { max-width: 1280px; margin: 0 auto; padding: 20px 24px 60px; }
+
+/* STATS */
+.stats-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-bottom: 20px; }
+.stat-card { background: var(--card); border-radius: var(--radius); padding: 12px 14px; border: 1px solid var(--border); }
+.stat-label { font-size: 11px; color: var(--text-sec); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.stat-value { font-size: 22px; font-weight: 700; color: var(--text); font-family: 'DM Mono', monospace; }
+.stat-card.alert { border-color: var(--red); background: var(--red-light); }
+.stat-card.alert .stat-value { color: var(--red); }
+
+/* ALERT BANNER */
+.alert-banner { background: var(--red-light); border: 1px solid var(--red-mid); border-radius: var(--radius); padding: 10px 14px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px; }
+.alert-banner.hidden { display: none; }
+.alert-icon { font-size: 16px; line-height: 1.4; flex-shrink: 0; }
+.alert-text { font-size: 12px; color: var(--red); line-height: 1.6; }
+.alert-text strong { font-weight: 600; }
+
+/* TOOLBAR */
+.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+.filter-btn { padding: 5px 12px; border-radius: 20px; border: 1px solid var(--border); background: var(--card); color: var(--text-sec); font-size: 12px; cursor: pointer; transition: all 0.15s; font-family: 'DM Sans', sans-serif; }
+.filter-btn.active { background: var(--anthracite); color: #fff; border-color: var(--anthracite); font-weight: 500; }
+.filter-btn.cat-a.active { background: #1a5276; border-color: #1a5276; }
+.filter-btn.cat-b.active { background: #1d6a4f; border-color: #1d6a4f; }
+.filter-btn.cat-c.active { background: var(--red); border-color: var(--red); }
+.search-input { padding: 5px 10px; border-radius: 20px; border: 1px solid var(--border); background: var(--card); font-size: 12px; color: var(--text); outline: none; margin-left: auto; width: 180px; font-family: 'DM Sans', sans-serif; }
+.search-input:focus { border-color: var(--anthracite); }
+
+/* IMPORT BUTTON */
+.btn-import { display: flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; background: var(--anthracite); color: #fff; font-size: 12px; font-weight: 600; cursor: pointer; border: none; font-family: 'DM Sans', sans-serif; transition: background 0.15s; }
+.btn-import:hover { background: #444; }
+.btn-import svg { width: 14px; height: 14px; }
+
+/* TABLE */
+.table-wrap { background: var(--card); border-radius: var(--radius); border: 1px solid var(--border); overflow: hidden; margin-bottom: 20px; }
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+thead th { text-align: left; font-size: 10.5px; font-weight: 600; color: var(--text-ter); text-transform: uppercase; letter-spacing: 0.05em; padding: 8px 10px; border-bottom: 1px solid var(--border); background: #FAFAFA; white-space: nowrap; }
+thead th.sortable { cursor: pointer; user-select: none; }
+thead th.sortable:hover { color: var(--anthracite); background: #F0F0F0; }
+thead th.sort-asc::after { content: ' ▲'; font-size: 9px; }
+thead th.sort-desc::after { content: ' ▼'; font-size: 9px; }
+tbody tr { border-bottom: 1px solid #F0F0F0; cursor: pointer; transition: background 0.1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: #F7F7F7; }
+tbody tr.expanded { background: #FFF5F5; }
+td { padding: 9px 10px; vertical-align: middle; }
+
+/* CATEGORY BADGE */
+.cat-badge { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 22px; border-radius: 50%; font-size: 11px; font-weight: 700; }
+.cat-A { background: #D6EAF8; color: #1a5276; }
+.cat-B { background: #D5F5E3; color: #1d6a4f; }
+.cat-C { background: var(--red-light); color: var(--red); }
+.cat-other { background: #F0F0F0; color: var(--text-ter); font-size: 9px; }
+
+/* PROGRESS BAR */
+.bar-wrap { display: flex; align-items: center; gap: 7px; min-width: 110px; }
+.bar-track { height: var(--bar-h); background: #EBEBEB; border-radius: 4px; flex: 1; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+.fill-safe { background: #639922; }
+.fill-mid { background: #EF9F27; }
+.fill-danger { background: var(--red); }
+.fill-over { background: #8B0000; }
+.bar-pct { font-size: 10px; color: var(--text-ter); min-width: 30px; font-family: 'DM Mono', monospace; }
+
+/* HOURS BADGE */
+.h-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 600; font-family: 'DM Mono', monospace; }
+.h-safe { background: var(--green-bg); color: var(--green); }
+.h-mid { background: var(--orange-bg); color: var(--orange); }
+.h-danger { background: var(--red-light); color: var(--red); }
+.h-over { background: #8B0000; color: #fff; }
+
+/* ACTION BUTTONS in row */
+.row-actions { display: flex; gap: 4px; }
+.btn-row { padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); background: var(--card); font-size: 11px; cursor: pointer; font-family: 'DM Sans', sans-serif; transition: all 0.1s; }
+.btn-row:hover { background: #F0F0F0; }
+.btn-row.edit { color: var(--anthracite); }
+.btn-row.delete { color: var(--red); border-color: var(--red-mid); }
+.btn-row.delete:hover { background: var(--red-light); }
+
+/* DETAIL / CHART PANEL */
+.detail-row td { padding: 0; }
+.detail-panel { padding: 16px 18px; background: #FAFAFA; border-top: 1px solid var(--border); }
+.detail-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.detail-title { font-size: 11px; font-weight: 700; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.05em; }
+.detail-toggle { display: flex; gap: 6px; }
+.toggle-btn { padding: 3px 10px; border-radius: 4px; border: 1px solid var(--border); background: var(--card); font-size: 11px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.toggle-btn.active { background: var(--anthracite); color: #fff; border-color: var(--anthracite); }
+
+/* CHART */
+.chart-container { background: var(--card); border-radius: 6px; border: 1px solid var(--border); padding: 14px; }
+.chart-bars { display: flex; align-items: flex-end; gap: 8px; height: 140px; padding: 0 4px; }
+.chart-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+.chart-bar-val { font-size: 10px; font-family: 'DM Mono', monospace; color: var(--text-sec); font-weight: 500; }
+.chart-bar { width: 100%; border-radius: 4px 4px 0 0; min-height: 2px; transition: height 0.4s ease; position: relative; }
+.chart-bar:hover::after { content: attr(data-tooltip); position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: var(--anthracite); color: #fff; padding: 3px 7px; border-radius: 4px; font-size: 10px; white-space: nowrap; margin-bottom: 4px; font-family: 'DM Mono', monospace; }
+.chart-label { font-size: 10px; color: var(--text-ter); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 6px; }
+.chart-line-ref { border-top: 1px dashed var(--red); margin-bottom: 0; position: relative; }
+.chart-x-labels { display: flex; gap: 8px; padding: 0 4px; }
+.chart-x-label { flex: 1; text-align: center; font-size: 10px; color: var(--text-ter); text-transform: uppercase; }
+.cumul-line { display: flex; align-items: center; gap: 16px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.cumul-item { font-size: 12px; color: var(--text-sec); }
+.cumul-item strong { color: var(--text); font-family: 'DM Mono', monospace; }
+
+/* MONTHS GRID (fallback view) */
+.months-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.month-card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px; text-align: center; }
+.month-card.no-data { background: #FAFAFA; opacity: 0.55; }
+.month-card .m-name { font-size: 10px; color: var(--text-ter); margin-bottom: 3px; text-transform: uppercase; letter-spacing: 0.04em; }
+.month-card .m-val { font-size: 14px; font-weight: 700; color: var(--text); font-family: 'DM Mono', monospace; }
+.month-card .m-val.zero { color: var(--text-ter); font-weight: 400; }
+.month-card.over-900 { border-color: var(--red); background: var(--red-light); }
+
+/* TAGS */
+.parti-tag { font-size: 10px; color: var(--text-ter); background: #F0F0F0; padding: 1px 6px; border-radius: 10px; margin-left: 4px; }
+.section-label { font-size: 11px; font-weight: 600; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.05em; }
+.inline-alert { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; color: var(--red); font-weight: 700; }
+
+/* MODAL OVERLAY */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 1000; align-items: center; justify-content: center; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--card); border-radius: 10px; padding: 24px; width: 520px; max-width: 95vw; max-height: 90vh; overflow-y: auto; box-shadow: 0 8px 32px rgba(0,0,0,0.18); }
+.modal-title { font-size: 15px; font-weight: 700; margin-bottom: 18px; color: var(--text); }
+.modal-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.modal-field { display: flex; flex-direction: column; gap: 4px; }
+.modal-field label { font-size: 11px; font-weight: 600; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.04em; }
+.modal-field input, .modal-field select { padding: 7px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; font-family: 'DM Sans', sans-serif; color: var(--text); outline: none; }
+.modal-field input:focus, .modal-field select:focus { border-color: var(--anthracite); }
+.modal-section { font-size: 11px; font-weight: 700; color: var(--text-sec); text-transform: uppercase; letter-spacing: 0.04em; margin: 16px 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+.modal-months { display: grid; grid-template-columns: repeat(6, 1fr); gap: 8px; margin-bottom: 16px; }
+.modal-month { display: flex; flex-direction: column; gap: 3px; }
+.modal-month label { font-size: 10px; color: var(--text-ter); text-align: center; }
+.modal-month input { padding: 5px 4px; border: 1px solid var(--border); border-radius: 4px; font-size: 12px; text-align: center; font-family: 'DM Mono', monospace; outline: none; }
+.modal-month input:focus { border-color: var(--anthracite); }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px; }
+.btn-cancel { padding: 8px 16px; border-radius: 6px; border: 1px solid var(--border); background: var(--card); font-size: 13px; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.btn-save { padding: 8px 16px; border-radius: 6px; border: none; background: var(--anthracite); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+.btn-save:hover { background: #444; }
+.btn-delete-confirm { padding: 8px 16px; border-radius: 6px; border: none; background: var(--red); color: #fff; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'DM Sans', sans-serif; }
+
+/* IMPORT MODAL */
+.import-zone { border: 2px dashed var(--border); border-radius: 8px; padding: 32px 20px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 14px; }
+.import-zone.drag-over { border-color: var(--red); background: var(--red-light); }
+.import-zone p { font-size: 13px; color: var(--text-sec); margin-top: 8px; }
+.import-zone .icon { font-size: 32px; }
+.import-preview { background: #F8F8F8; border-radius: 6px; border: 1px solid var(--border); padding: 12px; margin-bottom: 14px; max-height: 220px; overflow-y: auto; font-size: 12px; }
+.import-preview table { width: 100%; border-collapse: collapse; }
+.import-preview th { font-size: 10px; text-transform: uppercase; color: var(--text-ter); padding: 3px 6px; border-bottom: 1px solid var(--border); text-align: left; }
+.import-preview td { padding: 3px 6px; border-bottom: 1px solid #F0F0F0; font-family: 'DM Mono', monospace; }
+.import-preview tr.matched td:first-child { color: var(--green); font-weight: 600; }
+.import-preview tr.unmatched td:first-child { color: var(--red); }
+.import-info { font-size: 11px; color: var(--text-sec); margin-bottom: 10px; line-height: 1.6; }
+.import-info strong { color: var(--text); }
+
+/* TOAST */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--anthracite); color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 500; z-index: 2000; opacity: 0; transform: translateY(10px); transition: all 0.25s; pointer-events: none; }
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.error { background: var(--red); }
+
+/* LOADING */
+.loading { text-align: center; padding: 40px; color: var(--text-ter); font-size: 13px; }
+.spinner { display: inline-block; width: 20px; height: 20px; border: 2px solid var(--border); border-top-color: var(--red); border-radius: 50%; animation: spin 0.7s linear infinite; margin-right: 8px; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* DELETE CONFIRM */
+.delete-msg { font-size: 13px; color: var(--text); margin-bottom: 20px; line-height: 1.6; }
+.delete-msg strong { color: var(--red); }
+
+@media (max-width: 900px) {
+  .stats-row { grid-template-columns: repeat(3, 1fr); }
+  .months-grid { grid-template-columns: repeat(3, 1fr); }
+  .modal-months { grid-template-columns: repeat(3, 1fr); }
+  .modal-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">
+    <svg class="nav-logo" viewBox="0 0 80 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="80" height="28" rx="4" fill="#c0272d"/>
+      <text x="8" y="20" font-family="Arial" font-weight="900" font-size="16" fill="white" letter-spacing="2">RDZ</text>
+    </svg>
+    <div>
+      <div class="nav-title">Suivi des heures pointées 2026</div>
+      <div class="nav-sub">RDZ Security Management</div>
+    </div>
+  </div>
+  <div class="nav-date" id="nav-date"></div>
+</nav>
+
+<div class="page">
+
+  <div class="stats-row" id="stats-row">
+    <div class="stat-card"><div class="stat-label">Chargement…</div><div class="stat-value">—</div></div>
+  </div>
+
+  <div class="alert-banner hidden" id="alert-banner">
+    <div class="alert-icon">⚠️</div>
+    <div class="alert-text" id="alert-text"></div>
+  </div>
+
+  <div class="toolbar">
+    <span class="section-label">Agents</span>
+    <button class="filter-btn active" onclick="setFilter('all', this)">Tous</button>
+    <button class="filter-btn cat-a" onclick="setFilter('A', this)">Cat. A</button>
+    <button class="filter-btn cat-b" onclick="setFilter('B', this)">Cat. B</button>
+    <button class="filter-btn cat-c" onclick="setFilter('C', this)">Cat. C</button>
+    <button class="filter-btn" onclick="setFilter('alerte', this)">⚠ Alertes</button>
+    <button class="btn-import" onclick="openImport()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+      Importer Excel Agendrix
+    </button>
+    <input class="search-input" type="text" id="search" placeholder="Rechercher un agent…" oninput="renderTable()" />
+  </div>
+
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th style="width:24px"></th>
+          <th class="sortable" style="width:18%" onclick="setSort('name')">Agent</th>
+          <th class="sortable" style="width:6%" onclick="setSort('cat')">Cat.</th>
+          <th class="sortable" style="width:7%" onclick="setSort('m0')">Jan</th>
+          <th class="sortable" style="width:7%" onclick="setSort('m1')">Fév</th>
+          <th class="sortable" style="width:7%" onclick="setSort('m2')">Mar</th>
+          <th class="sortable" style="width:7%" onclick="setSort('m3')">Avr</th>
+          <th class="sortable" style="width:7%" onclick="setSort('m4')">Mai</th>
+          <th class="sortable" style="width:7%" onclick="setSort('m5')">Juin</th>
+          <th class="sortable" style="width:10%" onclick="setSort('total')">Cumul YTD</th>
+          <th style="width:10%">Barre</th>
+          <th style="width:7%">Statut</th>
+          <th style="width:8%">Actions</th>
+        </tr>
+      </thead>
+      <tbody id="agent-tbody">
+        <tr><td colspan="13" class="loading"><span class="spinner"></span>Chargement des données…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="font-size:11px;color:var(--text-ter);margin-top:-12px;">
+    ⓘ Seules les <strong>heures pointées</strong> sont prises en compte. Seuil d'alerte Cat. C : <strong>900h/an</strong>. Cliquer sur une ligne pour le graphique mensuel.
+  </div>
+</div>
+
+<!-- EDIT MODAL -->
+<div class="modal-overlay" id="modal-edit">
+  <div class="modal">
+    <div class="modal-title" id="modal-edit-title">Modifier l'agent</div>
+    <div class="modal-grid">
+      <div class="modal-field">
+        <label>Prénom</label>
+        <input type="text" id="edit-prenom" />
+      </div>
+      <div class="modal-field">
+        <label>Nom</label>
+        <input type="text" id="edit-nom" />
+      </div>
+      <div class="modal-field">
+        <label>Catégorie</label>
+        <select id="edit-cat">
+          <option value="A">A</option>
+          <option value="B">B</option>
+          <option value="C">C</option>
+          <option value="Fmt">Fmt</option>
+          <option value="—">—</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label>Statut</label>
+        <select id="edit-parti">
+          <option value="false">Actif</option>
+          <option value="true">Parti</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-section">Heures par mois</div>
+    <div class="modal-months" id="modal-months-inputs"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-edit')">Annuler</button>
+      <button class="btn-save" onclick="saveEdit()">Enregistrer</button>
+    </div>
+  </div>
+</div>
+
+<!-- DELETE CONFIRM MODAL -->
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal" style="width:400px;">
+    <div class="modal-title">Confirmer la suppression</div>
+    <div class="delete-msg" id="delete-msg"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal('modal-delete')">Annuler</button>
+      <button class="btn-delete-confirm" onclick="confirmDelete()">Supprimer définitivement</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="modal-overlay" id="modal-import">
+  <div class="modal" style="width:600px;">
+    <div class="modal-title">Importer un fichier Agendrix</div>
+    <div id="import-step-1">
+      <div class="import-zone" id="import-zone" onclick="document.getElementById('file-input').click()">
+        <div class="icon">📊</div>
+        <p>Cliquer pour choisir le fichier Excel Agendrix<br><small style="color:var(--text-ter)">Format : sommaire-de-la-periode-de-paie_*.xlsx</small></p>
+      </div>
+      <input type="file" id="file-input" accept=".xlsx" style="display:none" onchange="handleFileSelect(event)" />
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="closeModal('modal-import')">Annuler</button>
+      </div>
+    </div>
+    <div id="import-step-2" style="display:none">
+      <div class="import-info" id="import-info"></div>
+      <div class="import-preview" id="import-preview"></div>
+      <div class="modal-actions">
+        <button class="btn-cancel" onclick="resetImport()">← Changer de fichier</button>
+        <button class="btn-save" id="btn-confirm-import" onclick="confirmImport()">Importer les données</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── CONFIG ────────────────────────────────────────────────────────────────
+const SUPABASE_URL = 'https://trdhtlcenmjlcvzuplid.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
+const HEADERS = { 'Content-Type': 'application/json', 'apikey': SUPABASE_KEY, 'Authorization': `Bearer ${SUPABASE_KEY}` };
+
+const MONTHS = ['Jan','Fév','Mar','Avr','Mai','Juin','Juil','Août','Sep','Oct','Nov','Déc'];
+const MONTHS_SHORT = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+const LIMIT_C = 900;
+const CURRENT_YEAR = 2026;
+
+// ─── STATE ──────────────────────────────────────────────────────────────────
+let agents = [];           // [{id, nom, prenom, cat, parti, h:[12], total}]
+let currentFilter = 'all';
+let expandedKey = null;
+let expandedView = 'chart'; // 'chart' or 'grid'
+let sortCol = 'total';
+let sortDir = 'desc';
+let editingAgent = null;
+let deletingAgent = null;
+let importData = [];       // parsed rows from Excel
+
+// ─── SUPABASE HELPERS ───────────────────────────────────────────────────────
+async function sbFetch(path, opts = {}) {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers: { ...HEADERS, ...(opts.headers || {}) }
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    throw new Error(err);
+  }
+  if (res.status === 204) return null;
+  return res.json();
+}
+
+// ─── LOAD DATA ──────────────────────────────────────────────────────────────
+async function loadAgents() {
+  try {
+    // Load agents from rh_agents
+    const rhAgents = await sbFetch('rh_agents?select=id,nom,prenom,categorie_salaire,statut,date_depart&order=nom.asc');
+
+    // Load hours from rh_heures_mensuelles for current year
+    const heures = await sbFetch(`rh_heures_mensuelles?annee=eq.${CURRENT_YEAR}&select=agent_id,mois,heures`);
+
+    // Build hours map: agent_id -> {mois: heures}
+    const heuresMap = {};
+    for (const h of heures) {
+      if (!heuresMap[h.agent_id]) heuresMap[h.agent_id] = {};
+      heuresMap[h.agent_id][h.mois] = parseFloat(h.heures) || 0;
+    }
+
+    agents = rhAgents.map(a => {
+      const hMap = heuresMap[a.id] || {};
+      const h = Array.from({length: 12}, (_, i) => hMap[i+1] || 0);
+      const total = h.reduce((s, v) => s + v, 0);
+      return {
+        id: a.id,
+        nom: a.nom || '',
+        prenom: a.prenom || '',
+        cat: a.categorie_salaire || '—',
+        parti: a.statut === 'inactif' || !!a.date_depart,
+        h,
+        total
+      };
+    });
+
+    renderStats();
+    renderTable();
+  } catch (e) {
+    console.error(e);
+    document.getElementById('agent-tbody').innerHTML = `<tr><td colspan="13" style="text-align:center;padding:30px;color:var(--red);">Erreur de chargement. Vérifier la connexion Supabase.<br><small>${e.message}</small></td></tr>`;
+    showToast('Erreur de chargement : ' + e.message, true);
+  }
+}
+
+// ─── SORT ───────────────────────────────────────────────────────────────────
+function setSort(col) {
+  if (sortCol === col) {
+    sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    sortCol = col;
+    sortDir = col === 'name' || col === 'cat' ? 'asc' : 'desc';
+  }
+  // Update header classes
+  document.querySelectorAll('thead th').forEach(th => {
+    th.classList.remove('sort-asc', 'sort-desc');
+  });
+  const thIndex = { name: 1, cat: 2, m0: 3, m1: 4, m2: 5, m3: 6, m4: 7, m5: 8, total: 9 };
+  const idx = thIndex[col];
+  if (idx !== undefined) {
+    const ths = document.querySelectorAll('thead th');
+    if (ths[idx]) ths[idx].classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+  }
+  renderTable();
+}
+
+function sortAgents(list) {
+  return list.slice().sort((a, b) => {
+    let va, vb;
+    if (sortCol === 'name') { va = `${a.nom} ${a.prenom}`; vb = `${b.nom} ${b.prenom}`; }
+    else if (sortCol === 'cat') { va = a.cat; vb = b.cat; }
+    else if (sortCol === 'total') { va = a.total; vb = b.total; }
+    else if (sortCol.startsWith('m')) { const i = parseInt(sortCol.slice(1)); va = a.h[i]; vb = b.h[i]; }
+    else { va = a.total; vb = b.total; }
+    if (typeof va === 'string') return sortDir === 'asc' ? va.localeCompare(vb) : vb.localeCompare(va);
+    return sortDir === 'asc' ? va - vb : vb - va;
+  });
+}
+
+// ─── FILTER / RENDER ────────────────────────────────────────────────────────
+function setFilter(f, btn) {
+  currentFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTable();
+}
+
+function hClass(h, cat) {
+  if (cat === 'C') {
+    const pct = h / LIMIT_C;
+    if (pct > 1) return 'h-over';
+    if (pct > 0.9) return 'h-danger';
+    if (pct > 0.75) return 'h-mid';
+    return 'h-safe';
+  }
+  const pct = h / 2200;
+  if (pct > 1) return 'h-over';
+  if (pct > 0.75) return 'h-mid';
+  return 'h-safe';
+}
+function fillClass(h, cat) { return hClass(h, cat).replace('h-', 'fill-'); }
+
+function catBadge(cat) {
+  const cls = ['A','B','C'].includes(cat) ? `cat-${cat}` : 'cat-other';
+  const label = cat === 'Fmt' ? 'F' : cat;
+  return `<span class="cat-badge ${cls}">${label}</span>`;
+}
+
+function renderStats() {
+  const actifs = agents.filter(a => !a.parti);
+  const catC = actifs.filter(a => a.cat === 'C');
+  const alertes = catC.filter(a => a.total >= LIMIT_C * 0.9);
+  const depasse = catC.filter(a => a.total >= LIMIT_C);
+  const totalH = actifs.reduce((s, a) => s + a.total, 0);
+
+  document.getElementById('stats-row').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Agents actifs</div><div class="stat-value">${actifs.length}</div></div>
+    <div class="stat-card"><div class="stat-label">Total heures YTD</div><div class="stat-value">${totalH.toFixed(0)}h</div></div>
+    <div class="stat-card"><div class="stat-label">Agents Cat. C</div><div class="stat-value">${catC.length}</div></div>
+    <div class="stat-card ${alertes.length ? 'alert' : ''}"><div class="stat-label">⚠ Alerte >810h</div><div class="stat-value">${alertes.length}</div></div>
+    <div class="stat-card ${depasse.length ? 'alert' : ''}"><div class="stat-label">🚨 Dépassement 900h</div><div class="stat-value">${depasse.length}</div></div>
+  `;
+
+  const banner = document.getElementById('alert-banner');
+  const alertes2 = agents.filter(a => !a.parti && a.cat === 'C' && a.total >= LIMIT_C * 0.9);
+  if (alertes2.length > 0) {
+    banner.classList.remove('hidden');
+    document.getElementById('alert-text').innerHTML = `<strong>Agents Cat. C approchant ou dépassant 900h :</strong><br>` +
+      alertes2.map(a => {
+        const pct = Math.round(a.total / LIMIT_C * 100);
+        const icon = a.total >= LIMIT_C ? '🚨' : '⚠️';
+        return `${icon} <strong>${a.prenom} ${a.nom}</strong> : ${a.total.toFixed(1)}h (${pct}%)`;
+      }).join(' &nbsp;·&nbsp; ');
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+function renderTable() {
+  const search = document.getElementById('search').value.toLowerCase();
+  let filtered = agents.filter(a => {
+    const name = `${a.prenom} ${a.nom}`.toLowerCase();
+    if (!name.includes(search)) return false;
+    if (currentFilter === 'all') return true;
+    if (currentFilter === 'alerte') return a.cat === 'C' && a.total >= LIMIT_C * 0.9;
+    return a.cat === currentFilter;
+  });
+
+  filtered = sortAgents(filtered);
+
+  const tbody = document.getElementById('agent-tbody');
+  if (filtered.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="13" style="text-align:center;padding:24px;color:var(--text-ter);">Aucun agent trouvé</td></tr>`;
+    return;
+  }
+
+  // Visible months (those with any data, up to current month logic — show all 12 but highlight active)
+  const activeMonths = [];
+  for (let i = 0; i < 12; i++) {
+    if (agents.some(a => a.h[i] > 0)) activeMonths.push(i);
+  }
+  const displayMonths = activeMonths.length > 0 ? activeMonths : [0,1,2,3,4,5];
+
+  // Update headers for displayed months
+  updateHeaders(displayMonths);
+
+  tbody.innerHTML = filtered.map(a => {
+    const ref = a.cat === 'C' ? LIMIT_C : 2200;
+    const pct = Math.min(100, Math.round(a.total / ref * 100));
+    const fc = fillClass(a.total, a.cat);
+    const hc = hClass(a.total, a.cat);
+    const key = a.id;
+    const isExpanded = expandedKey === key;
+    const alertIcon = (a.cat === 'C' && a.total >= LIMIT_C * 0.9)
+      ? `<span class="inline-alert">${a.total >= LIMIT_C ? '🚨' : '⚠'}</span>` : '';
+
+    const mCells = displayMonths.map(i => {
+      const v = a.h[i];
+      return `<td style="color:${v > 0 ? 'var(--text)' : 'var(--text-ter)'};font-family:'DM Mono',monospace;font-size:12px;">${v > 0 ? v.toFixed(1) : '—'}</td>`;
+    }).join('');
+
+    let rows = `<tr onclick="toggleExpand('${key}')" class="${isExpanded ? 'expanded' : ''}">
+      <td style="padding-left:10px;">${alertIcon}</td>
+      <td style="font-weight:500;">${a.prenom} ${a.nom}${a.parti ? '<span class="parti-tag">parti</span>' : ''}</td>
+      <td>${catBadge(a.cat)}</td>
+      ${mCells}
+      <td><span class="h-badge ${hc}">${a.total.toFixed(1)}h</span></td>
+      <td>
+        <div class="bar-wrap">
+          <div class="bar-track"><div class="bar-fill ${fc}" style="width:${pct}%"></div></div>
+          <span class="bar-pct">${pct}%</span>
+        </div>
+        ${a.cat === 'C' ? `<div style="font-size:9px;color:var(--text-ter);margin-top:2px;">${a.total.toFixed(0)} / ${LIMIT_C}h</div>` : ''}
+      </td>
+      <td>${renderStatus(a)}</td>
+      <td onclick="event.stopPropagation()">
+        <div class="row-actions">
+          <button class="btn-row edit" onclick="openEdit('${key}')">✏️ Modifier</button>
+          <button class="btn-row delete" onclick="openDelete('${key}')">🗑</button>
+        </div>
+      </td>
+    </tr>`;
+
+    if (isExpanded) {
+      rows += `<tr class="detail-row"><td colspan="${3 + displayMonths.length + 4}">${renderDetail(a, displayMonths)}</td></tr>`;
+    }
+    return rows;
+  }).join('');
+}
+
+function updateHeaders(displayMonths) {
+  // Rebuild month headers dynamically
+  const thead = document.querySelector('thead tr');
+  const fixedStart = 3; // cols before months: alert, agent, cat
+  const fixedEnd = 4;   // cols after months: cumul, barre, statut, actions
+  const currentThs = thead.querySelectorAll('th');
+  // Remove old month headers (between index 3 and length-fixedEnd)
+  const toRemove = [];
+  for (let i = fixedStart; i < currentThs.length - fixedEnd; i++) toRemove.push(currentThs[i]);
+  toRemove.forEach(th => th.remove());
+
+  // Insert new month headers
+  const anchor = thead.querySelectorAll('th')[fixedStart]; // now points to cumul
+  displayMonths.forEach((mi, i) => {
+    const th = document.createElement('th');
+    th.className = 'sortable';
+    th.style.width = '7%';
+    th.textContent = MONTHS[mi];
+    th.onclick = () => setSort('m' + mi);
+    if (sortCol === 'm' + mi) th.classList.add(sortDir === 'asc' ? 'sort-asc' : 'sort-desc');
+    thead.insertBefore(th, anchor);
+  });
+}
+
+function renderStatus(a) {
+  if (a.cat !== 'C') return `<span style="font-size:11px;color:var(--text-ter);">—</span>`;
+  const pct = a.total / LIMIT_C;
+  if (pct >= 1) return `<span style="font-size:10px;font-weight:700;color:#8B0000;">DÉPASSÉ</span>`;
+  if (pct >= 0.9) return `<span style="font-size:10px;font-weight:700;color:var(--red);">ALERTE</span>`;
+  if (pct >= 0.75) return `<span style="font-size:10px;font-weight:600;color:#854F0B;">VIGILANCE</span>`;
+  return `<span style="font-size:10px;color:var(--green);">OK</span>`;
+}
+
+function renderDetail(a, displayMonths) {
+  const viewKey = 'detail-view-' + a.id;
+  const curView = expandedView;
+  const chartHtml = renderChart(a, displayMonths);
+  const gridHtml = renderGrid(a, displayMonths);
+
+  return `<div class="detail-panel">
+    <div class="detail-header">
+      <div class="detail-title">${a.prenom} ${a.nom} · Cat. ${a.cat}${a.cat === 'C' ? ' · Limite légale 900h' : ''}</div>
+      <div class="detail-toggle">
+        <button class="toggle-btn ${curView === 'chart' ? 'active' : ''}" onclick="setDetailView('chart','${a.id}')">📊 Graphique</button>
+        <button class="toggle-btn ${curView === 'grid' ? 'active' : ''}" onclick="setDetailView('grid','${a.id}')">📋 Tableau</button>
+      </div>
+    </div>
+    <div id="detail-content-${a.id}">
+      ${curView === 'chart' ? chartHtml : gridHtml}
+    </div>
+    ${renderCumulLine(a)}
+  </div>`;
+}
+
+function setDetailView(view, agentId) {
+  expandedView = view;
+  const agent = agents.find(a => a.id === agentId);
+  if (!agent) return;
+  const activeMonths = [];
+  for (let i = 0; i < 12; i++) {
+    if (agents.some(a => a.h[i] > 0)) activeMonths.push(i);
+  }
+  const displayMonths = activeMonths.length > 0 ? activeMonths : [0,1,2,3,4,5];
+  const container = document.getElementById('detail-content-' + agentId);
+  if (!container) return;
+  container.innerHTML = view === 'chart' ? renderChart(agent, displayMonths) : renderGrid(agent, displayMonths);
+  // update toggle buttons
+  document.querySelectorAll('.toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent.includes(view === 'chart' ? 'Graphique' : 'Tableau'));
+  });
+}
+
+function renderChart(a, displayMonths) {
+  const vals = displayMonths.map(i => a.h[i]);
+  const maxVal = Math.max(...vals, 1);
+
+  // Bar colors per value
+  const barColors = vals.map((v, idx) => {
+    const mi = displayMonths[idx];
+    if (a.cat === 'C') {
+      const cumul = displayMonths.slice(0, idx + 1).reduce((s, m) => s + a.h[m], 0);
+      if (cumul > LIMIT_C) return '#8B0000';
+      if (v > 180) return '#c0272d';
+      if (v > 150) return '#EF9F27';
+      return '#639922';
+    }
+    return v > 200 ? '#EF9F27' : '#639922';
+  });
+
+  // Cumul line for Cat C
+  let cumul = 0;
+  const cumulVals = displayMonths.map(i => { cumul += a.h[i]; return cumul; });
+
+  const bars = vals.map((v, idx) => {
+    const heightPct = v > 0 ? Math.round((v / maxVal) * 100) : 0;
+    const color = barColors[idx];
+    const cumulStr = a.cat === 'C' ? ` (cumulé: ${cumulVals[idx].toFixed(0)}h)` : '';
+    return `<div class="chart-bar-wrap">
+      <div class="chart-bar-val">${v > 0 ? v.toFixed(1) : '—'}</div>
+      <div class="chart-bar" style="height:${heightPct}%;background:${color};width:100%" data-tooltip="${MONTHS[displayMonths[idx]]}: ${v.toFixed(1)}h${cumulStr}"></div>
+    </div>`;
+  }).join('');
+
+  const xLabels = displayMonths.map(i => `<div class="chart-x-label">${MONTHS[i]}</div>`).join('');
+
+  return `<div class="chart-container">
+    <div class="chart-bars">${bars}</div>
+    <div class="chart-x-labels">${xLabels}</div>
+    ${a.cat === 'C' ? `<div style="font-size:10px;color:var(--text-ter);margin-top:8px;text-align:right;">Barres rouges = approche de la limite 900h</div>` : ''}
+  </div>`;
+}
+
+function renderGrid(a, displayMonths) {
+  let cumul = 0;
+  const cards = displayMonths.map(i => {
+    const v = a.h[i];
+    cumul += v;
+    const hasData = v > 0;
+    const overLine = a.cat === 'C' && cumul > LIMIT_C;
+    return `<div class="month-card ${!hasData ? 'no-data' : ''} ${overLine ? 'over-900' : ''}">
+      <div class="m-name">${MONTHS[i]}</div>
+      <div class="m-val ${!hasData ? 'zero' : ''}">${hasData ? v.toFixed(1) + 'h' : '—'}</div>
+      ${a.cat === 'C' ? `<div style="font-size:9px;color:${overLine ? 'var(--red)' : 'var(--text-ter)'};">cumulé: ${cumul.toFixed(0)}h</div>` : ''}
+    </div>`;
+  }).join('');
+  return `<div class="months-grid">${cards}</div>`;
+}
+
+function renderCumulLine(a) {
+  const ref = a.cat === 'C' ? LIMIT_C : null;
+  const restant = ref ? Math.max(0, ref - a.total) : null;
+  const monthsWithData = a.h.filter(v => v > 0).length || 1;
+  const projection = (a.total / monthsWithData * 12).toFixed(0);
+  const extraInfo = ref
+    ? `<div class="cumul-item">Limite: <strong>${ref}h</strong></div>
+       <div class="cumul-item">Restant: <strong style="color:${restant < 100 ? 'var(--red)' : 'var(--green)'};">${restant.toFixed(0)}h</strong></div>
+       <div class="cumul-item">Moy/mois: <strong>${(a.total / monthsWithData).toFixed(1)}h</strong></div>
+       <div class="cumul-item">Projection: <strong>${projection}h</strong></div>`
+    : `<div class="cumul-item">Moy/mois: <strong>${(a.total / monthsWithData).toFixed(1)}h</strong></div>
+       <div class="cumul-item">Projection: <strong>${projection}h</strong></div>`;
+  return `<div class="cumul-line">
+    <div class="cumul-item">Total YTD: <strong>${a.total.toFixed(1)}h</strong></div>
+    ${extraInfo}
+  </div>`;
+}
+
+function toggleExpand(key) {
+  expandedKey = expandedKey === key ? null : key;
+  renderTable();
+}
+
+// ─── EDIT ───────────────────────────────────────────────────────────────────
+function openEdit(key) {
+  const a = agents.find(x => x.id === key);
+  if (!a) return;
+  editingAgent = a;
+  document.getElementById('modal-edit-title').textContent = `Modifier — ${a.prenom} ${a.nom}`;
+  document.getElementById('edit-prenom').value = a.prenom;
+  document.getElementById('edit-nom').value = a.nom;
+  document.getElementById('edit-cat').value = a.cat;
+  document.getElementById('edit-parti').value = String(a.parti);
+
+  // Month inputs
+  const activeMonths = [];
+  for (let i = 0; i < 12; i++) {
+    if (agents.some(x => x.h[i] > 0) || a.h[i] > 0) activeMonths.push(i);
+  }
+  const displayMonths = activeMonths.length > 0 ? activeMonths : [0,1,2,3,4,5];
+
+  document.getElementById('modal-months-inputs').innerHTML = displayMonths.map(i => `
+    <div class="modal-month">
+      <label>${MONTHS[i]}</label>
+      <input type="number" id="edit-month-${i}" value="${a.h[i] > 0 ? a.h[i].toFixed(2) : ''}" placeholder="0" min="0" step="0.5" />
+    </div>
+  `).join('');
+
+  document.getElementById('modal-edit').classList.add('open');
+}
+
+async function saveEdit() {
+  if (!editingAgent) return;
+  const prenom = document.getElementById('edit-prenom').value.trim();
+  const nom = document.getElementById('edit-nom').value.trim();
+  const cat = document.getElementById('edit-cat').value;
+  const parti = document.getElementById('edit-parti').value === 'true';
+
+  try {
+    // Update rh_agents
+    await sbFetch(`rh_agents?id=eq.${editingAgent.id}`, {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({
+        prenom,
+        nom,
+        categorie_salaire: cat,
+        statut: parti ? 'inactif' : 'actif',
+        updated_at: new Date().toISOString()
+      })
+    });
+
+    // Update hours — upsert each month that has an input
+    const monthInputs = document.querySelectorAll('[id^="edit-month-"]');
+    const upserts = [];
+    monthInputs.forEach(inp => {
+      const mi = parseInt(inp.id.replace('edit-month-', ''));
+      const val = parseFloat(inp.value) || 0;
+      upserts.push({ agent_id: editingAgent.id, annee: CURRENT_YEAR, mois: mi + 1, heures: val, source: 'manuel' });
+    });
+
+    if (upserts.length > 0) {
+      await sbFetch('rh_heures_mensuelles', {
+        method: 'POST',
+        headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+        body: JSON.stringify(upserts)
+      });
+    }
+
+    closeModal('modal-edit');
+    showToast(`${prenom} ${nom} mis à jour ✓`);
+    await loadAgents();
+  } catch (e) {
+    showToast('Erreur : ' + e.message, true);
+  }
+}
+
+// ─── DELETE ─────────────────────────────────────────────────────────────────
+function openDelete(key) {
+  const a = agents.find(x => x.id === key);
+  if (!a) return;
+  deletingAgent = a;
+  document.getElementById('delete-msg').innerHTML = `Voulez-vous supprimer <strong>${a.prenom} ${a.nom}</strong> ?<br><br>
+    Cette action supprimera également toutes ses heures enregistrées pour ${CURRENT_YEAR}.<br>
+    <span style="font-size:11px;color:var(--text-ter);">Note : le dossier RH de l'agent dans rh_agents sera conservé. Seules les données de ce module seront effacées.</span>`;
+  document.getElementById('modal-delete').classList.add('open');
+}
+
+async function confirmDelete() {
+  if (!deletingAgent) return;
+  try {
+    // Delete hours for this agent this year
+    await sbFetch(`rh_heures_mensuelles?agent_id=eq.${deletingAgent.id}&annee=eq.${CURRENT_YEAR}`, {
+      method: 'DELETE',
+      headers: { 'Prefer': 'return=minimal' }
+    });
+
+    // Mark as parti in rh_agents (we don't hard-delete the agent record)
+    await sbFetch(`rh_agents?id=eq.${deletingAgent.id}`, {
+      method: 'PATCH',
+      headers: { 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ statut: 'inactif', date_depart: new Date().toISOString().split('T')[0] })
+    });
+
+    closeModal('modal-delete');
+    showToast(`${deletingAgent.prenom} ${deletingAgent.nom} supprimé ✓`);
+    deletingAgent = null;
+    await loadAgents();
+  } catch (e) {
+    showToast('Erreur : ' + e.message, true);
+  }
+}
+
+// ─── IMPORT EXCEL ───────────────────────────────────────────────────────────
+function openImport() {
+  resetImport();
+  document.getElementById('modal-import').classList.add('open');
+}
+
+function resetImport() {
+  document.getElementById('import-step-1').style.display = '';
+  document.getElementById('import-step-2').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  importData = [];
+}
+
+async function handleFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  // We need SheetJS (xlsx) to parse — load it dynamically
+  if (!window.XLSX) {
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+  }
+
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      // Use 'Sommaire' sheet
+      const sheetName = wb.SheetNames.includes('Sommaire') ? 'Sommaire' : wb.SheetNames[0];
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+
+      // Detect period from row 0/1
+      let period = null;
+      if (rows[0] && rows[0][1] instanceof Date) {
+        const d = rows[0][1];
+        period = { year: d.getFullYear(), month: d.getMonth() + 1 };
+      }
+
+      // Data rows start at index 8 (0-based), end before 'Total'
+      const dataRows = [];
+      for (let i = 8; i < rows.length; i++) {
+        const r = rows[i];
+        if (!r || !r[0] || r[0] === 'Total') continue;
+        const prenom = String(r[0] || '').trim();
+        const nomRaw = String(r[1] || '').trim();
+        // Clean suffix like ". RDZ" or ".  RDZ"
+        const nom = nomRaw.replace(/\.\s*RDZ\s*$/i, '').trim();
+        const pointees = parseFloat(r[5]) || 0; // col F = Pointées
+        if (prenom && nom) {
+          dataRows.push({ prenom, nom, heures: pointees });
+        }
+      }
+
+      // Match with existing agents
+      importData = dataRows.map(row => {
+        const match = agents.find(a =>
+          normalize(a.nom) === normalize(row.nom) &&
+          normalize(a.prenom) === normalize(row.prenom)
+        ) || agents.find(a =>
+          normalize(a.nom).startsWith(normalize(row.nom.split('.')[0])) &&
+          normalize(a.prenom) === normalize(row.prenom)
+        );
+        return { ...row, period, matched: !!match, agentId: match ? match.id : null, agentDisplay: match ? `${match.prenom} ${match.nom}` : null };
+      });
+
+      showImportPreview(period);
+    } catch (err) {
+      showToast('Erreur lecture Excel : ' + err.message, true);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function normalize(s) {
+  return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+function loadScript(src) {
+  return new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src;
+    s.onload = res;
+    s.onerror = rej;
+    document.head.appendChild(s);
+  });
+}
+
+function showImportPreview(period) {
+  const matched = importData.filter(r => r.matched);
+  const unmatched = importData.filter(r => !r.matched);
+  const periodLabel = period ? `${MONTHS[period.month - 1]} ${period.year}` : 'Période inconnue';
+
+  document.getElementById('import-info').innerHTML = `
+    <strong>Période détectée :</strong> ${periodLabel}<br>
+    <strong>${matched.length}</strong> agents reconnus · <strong style="color:var(--red)">${unmatched.length}</strong> non trouvés (seront ignorés)
+  `;
+
+  document.getElementById('import-preview').innerHTML = `
+    <table>
+      <tr><th>Prénom</th><th>Nom (fichier)</th><th>Heures</th><th>Correspondance</th></tr>
+      ${importData.map(r => `
+        <tr class="${r.matched ? 'matched' : 'unmatched'}">
+          <td>${r.prenom}</td>
+          <td>${r.nom}</td>
+          <td style="font-weight:600">${r.heures.toFixed(1)}h</td>
+          <td>${r.matched ? `✓ ${r.agentDisplay}` : '✗ Non trouvé'}</td>
+        </tr>
+      `).join('')}
+    </table>
+  `;
+
+  document.getElementById('import-step-1').style.display = 'none';
+  document.getElementById('import-step-2').style.display = '';
+}
+
+async function confirmImport() {
+  const toImport = importData.filter(r => r.matched && r.period);
+  if (toImport.length === 0) { showToast('Aucun agent à importer', true); return; }
+
+  const btn = document.getElementById('btn-confirm-import');
+  btn.textContent = 'Importation…';
+  btn.disabled = true;
+
+  try {
+    const upserts = toImport.map(r => ({
+      agent_id: r.agentId,
+      annee: r.period.year,
+      mois: r.period.month,
+      heures: r.heures,
+      source: 'agendrix'
+    }));
+
+    await sbFetch('rh_heures_mensuelles', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(upserts)
+    });
+
+    closeModal('modal-import');
+    showToast(`${toImport.length} agents importés pour ${MONTHS[toImport[0].period.month - 1]} ✓`);
+    await loadAgents();
+  } catch (e) {
+    showToast('Erreur import : ' + e.message, true);
+    btn.textContent = 'Importer les données';
+    btn.disabled = false;
+  }
+}
+
+// ─── MODALS ─────────────────────────────────────────────────────────────────
+function closeModal(id) {
+  document.getElementById(id).classList.remove('open');
+  editingAgent = null;
+}
+
+// Close on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) overlay.classList.remove('open');
+  });
+});
+
+// Drag & drop for import
+const importZone = document.getElementById('import-zone');
+importZone.addEventListener('dragover', e => { e.preventDefault(); importZone.classList.add('drag-over'); });
+importZone.addEventListener('dragleave', () => importZone.classList.remove('drag-over'));
+importZone.addEventListener('drop', e => {
+  e.preventDefault();
+  importZone.classList.remove('drag-over');
+  const file = e.dataTransfer.files[0];
+  if (file) {
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    document.getElementById('file-input').files = dt.files;
+    handleFileSelect({ target: { files: [file] } });
+  }
+});
+
+// ─── TOAST ──────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, isError = false) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError ? ' error' : '');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.className = 'toast', 3500);
+}
+
+// ─── INIT ───────────────────────────────────────────────────────────────────
+const now = new Date();
+document.getElementById('nav-date').textContent = now.toLocaleDateString('fr-FR', {weekday:'long', day:'numeric', month:'long', year:'numeric'});
+
+// Set initial sort indicator
+document.querySelectorAll('thead th')[9]?.classList.add('sort-desc');
+
+loadAgents();
+</script>
+</body>
+</html>
