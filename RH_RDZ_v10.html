@@ -1682,7 +1682,7 @@ function renderFicheView(a){
   if(agProcs.length){
     procHTML='<div class="sep"></div><div class="sec-title">✅ Process RH en cours</div>';
     agProcs.forEach(p=>{
-      const steps=p.steps||(p.type&&REF_STEPS[p.type])||[]; const done=steps.filter(s=>s.checked).length; const total=steps.length||1; const pct=Math.round(done/total*100);
+      const steps=p.steps||(p.type&&REF_STEPS[p.type])||[]; const done=steps.filter(s=>s.checked).length; const total=steps.length||1; const pct=p.closed?100:Math.round(done/total*100);
       // Last done step
       const doneSteps=steps.filter(s=>s.checked);
       const lastDone=doneSteps.length?doneSteps[doneSteps.length-1]:null;
@@ -3930,7 +3930,7 @@ function saveFormation(){
   } else {
     a.formations.push({id:'form_'+Date.now(),type,theme,foco,date:g('ff-date'),exp:g('ff-exp'),org:g('ff-org'),note:g('ff-note')});
   }
-  saveDB(); document.getElementById('modal-formation').classList.remove('open'); renderFormations(); buildDashboard();
+  saveDB(); document.getElementById('modal-formation').classList.remove('open'); renderFormations(); buildDashboard(); if(curAgId){ renderFiche(); setTimeout(function(){ loadPassportForFiche(curAgId); }, 300); }
 }
 
 // ═══════════════════════════════════════
