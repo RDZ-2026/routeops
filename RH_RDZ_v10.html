@@ -2446,10 +2446,13 @@ function renderProcModal(){
   <div id="journal-entries">${journalHtml||'<div style=\"font-size:12px;color:var(--text3);font-style:italic;padding:4px 0;\">Aucune note pour l’instant.</div>'}</div>
   <div class="modal-actions" style="margin-top:16px;">
     ${a?`<button class="btn btn-ghost btn-sm" onclick="openFiche('${a.id}');document.getElementById('modal-process').classList.remove('open')">👤 Fiche agent</button>`:''}
-    ${p.closed?'<button class=\'btn btn-ghost btn-sm\' style=\'color:#16a34a;\' onclick=\'toggleCloseProcess(\''+p.id+'\')\'>🔓 Réouvrir</button>':'<button class=\'btn btn-ghost btn-sm\' style=\'color:#c0272d;\' onclick=\'toggleCloseProcess(\''+p.id+'\')\'>🔒 Clôturer</button>'}
+    <button id="proc-cloture-btn" class="btn btn-ghost btn-sm" style="${p.closed?'color:#16a34a':'color:#c0272d'}">${p.closed?'🔓 Réouvrir':'🔒 Clôturer'}</button>
     <button class="btn btn-ghost" onclick="document.getElementById('modal-process').classList.remove('open')">Fermer</button>
   </div>`;
   document.getElementById('mp-body').innerHTML=html;
+  // Wire cloturer button
+  var _cb=document.getElementById('proc-cloture-btn');
+  if(_cb) _cb.addEventListener('click',function(){ toggleCloseProcess(p.id); });
 }
 
 
