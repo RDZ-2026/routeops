@@ -1660,6 +1660,11 @@ function renderFiche(){
   document.getElementById('ma-sub').textContent=`${a.fonction||'Agent'} · ${a.statut==='actif'?'Actif':'Parti'}`;
   document.getElementById('ma-edit-btn').textContent=editMode?'👁 Vue':'✏️ Modifier';
   document.getElementById('ma-body').innerHTML=editMode?renderFicheEdit(a):renderFicheView(a);
+  if(editMode){
+    // Post-render: set select values that can't be set via template literals (HTML entity issue)
+    var _sel=document.getElementById('ea-carte-situation');
+    if(_sel && a.docs && a.docs.carte) _sel.value=a.docs.carte.situation||'';
+  }
 }
 
 function renderFicheView(a){
@@ -1901,9 +1906,9 @@ function renderFicheEdit(a){
       <div class="fg"><div class="flabel">Situation carte</div>
         <select class="fsel" id="ea-carte-situation">
           <option value="">— Non renseigné —</option>
-          <option value="Au coffre" ${a.docs.carte?.situation==='Au coffre'?'selected':''}>Au coffre</option>
-          <option value="Remis à l&#39;agent" ${a.docs.carte?.situation==='Remis à l&#39;agent'?'selected':''}>Remis à l&#39;agent</option>
-          <option value="Renvoyé à la BASPE" ${a.docs.carte?.situation==='Renvoyé à la BASPE'?'selected':''}>Renvoyé à la BASPE</option>
+          <option value="Au coffre">Au coffre</option>
+          <option value="Remis à l'agent">Remis à l'agent</option>
+          <option value="Renvoyé à la BASPE">Renvoyé à la BASPE</option>
         </select>
       </div>
       <div class="fg"><div class="flabel">Matricule Dénonciateur</div><input class="finp" id="ea-matr-carte" value="${esc(a.matr_denonc_carte||'')}"></div>
@@ -2246,7 +2251,7 @@ function renderProcess(){
   let procs=DB.process.slice();
   if(procTab!=='all') procs=procs.filter(p=>p.type===procTab);
   // Filtre statut
-  if(procStatus==='done') procs=procs.filter(p=>{const s=p.steps||[];return s.length>0&&s.every(x=>x.checked);});
+  if(procStatus==='done') procs=procs.filter(p=>{const s=p.steps||[];return p.closed||(s.length>0&&s.every(x=>x.checked));});
   else if(procStatus==='open') procs=procs.filter(p=>{const s=p.steps||[];return s.some(x=>!x.checked);});
   // Sort by agent name
   procs.sort((a,b)=>{
@@ -2276,7 +2281,7 @@ function renderProcess(){
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;flex-wrap:wrap;">
             <strong style="font-size:14px;">${a?`${esc(a.nom)} ${esc(a.prenom)}`:'—'}</strong>
             <span class="badge" style="background:${pt.color}18;color:${pt.color};border:1px solid ${pt.color}33;">${pt.icon} ${esc(pt.name)}</span>
-            ${pct===100?'<span class="badge b-green">✓ Terminé</span>':''}
+            ${p.closed?'<span class="badge" style="background:#16a34a18;color:#16a34a;border:1px solid #16a34a33;">🔒 Clôturé</span>':pct===100?'<span class="badge b-green">✓ Terminé</span>':''}
           </div>
           <div style="font-size:11.5px;color:var(--text3);margin-bottom:8px;">Démarré le ${fDate(p.date)}</div>
           <div style="display:flex;flex-direction:column;gap:4px;">
@@ -2298,6 +2303,16 @@ function renderProcess(){
       </div>
     </div>`;
   }).join('');
+}
+
+function toggleCloseProcess(id){
+  var p = DB.process.find(function(x){ return x.id===id; });
+  if(!p) return;
+  p.closed = !p.closed;
+  saveDB('process');
+  renderProcModal();
+  renderProcess();
+  showToast(p.closed ? '🔒 Process clôturé' : '🔓 Process réouvert', true);
 }
 
 function openProcess(id){curProcId=id;renderProcModal();document.getElementById('modal-process').classList.add('open');}
@@ -2431,6 +2446,7 @@ function renderProcModal(){
   <div id="journal-entries">${journalHtml||'<div style=\"font-size:12px;color:var(--text3);font-style:italic;padding:4px 0;\">Aucune note pour l’instant.</div>'}</div>
   <div class="modal-actions" style="margin-top:16px;">
     ${a?`<button class="btn btn-ghost btn-sm" onclick="openFiche('${a.id}');document.getElementById('modal-process').classList.remove('open')">👤 Fiche agent</button>`:''}
+    ${p.closed?'<button class=\'btn btn-ghost btn-sm\' style=\'color:#16a34a;\' onclick=\'toggleCloseProcess(\''+p.id+'\')\'>🔓 Réouvrir</button>':'<button class=\'btn btn-ghost btn-sm\' style=\'color:#c0272d;\' onclick=\'toggleCloseProcess(\''+p.id+'\')\'>🔒 Clôturer</button>'}
     <button class="btn btn-ghost" onclick="document.getElementById('modal-process').classList.remove('open')">Fermer</button>
   </div>`;
   document.getElementById('mp-body').innerHTML=html;
@@ -5464,63 +5480,74 @@ function renderTirsTable(el){
   var annee = new Date().getFullYear();
   var agents = DB.agents.filter(function(a){ return a.statut==='actif'; });
 
-  var rows = agents.map(function(a){
+  // Build rows — only agents who have at least one tir this year
+  var rows = [];
+  agents.forEach(function(a){
     var tirs = (a.formations||[]).filter(function(f){
       if(!f.date || f.date.slice(0,4)!==String(annee)) return false;
-      return f.type==='Tir concordataire' || (f.foco&&f.foco.toString().toUpperCase().startsWith('E'));
-    }).sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
-    var t = [null,null,null,null];
-    tirs.forEach(function(f){
-      var m = parseInt((f.date||'').slice(5,7));
-      var q = m<=3?0:m<=6?1:m<=9?2:3;
-      if(!t[q]) t[q]=f;
-    });
-    return { id:a.id, nom:a.nom, prenom:a.prenom, t:t, done:t.filter(Boolean).length };
-  }).sort(function(a,b){
-    var va = a.nom+' '+a.prenom, vb = b.nom+' '+b.prenom;
-    var r = va.localeCompare(vb,'fr');
+      var t=(f.type||'').toLowerCase();
+      var foco=(f.foco||'').toString().toUpperCase();
+      return t==='tir concordataire' || foco.startsWith('E');
+    }).sort(function(x,y){ return (x.date||'').localeCompare(y.date||''); });
+    if(tirs.length > 0) rows.push({ id:a.id, nom:a.nom, prenom:a.prenom, tirs:tirs });
+  });
+
+  rows.sort(function(a,b){
+    var r = a.nom.localeCompare(b.nom,'fr');
     return _tirsSortDir==='asc'?r:-r;
   });
 
-  var complets = rows.filter(function(r){ return r.done===4; }).length;
-  var manquants = rows.filter(function(r){ return r.done<4; }).length;
+  // Max tirs count this year (for column headers)
+  var maxTirs = rows.reduce(function(m,r){ return Math.max(m, r.tirs.length); }, 4);
 
-  function tirCell(tir, aid, q){
-    var btn = '<button data-agent="'+aid+'" data-q="'+q+'" onclick="openAddTir(this.dataset.agent,parseInt(this.dataset.q))" style="font-size:9px;background:none;border:none;cursor:pointer;color:var(--text3);">✏️</button>';
-    if(tir){
-      var ds = tir.date ? tir.date.slice(8,10)+'.'+tir.date.slice(5,7) : '—';
-      var ok = tir.note&&tir.note.toLowerCase().includes('réussi');
-      var ko = tir.note&&(tir.note.toLowerCase().includes('échec')||tir.note.toLowerCase().includes('refus'));
-      var col = ok?'#16a34a':ko?'#dc2626':'#2563eb';
-      return '<td style="text-align:center;padding:4px 6px;"><div style="font-size:11px;font-weight:600;color:'+col+';">'+ds+'</div>'+(tir.note?'<div style="font-size:9px;color:'+col+';">'+esc(tir.note)+'</div>':'')+btn+'</td>';
-    }
-    return '<td style="text-align:center;padding:4px 6px;"><button data-agent="'+aid+'" data-q="'+q+'" onclick="openAddTir(this.dataset.agent,parseInt(this.dataset.q))" style="font-size:11px;background:#fef2f2;border:1px dashed #fca5a5;border-radius:4px;padding:3px 8px;cursor:pointer;color:#dc2626;">+ Saisir</button></td>';
-  }
-
+  var totalTirs = rows.reduce(function(s,r){ return s+r.tirs.length; }, 0);
   var sc = function(col){ return _tirsSortCol===col?(_tirsSortDir==='asc'?' ▲':' ▼'):''; };
 
+  // Build column headers: Tir 1, Tir 2, ...
+  var thCols = '';
+  for(var i=0; i<maxTirs; i++){
+    thCols += '<th style="padding:7px 10px;text-align:center;font-size:9.5px;text-transform:uppercase;">Tir '+(i+1)+'</th>';
+  }
+
   el.innerHTML = '<div style="display:flex;gap:10px;margin-bottom:14px;">'
-    +'<div class="card" style="padding:12px 16px;flex:1;text-align:center;"><div style="font-size:22px;font-weight:700;color:#16a34a;">'+complets+'</div><div style="font-size:11px;color:var(--text3);">4/4 réalisés</div></div>'
-    +'<div class="card" style="padding:12px 16px;flex:1;text-align:center;"><div style="font-size:22px;font-weight:700;color:#dc2626;">'+manquants+'</div><div style="font-size:11px;color:var(--text3);">Incomplets</div></div>'
-    +'<div class="card" style="padding:12px 16px;flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;">'+annee+'</div><div style="font-size:11px;color:var(--text3);">Année civile</div></div>'
+    +'<div class="card" style="padding:12px 16px;flex:1;text-align:center;">'
+    +'<div style="font-size:22px;font-weight:700;color:var(--red);">'+rows.length+'</div>'
+    +'<div style="font-size:11px;color:var(--text3);">Agents avec tirs</div></div>'
+    +'<div class="card" style="padding:12px 16px;flex:1;text-align:center;">'
+    +'<div style="font-size:22px;font-weight:700;color:#2563eb;">'+totalTirs+'</div>'
+    +'<div style="font-size:11px;color:var(--text3);">Tirs réalisés '+annee+'</div></div>'
+    +'<div class="card" style="padding:12px 16px;flex:1;text-align:center;">'
+    +'<div style="font-size:18px;font-weight:700;">'+annee+'</div>'
+    +'<div style="font-size:11px;color:var(--text3);">Année civile</div></div>'
     +'</div>'
-    +'<div class="card" style="padding:0;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:11px;">'
+    +(rows.length===0 ? '<div style="text-align:center;padding:40px;color:var(--text3);">Aucun tir enregistré pour '+annee+'</div>' :
+    '<div class="card" style="padding:0;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:11px;">'
     +'<thead><tr style="background:#2d2d2d;color:white;">'
-    +'<th onclick="sortTirs(\"nom\")" style="padding:7px 10px;text-align:left;cursor:pointer;font-size:9.5px;text-transform:uppercase;">Agent'+sc("nom")+'</th>'
-    +'<th style="padding:7px 10px;text-align:center;font-size:9.5px;text-transform:uppercase;">T1 (Jan–Mar)</th>'
-    +'<th style="padding:7px 10px;text-align:center;font-size:9.5px;text-transform:uppercase;">T2 (Avr–Juin)</th>'
-    +'<th style="padding:7px 10px;text-align:center;font-size:9.5px;text-transform:uppercase;">T3 (Jul–Sep)</th>'
-    +'<th style="padding:7px 10px;text-align:center;font-size:9.5px;text-transform:uppercase;">T4 (Oct–Déc)</th>'
-    +'<th style="padding:7px 10px;text-align:center;font-size:9.5px;text-transform:uppercase;">Bilan</th>'
+    +'<th onclick="sortTirs(\"nom\")" style="padding:7px 10px;text-align:left;cursor:pointer;font-size:9.5px;text-transform:uppercase;min-width:140px;">Agent'+sc("nom")+'</th>'
+    + thCols
     +'</tr></thead><tbody>'
     + rows.map(function(r){
-        var bilan = r.done===4?'<span style="color:#16a34a;font-weight:700;">✅ Complet</span>':'<span style="color:#dc2626;font-weight:600;">⚠ '+r.done+'/4</span>';
+        var cols = '';
+        for(var i=0; i<maxTirs; i++){
+          var tir = r.tirs[i];
+          if(tir){
+            var ds = tir.date.slice(8,10)+'.'+tir.date.slice(5,7);
+            var ok = tir.note&&tir.note.toLowerCase().includes('réussi');
+            var ko = tir.note&&(tir.note.toLowerCase().includes('échec')||tir.note.toLowerCase().includes('refus'));
+            var col2 = ok?'#16a34a':ko?'#dc2626':'#2563eb';
+            cols += '<td style="text-align:center;padding:5px 6px;">'
+              +'<div style="font-size:11px;font-weight:600;color:'+col2+';">'+ds+'</div>'
+              +(tir.note?'<div style="font-size:9px;color:'+col2+';">'+esc(tir.note)+'</div>':'')
+              +'</td>';
+          } else {
+            cols += '<td style="padding:5px 6px;"></td>';
+          }
+        }
         return '<tr style="border-bottom:1px solid var(--border);">'
           +'<td style="padding:6px 10px;font-weight:600;">'+esc(r.nom)+' '+esc(r.prenom)+'</td>'
-          +tirCell(r.t[0],r.id,0)+tirCell(r.t[1],r.id,1)+tirCell(r.t[2],r.id,2)+tirCell(r.t[3],r.id,3)
-          +'<td style="padding:6px 10px;text-align:center;">'+bilan+'</td></tr>';
+          +cols+'</tr>';
       }).join('')
-    +'</tbody></table></div>';
+    +'</tbody></table></div>');
 }
 
 function openAddTir(agentId, quarter){
