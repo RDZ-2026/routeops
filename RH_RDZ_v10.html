@@ -1795,17 +1795,18 @@ function renderFicheView(a){
       <th style="padding:7px 10px;font-size:10px;color:var(--text3);text-transform:uppercase;">Expiration</th>
       <th style="padding:7px 10px;font-size:10px;color:var(--text3);text-transform:uppercase;">Note</th>
     </tr></thead>
-    <tbody>${(a.formations||[]).sort((x,y)=>(y.date||'').localeCompare(x.date||'')).map((f,fi)=>`<tr style="border-bottom:1px solid var(--border);">
+    <tbody>${(a.formations||[]).sort((x,y)=>(y.date||'').localeCompare(x.date||'')).map(f=>`<tr style="border-bottom:1px solid var(--border);">
       <td style="padding:7px 10px;">
         ${esc(f.type||'—')}
         ${f.type==='Quiz Formation'&&f.theme?`<div style="font-size:11px;color:var(--text3);margin-top:2px;">📝 ${esc(f.theme)}</div>`:''}
+        ${f.foco?`<div style="font-size:10px;color:var(--text3);margin-top:1px;">FOCO: ${esc(f.foco)}</div>`:''}
       </td>
       <td style="padding:7px 10px;">${fDate(f.date)}</td>
       <td style="padding:7px 10px;" class="${expClass(f.exp)}">${fDate(f.exp)}</td>
       <td style="padding:7px 10px;font-size:12px;color:var(--text2);">${esc(f.note||'—')}</td>
       <td style="padding:4px 6px;white-space:nowrap;">
-        <button data-aid="${a.id}" data-fi="${fi}" onclick="openEditFormation(this.dataset.aid,parseInt(this.dataset.fi))" style="background:none;border:none;cursor:pointer;font-size:13px;padding:2px 5px;" title="Modifier">✏️</button>
-        <button data-aid="${a.id}" data-fi="${fi}" onclick="deleteFormation(this.dataset.aid,parseInt(this.dataset.fi))" style="background:none;border:none;cursor:pointer;font-size:13px;padding:2px 5px;color:#dc2626;" title="Supprimer">🗑</button>
+        <button onclick="editFormation('${a.id}','${f.id||''}')" style="background:none;border:none;cursor:pointer;font-size:13px;padding:2px 5px;" title="Modifier">✏️</button>
+        <button onclick="deleteFormation('${f.id||''}')" style="background:none;border:none;cursor:pointer;font-size:13px;padding:2px 5px;color:#dc2626;" title="Supprimer">🗑</button>
       </td>
     </tr>`).join('')}</tbody>
   </table>
@@ -2118,7 +2119,7 @@ function saveAgentEdit(){
     nationalite:cg('ea-conj-nat'),dob:cg('ea-conj-dob'),
     travail_geneve:cg('ea-conj-geneve')===null?null:cg('ea-conj-geneve')==='true'};
   a.matr_denonc_carte=g('ea-matr-carte');
-  a.docs.carte={num:g('ea-carte-num'),emission:null,exp:g('ea-carte-exp'),situation:g('ea-carte-situation')||null};
+  if(!a.docs) a.docs={}; a.docs.carte={num:g('ea-carte-num'),emission:null,exp:g('ea-carte-exp'),situation:g('ea-carte-situation')||null};
   a.docs.ppa={num:g('ea-ppa-num'),emission:null,exp:g('ea-ppa-exp')};
   a.docs.permis={num:g('ea-permis-num'),employeur:g('ea-permis-emp'),type_permis:g('ea-permis-type'),emission:null,exp:g('ea-permis-exp')};
   a.docs.pi1={type:g('ea-pi1-type'),pays:g('ea-pi1-pays'),num:g('ea-pi1-num'),emission:null,exp:g('ea-pi1-exp')};
@@ -5465,7 +5466,8 @@ function renderTirsTable(el){
 
   var rows = agents.map(function(a){
     var tirs = (a.formations||[]).filter(function(f){
-      return f.type==='Tir concordataire' && f.date && f.date.slice(0,4)===String(annee);
+      if(!f.date || f.date.slice(0,4)!==String(annee)) return false;
+      return f.type==='Tir concordataire' || (f.foco&&f.foco.toString().toUpperCase().startsWith('E'));
     }).sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
     var t = [null,null,null,null];
     tirs.forEach(function(f){
@@ -5528,7 +5530,9 @@ function openAddTir(agentId, quarter){
   var annee = new Date().getFullYear();
   var qL = ['T1 (Jan–Mar)','T2 (Avr–Juin)','T3 (Jul–Sep)','T4 (Oct–Déc)'];
   var existing = (a.formations||[]).find(function(f){
-    if(f.type!=='Tir concordataire'||!f.date) return false;
+    if(!f.date) return false;
+    var isTir = f.type==='Tir concordataire' || (f.foco&&f.foco.toString().toUpperCase().startsWith('E'));
+    if(!isTir) return false;
     var m=parseInt(f.date.slice(5,7)); var q=m<=3?0:m<=6?1:m<=9?2:3;
     return q===quarter && f.date.slice(0,4)===String(annee);
   });
@@ -5599,6 +5603,8 @@ function exportFOCO(type){
 function buildFOCOSheet(agents, titre, annee){
   var COL_A=[3,4,5,6,7], COL_B=[8,9,10], COL_C=[11,12,13,14,15];
   var COL_D=[16,17,18,19,20,21,22,23,24,25,26,27], COL_E=[28,29,30];
+  // Mapping FOCO: E = Exercice au tir
+  // Also pick foco=E formations as tir entries
   var aoa=[];
   var r1=new Array(31).fill(''); r1[0]='FORMATION CONTINUE DES AGENTS DE SECURITE'; aoa.push(r1);
   var r2=new Array(31).fill(''); r2[0]="Annexe à la directive du 23 septembre 2004 concernant la formation continue des agents de sécurité"; aoa.push(r2);
@@ -5614,12 +5620,19 @@ function buildFOCOSheet(agents, titre, annee){
     (a.formations||[]).filter(function(f){ return f.date&&f.date.slice(0,4)===String(annee); }).forEach(function(f){
       var t=(f.type||'').toLowerCase(), th=(f.theme||'').toLowerCase();
       var ds=f.date?f.date.slice(8,10)+'.'+f.date.slice(5,7):'';
-      if(t.includes('concordat')||th.includes('concordat')||th.includes('lois')||t.includes('foco')||t.includes('initiale')){
-        COL_A.forEach(function(c){if(!row[c])row[c]=ds;}); COL_B.forEach(function(c){if(!row[c])row[c]=ds;});
-      } else if(t.includes('tir')){
+      var focoVal = (f.foco||'').toString().toUpperCase();
+      if(focoVal.startsWith('E') || t.includes('tir')){
+        // E = Exercice au tir
         var m=parseInt(f.date.slice(5,7)); var qi=m<=3?0:m<=6?1:m<=9?2:3;
         if(qi<3&&!row[COL_E[qi]])row[COL_E[qi]]=ds;
+        else if(!row[COL_E[2]])row[COL_E[2]]=ds; // overflow to E3
+      } else if(focoVal.startsWith('A')||t.includes('concordat')||th.includes('concordat')||th.includes('lois')||t.includes('initiale')){
+        // A + B = Concordat / Lois & Règlements
+        COL_A.forEach(function(ci){if(!row[ci])row[ci]=ds;}); COL_B.forEach(function(ci){if(!row[ci])row[ci]=ds;});
+      } else if(focoVal.startsWith('C')){
+        COL_C.forEach(function(ci){if(!row[ci])row[ci]=ds;});
       } else {
+        // D = Autres formations continues
         for(var i=0;i<COL_D.length;i++){if(!row[COL_D[i]]){row[COL_D[i]]=ds;break;}}
       }
     });
@@ -5630,6 +5643,19 @@ function buildFOCOSheet(agents, titre, annee){
   var fB=new Array(31).fill(''); fB[7]='15/12/'+annee;fB[21]='Rodolphe DE ZORDI'; aoa.push(fB);
   var ws=XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols']=[{wch:16},{wch:12},{wch:13}]; for(var i=3;i<31;i++)ws['!cols'].push({wch:5});
+  // Merges: titre rows + category headers
+  ws['!merges']=[
+    {s:{r:0,c:0},e:{r:0,c:30}},  // Row 1: titre
+    {s:{r:1,c:0},e:{r:1,c:30}},  // Row 2: sous-titre
+    {s:{r:2,c:0},e:{r:2,c:30}},  // Row 3: type
+    {s:{r:3,c:3},e:{r:3,c:7}},   // A header
+    {s:{r:3,c:8},e:{r:3,c:10}},  // B header
+    {s:{r:3,c:11},e:{r:3,c:15}}, // C header
+    {s:{r:3,c:16},e:{r:3,c:27}}, // D header
+    {s:{r:3,c:28},e:{r:3,c:30}}, // E header
+  ];
+  // Row heights
+  ws['!rows']=[{hpx:22},{hpx:16},{hpx:16},{hpx:18},{hpx:14}];
   return ws;
 }
 
