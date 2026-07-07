@@ -7164,24 +7164,20 @@ function loadPassportForFiche(agentId){
   var el = document.getElementById('passport-fiche-'+agentId);
   if(!el) return;
 
-  // Si les données compétences ne sont pas encore chargées, les charger d'abord
-  if(!compChecklists.length && currentToken){
-    var loaded = 0;
-    var done = function(){
-      if(++loaded === 2) loadPassportForFiche(agentId);
-    };
-    if(!compChecklists.length){
-      qsComp('site_checklists?order=site,order_pos&active=eq.true').then(function(rows){
-        compChecklists = rows||[]; done();
-      }).catch(function(){ compChecklists=[]; done(); });
-    } else { done(); }
-    if(!compSessions.length){
-      qsComp('competence_sessions?order=created_at.desc&select=*').then(function(rows){
-        compSessions = rows||[]; done();
-      }).catch(function(){ compSessions=[]; done(); });
-    } else { done(); }
+  // Charger les données compétences si pas encore fait
+  if(!window._compDataLoaded && currentToken){
+    window._compDataLoaded = 'loading';
+    var _pending = [
+      qsComp('site_checklists?order=site,order_pos&active=eq.true').then(function(rows){ compChecklists=rows||[]; }).catch(function(){}),
+      qsComp('competence_sessions?order=created_at.desc&select=*').then(function(rows){ compSessions=rows||[]; }).catch(function(){})
+    ];
+    Promise.all(_pending).then(function(){
+      window._compDataLoaded = true;
+      loadPassportForFiche(agentId);
+    });
     return;
   }
+  if(window._compDataLoaded === 'loading') return; // Chargement en cours
 
   // Quels sites cet agent a-t-il été évalué ?
   var agentSessionsAll = compSessions.filter(function(s){return s.agent_id===agentId;});
