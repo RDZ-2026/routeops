@@ -504,6 +504,7 @@ tbody tr:last-child td{border-bottom:none;}
     <button class="sec-tab" onclick="switchDocTab(this,'detail')">Détail complet</button>
     <button class="sec-tab" onclick="switchDocTab(this,'reglement')">Règlement intérieur</button>
     <button class="sec-tab" onclick="switchDocTab(this,'maj_fiche')">MAJ fiche</button>
+    <button class="sec-tab" onclick="switchDocTab(this,'tirs')">🎯 Tirs concordataires</button>
   </div>
   <div id="doc-content"></div>
 </div>
@@ -550,6 +551,7 @@ tbody tr:last-child td{border-bottom:none;}
   <div class="ph">
     <div><div class="ph-title">Formations</div><div class="ph-sub">Suivi des formations par agent</div></div>
     <div class="ph-right">
+      <button class="btn btn-ghost" onclick="openExportFOCO()">📊 Export FOCO</button>
       <button class="btn btn-primary" onclick="openAddFormation()">+ Ajouter formation</button>
       <button class="btn btn-ghost btn-sm" onclick="printCurrentPanel()">🖨️</button>
     </div>
@@ -1793,7 +1795,7 @@ function renderFicheView(a){
       <th style="padding:7px 10px;font-size:10px;color:var(--text3);text-transform:uppercase;">Expiration</th>
       <th style="padding:7px 10px;font-size:10px;color:var(--text3);text-transform:uppercase;">Note</th>
     </tr></thead>
-    <tbody>${(a.formations||[]).sort((x,y)=>(y.date||'').localeCompare(x.date||'')).map(f=>`<tr style="border-bottom:1px solid var(--border);">
+    <tbody>${(a.formations||[]).sort((x,y)=>(y.date||'').localeCompare(x.date||'')).map((f,fi)=>`<tr style="border-bottom:1px solid var(--border);">
       <td style="padding:7px 10px;">
         ${esc(f.type||'—')}
         ${f.type==='Quiz Formation'&&f.theme?`<div style="font-size:11px;color:var(--text3);margin-top:2px;">📝 ${esc(f.theme)}</div>`:''}
@@ -1801,6 +1803,10 @@ function renderFicheView(a){
       <td style="padding:7px 10px;">${fDate(f.date)}</td>
       <td style="padding:7px 10px;" class="${expClass(f.exp)}">${fDate(f.exp)}</td>
       <td style="padding:7px 10px;font-size:12px;color:var(--text2);">${esc(f.note||'—')}</td>
+      <td style="padding:4px 6px;white-space:nowrap;">
+        <button data-aid="${a.id}" data-fi="${fi}" onclick="openEditFormation(this.dataset.aid,parseInt(this.dataset.fi))" style="background:none;border:none;cursor:pointer;font-size:13px;padding:2px 5px;" title="Modifier">✏️</button>
+        <button data-aid="${a.id}" data-fi="${fi}" onclick="deleteFormation(this.dataset.aid,parseInt(this.dataset.fi))" style="background:none;border:none;cursor:pointer;font-size:13px;padding:2px 5px;color:#dc2626;" title="Supprimer">🗑</button>
+      </td>
     </tr>`).join('')}</tbody>
   </table>
   <div style="margin-top:10px;">
@@ -3198,6 +3204,7 @@ function renderDocuments(){
   else if(docTab==='carte_simple') renderCarteSimple(el);
   else if(docTab==='reglement') renderReglementTable(el);
   else if(docTab==='maj_fiche') renderFicheTable(el);
+  else if(docTab==='tirs') renderTirsTable(el);
   else renderDocTypeTable(el,docTab);
 }
 function renderDocMatrix(el){
@@ -5385,6 +5392,247 @@ function confirmerEmbauche(){
   }, 300);
 }
 
+// ══════════════════════════════════════════════════════════
+// FORMATIONS ÉDITABLES
+// ══════════════════════════════════════════════════════════
+var _editFormAgentId = null;
+var _editFormIdx     = null;
+
+function openEditFormation(agentId, idx){
+  _editFormAgentId = agentId;
+  _editFormIdx     = idx;
+  var a = DB.agents.find(function(x){ return x.id===agentId; });
+  if(!a) return;
+  var f = (a.formations||[])[idx];
+  if(!f) return;
+  document.getElementById('mef-date').value      = f.date||'';
+  document.getElementById('mef-exp').value       = f.exp||'';
+  document.getElementById('mef-type').value      = f.type||'Formation continue';
+  document.getElementById('mef-theme').value     = f.theme||'';
+  document.getElementById('mef-site').value      = f.site||'';
+  document.getElementById('mef-formateur').value = f.formateur||'';
+  document.getElementById('mef-note').value      = f.note||'';
+  document.getElementById('mef-title').textContent = 'Modifier — '+esc(a.nom)+' '+esc(a.prenom);
+  document.getElementById('mef-save-btn').onclick = saveEditFormation;
+  document.getElementById('modal-edit-formation').classList.add('open');
+}
+
+function saveEditFormation(){
+  var a = DB.agents.find(function(x){ return x.id===_editFormAgentId; });
+  if(!a || !a.formations) return;
+  var f = a.formations[_editFormIdx];
+  if(!f) return;
+  f.date      = document.getElementById('mef-date').value||null;
+  f.exp       = document.getElementById('mef-exp').value||null;
+  f.type      = document.getElementById('mef-type').value||'';
+  f.theme     = document.getElementById('mef-theme').value||'';
+  f.site      = document.getElementById('mef-site').value||'';
+  f.formateur = document.getElementById('mef-formateur').value||'';
+  f.note      = document.getElementById('mef-note').value||'';
+  saveDB('agents');
+  document.getElementById('modal-edit-formation').classList.remove('open');
+  renderFiche();
+  showToast('Formation mise à jour', true);
+}
+
+function deleteFormation(agentId, idx){
+  if(!confirm('Supprimer cette formation ?')) return;
+  var a = DB.agents.find(function(x){ return x.id===agentId; });
+  if(!a || !a.formations) return;
+  a.formations.splice(idx,1);
+  saveDB('agents');
+  renderFiche();
+  showToast('Formation supprimée', true);
+}
+
+// ══════════════════════════════════════════════════════════
+// TIRS CONCORDATAIRES
+// ══════════════════════════════════════════════════════════
+var _tirAgentId = null;
+var _tirQuarter = null;
+var _tirsSortCol = 'nom';
+var _tirsSortDir = 'asc';
+
+function sortTirs(col){
+  if(_tirsSortCol===col) _tirsSortDir=(_tirsSortDir==='asc'?'desc':'asc');
+  else { _tirsSortCol=col; _tirsSortDir='asc'; }
+  renderDocuments();
+}
+
+function renderTirsTable(el){
+  var annee = new Date().getFullYear();
+  var agents = DB.agents.filter(function(a){ return a.statut==='actif'; });
+
+  var rows = agents.map(function(a){
+    var tirs = (a.formations||[]).filter(function(f){
+      return f.type==='Tir concordataire' && f.date && f.date.slice(0,4)===String(annee);
+    }).sort(function(a,b){ return (a.date||'').localeCompare(b.date||''); });
+    var t = [null,null,null,null];
+    tirs.forEach(function(f){
+      var m = parseInt((f.date||'').slice(5,7));
+      var q = m<=3?0:m<=6?1:m<=9?2:3;
+      if(!t[q]) t[q]=f;
+    });
+    return { id:a.id, nom:a.nom, prenom:a.prenom, t:t, done:t.filter(Boolean).length };
+  }).sort(function(a,b){
+    var va = a.nom+' '+a.prenom, vb = b.nom+' '+b.prenom;
+    var r = va.localeCompare(vb,'fr');
+    return _tirsSortDir==='asc'?r:-r;
+  });
+
+  var complets = rows.filter(function(r){ return r.done===4; }).length;
+  var manquants = rows.filter(function(r){ return r.done<4; }).length;
+
+  function tirCell(tir, aid, q){
+    var btn = '<button data-agent="'+aid+'" data-q="'+q+'" onclick="openAddTir(this.dataset.agent,parseInt(this.dataset.q))" style="font-size:9px;background:none;border:none;cursor:pointer;color:var(--text3);">✏️</button>';
+    if(tir){
+      var ds = tir.date ? tir.date.slice(8,10)+'.'+tir.date.slice(5,7) : '—';
+      var ok = tir.note&&tir.note.toLowerCase().includes('réussi');
+      var ko = tir.note&&(tir.note.toLowerCase().includes('échec')||tir.note.toLowerCase().includes('refus'));
+      var col = ok?'#16a34a':ko?'#dc2626':'#2563eb';
+      return '<td style="text-align:center;padding:4px 6px;"><div style="font-size:11px;font-weight:600;color:'+col+';">'+ds+'</div>'+(tir.note?'<div style="font-size:9px;color:'+col+';">'+esc(tir.note)+'</div>':'')+btn+'</td>';
+    }
+    return '<td style="text-align:center;padding:4px 6px;"><button data-agent="'+aid+'" data-q="'+q+'" onclick="openAddTir(this.dataset.agent,parseInt(this.dataset.q))" style="font-size:11px;background:#fef2f2;border:1px dashed #fca5a5;border-radius:4px;padding:3px 8px;cursor:pointer;color:#dc2626;">+ Saisir</button></td>';
+  }
+
+  var sc = function(col){ return _tirsSortCol===col?(_tirsSortDir==='asc'?' ▲':' ▼'):''; };
+
+  el.innerHTML = '<div style="display:flex;gap:10px;margin-bottom:14px;">'
+    +'<div class="card" style="padding:12px 16px;flex:1;text-align:center;"><div style="font-size:22px;font-weight:700;color:#16a34a;">'+complets+'</div><div style="font-size:11px;color:var(--text3);">4/4 réalisés</div></div>'
+    +'<div class="card" style="padding:12px 16px;flex:1;text-align:center;"><div style="font-size:22px;font-weight:700;color:#dc2626;">'+manquants+'</div><div style="font-size:11px;color:var(--text3);">Incomplets</div></div>'
+    +'<div class="card" style="padding:12px 16px;flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;">'+annee+'</div><div style="font-size:11px;color:var(--text3);">Année civile</div></div>'
+    +'</div>'
+    +'<div class="card" style="padding:0;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:11px;">'
+    +'<thead><tr style="background:#2d2d2d;color:white;">'
+    +'<th onclick="sortTirs(\"nom\")" style="padding:7px 10px;text-align:left;cursor:pointer;font-size:9.5px;text-transform:uppercase;">Agent'+sc("nom")+'</th>'
+    +'<th style="padding:7px 10px;text-align:center;font-size:9.5px;text-transform:uppercase;">T1 (Jan–Mar)</th>'
+    +'<th style="padding:7px 10px;text-align:center;font-size:9.5px;text-transform:uppercase;">T2 (Avr–Juin)</th>'
+    +'<th style="padding:7px 10px;text-align:center;font-size:9.5px;text-transform:uppercase;">T3 (Jul–Sep)</th>'
+    +'<th style="padding:7px 10px;text-align:center;font-size:9.5px;text-transform:uppercase;">T4 (Oct–Déc)</th>'
+    +'<th style="padding:7px 10px;text-align:center;font-size:9.5px;text-transform:uppercase;">Bilan</th>'
+    +'</tr></thead><tbody>'
+    + rows.map(function(r){
+        var bilan = r.done===4?'<span style="color:#16a34a;font-weight:700;">✅ Complet</span>':'<span style="color:#dc2626;font-weight:600;">⚠ '+r.done+'/4</span>';
+        return '<tr style="border-bottom:1px solid var(--border);">'
+          +'<td style="padding:6px 10px;font-weight:600;">'+esc(r.nom)+' '+esc(r.prenom)+'</td>'
+          +tirCell(r.t[0],r.id,0)+tirCell(r.t[1],r.id,1)+tirCell(r.t[2],r.id,2)+tirCell(r.t[3],r.id,3)
+          +'<td style="padding:6px 10px;text-align:center;">'+bilan+'</td></tr>';
+      }).join('')
+    +'</tbody></table></div>';
+}
+
+function openAddTir(agentId, quarter){
+  _tirAgentId = agentId; _tirQuarter = quarter;
+  var a = DB.agents.find(function(x){ return x.id===agentId; });
+  if(!a) return;
+  var annee = new Date().getFullYear();
+  var qL = ['T1 (Jan–Mar)','T2 (Avr–Juin)','T3 (Jul–Sep)','T4 (Oct–Déc)'];
+  var existing = (a.formations||[]).find(function(f){
+    if(f.type!=='Tir concordataire'||!f.date) return false;
+    var m=parseInt(f.date.slice(5,7)); var q=m<=3?0:m<=6?1:m<=9?2:3;
+    return q===quarter && f.date.slice(0,4)===String(annee);
+  });
+  document.getElementById('mef-title').textContent = 'Tir '+qL[quarter]+' '+annee+' — '+a.nom+' '+a.prenom;
+  document.getElementById('mef-date').value      = existing?(existing.date||''):'';
+  document.getElementById('mef-exp').value       = '';
+  document.getElementById('mef-type').value      = 'Tir concordataire';
+  document.getElementById('mef-theme').value     = 'Tir concordataire '+qL[quarter];
+  document.getElementById('mef-site').value      = existing?(existing.site||''):'';
+  document.getElementById('mef-formateur').value = existing?(existing.formateur||''):'';
+  document.getElementById('mef-note').value      = existing?(existing.note||''):'';
+  document.getElementById('mef-save-btn').onclick = function(){ saveTir(agentId,quarter,existing); };
+  document.getElementById('modal-edit-formation').classList.add('open');
+}
+
+function saveTir(agentId, quarter, existing){
+  var a = DB.agents.find(function(x){ return x.id===agentId; });
+  if(!a) return;
+  if(!a.formations) a.formations=[];
+  var newTir = {
+    date:document.getElementById('mef-date').value||null,
+    type:'Tir concordataire',
+    theme:document.getElementById('mef-theme').value||'',
+    site:document.getElementById('mef-site').value||'',
+    formateur:document.getElementById('mef-formateur').value||'',
+    note:document.getElementById('mef-note').value||''
+  };
+  if(existing){ var idx=a.formations.indexOf(existing); if(idx!==-1) a.formations[idx]=newTir; }
+  else { a.formations.push(newTir); }
+  saveDB('agents');
+  document.getElementById('modal-edit-formation').classList.remove('open');
+  document.getElementById('mef-save-btn').onclick = saveEditFormation;
+  renderDocuments();
+  showToast('Tir enregistré ✅', true);
+}
+
+// ══════════════════════════════════════════════════════════
+// EXPORT FOCO
+// ══════════════════════════════════════════════════════════
+function openExportFOCO(){
+  var sel = document.getElementById('foco-annee');
+  var annee = new Date().getFullYear();
+  sel.innerHTML = '';
+  for(var y=annee; y>=annee-3; y--){
+    var opt = document.createElement('option');
+    opt.value=y; opt.textContent=y; sel.appendChild(opt);
+  }
+  document.getElementById('modal-foco').classList.add('open');
+}
+
+function exportFOCO(type){
+  if(typeof XLSX==='undefined'){ showToast('SheetJS non chargé','err'); return; }
+  var annee = parseInt(document.getElementById('foco-annee').value);
+  var actifs = DB.agents.filter(function(a){ return a.statut==='actif'; })
+    .sort(function(a,b){ return a.nom.localeCompare(b.nom,'fr'); });
+  var initiale = actifs.filter(function(a){ return a.date_embauche&&a.date_embauche.slice(0,4)===String(annee); });
+  var continue_ = actifs.filter(function(a){ return !a.date_embauche||a.date_embauche.slice(0,4)!==String(annee); });
+  var agents, titre;
+  if(type==='initiale'){ agents=initiale; titre='A. Formation Initiale Quadriennale'; }
+  else if(type==='continue'){ agents=continue_; titre='A. Formation continue annuelle'; }
+  else { agents=actifs; titre='A. Tous les agents — Formation FOCO '+annee; }
+  var wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, buildFOCOSheet(agents,titre,annee), 'Feuil1');
+  XLSX.writeFile(wb, 'FOCO_'+type+'_'+annee+'_RDZ.xlsx');
+  showToast('FOCO '+annee+' téléchargé ✅', true);
+}
+
+function buildFOCOSheet(agents, titre, annee){
+  var COL_A=[3,4,5,6,7], COL_B=[8,9,10], COL_C=[11,12,13,14,15];
+  var COL_D=[16,17,18,19,20,21,22,23,24,25,26,27], COL_E=[28,29,30];
+  var aoa=[];
+  var r1=new Array(31).fill(''); r1[0]='FORMATION CONTINUE DES AGENTS DE SECURITE'; aoa.push(r1);
+  var r2=new Array(31).fill(''); r2[0]="Annexe à la directive du 23 septembre 2004 concernant la formation continue des agents de sécurité"; aoa.push(r2);
+  var r3=new Array(31).fill(''); r3[0]=titre; aoa.push(r3);
+  var r4=new Array(31).fill(''); r4[0]='NOM';r4[1]='PRENOM';r4[2]="SIGNATURE DE L'AGENT";r4[3]='A';r4[8]='B';r4[11]='C';r4[16]='D';r4[28]='E (TIR)'; aoa.push(r4);
+  var r5=new Array(31).fill('');
+  [1,2,3,4,5].forEach(function(n,i){r5[3+i]=n;}); [1,2,3].forEach(function(n,i){r5[8+i]=n;});
+  [1,2,3,4,5].forEach(function(n,i){r5[11+i]=n;}); for(var i=0;i<12;i++){r5[16+i]=i+1;}
+  [1,2,3].forEach(function(n,i){r5[28+i]=n;}); aoa.push(r5);
+  agents.forEach(function(a){
+    var row=new Array(31).fill('');
+    row[0]=a.nom.toUpperCase(); row[1]=a.prenom; row[2]='';
+    (a.formations||[]).filter(function(f){ return f.date&&f.date.slice(0,4)===String(annee); }).forEach(function(f){
+      var t=(f.type||'').toLowerCase(), th=(f.theme||'').toLowerCase();
+      var ds=f.date?f.date.slice(8,10)+'.'+f.date.slice(5,7):'';
+      if(t.includes('concordat')||th.includes('concordat')||th.includes('lois')||t.includes('foco')||t.includes('initiale')){
+        COL_A.forEach(function(c){if(!row[c])row[c]=ds;}); COL_B.forEach(function(c){if(!row[c])row[c]=ds;});
+      } else if(t.includes('tir')){
+        var m=parseInt(f.date.slice(5,7)); var qi=m<=3?0:m<=6?1:m<=9?2:3;
+        if(qi<3&&!row[COL_E[qi]])row[COL_E[qi]]=ds;
+      } else {
+        for(var i=0;i<COL_D.length;i++){if(!row[COL_D[i]]){row[COL_D[i]]=ds;break;}}
+      }
+    });
+    aoa.push(row);
+  });
+  [1,2,3,4].forEach(function(){aoa.push(new Array(31).fill(''));});
+  var fA=new Array(31).fill(''); fA[0]='Entreprise:';fA[1]='RDZ SECURITY MANAGEMENT';fA[7]="Date de l'envoi de la formule à l'autorité";fA[21]=" Signature du responsable de l'entreprise: "; aoa.push(fA);
+  var fB=new Array(31).fill(''); fB[7]='15/12/'+annee;fB[21]='Rodolphe DE ZORDI'; aoa.push(fB);
+  var ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:16},{wch:12},{wch:13}]; for(var i=3;i<31;i++)ws['!cols'].push({wch:5});
+  return ws;
+}
+
 function exportExcel(){
   if(typeof XLSX==='undefined'){showToast('SheetJS non chargé',false);return;}
   var wb=XLSX.utils.book_new();
@@ -6942,6 +7190,61 @@ document.addEventListener('DOMContentLoaded', function(){
   }, 3000);
 });
 </script>
+
+
+<!-- MODAL EXPORT FOCO -->
+<div class="overlay" id="modal-foco">
+  <div class="modal" style="max-width:420px;">
+    <div class="mhdr">
+      <div><div class="m-title">Export FOCO</div><div class="m-sub">Tableaux de formation concordat</div></div>
+      <button class="m-close" onclick="document.getElementById('modal-foco').classList.remove('open')">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="fg" style="margin-bottom:14px;">
+        <div class="flabel">Année civile</div>
+        <select class="fsel" id="foco-annee"></select>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <button class="btn btn-primary" onclick="exportFOCO('initiale')">📄 Formation Initiale (embauchés dans l'année)</button>
+        <button class="btn btn-ghost" onclick="exportFOCO('continue')">📄 Formation Continue (années précédentes)</button>
+        <button class="btn btn-ghost" onclick="exportFOCO('tous')">📄 Tous les agents</button>
+      </div>
+    </div>
+    <div class="mftr"><button class="btn btn-ghost" onclick="document.getElementById('modal-foco').classList.remove('open')">Fermer</button></div>
+  </div>
+</div>
+
+<!-- MODAL EDITION FORMATION -->
+<div class="overlay" id="modal-edit-formation">
+  <div class="modal" style="max-width:480px;">
+    <div class="mhdr">
+      <div><div class="m-title" id="mef-title">Modifier la formation</div></div>
+      <button class="m-close" onclick="document.getElementById('modal-edit-formation').classList.remove('open')">✕</button>
+    </div>
+    <div class="mbody">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div class="fg"><div class="flabel">Date</div><input class="finp" type="date" id="mef-date"></div>
+        <div class="fg"><div class="flabel">Date expiration</div><input class="finp" type="date" id="mef-exp"></div>
+        <div class="fg" style="grid-column:1/-1;"><div class="flabel">Type</div>
+          <select class="fsel" id="mef-type">
+            <option>Formation initiale</option><option>Formation continue</option>
+            <option>FOCO</option><option>Tir concordataire</option>
+            <option>Quiz Formation</option><option>Premiers secours</option>
+            <option>Incendie</option><option>Autre</option>
+          </select>
+        </div>
+        <div class="fg" style="grid-column:1/-1;"><div class="flabel">Thème</div><input class="finp" id="mef-theme" placeholder="Thème de la formation"></div>
+        <div class="fg"><div class="flabel">Site</div><input class="finp" id="mef-site" placeholder="Lieu"></div>
+        <div class="fg"><div class="flabel">Formateur</div><input class="finp" id="mef-formateur" placeholder="Formateur"></div>
+        <div class="fg" style="grid-column:1/-1;"><div class="flabel">Note / Résultat</div><input class="finp" id="mef-note" placeholder="Ex: Réussi, 85%, ..."></div>
+      </div>
+    </div>
+    <div class="mftr">
+      <button class="btn btn-ghost" onclick="document.getElementById('modal-edit-formation').classList.remove('open')">Annuler</button>
+      <button class="btn btn-primary" id="mef-save-btn" onclick="saveEditFormation()">✓ Enregistrer</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
