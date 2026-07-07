@@ -2058,7 +2058,7 @@ function printFiche(){
   ].join('')):''}
 
   ${agProcs.length?Sep('✅ Process RH')+agProcs.map(p=>{
-    const steps=p.steps||[];const done=steps.filter(s=>s.checked).length;const tot=steps.length;const pct=Math.round(done/tot*100);
+    const steps=p.steps||[];const done=steps.filter(s=>s.checked).length;const tot=steps.length;const pct=p.closed?100:Math.round(done/tot*100);
     const col=pct===100?'#16a34a':pct>50?'#2563eb':'#d97706';
     return`<div style="margin-bottom:8px;padding:7px 10px;border:1px solid #e2e0dd;border-radius:6px;font-size:11px;break-inside:avoid;">
       <strong style="color:${getProcType(p.type).color}">${getProcType(p.type).icon} ${getProcType(p.type).name}</strong> · ${done}/${tot} étapes · ${pct}% · Démarré le ${fd(p.date)}
@@ -2272,7 +2272,7 @@ function renderProcess(){
   }
   el.innerHTML=procs.map(p=>{
     const steps=p.steps||(p.type&&REF_STEPS[p.type])||[];
-    const done=steps.filter(s=>s.checked).length; const total=steps.length||1; const pct=Math.round(done/total*100);
+    const done=steps.filter(s=>s.checked).length; const total=steps.length||1; const pct=p.closed?100:Math.round(done/total*100);
     const a=DB.agents.find(x=>x.id===p.agent_id);
     const pt=getProcType(p.type);
     const lastDone=steps.filter(s=>s.checked).slice(-1)[0];
@@ -2359,7 +2359,7 @@ function renderProcModal(){
   const steps=p.steps;
   const a=DB.agents.find(x=>x.id===p.agent_id);
   const done=steps.filter(s=>s.checked).length;
-  const pct=steps.length?Math.round(done/steps.length*100):0;
+  const pct=p.closed?100:(steps.length?Math.round(done/steps.length*100):0);
   const pt=getProcType(p.type);
 
   // Show action buttons (hidden when editor is open)
@@ -2505,7 +2505,7 @@ function printProcess(){
   const pt=getProcType(p.type);
   const steps=p.steps||[];
   const done=steps.filter(s=>s.checked).length;
-  const pct=steps.length?Math.round(done/steps.length*100):0;
+  const pct=p.closed?100:(steps.length?Math.round(done/steps.length*100):0);
 
   // Group steps by section
   const sections={};
