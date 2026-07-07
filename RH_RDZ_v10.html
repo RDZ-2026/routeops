@@ -1661,9 +1661,11 @@ function renderFiche(){
   document.getElementById('ma-edit-btn').textContent=editMode?'👁 Vue':'✏️ Modifier';
   document.getElementById('ma-body').innerHTML=editMode?renderFicheEdit(a):renderFicheView(a);
   if(editMode){
-    // Post-render: set select values that can't be set via template literals (HTML entity issue)
     var _sel=document.getElementById('ea-carte-situation');
     if(_sel && a.docs && a.docs.carte) _sel.value=a.docs.carte.situation||'';
+  } else {
+    // Charger le passeport compétences après rendu
+    setTimeout(function(){ loadPassportForFiche(a.id); }, 150);
   }
 }
 
@@ -2312,6 +2314,7 @@ function toggleCloseProcess(id){
   saveDB('process');
   renderProcModal();
   renderProcess();
+  if(curAgId) renderFiche(); // Mettre à jour la fiche agent si ouverte
   showToast(p.closed ? '🔒 Process clôturé' : '🔓 Process réouvert', true);
 }
 
