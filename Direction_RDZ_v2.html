@@ -1,0 +1,1489 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Direction_RDZ — Comité de Direction</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#c0272d;--red-d:#a31f24;--red-l:#fdf2f2;--red-m:#fecaca;
+  --bg:#f2f2f4;--white:#fff;
+  --anth:#2d2d2d;--anth2:#3a3a3a;--anth3:#1a1a1a;
+  --border:#e2e2e6;--border2:#d0d0d6;
+  --text:#2d2d2d;--text2:#4b5563;--text3:#9ca3af;
+  --green:#16a34a;--green-l:#f0fdf4;--green-m:#bbf7d0;
+  --orange:#ea580c;--orange-l:#fff7ed;--orange-m:#fed7aa;
+  --blue:#2563eb;--blue-l:#eff6ff;--blue-m:#bfdbfe;
+  --yellow:#ca8a04;--yellow-l:#fefce8;--yellow-m:#fef08a;
+  --purple:#7c3aed;--purple-l:#f5f3ff;
+  --shadow:0 1px 3px rgba(0,0,0,.07),0 4px 12px rgba(0,0,0,.05);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.14);
+  --radius:14px;--radius-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:13.5px;}
+button{font-family:'DM Sans',sans-serif;cursor:pointer;}
+input,select{font-family:'DM Sans',sans-serif;}
+
+/* ── LOGIN ── */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--anth3);padding:20px;}
+.login-box{background:white;border-radius:18px;padding:40px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.4);}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px;}
+.login-mark{width:40px;height:40px;background:var(--red);border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono';font-size:13px;font-weight:600;color:white;}
+.login-brand{font-family:'DM Mono';font-size:15px;font-weight:600;color:var(--anth);}
+.login-sub{font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-top:2px;}
+.login-title{font-family:'DM Mono';font-size:22px;font-weight:600;color:var(--anth);margin-bottom:6px;}
+.login-desc{font-size:13px;color:var(--text2);margin-bottom:28px;line-height:1.5;}
+.login-field{margin-bottom:16px;}
+.login-field label{display:block;font-size:11px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.login-field input{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:14px;outline:none;transition:border-color .15s;}
+.login-field input:focus{border-color:var(--red);}
+.login-btn{width:100%;background:var(--red);color:white;border:none;border-radius:8px;padding:12px;font-size:14px;font-weight:600;margin-top:4px;transition:background .15s;}
+.login-btn:hover{background:var(--red-d);}
+.login-error{color:var(--red);font-size:12px;margin-top:10px;min-height:18px;}
+.login-back{text-align:center;margin-top:18px;}
+.login-back a{font-size:12px;color:var(--text3);text-decoration:none;}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--anth2);color:white;height:56px;display:flex;align-items:center;padding:0 24px;gap:12px;box-shadow:0 2px 12px rgba(0,0,0,.3);border-bottom:3px solid var(--red);position:sticky;top:0;z-index:100;}
+.tb-mark{width:32px;height:32px;background:var(--red);border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono';font-size:11px;font-weight:600;color:white;flex-shrink:0;}
+.tb-brand{font-family:'DM Mono';font-size:13.5px;font-weight:600;color:white;line-height:1.1;}
+.tb-sub{font-size:9.5px;color:rgba(255,255,255,.4);text-transform:uppercase;letter-spacing:.5px;}
+.tb-spacer{flex:1;}
+.tb-date{font-family:'DM Mono';font-size:11px;color:rgba(255,255,255,.5);}
+.tb-badge{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px 10px;cursor:pointer;}
+.tb-badge-name{font-size:12px;font-weight:500;color:white;}
+.tb-badge-role{font-size:10px;color:rgba(255,255,255,.5);text-transform:uppercase;}
+.tb-logout{background:none;border:none;color:rgba(255,255,255,.45);font-size:12px;padding:6px 10px;border-radius:6px;transition:color .15s;}
+.tb-logout:hover{color:white;}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#9ca3af;flex-shrink:0;transition:background .3s;}
+.sync-dot.ok{background:#4ade80;}
+.sync-dot.pending{background:#fbbf24;}
+.sync-dot.error{background:#f87171;}
+.sync-label{font-size:11px;color:rgba(255,255,255,.45);}
+
+/* ── MAIN ── */
+#app{display:none;}
+.main{max-width:1200px;margin:0 auto;padding:32px 24px 80px;}
+
+/* ── HEADER PAGE ── */
+.page-header{margin-bottom:32px;}
+.page-eyebrow{font-size:10px;font-weight:700;color:var(--red);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px;}
+.page-title{font-family:'DM Mono';font-size:26px;font-weight:600;color:var(--anth);}
+.page-sub{font-size:13px;color:var(--text2);margin-top:4px;}
+.refresh-bar{display:flex;align-items:center;gap:12px;margin-top:16px;}
+.btn-refresh{background:var(--red);color:white;border:none;border-radius:8px;padding:8px 16px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;transition:background .15s;}
+.btn-refresh:hover{background:var(--red-d);}
+.btn-refresh:disabled{opacity:.5;cursor:not-allowed;}
+.btn-print{background:white;color:var(--anth);border:1.5px solid var(--border);border-radius:8px;padding:8px 16px;font-size:12px;font-weight:600;}
+.btn-print:hover{border-color:var(--red);color:var(--red);}
+.last-refresh{font-size:11px;color:var(--text3);}
+
+/* ── BLOCS MODULES ── */
+.module-section{margin-bottom:40px;}
+.ms-head{display:flex;align-items:center;gap:12px;margin-bottom:16px;}
+.ms-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+.ms-title{font-family:'DM Mono';font-size:15px;font-weight:600;color:var(--anth);}
+.ms-link{font-size:11px;color:var(--text3);text-decoration:none;margin-left:auto;border:1px solid var(--border);border-radius:5px;padding:3px 8px;transition:all .15s;}
+.ms-link:hover{border-color:var(--red);color:var(--red);}
+.ms-line{flex:1;height:1px;background:var(--border);}
+
+/* ── KPI ROW ── */
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:16px;}
+.kpi-card{background:white;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:16px;box-shadow:var(--shadow);}
+.kpi-label{font-size:10.5px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;}
+.kpi-val{font-family:'DM Mono';font-size:22px;font-weight:600;color:var(--anth);line-height:1;}
+.kpi-val.kv-green{color:var(--green);}
+.kpi-val.kv-red{color:var(--red);}
+.kpi-val.kv-orange{color:var(--orange);}
+.kpi-val.kv-blue{color:var(--blue);}
+.kpi-sub{font-size:11px;color:var(--text2);margin-top:4px;}
+
+/* ── TABLES SYNTHÈSE ── */
+.synth-card{background:white;border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden;margin-bottom:12px;}
+.synth-card-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:#fafafa;}
+.synth-card-title{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;}
+.synth-card-count{font-family:'DM Mono';font-size:11px;font-weight:600;background:var(--red);color:white;border-radius:20px;padding:2px 8px;}
+.synth-card-count.cnt-green{background:var(--green);}
+.synth-card-count.cnt-orange{background:var(--orange);}
+.synth-card-count.cnt-blue{background:var(--blue);}
+.synth-card-count.cnt-gray{background:var(--text3);}
+.synth-body{padding:0;}
+.synth-row{display:flex;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);gap:10px;transition:background .1s;}
+.synth-row:last-child{border-bottom:none;}
+.synth-row:hover{background:#f9f9fb;}
+.synth-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.synth-dot.dot-red{background:var(--red);}
+.synth-dot.dot-orange{background:var(--orange);}
+.synth-dot.dot-green{background:var(--green);}
+.synth-dot.dot-blue{background:var(--blue);}
+.synth-dot.dot-gray{background:var(--text3);}
+.synth-main{flex:1;font-size:13px;font-weight:500;color:var(--anth);}
+.synth-sub{font-size:11.5px;color:var(--text2);}
+.synth-tag{font-family:'DM Mono';font-size:10px;font-weight:600;padding:2px 7px;border-radius:4px;white-space:nowrap;}
+.synth-tag.tag-red{background:var(--red-l);color:var(--red);}
+.synth-tag.tag-orange{background:var(--orange-l);color:var(--orange);}
+.synth-tag.tag-green{background:var(--green-l);color:var(--green);}
+.synth-tag.tag-blue{background:var(--blue-l);color:var(--blue);}
+.synth-tag.tag-yellow{background:var(--yellow-l);color:var(--yellow);}
+.synth-tag.tag-gray{background:#f3f4f6;color:var(--text2);}
+.synth-amount{font-family:'DM Mono';font-size:12px;font-weight:600;color:var(--anth);white-space:nowrap;}
+.synth-empty{padding:20px 16px;color:var(--text3);font-size:13px;text-align:center;}
+.synth-skeleton{padding:10px 16px;display:flex;flex-direction:column;gap:8px;}
+.skel-line{height:14px;background:linear-gradient(90deg,#f0f0f2 25%,#e8e8ea 50%,#f0f0f2 75%);background-size:200% 100%;border-radius:4px;animation:shimmer 1.5s infinite;}
+@keyframes shimmer{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+
+/* ── TWO COL ── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:12px;}
+@media(max-width:700px){.two-col{grid-template-columns:1fr;}.kpi-row{grid-template-columns:repeat(2,1fr);}}
+
+/* ── ALERTE BANNER ── */
+.alert-banner{background:var(--red-l);border:1.5px solid var(--red-m);border-radius:var(--radius-sm);padding:10px 14px;margin-bottom:16px;display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--red-d);}
+.alert-banner strong{font-weight:700;}
+
+/* ── LOADER ── */
+.loading-overlay{position:fixed;inset:0;background:rgba(255,255,255,.85);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(3px);}
+.loading-box{text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px;}
+.loading-spinner{width:36px;height:36px;border:3px solid var(--red-m);border-top-color:var(--red);border-radius:50%;animation:spin .8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-text{font-family:'DM Mono';font-size:13px;color:var(--text2);}
+
+/* ── TABS ── */
+.view-tabs{display:flex;gap:6px;margin-top:18px;border-bottom:1.5px solid var(--border);}
+.view-tab{background:none;border:none;padding:10px 4px;margin-right:22px;font-family:'DM Mono';font-size:12.5px;font-weight:600;color:var(--text3);border-bottom:2.5px solid transparent;transition:all .15s;}
+.view-tab:hover{color:var(--text2);}
+.view-tab.active{color:var(--red);border-bottom-color:var(--red);}
+
+/* ── RÉUNION : sélecteur ── */
+.mt-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:20px 0;}
+.mt-select{border:1.5px solid var(--border);border-radius:8px;padding:9px 12px;font-size:13px;font-family:'DM Sans';color:var(--text);background:white;min-width:240px;}
+.mt-btn{background:var(--red);color:white;border:none;border-radius:8px;padding:9px 16px;font-size:12.5px;font-weight:600;}
+.mt-btn:hover{background:var(--red-d);}
+.mt-btn.ghost{background:white;color:var(--anth);border:1.5px solid var(--border);}
+.mt-btn.ghost:hover{border-color:var(--red);color:var(--red);}
+.mt-btn.green{background:var(--green);}
+.mt-btn.green:hover{background:#128a3e;}
+.mt-btn:disabled{opacity:.45;cursor:not-allowed;}
+.mt-status{font-family:'DM Mono';font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;padding:4px 10px;border-radius:20px;}
+.mt-status.st-draft{background:#f3f4f6;color:var(--text2);}
+.mt-status.st-live{background:var(--red-l);color:var(--red);}
+.mt-status.st-done{background:var(--green-l);color:var(--green);}
+.mt-savebar{font-size:11px;color:var(--text3);margin-left:auto;}
+.mt-empty-state{background:white;border:1.5px dashed var(--border2);border-radius:var(--radius);padding:48px 24px;text-align:center;color:var(--text2);}
+.mt-empty-state h3{font-family:'DM Mono';font-size:15px;color:var(--anth);margin-bottom:8px;}
+
+/* ── RÉUNION : points d'ordre du jour ── */
+.mt-point{background:white;border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;}
+.mt-point.done{border-color:var(--green-m);}
+.mt-point-head{display:flex;align-items:center;gap:12px;padding:14px 18px;background:#fafafa;border-bottom:1px solid var(--border);cursor:pointer;}
+.mt-point-num{font-family:'DM Mono';font-size:13px;font-weight:700;color:white;background:var(--anth);width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.mt-point.done .mt-point-num{background:var(--green);}
+.mt-point-title{font-family:'DM Mono';font-size:13.5px;font-weight:600;color:var(--anth);flex:1;}
+.mt-point-check{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2);white-space:nowrap;}
+.mt-point-caret{color:var(--text3);font-size:12px;transition:transform .15s;}
+.mt-point.collapsed .mt-point-caret{transform:rotate(-90deg);}
+.mt-point-body{padding:16px 18px 18px;}
+.mt-point.collapsed .mt-point-body{display:none;}
+.mt-sub-list{list-style:none;margin-bottom:14px;}
+.mt-sub-list li{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;color:var(--text2);padding:4px 0;}
+.mt-sub-list li input{margin-top:2px;flex-shrink:0;}
+.mt-sub-list li.checked span{text-decoration:line-through;color:var(--text3);}
+.mt-auto-data{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--text2);}
+.mt-auto-data .ad-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--text3);margin-bottom:6px;}
+.mt-auto-data .ad-row{display:flex;justify-content:space-between;gap:10px;padding:2px 0;}
+.mt-auto-data .ad-empty{color:var(--text3);font-style:italic;}
+.mt-notes-tabs{display:flex;gap:4px;margin-bottom:8px;}
+.mt-notes-tab{background:#f3f4f6;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:600;color:var(--text2);}
+.mt-notes-tab.active{background:var(--anth2);color:white;}
+.mt-note-input{display:flex;gap:8px;margin-bottom:10px;}
+.mt-note-input textarea{flex:1;border:1.5px solid var(--border);border-radius:8px;padding:8px 10px;font-size:12.5px;font-family:'DM Sans';resize:vertical;min-height:36px;outline:none;}
+.mt-note-input textarea:focus{border-color:var(--red);}
+.mt-note-input button{background:var(--anth2);color:white;border:none;border-radius:8px;padding:0 14px;font-size:12px;font-weight:600;}
+.mt-note-input button:hover{background:var(--anth3);}
+.mt-note-entry{background:#fafafa;border-left:3px solid var(--border2);border-radius:0 6px 6px 0;padding:7px 10px;margin-bottom:6px;font-size:12.5px;color:var(--text);}
+.mt-note-entry .ne-meta{font-size:10.5px;color:var(--text3);margin-bottom:2px;}
+.mt-note-entry .ne-del{float:right;color:var(--text3);cursor:pointer;font-size:11px;}
+.mt-note-entry .ne-del:hover{color:var(--red);}
+
+/* ── PRINT ── */
+@media print{
+  .topbar,.refresh-bar,.view-tabs,.mt-toolbar,.mt-note-input,.mt-notes-tab,.mt-point-caret,.btn-refresh{display:none!important;}
+  .main{padding:0;}
+  .synth-card,.mt-point{break-inside:avoid;}
+  .mt-point-body{display:block!important;}
+  body{background:white;}
+}
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div id="loading-overlay" class="loading-overlay" style="display:none;">
+  <div class="loading-box">
+    <div class="loading-spinner"></div>
+    <div class="loading-text" id="loading-text">Chargement des données…</div>
+  </div>
+</div>
+
+<!-- LOGIN -->
+<div id="login-screen" class="login-wrap">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-mark">RDZ</div>
+      <div>
+        <div class="login-brand">RDZ Security</div>
+        <div class="login-sub">Suite Applicative</div>
+      </div>
+    </div>
+    <div class="login-title">Comité de Direction</div>
+    <div class="login-desc">Accès réservé à la direction — synthèse consolidée de tous les modules.</div>
+    <div class="login-field">
+      <label>Adresse e-mail</label>
+      <input type="email" id="login-email" placeholder="prenom.nom@rdz-security-management.ch">
+    </div>
+    <div class="login-field">
+      <label>Mot de passe</label>
+      <input type="password" id="login-password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Accéder au tableau de bord</button>
+    <div class="login-error" id="login-error"></div>
+    <div class="login-back"><a href="https://rdz-2026.github.io/routeops/RDZ_index.html">← Retour à la Suite RDZ</a></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app">
+  <div class="topbar">
+    <div class="tb-mark">DIR</div>
+    <div>
+      <div class="tb-brand">Direction_RDZ</div>
+      <div class="tb-sub">Comité de Direction — Synthèse</div>
+    </div>
+    <div class="tb-spacer"></div>
+    <div class="sync-dot" id="sync-dot"></div>
+    <span class="sync-label" id="sync-label">—</span>
+    <div class="tb-date" id="tb-date"></div>
+    <div class="tb-badge">
+      <div>
+        <div class="tb-badge-name" id="tb-name">—</div>
+        <div class="tb-badge-role">Direction</div>
+      </div>
+    </div>
+    <button class="tb-logout" onclick="doLogout()">Déconnexion</button>
+  </div>
+
+  <div class="main">
+    <div class="page-header">
+      <div class="page-eyebrow">RDZ Security Management SA</div>
+      <div class="page-title">Tableau de bord — Comité de Direction</div>
+      <div class="page-sub" id="page-sub">Vue consolidée de l'ensemble de l'activité</div>
+      <div class="refresh-bar">
+        <button class="btn-refresh" id="btn-refresh" onclick="loadAllData()">
+          <span id="refresh-icon">↻</span> Actualiser les données
+        </button>
+        <button class="btn-print" onclick="window.print()">🖨 Imprimer</button>
+        <span class="last-refresh" id="last-refresh"></span>
+      </div>
+      <div class="view-tabs">
+        <button class="view-tab active" id="tab-dashboard" onclick="switchView('dashboard')">📊 Tableau de bord</button>
+        <button class="view-tab" id="tab-meeting" onclick="switchView('meeting')">🗓 Réunion de direction</button>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- VUE : TABLEAU DE BORD -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="view-dashboard">
+
+    <!-- ALERTES CRITIQUES GLOBALES -->
+    <div id="critical-alerts"></div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- 1 — COMMERCIAL & FACTURATION (CRM) -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="module-section">
+      <div class="ms-head">
+        <div class="ms-icon" style="background:#fdf2f2;font-size:18px;">💼</div>
+        <div class="ms-title">Commercial & Facturation</div>
+        <div class="ms-line"></div>
+        <a class="ms-link" href="CRM_RDZ_v3.html" target="_blank">→ CRM_RDZ</a>
+      </div>
+      <div class="kpi-row" id="kpi-crm"></div>
+      <div class="two-col">
+        <div class="synth-card">
+          <div class="synth-card-head">
+            <span class="synth-card-title">Factures à émettre</span>
+            <span class="synth-card-count" id="cnt-fact">—</span>
+          </div>
+          <div id="list-fact"><div class="synth-skeleton"><div class="skel-line" style="width:80%"></div><div class="skel-line" style="width:60%"></div><div class="skel-line" style="width:70%"></div></div></div>
+        </div>
+        <div class="synth-card">
+          <div class="synth-card-head">
+            <span class="synth-card-title">Contrats expirant ≤ 60 jours</span>
+            <span class="synth-card-count" id="cnt-contrats">—</span>
+          </div>
+          <div id="list-contrats"><div class="synth-skeleton"><div class="skel-line" style="width:75%"></div><div class="skel-line" style="width:55%"></div></div></div>
+        </div>
+      </div>
+      <div class="synth-card">
+        <div class="synth-card-head">
+          <span class="synth-card-title">Pipeline commercial — opportunités actives</span>
+          <span class="synth-card-count cnt-orange" id="cnt-pipeline">—</span>
+        </div>
+        <div id="list-pipeline"><div class="synth-skeleton"><div class="skel-line" style="width:70%"></div><div class="skel-line" style="width:50%"></div></div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- 2 — RH & EFFECTIFS -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="module-section">
+      <div class="ms-head">
+        <div class="ms-icon" style="background:#eff6ff;font-size:18px;">👥</div>
+        <div class="ms-title">Ressources Humaines</div>
+        <div class="ms-line"></div>
+        <a class="ms-link" href="RH_RDZ_v8.html" target="_blank">→ RH_RDZ</a>
+      </div>
+      <div class="kpi-row" id="kpi-rh"></div>
+      <div class="two-col">
+        <div class="synth-card">
+          <div class="synth-card-head">
+            <span class="synth-card-title">Documents expirant ≤ 30 jours</span>
+            <span class="synth-card-count" id="cnt-docs">—</span>
+          </div>
+          <div id="list-docs"><div class="synth-skeleton"><div class="skel-line" style="width:80%"></div><div class="skel-line" style="width:65%"></div><div class="skel-line" style="width:70%"></div></div></div>
+        </div>
+        <div class="synth-card">
+          <div class="synth-card-head">
+            <span class="synth-card-title">Process RH ouverts</span>
+            <span class="synth-card-count cnt-blue" id="cnt-process">—</span>
+          </div>
+          <div id="list-process"><div class="synth-skeleton"><div class="skel-line" style="width:70%"></div><div class="skel-line" style="width:50%"></div></div></div>
+        </div>
+      </div>
+      <div class="synth-card">
+        <div class="synth-card-head">
+          <span class="synth-card-title">Main courante — mesures disciplinaires récentes (30j)</span>
+          <span class="synth-card-count cnt-gray" id="cnt-mc">—</span>
+        </div>
+        <div id="list-mc"><div class="synth-skeleton"><div class="skel-line" style="width:75%"></div><div class="skel-line" style="width:55%"></div></div></div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- 3 — OPÉRATIONS TERRAIN (ROUTEOPS) -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="module-section">
+      <div class="ms-head">
+        <div class="ms-icon" style="background:#fdf2f2;font-size:18px;">📅</div>
+        <div class="ms-title">Opérations Terrain</div>
+        <div class="ms-line"></div>
+        <a class="ms-link" href="RouteOps_v11.html" target="_blank">→ RouteOps</a>
+      </div>
+      <div class="kpi-row" id="kpi-ops"></div>
+      <div class="two-col">
+        <div class="synth-card">
+          <div class="synth-card-head">
+            <span class="synth-card-title">Feuilles de route — 7 prochains jours</span>
+            <span class="synth-card-count cnt-blue" id="cnt-sheets">—</span>
+          </div>
+          <div id="list-sheets"><div class="synth-skeleton"><div class="skel-line" style="width:80%"></div><div class="skel-line" style="width:65%"></div></div></div>
+        </div>
+        <div class="synth-card">
+          <div class="synth-card-head">
+            <span class="synth-card-title">Sites actifs configurés</span>
+            <span class="synth-card-count cnt-green" id="cnt-sites">—</span>
+          </div>
+          <div id="list-sites"><div class="synth-skeleton"><div class="skel-line" style="width:70%"></div><div class="skel-line" style="width:50%"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- 4 — FLOTTE -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="module-section">
+      <div class="ms-head">
+        <div class="ms-icon" style="background:#f0fdf4;font-size:18px;">🚗</div>
+        <div class="ms-title">Flotte Véhicules</div>
+        <div class="ms-line"></div>
+        <a class="ms-link" href="Fleet_RDZ_v5.html" target="_blank">→ Fleet_RDZ</a>
+      </div>
+      <div class="kpi-row" id="kpi-fleet"></div>
+      <div class="two-col">
+        <div class="synth-card">
+          <div class="synth-card-head">
+            <span class="synth-card-title">Travaux & alertes véhicules</span>
+            <span class="synth-card-count" id="cnt-fleet-alerts">—</span>
+          </div>
+          <div id="list-fleet-alerts"><div class="synth-skeleton"><div class="skel-line" style="width:80%"></div><div class="skel-line" style="width:60%"></div></div></div>
+        </div>
+        <div class="synth-card">
+          <div class="synth-card-head">
+            <span class="synth-card-title">Dépenses entretien — 3 derniers mois</span>
+            <span class="synth-card-count cnt-orange" id="cnt-fleet-cost">—</span>
+          </div>
+          <div id="list-fleet-cost"><div class="synth-skeleton"><div class="skel-line" style="width:70%"></div><div class="skel-line" style="width:50%"></div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- 5 — DOCUMENTATION SITES (DOCTRACK) -->
+    <!-- ═══════════════════════════════════════ -->
+    <div class="module-section">
+      <div class="ms-head">
+        <div class="ms-icon" style="background:#fffbeb;font-size:18px;">📋</div>
+        <div class="ms-title">Documentation Sites</div>
+        <div class="ms-line"></div>
+        <a class="ms-link" href="DocTrack_RDZ_v3.html" target="_blank">→ DocTrack_RDZ</a>
+      </div>
+      <div class="kpi-row" id="kpi-doc"></div>
+      <div class="synth-card">
+        <div class="synth-card-head">
+          <span class="synth-card-title">Sites avec lacunes documentaires</span>
+          <span class="synth-card-count cnt-orange" id="cnt-doctrack">—</span>
+        </div>
+        <div id="list-doctrack"><div class="synth-skeleton"><div class="skel-line" style="width:80%"></div><div class="skel-line" style="width:65%"></div><div class="skel-line" style="width:70%"></div></div></div>
+      </div>
+    </div>
+
+    </div><!-- /view-dashboard -->
+
+    <!-- ═══════════════════════════════════════ -->
+    <!-- VUE : RÉUNION DE DIRECTION -->
+    <!-- ═══════════════════════════════════════ -->
+    <div id="view-meeting" style="display:none;">
+
+      <div class="mt-toolbar">
+        <select class="mt-select" id="mt-select" onchange="onSelectMeeting(this.value)">
+          <option value="">— Choisir une réunion —</option>
+        </select>
+        <button class="mt-btn" onclick="createMeeting()">+ Nouvelle réunion</button>
+        <button class="mt-btn ghost" id="mt-btn-live" style="display:none;" onclick="setMeetingStatus('live')">▶ Démarrer la réunion</button>
+        <button class="mt-btn green" id="mt-btn-done" style="display:none;" onclick="setMeetingStatus('done')">✓ Clôturer</button>
+        <span class="mt-status" id="mt-status-badge" style="display:none;"></span>
+        <span class="mt-savebar" id="mt-savebar"></span>
+      </div>
+
+      <div id="mt-content">
+        <div class="mt-empty-state">
+          <h3>Aucune réunion sélectionnée</h3>
+          <p>Choisissez une réunion existante ci-dessus, ou créez la prochaine réunion hebdomadaire à partir du modèle standard en 8 points.</p>
+        </div>
+      </div>
+
+    </div><!-- /view-meeting -->
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ════════════════════════════════════════════════════════
+//  CONFIG SUPABASE
+// ════════════════════════════════════════════════════════
+const SB_URL  = 'https://trdhtlcenmjlcvzuplid.supabase.co';
+const SB_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
+
+let session = null;
+
+// ════════════════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════════════════
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function chf(n){
+  if(n===null||n===undefined||n==='')return'—';
+  return 'CHF '+parseFloat(n).toLocaleString('fr-CH',{minimumFractionDigits:0,maximumFractionDigits:0});
+}
+
+function formatDate(d){
+  if(!d)return'—';
+  const p=d.slice(0,10).split('-');
+  return p.length===3?`${p[2]}.${p[1]}.${p[0]}`:d;
+}
+
+function daysFromNow(dateStr){
+  if(!dateStr)return null;
+  const d=new Date(dateStr.slice(0,10));
+  const today=new Date(); today.setHours(0,0,0,0);
+  return Math.ceil((d-today)/(1000*60*60*24));
+}
+
+function setSyncState(state,label){
+  const dot=document.getElementById('sync-dot');
+  const lbl=document.getElementById('sync-label');
+  if(dot){dot.className='sync-dot '+(state==='ok'?'ok':state==='pending'?'pending':'error');}
+  if(lbl)lbl.textContent=label||'';
+}
+
+async function sbFetch(path,opts={}){
+  const token=session?.access_token;
+  const headers={
+    'apikey':SB_KEY,'Content-Type':'application/json',
+    ...(token?{'Authorization':`Bearer ${token}`}:{}),
+    ...opts.headers
+  };
+  const res=await fetch(`${SB_URL}/rest/v1/${path}`,{...opts,headers});
+  if(!res.ok){const t=await res.text();throw new Error(`SB ${res.status}: ${t.slice(0,80)}`);}
+  if(res.status===204||opts.noBody)return null;
+  return res.json();
+}
+
+// ════════════════════════════════════════════════════════
+//  AUTH
+// ════════════════════════════════════════════════════════
+async function doLogin(){
+  const email=document.getElementById('login-email').value.trim();
+  const pass=document.getElementById('login-password').value;
+  const errEl=document.getElementById('login-error');
+  errEl.textContent='';
+  if(!email||!pass){errEl.textContent='Email et mot de passe requis.';return;}
+  try{
+    const r=await fetch(`${SB_URL}/auth/v1/token?grant_type=password`,{
+      method:'POST',headers:{'Content-Type':'application/json','apikey':SB_KEY},
+      body:JSON.stringify({email,password:pass})
+    });
+    const d=await r.json();
+    if(!r.ok){errEl.textContent=d.error_description||d.msg||'Identifiants incorrects.';return;}
+    session=d;
+    document.getElementById('login-screen').style.display='none';
+    document.getElementById('app').style.display='block';
+    const name=(d.user?.user_metadata?.full_name||d.user?.email||'').split('@')[0];
+    document.getElementById('tb-name').textContent=name;
+    document.getElementById('tb-date').textContent=new Date().toLocaleDateString('fr-CH',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    await loadAllData();
+  }catch(e){
+    errEl.textContent='Erreur de connexion : '+e.message;
+  }
+}
+
+function doLogout(){
+  session=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  document.getElementById('login-password').value='';
+}
+
+// ════════════════════════════════════════════════════════
+//  CHARGEMENT DONNÉES
+// ════════════════════════════════════════════════════════
+async function loadAllData(){
+  const btn=document.getElementById('btn-refresh');
+  const icon=document.getElementById('refresh-icon');
+  btn.disabled=true;
+  icon.style.animation='spin .8s linear infinite';
+  setSyncState('pending','Chargement…');
+  document.getElementById('loading-overlay').style.display='flex';
+  document.getElementById('loading-text').textContent='Chargement des données…';
+
+  try{
+    await Promise.all([
+      loadCRM(),
+      loadRH(),
+      loadRouteOps(),
+      loadFleet(),
+      loadDocTrack(),
+    ]);
+    const now=new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'});
+    setSyncState('ok','Synchronisé');
+    document.getElementById('last-refresh').textContent=`Dernière actualisation : ${now}`;
+    document.getElementById('page-sub').textContent=
+      `Synthèse consolidée — ${new Date().toLocaleDateString('fr-CH',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}`;
+    renderCriticalAlerts();
+  }catch(e){
+    setSyncState('error','Erreur de chargement');
+    console.error('loadAllData:',e);
+  }finally{
+    btn.disabled=false;
+    icon.style.animation='';
+    document.getElementById('loading-overlay').style.display='none';
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  1 — CRM
+// ════════════════════════════════════════════════════════
+let _crm={missions:[],echeances:[],opportunites:[],clients:[]};
+
+async function loadCRM(){
+  try{
+    const [m,e,o,c]=await Promise.all([
+      sbFetch('crm_missions?select=id,titre,client_id,statut,date_fin,tarif,heures_semaine,nb_passages,mode_tarif,recurrence,tva'),
+      sbFetch('crm_echeances?select=id,mission_id,montant_ht,montant_ttc,date_echeance,statut,n_facture&statut=eq.a_emettre&order=date_echeance'),
+      sbFetch('crm_opportunites?select=id,titre,client_id,prospect,etape,montant,probabilite,date_cloture,responsable&order=created_at.desc'),
+      sbFetch('crm_clients?select=id,raison_sociale'),
+    ]);
+    _crm.missions=Array.isArray(m)?m:[];
+    _crm.echeances=Array.isArray(e)?e:[];
+    _crm.opportunites=Array.isArray(o)?o:[];
+    _crm.clients=Array.isArray(c)?c:[];
+  }catch(e2){console.warn('CRM load:',e2);}
+  renderCRM();
+}
+
+function clientName(id){
+  const c=_crm.clients.find(x=>x.id===id);
+  return c?c.raison_sociale:'—';
+}
+
+function caMensuel(m){
+  if(!m)return 0;
+  const t=parseFloat(m.tarif)||0;
+  if(m.mode_tarif==='horaire'){const h=parseFloat(m.heures_semaine)||0;return t*h*4.333;}
+  if(m.mode_tarif==='forfait')return t;
+  if(m.mode_tarif==='passage'){const p=parseFloat(m.nb_passages)||0;return t*p*4.333;}
+  return 0;
+}
+
+function renderCRM(){
+  const actives=_crm.missions.filter(m=>m.statut==='en_cours');
+  const caAn=actives.reduce((s,m)=>s+caMensuel(m)*12,0);
+  const caMois=actives.reduce((s,m)=>s+caMensuel(m),0);
+  const nbClients=new Set(actives.map(m=>m.client_id)).size;
+  const pipeActif=_crm.opportunites.filter(o=>!['gagne','perdu'].includes(o.etape));
+  const pipeTotal=pipeActif.reduce((s,o)=>s+(parseFloat(o.montant)||0)*(parseFloat(o.probabilite)||50)/100,0);
+
+  document.getElementById('kpi-crm').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">CA annuel (actif)</div><div class="kpi-val kv-green">${chf(caAn)}</div><div class="kpi-sub">${actives.length} mission${actives.length!==1?'s':''} en cours</div></div>
+    <div class="kpi-card"><div class="kpi-label">CA mensuel estimé</div><div class="kpi-val kv-blue">${chf(caMois)}</div><div class="kpi-sub">${nbClients} client${nbClients!==1?'s':''} actifs</div></div>
+    <div class="kpi-card"><div class="kpi-label">Factures à émettre</div><div class="kpi-val kv-red">${_crm.echeances.length}</div><div class="kpi-sub">${chf(_crm.echeances.reduce((s,e)=>s+(parseFloat(e.montant_ht)||0),0))} HT total</div></div>
+    <div class="kpi-card"><div class="kpi-label">Pipeline pondéré</div><div class="kpi-val kv-orange">${chf(pipeTotal)}</div><div class="kpi-sub">${pipeActif.length} opportunité${pipeActif.length!==1?'s':''} actives</div></div>
+  `;
+
+  // Factures à émettre
+  const cnt_fact=document.getElementById('cnt-fact');
+  const list_fact=document.getElementById('list-fact');
+  cnt_fact.textContent=_crm.echeances.length;
+  if(!_crm.echeances.length){
+    list_fact.innerHTML='<div class="synth-empty">✓ Aucune facture en attente</div>';
+  } else {
+    const rows=_crm.echeances.slice(0,8).map(e=>{
+      const m=_crm.missions.find(x=>x.id===e.mission_id);
+      return `<div class="synth-row">
+        <div class="synth-dot dot-red"></div>
+        <div style="flex:1"><div class="synth-main">${esc(m?.titre||'Mission inconnue')}</div><div class="synth-sub">${esc(clientName(m?.client_id))} · ${formatDate(e.date_echeance)}</div></div>
+        <div class="synth-amount">${chf(e.montant_ht)} HT</div>
+      </div>`;
+    }).join('');
+    const more=_crm.echeances.length>8?`<div class="synth-row" style="justify-content:center;color:var(--text3);font-size:12px;">+${_crm.echeances.length-8} autres</div>`:'';
+    list_fact.innerHTML=rows+more;
+  }
+
+  // Contrats expirant
+  const today=new Date(); today.setHours(0,0,0,0);
+  const in60=new Date(today); in60.setDate(in60.getDate()+60);
+  const expiring=actives.filter(m=>m.date_fin&&new Date(m.date_fin)<=in60).sort((a,b)=>new Date(a.date_fin)-new Date(b.date_fin));
+  document.getElementById('cnt-contrats').textContent=expiring.length;
+  if(!expiring.length){
+    document.getElementById('list-contrats').innerHTML='<div class="synth-empty">✓ Aucun contrat expirant dans 60 jours</div>';
+  } else {
+    document.getElementById('list-contrats').innerHTML=expiring.map(m=>{
+      const d=daysFromNow(m.date_fin);
+      const urgency=d<=14?'dot-red':d<=30?'dot-orange':'dot-blue';
+      const tag=d<=14?'tag-red':d<=30?'tag-orange':'tag-yellow';
+      return `<div class="synth-row">
+        <div class="synth-dot ${urgency}"></div>
+        <div style="flex:1"><div class="synth-main">${esc(m.titre)}</div><div class="synth-sub">${esc(clientName(m.client_id))} · Fin le ${formatDate(m.date_fin)}</div></div>
+        <span class="synth-tag ${tag}">${d<=0?'Expiré':d===0?'Auj.':d+'j'}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Pipeline
+  document.getElementById('cnt-pipeline').textContent=pipeActif.length;
+  const ETAPE_LABELS={'prospect':'Prospect','premier_contact':'1er contact','proposition':'Proposition','negociation':'Négociation','gagne':'Gagné','perdu':'Perdu'};
+  const ETAPE_TAG={'prospect':'tag-gray','premier_contact':'tag-blue','proposition':'tag-yellow','negociation':'tag-orange'};
+  if(!pipeActif.length){
+    document.getElementById('list-pipeline').innerHTML='<div class="synth-empty">Aucune opportunité active dans le pipeline</div>';
+  } else {
+    document.getElementById('list-pipeline').innerHTML=pipeActif.slice(0,8).map(o=>{
+      const pond=Math.round((parseFloat(o.montant)||0)*(parseFloat(o.probabilite)||50)/100);
+      return `<div class="synth-row">
+        <div class="synth-dot dot-orange"></div>
+        <div style="flex:1"><div class="synth-main">${esc(o.titre||o.prospect||clientName(o.client_id))}</div><div class="synth-sub">${o.responsable||'—'} · ${o.date_cloture?'Clôture '+formatDate(o.date_cloture):''}</div></div>
+        <span class="synth-tag ${ETAPE_TAG[o.etape]||'tag-gray'}">${ETAPE_LABELS[o.etape]||o.etape||'—'}</span>
+        <div class="synth-amount">${chf(pond)}</div>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  2 — RH
+// ════════════════════════════════════════════════════════
+let _rh={agents:[],mc:[],process:[],process_types:[]};
+
+async function loadRH(){
+  try{
+    const [a,mc,pr,pt]=await Promise.all([
+      sbFetch('rh_agents?select=id,nom,prenom,statut,date_embauche,docs,fonction&order=nom'),
+      sbFetch('rh_main_courante?select=id,date,agent_id,site,categorie,mesure,fait&order=date.desc&limit=100'),
+      sbFetch('rh_process?select=id,agent_id,type_id,date,steps,notes&order=date.desc'),
+      sbFetch('rh_process_types?select=id,name,icon,marks_depart'),
+    ]);
+    _rh.agents=Array.isArray(a)?a:[];
+    _rh.mc=Array.isArray(mc)?mc:[];
+    _rh.process=Array.isArray(pr)?pr:[];
+    _rh.process_types=Array.isArray(pt)?pt:[];
+  }catch(e2){console.warn('RH load:',e2);}
+  renderRH();
+}
+
+function agentName(id){
+  const a=_rh.agents.find(x=>x.id===id);
+  return a?`${a.nom} ${a.prenom}`:'—';
+}
+
+function processCompletion(steps){
+  if(!Array.isArray(steps)||!steps.length)return 0;
+  const done=steps.filter(s=>s.done).length;
+  return Math.round(done/steps.length*100);
+}
+
+function renderRH(){
+  const actifs=_rh.agents.filter(a=>a.statut==='actif');
+  const partis=_rh.agents.filter(a=>a.statut==='parti');
+  const MESURES_DISC=['Avertissement écrit','Demande d\'explication','Entretien'];
+
+  // KPI
+  document.getElementById('kpi-rh').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Agents actifs</div><div class="kpi-val kv-blue">${actifs.length}</div><div class="kpi-sub">${partis.length} parti${partis.length!==1?'s':''} au total</div></div>
+    <div class="kpi-card"><div class="kpi-label">Process RH ouverts</div><div class="kpi-val kv-orange">${_rh.process.length}</div><div class="kpi-sub">recrutements, départs…</div></div>
+    <div class="kpi-card"><div class="kpi-label">Alertes docs</div><div class="kpi-val kv-red">${countExpDocs(30)}</div><div class="kpi-sub">documents ≤ 30 jours</div></div>
+    <div class="kpi-card"><div class="kpi-label">Mesures disciplin.</div><div class="kpi-val kv-red">${_rh.mc.filter(m=>{
+      if(!m.date)return false;
+      const d=daysFromNow(m.date);return d!==null&&d>=-30&&d<=0&&MESURES_DISC.includes(m.mesure);
+    }).length}</div><div class="kpi-sub">30 derniers jours</div></div>
+  `;
+
+  // Documents expirant
+  const cnt_docs=document.getElementById('cnt-docs');
+  const docAlerts=buildDocAlerts(30);
+  cnt_docs.textContent=docAlerts.length;
+  if(!docAlerts.length){
+    document.getElementById('list-docs').innerHTML='<div class="synth-empty">✓ Aucun document expirant dans 30 jours</div>';
+  } else {
+    document.getElementById('list-docs').innerHTML=docAlerts.slice(0,8).map(d=>{
+      const urgency=d.days<=7?'dot-red':d.days<=14?'dot-orange':'dot-blue';
+      const tag=d.days<=7?'tag-red':d.days<=14?'tag-orange':'tag-yellow';
+      const daysLabel=d.days<0?'Expiré':d.days===0?'Auj.':d.days+'j';
+      return `<div class="synth-row">
+        <div class="synth-dot ${urgency}"></div>
+        <div style="flex:1"><div class="synth-main">${esc(d.agent)}</div><div class="synth-sub">${esc(d.type)} · Expiration le ${formatDate(d.exp)}</div></div>
+        <span class="synth-tag ${tag}">${daysLabel}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Process RH ouverts
+  document.getElementById('cnt-process').textContent=_rh.process.length;
+  const BUILTIN_NAMES={recrutement:'Recrutement',depart:'Départ',renouvellement_carte:'Renouvellement Carte',renouvellement_permis:'Renouvellement Permis'};
+  if(!_rh.process.length){
+    document.getElementById('list-process').innerHTML='<div class="synth-empty">✓ Aucun process RH en cours</div>';
+  } else {
+    document.getElementById('list-process').innerHTML=_rh.process.map(p=>{
+      const pct=processCompletion(p.steps);
+      const pt=_rh.process_types.find(t=>t.id===p.type_id);
+      const typeName=pt?pt.name:(BUILTIN_NAMES[p.type_id]||p.type_id||'Process');
+      const isDepart=pt?.marks_depart;
+      const dotColor=isDepart?'dot-red':'dot-blue';
+      return `<div class="synth-row">
+        <div class="synth-dot ${dotColor}"></div>
+        <div style="flex:1"><div class="synth-main">${esc(agentName(p.agent_id))}</div><div class="synth-sub">${esc(typeName)} · Démarré le ${formatDate(p.date)}</div></div>
+        <span class="synth-tag ${pct===100?'tag-green':pct>50?'tag-blue':'tag-orange'}">${pct}%</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Main courante — mesures disciplinaires
+  const MESURES_LABEL={'Avertissement écrit':'Avertissement','Demande d\'explication':'Explication','Entretien':'Entretien','Rappel verbal':'Rappel verbal'};
+  const mcDisc=_rh.mc.filter(m=>{
+    if(!m.date)return false;
+    const d=daysFromNow(m.date);
+    return d!==null&&d>=-30&&d<=0&&MESURES_DISC.includes(m.mesure);
+  }).slice(0,6);
+  document.getElementById('cnt-mc').textContent=_rh.mc.filter(m=>{
+    const d=daysFromNow(m.date);return d!==null&&d>=-30&&d<=0;
+  }).length;
+  if(!mcDisc.length){
+    document.getElementById('list-mc').innerHTML='<div class="synth-empty">Aucune mesure disciplinaire notable dans les 30 derniers jours</div>';
+  } else {
+    document.getElementById('list-mc').innerHTML=mcDisc.map(m=>{
+      const agent=agentName(m.agent_id);
+      return `<div class="synth-row">
+        <div class="synth-dot dot-red"></div>
+        <div style="flex:1"><div class="synth-main">${esc(agent)} <span style="color:var(--text3);font-weight:400">— ${esc(m.site||'')}</span></div><div class="synth-sub" style="max-width:480px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(m.fait||'')}</div></div>
+        <span class="synth-tag tag-red">${esc(MESURES_LABEL[m.mesure]||m.mesure||'—')}</span>
+        <span style="font-size:11px;color:var(--text3);white-space:nowrap;margin-left:6px;">${formatDate(m.date)}</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+function countExpDocs(days){return buildDocAlerts(days).length;}
+
+function buildDocAlerts(maxDays){
+  const alerts=[];
+  const DOC_TYPES={carte:'Carte Agent',ppa:'PPA',permis:'Permis travail',pi1:'PI 1',pi2:'PI 2',permis_conduire:'Permis conduire'};
+  _rh.agents.filter(a=>a.statut==='actif').forEach(a=>{
+    const docs=a.docs||{};
+    Object.entries(DOC_TYPES).forEach(([key,label])=>{
+      const exp=docs[key]?.exp||docs[key]?.expiration||null;
+      if(!exp)return;
+      const d=daysFromNow(exp);
+      if(d!==null&&d<=maxDays){
+        alerts.push({agent:`${a.nom} ${a.prenom}`,type:label,exp,days:d});
+      }
+    });
+  });
+  return alerts.sort((a,b)=>a.days-b.days);
+}
+
+// ════════════════════════════════════════════════════════
+//  3 — ROUTEOPS
+// ════════════════════════════════════════════════════════
+let _ops={sites:[],sheets:[]};
+
+async function loadRouteOps(){
+  try{
+    const [s,sh]=await Promise.all([
+      sbFetch('sites?active=eq.true&select=id,name,code,secteur&order=name'),
+      sbFetch(`sheets?active=eq.true&is_template=eq.false&select=id,name,date,status,cat,start_time,end_time&order=date.desc&limit=200`),
+    ]);
+    _ops.sites=Array.isArray(s)?s:[];
+    _ops.sheets=Array.isArray(sh)?sh:[];
+  }catch(e2){console.warn('RouteOps load:',e2);}
+  renderOps();
+}
+
+function renderOps(){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const in7=new Date(today); in7.setDate(in7.getDate()+7);
+  const todayISO=today.toISOString().slice(0,10);
+
+  const upcoming=_ops.sheets.filter(s=>{
+    if(!s.date)return false;
+    const d=new Date(s.date); d.setHours(0,0,0,0);
+    return d>=today&&d<=in7;
+  }).sort((a,b)=>new Date(a.date)-new Date(b.date));
+
+  const todaySheets=_ops.sheets.filter(s=>s.date===todayISO);
+  const secteurs=[...new Set(_ops.sites.map(s=>s.secteur||'Autre'))];
+
+  document.getElementById('kpi-ops').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Sites actifs</div><div class="kpi-val kv-blue">${_ops.sites.length}</div><div class="kpi-sub">${secteurs.length} secteur${secteurs.length!==1?'s':''}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Feuilles aujourd'hui</div><div class="kpi-val kv-green">${todaySheets.length}</div><div class="kpi-sub">${todaySheets.filter(s=>s.status==='actif').length} actives</div></div>
+    <div class="kpi-card"><div class="kpi-label">Feuilles 7 prochains j.</div><div class="kpi-val kv-blue">${upcoming.length}</div><div class="kpi-sub">planifiées</div></div>
+    <div class="kpi-card"><div class="kpi-label">Total feuilles (mois)</div><div class="kpi-val kv-orange">${_ops.sheets.filter(s=>{if(!s.date)return false;const d=new Date(s.date);const now=new Date();return d.getMonth()===now.getMonth()&&d.getFullYear()===now.getFullYear();}).length}</div><div class="kpi-sub">mois en cours</div></div>
+  `;
+
+  // Feuilles 7 jours
+  document.getElementById('cnt-sheets').textContent=upcoming.length;
+  if(!upcoming.length){
+    document.getElementById('list-sheets').innerHTML='<div class="synth-empty">Aucune feuille de route planifiée dans les 7 prochains jours</div>';
+  } else {
+    const grouped={};
+    upcoming.forEach(sh=>{grouped[sh.date]=(grouped[sh.date]||[]);grouped[sh.date].push(sh);});
+    document.getElementById('list-sheets').innerHTML=Object.entries(grouped).map(([date,sheets])=>{
+      const dNames=['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'];
+      const d=new Date(date);
+      const isToday=date===todayISO;
+      return `<div class="synth-row" style="${isToday?'background:#f0fdf4;':''};flex-wrap:wrap;gap:6px;">
+        <div class="synth-dot ${isToday?'dot-green':'dot-blue'}"></div>
+        <div style="flex:1"><div class="synth-main">${isToday?'<strong>Aujourd\'hui</strong> — ':''}${dNames[d.getDay()]} ${formatDate(date)}</div></div>
+        ${sheets.map(sh=>`<span class="synth-tag tag-blue">${esc(sh.name||sh.cat||'Feuille')}</span>`).join('')}
+      </div>`;
+    }).join('');
+  }
+
+  // Sites actifs
+  document.getElementById('cnt-sites').textContent=_ops.sites.length;
+  const sitesGrouped={};
+  _ops.sites.forEach(s=>{const sec=s.secteur||'Divers';(sitesGrouped[sec]=sitesGrouped[sec]||[]).push(s);});
+  document.getElementById('list-sites').innerHTML=Object.entries(sitesGrouped).map(([sec,sites])=>`
+    <div class="synth-row">
+      <div class="synth-dot dot-blue"></div>
+      <div style="flex:1"><div class="synth-main">${esc(sec)}</div><div class="synth-sub">${sites.map(s=>esc(s.code||s.name)).join(' · ')}</div></div>
+      <span class="synth-tag tag-blue">${sites.length} site${sites.length!==1?'s':''}</span>
+    </div>
+  `).join('');
+}
+
+// ════════════════════════════════════════════════════════
+//  4 — FLEET
+// ════════════════════════════════════════════════════════
+let _fleet={vehicles:[],events:[]};
+
+async function loadFleet(){
+  try{
+    const [v,e]=await Promise.all([
+      sbFetch('fleet_vehicles?active=eq.true&select=id,plate,brand,model,category,km_current,ct_date,insurance_end,todo,notes,leasing_end'),
+      sbFetch('fleet_events?select=id,vehicle_id,date,type,description,amount,provider&order=date.desc'),
+    ]);
+    _fleet.vehicles=Array.isArray(v)?v:[];
+    _fleet.events=Array.isArray(e)?e:[];
+  }catch(e2){console.warn('Fleet load:',e2);}
+  renderFleet();
+}
+
+function renderFleet(){
+  const today=new Date(); today.setHours(0,0,0,0);
+  const in60=new Date(today); in60.setDate(in60.getDate()+60);
+
+  // Sinistres (events type assurance avec "sinistre")
+  const sinistres=_fleet.events.filter(e=>e.type==='assurance'&&(e.description||'').toLowerCase().includes('sinistre'));
+  // Événements 3 derniers mois avec montant
+  const in3months=new Date(today); in3months.setMonth(in3months.getMonth()-3);
+  const coutEvents=_fleet.events.filter(e=>e.amount&&new Date(e.date)>=in3months);
+  const coutTotal=coutEvents.reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+  const coutByVehicle={};
+  coutEvents.forEach(e=>{coutByVehicle[e.vehicle_id]=(coutByVehicle[e.vehicle_id]||0)+(parseFloat(e.amount)||0);});
+
+  document.getElementById('kpi-fleet').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Véhicules actifs</div><div class="kpi-val kv-blue">${_fleet.vehicles.length}</div><div class="kpi-sub">flotte totale</div></div>
+    <div class="kpi-card"><div class="kpi-label">Coût 3 mois</div><div class="kpi-val kv-orange">${chf(coutTotal)}</div><div class="kpi-sub">${coutEvents.length} opération${coutEvents.length!==1?'s':''}</div></div>
+    <div class="kpi-card"><div class="kpi-label">Sinistres</div><div class="kpi-val kv-red">${sinistres.length}</div><div class="kpi-sub">incidents enregistrés</div></div>
+    <div class="kpi-card"><div class="kpi-label">Alertes véhicules</div><div class="kpi-val kv-red">${_fleet.vehicles.filter(v=>v.todo&&v.todo.trim()).length}</div><div class="kpi-sub">travaux en attente</div></div>
+  `;
+
+  // Alertes véhicules
+  const alerts=[];
+  _fleet.vehicles.forEach(v=>{
+    const plate=`${v.brand||''} ${v.model||''} · ${v.plate||''}`.trim();
+    if(v.todo&&v.todo.trim()){
+      const lines=v.todo.trim().split('\n').filter(l=>l.trim()&&l.trim()!=='—');
+      lines.forEach(l=>alerts.push({plate,type:'Travaux',detail:l.trim().replace(/^—\s*/,''),color:'dot-orange',tag:'tag-orange'}));
+    }
+    if(v.ct_date){
+      const d=daysFromNow(v.ct_date);
+      if(d!==null&&d<=60)alerts.push({plate,type:'CT à renouveler',detail:`Échéance : ${formatDate(v.ct_date)}`,color:d<=0?'dot-red':'dot-orange',tag:d<=0?'tag-red':'tag-orange'});
+    }
+    if(v.leasing_end){
+      const d=daysFromNow(v.leasing_end);
+      if(d!==null&&d<=90)alerts.push({plate,type:'Fin de leasing',detail:`Échéance : ${formatDate(v.leasing_end)}`,color:d<=30?'dot-red':'dot-orange',tag:d<=30?'tag-red':'tag-orange'});
+    }
+    // Sinistre ouvert
+    const sinV=sinistres.filter(e=>e.vehicle_id===v.id);
+    if(sinV.length)alerts.push({plate,type:'Sinistre',detail:sinV[sinV.length-1].description?.slice(0,60)||'Déclaré',color:'dot-red',tag:'tag-red'});
+  });
+
+  document.getElementById('cnt-fleet-alerts').textContent=alerts.length;
+  if(!alerts.length){
+    document.getElementById('list-fleet-alerts').innerHTML='<div class="synth-empty">✓ Aucune alerte véhicule</div>';
+  } else {
+    document.getElementById('list-fleet-alerts').innerHTML=alerts.slice(0,10).map(a=>`
+      <div class="synth-row">
+        <div class="synth-dot ${a.color}"></div>
+        <div style="flex:1"><div class="synth-main">${esc(a.plate)}</div><div class="synth-sub">${esc(a.detail)}</div></div>
+        <span class="synth-tag ${a.tag}">${esc(a.type)}</span>
+      </div>
+    `).join('');
+  }
+
+  // Coûts par véhicule
+  document.getElementById('cnt-fleet-cost').textContent=chf(coutTotal);
+  if(!coutEvents.length){
+    document.getElementById('list-fleet-cost').innerHTML='<div class="synth-empty">Aucune dépense enregistrée sur les 3 derniers mois</div>';
+  } else {
+    const costRows=Object.entries(coutByVehicle).sort((a,b)=>b[1]-a[1]).map(([vid,total])=>{
+      const v=_fleet.vehicles.find(x=>x.id===vid);
+      const plate=v?`${v.brand||''} ${v.model||''} · ${v.plate||''}`.trim():vid;
+      const ops=coutEvents.filter(e=>e.vehicle_id===vid);
+      return `<div class="synth-row">
+        <div class="synth-dot dot-orange"></div>
+        <div style="flex:1"><div class="synth-main">${esc(plate)}</div><div class="synth-sub">${ops.length} opération${ops.length!==1?'s':''}</div></div>
+        <div class="synth-amount">${chf(total)}</div>
+      </div>`;
+    });
+    document.getElementById('list-fleet-cost').innerHTML=costRows.join('');
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  5 — DOCTRACK
+// ════════════════════════════════════════════════════════
+let _doc={sites:[],procedures:[]};
+
+async function loadDocTrack(){
+  try{
+    const [s,p]=await Promise.all([
+      sbFetch('doctrack_sites?select=id,name,code,color,cdc&order=name'),
+      sbFetch('doctrack_procedures?select=id,site_id,name,steps&order=pos'),
+    ]);
+    _doc.sites=Array.isArray(s)?s:[];
+    _doc.procedures=Array.isArray(p)?p:[];
+  }catch(e2){console.warn('DocTrack load:',e2);}
+  renderDocTrack();
+}
+
+function renderDocTrack(){
+  const CDC_FIELDS=['cdc_created','cdc_validated','cdc_team_admin','cdc_team_agent','cdc_sharepoint','cdc_printed'];
+  const CDC_LABELS={'cdc_created':'Créé','cdc_validated':'Validé','cdc_team_admin':'Équipe Admin','cdc_team_agent':'Équipe Agents','cdc_sharepoint':'SharePoint','cdc_printed':'Imprimé'};
+  const PROC_FIELDS=['transformed','validated','team_admin','team_agent','sharepoint','printed'];
+
+  let totalSites=_doc.sites.length;
+  let cdcOk=0,cdcPartial=0,cdcMissing=0;
+  let procTotal=0,procOk=0;
+  const siteAlerts=[];
+
+  _doc.sites.forEach(s=>{
+    const cdc=s.cdc||{};
+    const cdcDone=CDC_FIELDS.filter(f=>cdc[f]).length;
+    const cdcPct=Math.round(cdcDone/CDC_FIELDS.length*100);
+    const procs=_doc.procedures.filter(p=>p.site_id===s.id);
+    procTotal+=procs.length;
+    const procsDone=procs.filter(p=>{
+      const steps=p.steps||{};
+      return PROC_FIELDS.every(f=>steps[f]);
+    }).length;
+    procOk+=procsDone;
+    if(cdcPct===100)cdcOk++;else if(cdcPct>0)cdcPartial++;else cdcMissing++;
+
+    const missing_cdc=CDC_FIELDS.filter(f=>!cdc[f]).map(f=>CDC_LABELS[f]);
+    const procs_incomplete=procs.filter(p=>{const steps=p.steps||{};return!PROC_FIELDS.every(f=>steps[f]);});
+
+    if(cdcPct<100||procs_incomplete.length>0){
+      siteAlerts.push({
+        name:s.name||s.code||'Site',
+        cdcPct,
+        missing_cdc,
+        procs_incomplete:procs_incomplete.length,
+        procs_total:procs.length,
+      });
+    }
+  });
+
+  document.getElementById('kpi-doc').innerHTML=`
+    <div class="kpi-card"><div class="kpi-label">Sites suivis</div><div class="kpi-val kv-blue">${totalSites}</div><div class="kpi-sub">dans DocTrack</div></div>
+    <div class="kpi-card"><div class="kpi-label">CDC 100% validés</div><div class="kpi-val kv-green">${cdcOk}</div><div class="kpi-sub">${cdcPartial} partiels, ${cdcMissing} non démarrés</div></div>
+    <div class="kpi-card"><div class="kpi-label">Procédures validées</div><div class="kpi-val kv-blue">${procOk} / ${procTotal}</div><div class="kpi-sub">sur l'ensemble des sites</div></div>
+    <div class="kpi-card"><div class="kpi-label">Sites à compléter</div><div class="kpi-val kv-orange">${siteAlerts.length}</div><div class="kpi-sub">lacunes documentaires</div></div>
+  `;
+
+  document.getElementById('cnt-doctrack').textContent=siteAlerts.length;
+  if(!siteAlerts.length){
+    document.getElementById('list-doctrack').innerHTML='<div class="synth-empty">✓ Tous les sites ont leur documentation complète</div>';
+  } else {
+    document.getElementById('list-doctrack').innerHTML=siteAlerts.map(a=>{
+      const cdcTag=a.cdcPct===100?'tag-green':a.cdcPct>50?'tag-yellow':'tag-orange';
+      const detail=[];
+      if(a.cdcPct<100&&a.missing_cdc.length)detail.push(`CDC — manque : ${a.missing_cdc.slice(0,3).join(', ')}${a.missing_cdc.length>3?'…':''}`);
+      if(a.procs_incomplete>0)detail.push(`${a.procs_incomplete}/${a.procs_total} procédure${a.procs_incomplete!==1?'s':''} incomplète${a.procs_incomplete!==1?'s':''}`);
+      return `<div class="synth-row">
+        <div class="synth-dot ${a.cdcPct<50?'dot-red':a.cdcPct<100?'dot-orange':'dot-green'}"></div>
+        <div style="flex:1"><div class="synth-main">${esc(a.name)}</div><div class="synth-sub">${detail.join(' · ')}</div></div>
+        <span class="synth-tag ${cdcTag}">CDC ${a.cdcPct}%</span>
+      </div>`;
+    }).join('');
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  ALERTES CRITIQUES GLOBALES
+// ════════════════════════════════════════════════════════
+function renderCriticalAlerts(){
+  const alerts=[];
+
+  // Factures > CHF 5000 en attente
+  const bigFact=_crm.echeances.filter(e=>(parseFloat(e.montant_ht)||0)>5000);
+  if(bigFact.length)alerts.push(`${bigFact.length} facture${bigFact.length>1?'s':''} > CHF 5'000 en attente d'émission (total : ${chf(bigFact.reduce((s,e)=>s+(parseFloat(e.montant_ht)||0),0))} HT)`);
+
+  // Contrats expirés
+  const today=new Date(); today.setHours(0,0,0,0);
+  const expired=_crm.missions.filter(m=>m.statut==='en_cours'&&m.date_fin&&new Date(m.date_fin)<today);
+  if(expired.length)alerts.push(`${expired.length} contrat${expired.length>1?'s':''} de mission actif${expired.length>1?'s':''} avec date de fin dépassée`);
+
+  // Documents expirés (agents actifs)
+  const docsExpires=buildDocAlerts(-1).filter(d=>d.days<0);
+  if(docsExpires.length)alerts.push(`${docsExpires.length} document${docsExpires.length>1?'s':''} d'agent expiré${docsExpires.length>1?'s':''} (cartes, permis, PPA…)`);
+
+  const el=document.getElementById('critical-alerts');
+  if(!alerts.length){el.innerHTML='';return;}
+  el.innerHTML=alerts.map(a=>`
+    <div class="alert-banner">
+      <span style="font-size:16px;">⚠️</span>
+      <span><strong>Action requise : </strong>${a}</span>
+    </div>
+  `).join('');
+}
+
+// ════════════════════════════════════════════════════════
+//  NAVIGATION ENTRE VUES
+// ════════════════════════════════════════════════════════
+let currentView='dashboard';
+function switchView(view){
+  currentView=view;
+  document.getElementById('view-dashboard').style.display=view==='dashboard'?'block':'none';
+  document.getElementById('view-meeting').style.display=view==='meeting'?'block':'none';
+  document.getElementById('tab-dashboard').classList.toggle('active',view==='dashboard');
+  document.getElementById('tab-meeting').classList.toggle('active',view==='meeting');
+  if(view==='meeting'&&!_mt.loaded)loadMeetings();
+}
+
+// ════════════════════════════════════════════════════════
+//  RÉUNION DE DIRECTION — MODULE
+// ════════════════════════════════════════════════════════
+// Table Supabase à créer une fois (SQL) :
+//
+// create table direction_meetings (
+//   id uuid primary key default gen_random_uuid(),
+//   meeting_date date not null default current_date,
+//   title text,
+//   status text not null default 'draft',        -- draft | live | done
+//   agenda jsonb not null default '[]'::jsonb,     -- voir AGENDA_TEMPLATE
+//   created_by text,
+//   created_at timestamptz default now(),
+//   updated_at timestamptz default now()
+// );
+// alter table direction_meetings enable row level security;
+// create policy "direction_meetings_all_authenticated" on direction_meetings
+//   for all using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+
+const AGENDA_TEMPLATE=[
+  {num:1,title:'Stock et matériel',subitems:[
+    "État du stock (exactitude, dernière mise à jour)",
+    "Besoins de réapprovisionnement à venir",
+    "Équipements spécifiques (uniformes, radios, caméras)"]},
+  {num:2,title:'Véhicules',subitems:[
+    "État du parc, entretien et pneus",
+    "Suivi des assurances (échéances, résiliations)",
+    "Réconciliation financière par véhicule",
+    "Besoin d'un véhicule supplémentaire / leasing"]},
+  {num:3,title:'RH et administratif',subitems:[
+    "Cartes d'agent, autorisations et agréments à jour",
+    "Port d'armes et suivi des tirs concordataires",
+    "Salaires (conformité convention collective) et primes",
+    "Règlements internes signés (checklist par agent)"]},
+  {num:4,title:'Formation',subitems:[
+    "Formation BASPE / port d'armes / formule A-B",
+    "Formation continue opérationnelle",
+    "Contrôle des connaissances et fiches de compétences"]},
+  {num:5,title:'Planning et recrutement',subitems:[
+    "Couverture des sites à 60 jours",
+    "Sous-effectifs, congés, absences à anticiper",
+    "Besoins de recrutement et suivi des candidatures"]},
+  {num:6,title:'Suivi client et business',subitems:[
+    "Contacts clients réguliers et retours",
+    "Incidents opérationnels, anomalies, litiges depuis la dernière réunion",
+    "Appels d'offres et opportunités commerciales en cours"]},
+  {num:7,title:'Sites et documentation',subitems:[
+    "Cahiers des charges et procédures à jour par site",
+    "Classeurs / supports d'intervention rapide (alarmes, consignes)",
+    "Visites terrain et contrôles qualité réalisés ou à planifier"]},
+  {num:8,title:'Finances et abonnements',subitems:[
+    "Suivi des abonnements (téléphonie, alarmes, assurances, logiciels)",
+    "Notes de frais et applications de rapport",
+    "Dépenses exceptionnelles et besoins matériels à valider"]},
+];
+
+let _mt={loaded:false,meetings:[],current:null,collapsed:{},notesTab:{}};
+
+function freshAgenda(){
+  return AGENDA_TEMPLATE.map(p=>({num:p.num,title:p.title,subitems:p.subitems.map(s=>({text:s,checked:false})),done:false,prep_notes:[],live_notes:[]}));
+}
+
+function nextThursday(){
+  const d=new Date();
+  const day=d.getDay(); // 0=dim..6=sam, jeudi=4
+  let add=(4-day+7)%7; if(add===0)add=7;
+  d.setDate(d.getDate()+add);
+  return d.toISOString().slice(0,10);
+}
+
+async function loadMeetings(){
+  _mt.loaded=true;
+  const sel=document.getElementById('mt-select');
+  try{
+    const rows=await sbFetch('direction_meetings?select=id,meeting_date,title,status,agenda,updated_at&order=meeting_date.desc&limit=30');
+    _mt.meetings=Array.isArray(rows)?rows:[];
+  }catch(e){
+    console.warn('Chargement réunions (mode hors-ligne probable):',e);
+    _mt.meetings=loadLocalMeetings();
+  }
+  sel.innerHTML='<option value="">— Choisir une réunion —</option>'+
+    _mt.meetings.map(m=>`<option value="${m.id}">${formatDate(m.meeting_date)} — ${esc(m.title||'Réunion de direction')} (${statusLabel(m.status)})</option>`).join('');
+  // Sélectionne automatiquement la plus récente réunion "live", sinon la plus récente
+  const live=_mt.meetings.find(m=>m.status==='live');
+  if(live){sel.value=live.id;onSelectMeeting(live.id);}
+}
+
+function statusLabel(s){return s==='live'?'en cours':s==='done'?'terminée':'brouillon';}
+
+function loadLocalMeetings(){
+  try{
+    const raw=localStorage.getItem('rdz_direction_meetings');
+    return raw?JSON.parse(raw):[];
+  }catch(e){return [];}
+}
+function saveLocalMeetings(list){
+  try{localStorage.setItem('rdz_direction_meetings',JSON.stringify(list));}catch(e){/* stockage plein ou indisponible */}
+}
+function upsertLocalMeeting(m){
+  const list=loadLocalMeetings();
+  const i=list.findIndex(x=>x.id===m.id);
+  if(i>=0)list[i]=m;else list.unshift(m);
+  saveLocalMeetings(list);
+}
+
+async function createMeeting(){
+  const title='Réunion de direction';
+  const meeting_date=nextThursday();
+  const local={id:'local-'+Date.now(),meeting_date,title,status:'draft',agenda:freshAgenda(),created_by:document.getElementById('tb-name').textContent||'—'};
+  try{
+    const created=await sbFetch('direction_meetings',{method:'POST',headers:{'Prefer':'return=representation'},body:JSON.stringify({meeting_date,title,status:'draft',agenda:local.agenda,created_by:local.created_by})});
+    const m=Array.isArray(created)?created[0]:created;
+    _mt.meetings.unshift(m);
+    setMeetingSaveState('ok');
+    selectMeetingObj(m);
+  }catch(e){
+    console.warn('Création en ligne impossible, sauvegarde locale:',e);
+    _mt.meetings.unshift(local);
+    upsertLocalMeeting(local);
+    setMeetingSaveState('local');
+    selectMeetingObj(local);
+  }
+  const sel=document.getElementById('mt-select');
+  sel.innerHTML='<option value="">— Choisir une réunion —</option>'+
+    _mt.meetings.map(m=>`<option value="${m.id}">${formatDate(m.meeting_date)} — ${esc(m.title||'Réunion de direction')} (${statusLabel(m.status)})</option>`).join('');
+  sel.value=_mt.current.id;
+}
+
+function onSelectMeeting(id){
+  if(!id){_mt.current=null;renderMeetingContent();return;}
+  const m=_mt.meetings.find(x=>x.id===id);
+  if(m)selectMeetingObj(m);
+}
+
+function selectMeetingObj(m){
+  _mt.current=JSON.parse(JSON.stringify(m));
+  if(!Array.isArray(_mt.current.agenda)||!_mt.current.agenda.length)_mt.current.agenda=freshAgenda();
+  _mt.collapsed={};
+  _mt.notesTab={};
+  renderMeetingContent();
+}
+
+function setMeetingSaveState(state){
+  const el=document.getElementById('mt-savebar');
+  const now=new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'});
+  if(state==='ok')el.textContent=`Enregistré à ${now}`;
+  else if(state==='local')el.textContent=`Enregistré localement (hors-ligne) à ${now}`;
+  else if(state==='saving')el.textContent='Enregistrement…';
+  else el.textContent='';
+}
+
+let _mtSaveTimer=null;
+function scheduleSave(){
+  clearTimeout(_mtSaveTimer);
+  setMeetingSaveState('saving');
+  _mtSaveTimer=setTimeout(saveMeeting,700);
+}
+
+async function saveMeeting(){
+  if(!_mt.current)return;
+  const m=_mt.current;
+  if(String(m.id).startsWith('local-')){
+    upsertLocalMeeting(m);
+    setMeetingSaveState('local');
+    return;
+  }
+  try{
+    await sbFetch(`direction_meetings?id=eq.${m.id}`,{
+      method:'PATCH',
+      headers:{'Prefer':'return=minimal'},
+      body:JSON.stringify({title:m.title,status:m.status,agenda:m.agenda,meeting_date:m.meeting_date,updated_at:new Date().toISOString()})
+    });
+    setMeetingSaveState('ok');
+  }catch(e){
+    console.warn('Sauvegarde en ligne impossible, repli local:',e);
+    upsertLocalMeeting(m);
+    setMeetingSaveState('local');
+  }
+}
+
+function setMeetingStatus(status){
+  if(!_mt.current)return;
+  _mt.current.status=status;
+  renderMeetingContent();
+  saveMeeting();
+}
+
+function toggleSubitem(pIdx,sIdx){
+  const item=_mt.current.agenda[pIdx].subitems[sIdx];
+  item.checked=!item.checked;
+  renderMeetingContent();
+  scheduleSave();
+}
+
+function togglePointDone(pIdx){
+  const p=_mt.current.agenda[pIdx];
+  p.done=!p.done;
+  renderMeetingContent();
+  scheduleSave();
+}
+
+function toggleCollapse(pIdx){
+  _mt.collapsed[pIdx]=!_mt.collapsed[pIdx];
+  renderMeetingContent();
+}
+
+function setNotesTab(pIdx,phase){
+  _mt.notesTab[pIdx]=phase;
+  renderMeetingContent();
+}
+
+function addNote(pIdx,phase){
+  const ta=document.getElementById(`mt-note-input-${pIdx}`);
+  const text=(ta.value||'').trim();
+  if(!text)return;
+  const author=document.getElementById('tb-name').textContent||'—';
+  const entry={author,text,ts:new Date().toISOString()};
+  const key=phase==='prep'?'prep_notes':'live_notes';
+  _mt.current.agenda[pIdx][key].unshift(entry);
+  ta.value='';
+  renderMeetingContent();
+  scheduleSave();
+}
+
+function deleteNote(pIdx,phase,idx){
+  const key=phase==='prep'?'prep_notes':'live_notes';
+  _mt.current.agenda[pIdx][key].splice(idx,1);
+  renderMeetingContent();
+  scheduleSave();
+}
+
+// ── Données live injectées par point, à partir des modules déjà chargés ──
+function autoDataForPoint(num){
+  try{
+    if(num===2){ // Véhicules → Fleet
+      const alerts=_fleet.vehicles.filter(v=>v.todo&&v.todo.trim()).length;
+      const in3=new Date(); in3.setMonth(in3.getMonth()-3);
+      const cout=_fleet.events.filter(e=>e.amount&&new Date(e.date)>=in3).reduce((s,e)=>s+(parseFloat(e.amount)||0),0);
+      return {source:'Fleet_RDZ',rows:[
+        [`${_fleet.vehicles.length} véhicules actifs`,`${alerts} avec travaux en attente`],
+        [`Dépenses 3 derniers mois`,chf(cout)],
+      ]};
+    }
+    if(num===3){ // RH et administratif → RH
+      const docs=countExpDocs(30);
+      return {source:'RH_RDZ',rows:[
+        [`Documents expirant ≤ 30j`,`${docs}`],
+        [`Process RH ouverts`,`${_rh.process.length}`],
+      ]};
+    }
+    if(num===5){ // Planning et recrutement → RouteOps
+      const secteurs=[...new Set(_ops.sites.map(s=>s.secteur||'Autre'))].length;
+      return {source:'RouteOps',rows:[
+        [`Sites actifs`,`${_ops.sites.length} (${secteurs} secteurs)`],
+      ]};
+    }
+    if(num===6){ // Suivi client → CRM
+      const pipe=_crm.opportunites.filter(o=>!['gagne','perdu'].includes(o.etape));
+      return {source:'CRM_RDZ',rows:[
+        [`Factures à émettre`,`${_crm.echeances.length}`],
+        [`Opportunités actives`,`${pipe.length}`],
+      ]};
+    }
+    if(num===7){ // Sites et documentation → DocTrack
+      const total=_doc.sites.length;
+      return {source:'DocTrack_RDZ',rows:[
+        [`Sites suivis`,`${total}`],
+      ]};
+    }
+    if(num===8){ // Finances → CRM + Fleet
+      const factTotal=_crm.echeances.reduce((s,e)=>s+(parseFloat(e.montant_ht)||0),0);
+      return {source:'CRM_RDZ',rows:[
+        [`Montant factures en attente`,chf(factTotal)],
+      ]};
+    }
+  }catch(e){/* données modules pas encore chargées */}
+  return null;
+}
+
+function renderAutoData(num){
+  const data=autoDataForPoint(num);
+  if(!data)return `<div class="mt-auto-data"><div class="ad-empty">Pas de donnée automatique pour ce point — actualisez le tableau de bord ou saisissez une note manuelle.</div></div>`;
+  return `<div class="mt-auto-data">
+    <div class="ad-title">Données en direct — ${esc(data.source)}</div>
+    ${data.rows.map(r=>`<div class="ad-row"><span>${esc(r[0])}</span><strong>${esc(r[1])}</strong></div>`).join('')}
+  </div>`;
+}
+
+function renderMeetingContent(){
+  const el=document.getElementById('mt-content');
+  const liveBtn=document.getElementById('mt-btn-live');
+  const doneBtn=document.getElementById('mt-btn-done');
+  const badge=document.getElementById('mt-status-badge');
+
+  if(!_mt.current){
+    el.innerHTML=`<div class="mt-empty-state"><h3>Aucune réunion sélectionnée</h3><p>Choisissez une réunion existante ci-dessus, ou créez la prochaine réunion hebdomadaire à partir du modèle standard en 8 points.</p></div>`;
+    liveBtn.style.display='none';doneBtn.style.display='none';badge.style.display='none';
+    return;
+  }
+
+  const m=_mt.current;
+  badge.style.display='inline-block';
+  badge.className='mt-status st-'+m.status;
+  badge.textContent=statusLabel(m.status);
+  liveBtn.style.display=m.status==='draft'?'inline-block':'none';
+  doneBtn.style.display=m.status==='live'?'inline-block':'none';
+
+  const pointsHtml=m.agenda.map((p,pIdx)=>{
+    const collapsed=_mt.collapsed[pIdx];
+    const phase=_mt.notesTab[pIdx]||'prep';
+    const notes=phase==='prep'?p.prep_notes:p.live_notes;
+    return `<div class="mt-point ${p.done?'done':''} ${collapsed?'collapsed':''}">
+      <div class="mt-point-head" onclick="toggleCollapse(${pIdx})">
+        <div class="mt-point-num">${p.num}</div>
+        <div class="mt-point-title">${esc(p.title)}</div>
+        <label class="mt-point-check" onclick="event.stopPropagation()">
+          <input type="checkbox" ${p.done?'checked':''} onchange="togglePointDone(${pIdx})"> Traité
+        </label>
+        <span class="mt-point-caret">▾</span>
+      </div>
+      <div class="mt-point-body">
+        <ul class="mt-sub-list">
+          ${p.subitems.map((s,sIdx)=>`<li class="${s.checked?'checked':''}">
+            <input type="checkbox" ${s.checked?'checked':''} onchange="toggleSubitem(${pIdx},${sIdx})">
+            <span>${esc(s.text)}</span>
+          </li>`).join('')}
+        </ul>
+        ${renderAutoData(p.num)}
+        <div class="mt-notes-tabs">
+          <button class="mt-notes-tab ${phase==='prep'?'active':''}" onclick="setNotesTab(${pIdx},'prep')">Avant la réunion</button>
+          <button class="mt-notes-tab ${phase==='live'?'active':''}" onclick="setNotesTab(${pIdx},'live')">Pendant la réunion</button>
+        </div>
+        <div class="mt-note-input">
+          <textarea id="mt-note-input-${pIdx}" placeholder="${phase==='prep'?'Ajouter une note de préparation…':'Ajouter une note en direct…'}"></textarea>
+          <button onclick="addNote(${pIdx},'${phase}')">Ajouter</button>
+        </div>
+        ${notes.length?notes.map((n,nIdx)=>`<div class="mt-note-entry">
+          <span class="ne-del" onclick="deleteNote(${pIdx},'${phase}',${nIdx})">✕</span>
+          <div class="ne-meta">${esc(n.author)} · ${new Date(n.ts).toLocaleString('fr-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</div>
+          ${esc(n.text)}
+        </div>`).join(''):''}
+      </div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML=`
+    <div class="page-header" style="margin-bottom:16px;">
+      <input type="text" value="${esc(m.title||'Réunion de direction')}" oninput="_mt.current.title=this.value;scheduleSave();"
+        style="font-family:'DM Mono';font-size:20px;font-weight:600;color:var(--anth);border:none;background:none;width:100%;outline:none;padding:2px 0;">
+      <div class="page-sub">
+        <input type="date" value="${m.meeting_date}" onchange="_mt.current.meeting_date=this.value;scheduleSave();"
+          style="border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-family:'DM Mono';font-size:12px;">
+      </div>
+    </div>
+    ${pointsHtml}
+  `;
+}
+
+// ════════════════════════════════════════════════════════
+//  INIT DATE TOPBAR
+// ════════════════════════════════════════════════════════
+document.getElementById('tb-date').textContent=new Date().toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'});
+</script>
+</body>
+</html>
