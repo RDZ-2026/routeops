@@ -2235,7 +2235,7 @@ function setProcStatus(s){
 function renderProcTabs(){
   if(!procTab) procTab='all';
   const bar=document.getElementById('proc-tabs-bar'); if(!bar) return;
-  const types=DB.process_types||BUILT_IN_PROC_TYPES;
+  const types=(DB.process_types||BUILT_IN_PROC_TYPES).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','fr'));
   const counts={};
   DB.process.forEach(p=>{counts[p.type]=(counts[p.type]||0)+1;});
   const total=DB.process.length;
@@ -2638,7 +2638,7 @@ function openManageTypes(){
 }
 
 function renderManageTypes(){
-  const types=DB.process_types||BUILT_IN_PROC_TYPES;
+  const types=(DB.process_types||BUILT_IN_PROC_TYPES).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','fr'));
   const el=document.getElementById('mpt-body'); if(!el) return;
   el.innerHTML=`
   <div style="margin-bottom:16px;">
@@ -3756,7 +3756,7 @@ function renderProcessTypesInSettings(){
     const grid=document.getElementById('settings-grid');
     if(grid) grid.prepend(ptSection);
   }
-  const types=DB.process_types||[];
+  const types=(DB.process_types||[]).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||'','fr'));
   ptSection.innerHTML=`<div class="card" style="margin-bottom:16px;">
     <div class="card-title">✅ Types de Process RH
       <button class="btn btn-primary btn-sm" style="margin-left:auto;" onclick="openManageTypes()">⚙️ Gérer les types et checklists</button>
