@@ -2720,7 +2720,7 @@ function deleteProcType(id){
   if(inUse>0){alert(`Impossible de supprimer : ${inUse} process utilisent ce type.`);return;}
   if(!confirm('Supprimer ce type de process ?')) return;
   DB.process_types=(DB.process_types||[]).filter(t=>t.id!==id);
-  saveDB();renderManageTypes();renderProcTabs();
+  saveDB('proc_types');renderManageTypes();renderProcTabs();
 }
 
 // Edit the checklist template of a type
