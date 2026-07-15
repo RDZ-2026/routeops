@@ -2254,12 +2254,14 @@ function renderProcess(){
   if(procTab!=='all') procs=procs.filter(p=>p.type===procTab);
   // Filtre statut
   if(procStatus==='done') procs=procs.filter(p=>{const s=p.steps||[];return p.closed||(s.length>0&&s.every(x=>x.checked));});
-  else if(procStatus==='open') procs=procs.filter(p=>{const s=p.steps||[];return s.some(x=>!x.checked);});
+  else if(procStatus==='open') procs=procs.filter(p=>{if(p.closed) return false; const s=p.steps||[];const pct=s.length?Math.round(s.filter(x=>x.checked).length/s.length*100):0; return pct<100;});
   // Sort by agent name
   procs.sort((a,b)=>{
     const na=DB.agents.find(x=>x.id===a.agent_id); const nb=DB.agents.find(x=>x.id===b.agent_id);
-    const sa=na?`${na.nom} ${na.prenom}`:''; const sb=nb?`${nb.nom} ${nb.prenom}`:'';
-    return sa.localeCompare(sb);
+    const sa=(na?na.nom+' '+na.prenom:'zzz').toUpperCase();
+    const sb=(nb?nb.nom+' '+nb.prenom:'zzz').toUpperCase();
+    const r=sa.localeCompare(sb,'fr');
+    return r!==0?r:(a.type||'').localeCompare(b.type||'','fr');
   });
   const el=document.getElementById('proc-list');
   if(!procs.length){
@@ -2301,6 +2303,7 @@ function renderProcess(){
         <div style="min-width:120px;text-align:right;">
           <div style="font-size:11px;color:var(--text3);margin-bottom:4px;">${done}/${total} · <strong>${pct}%</strong></div>
           <div class="progress-bar" style="width:120px;"><div class="progress-fill" style="width:${pct}%;background:${pct===100?'var(--green)':pct>50?'var(--blue)':'var(--orange)'};"></div></div>
+          <button onclick="event.stopPropagation();duplicateProcess('${p.id}')" style="margin-top:6px;font-size:10px;padding:3px 8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;color:var(--text2);" title="Dupliquer ce process">⧉ Copier</button>
         </div>
       </div>
     </div>`;
@@ -2316,6 +2319,29 @@ function toggleCloseProcess(id){
   renderProcess();
   if(curAgId) renderFiche(); // Mettre à jour la fiche agent si ouverte
   showToast(p.closed ? '🔒 Process clôturé' : '🔓 Process réouvert', true);
+}
+
+function duplicateProcess(id){
+  var src = DB.process.find(function(x){ return x.id===id; });
+  if(!src) return;
+  var newId = 'proc_'+ Date.now() +'_'+ Math.random().toString(36).slice(2,7);
+  var copy = {
+    id:       newId,
+    agent_id: src.agent_id,
+    type:     src.type,
+    date:     new Date().toISOString().slice(0,10),
+    notes:    src.notes || '',
+    closed:   false,
+    checks:   {},
+    journal:  [],
+    steps:    (src.steps||[]).map(function(s){
+      return { label:s.label, checked:false, date:null, note:'' };
+    })
+  };
+  DB.process.push(copy);
+  saveDB('process');
+  renderProcess();
+  showToast('Process copié — étapes remises à zéro', true);
 }
 
 function openProcess(id){curProcId=id;renderProcModal();document.getElementById('modal-process').classList.add('open');}
@@ -2572,6 +2598,40 @@ function printProcess(){
 // ═══════════════════════════════════════
 const BUILT_IN_IDS = ['recrutement','depart','renouvellement_carte','renouvellement_permis'];
 
+// ── Dupliquer un type de process ─────────────────────────
+function duplicateProcType(typeId){
+  var src = DB.process_types.find(function(t){ return t.id===typeId; });
+  if(!src){
+    // Try built-in
+    src = BUILT_IN_PROC_TYPES.find(function(t){ return t.id===typeId; });
+  }
+  if(!src){ showToast('Type introuvable','err'); return; }
+
+  var newId = typeId + '_' + Date.now().toString(36);
+  var copy = {
+    id:            newId,
+    name:          src.name + ' (copie)',
+    icon:          src.icon || '📋',
+    color:         src.color || '#5a5753',
+    badge_class:   src.badge_class || 'b-gray',
+    marks_depart:  src.marks_depart || false,
+    steps_template: (src.steps_template || []).map(function(s){
+      return { label: s.label, required: s.required || false };
+    }),
+    position: (DB.process_types.length || 0) + 1
+  };
+
+  if(!DB.process_types) DB.process_types = [];
+  DB.process_types.push(copy);
+  saveDB('proc_types');
+  renderManageTypes();
+  renderProcessTypesInSettings();
+  showToast('✅ Type dupliqué : "' + copy.name + '" — ouvrez-le pour le renommer et modifier les étapes', true);
+
+  // Auto-ouvrir l'éditeur du nouveau type pour le renommer directement
+  setTimeout(function(){ openEditProcType(newId); }, 300);
+}
+
 function openManageTypes(){
   renderManageTypes();
   document.getElementById('modal-proc-types').classList.add('open');
@@ -2600,6 +2660,7 @@ function renderManageTypes(){
       </div>
       <div style="display:flex;gap:6px;">
         <button class="btn btn-ghost btn-sm" onclick="openEditProcType('${t.id}')">✏️ Modifier</button>
+        <button class="btn btn-ghost btn-sm" onclick="duplicateProcType('${t.id}')">⧉ Dupliquer</button>
         <button class="btn btn-ghost btn-sm" onclick="openEditTypeSteps('${t.id}')">📋 Checklist</button>
         ${!isBuiltIn?`<button class="btn btn-danger btn-sm" onclick="deleteProcType('${t.id}')">🗑</button>`:''}
       </div>
