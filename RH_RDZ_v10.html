@@ -2616,7 +2616,7 @@ function duplicateProcType(typeId){
     badge_class:   src.badge_class || 'b-gray',
     marks_depart:  src.marks_depart || false,
     steps_template: (src.steps_template || []).map(function(s){
-      return { label: s.label, required: s.required || false };
+      return { label: s.label, required: s.required || false, section: s.section || '' };
     }),
     position: (DB.process_types.length || 0) + 1
   };
