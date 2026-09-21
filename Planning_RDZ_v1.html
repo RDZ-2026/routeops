@@ -48,23 +48,26 @@ a{color:var(--red);}
 .btn-block{width:100%;justify-content:center;}
 .login-err{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:8px;padding:9px 12px;font-size:12.5px;margin-bottom:14px;display:none;}
 
-/* ── APP SHELL ── */
-#app{display:none;min-height:100vh;flex-direction:column;}
-.topbar{background:var(--red);padding:10px 18px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.08);}
-.topbar-brand{display:flex;align-items:center;gap:9px;color:#fff;}
-.topbar-logo{width:28px;height:28px;background:rgba(255,255,255,.2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;letter-spacing:-1px;}
-.topbar-title{font-family:'DM Serif Display';font-size:16px;line-height:1;}
-.topbar-sub{font-size:9.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;}
-.topbar-nav{display:flex;gap:2px;flex:1;overflow-x:auto;}
-.tnav-btn{background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:none;padding:8px 13px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;}
-.tnav-btn:hover{background:rgba(255,255,255,.22);}
-.tnav-btn.active{background:#fff;color:var(--red);}
-.topbar-right{display:flex;align-items:center;gap:10px;}
+/* ── APP SHELL (sidebar layout) ── */
+#app{display:none;min-height:100vh;flex-direction:row;}
+.sidebar{background:var(--red);width:220px;flex-shrink:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;box-shadow:0 2px 8px rgba(0,0,0,.08);z-index:200;}
+.sidebar-brand{display:flex;align-items:center;gap:9px;color:#fff;padding:16px 16px 14px;}
+.sidebar-logo{width:28px;height:28px;background:rgba(255,255,255,.2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;letter-spacing:-1px;flex-shrink:0;}
+.sidebar-title{font-family:'DM Serif Display';font-size:16px;line-height:1;}
+.sidebar-sub{font-size:9.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;}
+.sidebar-nav{display:flex;flex-direction:column;gap:2px;flex:1;overflow-y:auto;padding:4px 10px;}
+.snav-btn{background:transparent;color:rgba(255,255,255,.85);border:none;padding:10px 12px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;text-align:left;white-space:nowrap;transition:all .15s;}
+.snav-btn:hover{background:rgba(255,255,255,.16);}
+.snav-btn.active{background:#fff;color:var(--red);}
+.sidebar-foot{padding:12px 10px 16px;display:flex;flex-direction:column;gap:8px;}
 .sync-dot{width:9px;height:9px;border-radius:50%;background:#9ca3af;flex-shrink:0;}
 .sync-pill{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);color:#fff;font-size:11.5px;padding:5px 10px;border-radius:20px;cursor:default;}
-.user-pill{background:rgba(255,255,255,.15);color:#fff;border:none;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;}
+.user-pill{background:rgba(255,255,255,.15);color:#fff;border:none;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;width:100%;}
 .user-pill:hover{background:rgba(255,255,255,.25);}
+.sidebar-toggle{display:none;position:fixed;top:12px;left:12px;z-index:210;background:var(--red);color:#fff;border:none;width:38px;height:38px;border-radius:9px;font-size:17px;cursor:pointer;box-shadow:var(--shadow);}
+.sidebar-scrim{display:none;}
 
+.app-main{flex:1;min-width:0;display:flex;flex-direction:column;}
 .content{flex:1;padding:20px;max-width:1400px;width:100%;margin:0 auto;}
 .panel{display:none;}
 .panel.active{display:block;}
@@ -130,18 +133,21 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .shift-agent{flex:1;font-weight:600;}
 
 /* Planning — grille site/poste × jours */
-.calendar-scroll{overflow:auto;border:1px solid var(--border);border-radius:10px;background:#fff;max-height:74vh;-webkit-overflow-scrolling:touch;}
+.calendar-scroll{overflow:auto;border:1px solid var(--border);border-radius:10px;background:#fff;max-height:74vh;-webkit-overflow-scrolling:touch;contain:layout paint;}
 .calendar{display:grid;}
 .calendar .cell{border-right:1px solid #f0eeeb;border-bottom:1px solid #f0eeeb;padding:5px;min-height:52px;font-size:11px;box-sizing:border-box;}
-.calendar .cell.corner{background:var(--bg2);font-weight:700;font-size:11.5px;position:sticky;left:0;top:0;z-index:3;display:flex;align-items:center;}
-.calendar .cell.day-header{background:var(--bg2);text-align:center;font-weight:700;font-size:11px;position:sticky;top:0;z-index:2;color:var(--text2);}
+.calendar .cell.corner{background:var(--bg2);font-weight:700;font-size:11.5px;position:sticky;left:0;top:0;z-index:4;display:flex;align-items:center;}
+.calendar .cell.day-header{background:var(--bg2);text-align:center;font-weight:700;font-size:11px;position:sticky;top:0;z-index:3;color:var(--text2);}
 .calendar .cell.day-header.is-today{color:var(--red);}
-.calendar .cell.row-label{background:#fbfaf9;font-size:11px;position:sticky;left:0;z-index:1;line-height:1.3;}
+.calendar .cell.row-label{background:#fbfaf9;font-size:11px;position:sticky;left:0;z-index:2;line-height:1.3;}
 .calendar .cell.shift-cell.is-today{background:#fff7f0;}
-.shift-chip{background:#fff;border:1px solid var(--border2);border-left:3px solid var(--text3);border-radius:6px;padding:3px 5px;font-size:10.5px;margin-bottom:3px;cursor:pointer;line-height:1.25;}
+.calendar .cell.shift-cell.drag-over{background:#fff0ef;outline:2px dashed var(--red);outline-offset:-2px;}
+.shift-chip{background:#fff;border:1px solid var(--border2);border-left:3px solid var(--text3);border-radius:6px;padding:3px 5px;font-size:10.5px;margin-bottom:3px;cursor:grab;line-height:1.25;}
 .shift-chip:hover{box-shadow:var(--shadow);}
+.shift-chip:active{cursor:grabbing;}
 .shift-chip .sc-time{font-family:'DM Mono';color:var(--text2);}
 .shift-chip .sc-agent{font-weight:600;}
+.shift-chip .sc-desc{color:var(--text3);font-size:9.5px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .shift-chip.no-agent{border-left-color:var(--red);}
 .shift-chip.no-agent .sc-agent{color:var(--red);}
 .shift-chip.status-publiee,.shift-chip.status-vue{border-left-color:var(--blue);}
@@ -174,10 +180,14 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .empty{text-align:center;padding:36px 16px;color:var(--text3);font-size:13px;}
 .demo-badge{background:#fef3c7;color:#92400e;}
 
-@media(max-width:720px){
+@media(max-width:880px){
   .fgrid{grid-template-columns:1fr;}
-  .topbar{flex-wrap:wrap;}
-  .topbar-nav{order:3;width:100%;}
+  .sidebar-toggle{display:block;}
+  .sidebar{position:fixed;left:0;top:0;transform:translateX(-100%);transition:transform .2s ease;width:240px;z-index:250;}
+  .sidebar.open{transform:translateX(0);}
+  .sidebar.open ~ .sidebar-scrim{display:block;}
+  .sidebar-scrim{position:fixed;inset:0;background:rgba(20,18,16,.4);z-index:220;}
+  .content{padding:16px;padding-top:60px;}
 }
 </style>
 </head>
@@ -201,29 +211,33 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 </div>
 
 <!-- ═══════════ APP ═══════════ -->
+<button class="sidebar-toggle" id="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Ouvrir le menu">☰</button>
 <div id="app">
-  <div class="topbar">
-    <div class="topbar-brand">
-      <div class="topbar-logo">RDZ</div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <div class="sidebar-logo">RDZ</div>
       <div>
-        <div class="topbar-title">Planning</div>
-        <div class="topbar-sub">Sécurité &amp; sûreté</div>
+        <div class="sidebar-title">Planning</div>
+        <div class="sidebar-sub">Sécurité &amp; sûreté</div>
       </div>
     </div>
-    <div class="topbar-nav" id="topbar-nav"></div>
-    <div class="topbar-right">
+    <div class="sidebar-nav" id="sidebar-nav"></div>
+    <div class="sidebar-foot">
       <div class="sync-pill"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">—</span></div>
-      <button class="user-pill" id="user-btn" onclick="toggleUserMenu()">☰</button>
+      <button class="user-pill" id="user-btn" onclick="toggleUserMenu()">☰ Mon compte</button>
     </div>
   </div>
+  <div class="sidebar-scrim" onclick="closeSidebar()"></div>
 
-  <div class="content">
-    <div id="panel-overview" class="panel"></div>
-    <div id="panel-planning" class="panel"></div>
-    <div id="panel-agents" class="panel"></div>
-    <div id="panel-sites" class="panel"></div>
-    <div id="panel-heures" class="panel"></div>
-    <div id="panel-settings" class="panel"></div>
+  <div class="app-main">
+    <div class="content">
+      <div id="panel-overview" class="panel"></div>
+      <div id="panel-planning" class="panel"></div>
+      <div id="panel-agents" class="panel"></div>
+      <div id="panel-sites" class="panel"></div>
+      <div id="panel-heures" class="panel"></div>
+      <div id="panel-settings" class="panel"></div>
+    </div>
   </div>
 </div>
 
@@ -256,8 +270,10 @@ function fmtDate(d){ if(!d) return '—'; try{ return new Date(d+'T12:00:00Z').t
 function fmtHours(mins){ if(!Number.isFinite(mins)) return '—'; const h=Math.floor(Math.abs(mins)/60), m=Math.round(Math.abs(mins)%60); return (mins<0?'-':'')+h+'h'+String(m).padStart(2,'0'); }
 function normalizeName(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,''); }
 
-// Agents are stored with a single free-text "name" field (usually "Prénom Nom" when it
-// comes from the RH sync). We split heuristically: last word = nom, everything before = prénom.
+// Legacy agents (created before the nom/prenom split existed, or not yet re-synced) are stored
+// with only a single free-text "name" field (usually "Prénom Nom"). We split heuristically:
+// last word = nom, everything before = prénom. Agents with real separate .nom/.prenom fields
+// (from RH sync or created/edited via the agent form) use those directly — see getNomPrenom().
 function splitName(name){
   const parts = String(name||'').trim().split(/\s+/);
   if(parts.length<2) return { prenom:'', nom: parts[0]||'' };
@@ -265,9 +281,15 @@ function splitName(name){
   const prenom = parts.slice(0,-1).join(' ');
   return { prenom, nom };
 }
-function displayNomPrenom(name){ const {prenom,nom}=splitName(name); return prenom? (nom+' '+prenom) : nom; }
-function sortKeyNom(name){ return normalizeName(splitName(name).nom); }
-function sortAgentsByNom(list){ return [...list].sort((a,b)=> sortKeyNom(a.name).localeCompare(sortKeyNom(b.name)) || normalizeName(a.name).localeCompare(normalizeName(b.name))); }
+// Returns { prenom, nom } for an agent object, preferring the real stored fields and
+// falling back to the heuristic split of the concatenated name for legacy agents.
+function getNomPrenom(agent){
+  if(agent && agent.nom) return { nom: agent.nom, prenom: agent.prenom||'' };
+  return splitName(agent? agent.name : '');
+}
+function displayNomPrenom(agent){ const {prenom,nom}=getNomPrenom(agent); return prenom? (nom+' '+prenom) : nom; }
+function sortKeyNom(agent){ return normalizeName(getNomPrenom(agent).nom); }
+function sortAgentsByNom(list){ return [...list].sort((a,b)=> sortKeyNom(a).localeCompare(sortKeyNom(b)) || normalizeName(a.name).localeCompare(normalizeName(b.name))); }
 function sortSitesByName(list){ return [...list].sort((a,b)=> a.name.localeCompare(b.name,'fr')); }
 function isDemoAgent(a){ return !a.rhAgentId && a.source!=='supabase-rh' && /^a[0-9]$/.test(a.id) && DEMO_NAMES.includes(a.name); }
 function isDemoShift(s){ return /^(s\d|open\d|past\d)/.test(s.id||''); }
@@ -275,7 +297,7 @@ function isDemoShift(s){ return /^(s\d|open\d|past\d)/.test(s.id||''); }
 function agentById(id){ return (STATE?.agents||[]).find(a=>a.id===id); }
 function siteById(id){ return (STATE?.sites||[]).find(s=>s.id===id); }
 function clientById(id){ return (STATE?.clients||[]).find(c=>c.id===id); }
-function agentLabel(id){ const a=agentById(id); return a? displayNomPrenom(a.name) : (id? 'Agent introuvable' : 'À affecter'); }
+function agentLabel(id){ const a=agentById(id); return a? displayNomPrenom(a) : (id? 'Agent introuvable' : 'À affecter'); }
 function siteLabel(id){ const s=siteById(id); return s? s.name : id; }
 
 // Contract-based weekly/annual objectives. Falls back to manually stored weekly/annual
@@ -354,7 +376,7 @@ function toggleUserMenu(){
   if(document.getElementById('user-menu-modal')){ closeModal(); return; }
   const isOwner = ACTOR && ACTOR.owner;
   const simOpts = isOwner ? sortAgentsByNom((STATE?.agents||[]).filter(a=>!a.deletedAt))
-    .map(a=>`<option value="${a.id}" ${UI.simulate===a.id?'selected':''}>${esc(displayNomPrenom(a.name))}</option>`).join('') : '';
+    .map(a=>`<option value="${a.id}" ${UI.simulate===a.id?'selected':''}>${esc(displayNomPrenom(a))}</option>`).join('') : '';
   openModal('user-menu-modal', 'Mon compte', `
     <div class="fg"><div class="flabel">Connecté</div><div>${esc(currentSession?.email||'')}</div></div>
     <div class="fg"><div class="flabel">Rôle</div><div>${esc(ACTOR?.role||'')}${ACTOR?.simulation?' (simulation : '+esc(ACTOR.simulation)+')':''}</div></div>
@@ -425,11 +447,13 @@ const TABS = [
   {id:'settings', label:'Réglages'}
 ];
 function renderNav(){
-  const nav = document.getElementById('topbar-nav');
+  const nav = document.getElementById('sidebar-nav');
   const visible = TABS.filter(t => (ACTOR?.role==='direction'||ACTOR?.role==='planning') ? true : ['overview','planning','heures'].includes(t.id));
-  nav.innerHTML = visible.map(t=>`<button class="tnav-btn ${UI.tab===t.id?'active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('');
+  nav.innerHTML = visible.map(t=>`<button class="snav-btn ${UI.tab===t.id?'active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('');
 }
-function switchTab(id){ UI.tab = id; renderNav(); renderCurrentPanel(); }
+function switchTab(id){ UI.tab = id; renderNav(); renderCurrentPanel(); closeSidebar(); }
+function toggleSidebar(){ document.getElementById('sidebar')?.classList.toggle('open'); }
+function closeSidebar(){ document.getElementById('sidebar')?.classList.remove('open'); }
 function renderCurrentPanel(){
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
   const map = { overview:'panel-overview', planning:'panel-planning', agents:'panel-agents', sites:'panel-sites', heures:'panel-heures', settings:'panel-settings' };
@@ -545,16 +569,12 @@ function renderAgents(el){
 function renderAgentCard(a, canManage){
   const obj = computeObjectives(a);
   const demo = isDemoAgent(a);
-  const passport = a.competencePassport||[];
-  const certCount = passport.filter(p=>p.status==='certifie').length;
-  const quiz = (a.quizResults||[])[0];
+  // Formations/quiz are shown in the agent fiche (openAgentModal), not on this summary card.
   return `<div class="agent-card" onclick="openAgentModal('${a.id}')">
-    <div class="ac-name">${esc(displayNomPrenom(a.name))} ${demo?'<span class="badge demo-badge">Démo</span>':''} ${a.deletedAt?'<span class="badge badge-red">Supprimé</span>':''}</div>
+    <div class="ac-name">${esc(displayNomPrenom(a))} ${demo?'<span class="badge demo-badge">Démo</span>':''} ${a.deletedAt?'<span class="badge badge-red">Supprimé</span>':''}</div>
     <div class="ac-meta">${a.rhContract?.type? esc(a.rhContract.type)+' · ':''}${Number.isFinite(a.monthly)? a.monthly+'h/mois' : (a.weekly? a.weekly+'h/sem (manuel)':'Contrat à renseigner')}</div>
     <div class="ac-row"><span>Obj. semaine</span><strong>${obj.weekly? obj.weekly+'h':'—'}</strong></div>
     <div class="ac-row"><span>Obj. annuel</span><strong>${obj.annual? obj.annual+'h':'—'}</strong></div>
-    ${passport.length? `<div class="ac-passport">${passport.map(p=>`<span class="badge ${p.status==='certifie'?'badge-green':p.status==='en_cours'?'badge-orange':'badge-red'}">${esc(siteLabel(p.site))}</span>`).join('')}</div>` : `<div class="ac-passport"><span class="badge badge-grey">Passeport : aucune évaluation</span></div>`}
-    <div class="ac-passport">${quiz? `<span class="badge badge-blue">${esc(quiz.title)} · ${quiz.score!=null?quiz.score+'%':'en attente'}</span>` : '<span class="badge badge-grey">Aucun quiz</span>'}</div>
   </div>`;
 }
 
@@ -566,9 +586,11 @@ function openAgentModal(id){
   const sitesOpts = sortSitesByName(STATE.sites.filter(s=>!s.archived)).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
   const passport = a? (a.competencePassport||[]) : [];
   const quizzes = a? (a.quizResults||[]) : [];
+  const np = getNomPrenom(a);
   const body = `
     <div class="fgrid">
-      <div class="fg full"><div class="flabel">Nom complet *</div><input class="finp" id="af-name" value="${a?esc(a.name):''}" ${isRh?'readonly title="Géré par la synchro RH"':''}></div>
+      <div class="fg"><div class="flabel">Nom *</div><input class="finp" id="af-nom" value="${esc(np.nom)}" ${isRh?'readonly title="Géré par la synchro RH"':''}></div>
+      <div class="fg"><div class="flabel">Prénom *</div><input class="finp" id="af-prenom" value="${esc(np.prenom)}" ${isRh?'readonly title="Géré par la synchro RH"':''}></div>
       <div class="fg"><div class="flabel">E-mail</div><input class="finp" id="af-email" value="${a?esc(a.email||''):''}"></div>
       <div class="fg"><div class="flabel">Disponible</div>
         <select class="fsel" id="af-available"><option value="1" ${!a||a.available?'selected':''}>Oui</option><option value="0" ${a&&!a.available?'selected':''}>Non</option></select></div>
@@ -611,11 +633,13 @@ function openAgentModal(id){
 
 async function saveAgentForm(id){
   const a = id? agentById(id) : null;
-  const name = modalVal('af-name').trim();
-  if(!name){ modalError('Le nom est obligatoire.'); return; }
   const isRh = a && a.source==='supabase-rh';
+  const nom = modalVal('af-nom').trim();
+  const prenom = modalVal('af-prenom').trim();
+  if(!nom){ modalError('Le nom est obligatoire.'); return; }
+  const name = prenom? (prenom+' '+nom) : nom;
   const values = {
-    name, email: modalVal('af-email'), available: modalVal('af-available')==='1',
+    name, nom, prenom, email: modalVal('af-email'), available: modalVal('af-available')==='1',
     team: modalVal('af-team')||'À définir',
     qualifications: modalVal('af-quali'),
     documentsUntil: modalVal('af-docs')||(a?a.documentsUntil:''),
@@ -725,9 +749,10 @@ function openSiteModal(id){
     </div>
     <div class="hint" style="margin:8px 0;">Le suivi des heures est toujours déclaratif sur ce site (pas de pointage GPS).</div>
     <div class="flabel">Postes</div>
-    <div id="sf-posts">${posts.map((p,i)=>renderPostRow(p,i,!!s)).join('')}</div>
-    ${!s? `<button type="button" class="btn btn-ghost btn-sm" onclick="addPostRow()">+ Ajouter un poste</button>` : '<div class="hint">Pour ajouter d’autres postes à un site existant, modifiez-le puis enregistrez.</div>'}
+    <div id="sf-posts">${posts.map((p,i)=>renderPostRow(p,i,s?s.id:'')).join('')}</div>
+    <button type="button" class="btn btn-ghost btn-sm" onclick="addPostRow()">+ Ajouter un poste</button>
   `;
+  SITE_MODAL_ID = s? s.id : '';
   openModal('site-modal', s? 'Site' : 'Nouveau site', body, `
     ${s&&canManage&&!s.archived?`<button class="btn btn-danger btn-sm" onclick="deleteSite('${s.id}')">🗑 Supprimer</button>`:''}
     ${s&&canManage&&s.archived?`<button class="btn btn-ghost btn-sm" onclick="restoreSite('${s.id}')">↺ Restaurer</button>`:''}
@@ -735,16 +760,29 @@ function openSiteModal(id){
     <button class="btn btn-primary" onclick="saveSiteForm('${s?s.id:''}')">Enregistrer</button>
   `);
 }
-function renderPostRow(p,i,locked){
-  return `<div class="fgrid" style="margin-bottom:6px;" data-post-row="${i}">
-    <div class="fg"><input class="finp" placeholder="Nom du poste" value="${esc(p.name||'')}" data-post-name ${locked&&i>0?'':''}></div>
-    <div class="fg"><input class="finp" placeholder="Qualification requise" value="${esc(p.qualification||'')}" data-post-qual></div>
+let SITE_MODAL_ID = '';
+function renderPostRow(p,i,siteId){
+  return `<div class="fgrid" style="margin-bottom:6px;align-items:end;" data-post-row="${i}" data-post-original="${esc(p.name||'')}">
+    <div class="fg"><div class="flabel">Nom du poste</div><input class="finp" placeholder="Nom du poste" value="${esc(p.name||'')}" data-post-name></div>
+    <div class="fg" style="display:flex;gap:6px;align-items:flex-end;">
+      <div style="flex:1;"><div class="flabel">Qualification requise</div><input class="finp" placeholder="Qualification requise" value="${esc(p.qualification||'')}" data-post-qual></div>
+      <button type="button" class="btn btn-danger btn-sm" onclick="removePostRow(this)" title="Supprimer ce poste">🗑</button>
+    </div>
   </div>`;
 }
 function addPostRow(){
   const wrap = document.getElementById('sf-posts');
   const i = wrap.children.length;
-  wrap.insertAdjacentHTML('beforeend', renderPostRow({name:'',qualification:''}, i, false));
+  wrap.insertAdjacentHTML('beforeend', renderPostRow({name:'',qualification:''}, i, SITE_MODAL_ID));
+}
+function removePostRow(btn){
+  const row = btn.closest('[data-post-row]');
+  const origName = row.getAttribute('data-post-original')||'';
+  if(SITE_MODAL_ID && origName){
+    const count = STATE.shifts.filter(sh=>sh.site===SITE_MODAL_ID && sh.post===origName).length;
+    if(count>0 && !confirm('Ce poste est référencé par '+count+' service'+(count>1?'s':'')+' existant'+(count>1?'s':'')+'. Ces services ne seront pas modifiés, mais ce poste ne sera plus proposé pour de nouveaux services. Continuer ?')) return;
+  }
+  row.remove();
 }
 async function saveSiteForm(id){
   const name = modalVal('sf-name').trim();
@@ -758,8 +796,9 @@ async function saveSiteForm(id){
 async function deleteSite(id){ if(!confirm('Supprimer ce site ?'))return; const ok=await apiAction('deleteSite',{id,confirm:true}); if(ok){closeModal();toast('Site supprimé');} }
 async function restoreSite(id){ const ok=await apiAction('restoreSite',{id}); if(ok){closeModal();toast('Site restauré');} }
 
-// ── PLANNING (grille site/poste × jours) ─────────────────────
-let PLAN_FILTER = { mode:'week', anchor:'', site:'' };
+// ── PLANNING (grille site/poste × jours, ou grille agent × jours) ──
+let PLAN_FILTER = { mode:'week', anchor:'', site:'', view:'site' };
+let DRAG_SHIFT = null;
 const WEEKDAY_SHORT = ['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'];
 function mondayOf(dateStr){
   const d = new Date(dateStr+'T12:00:00Z');
@@ -821,6 +860,48 @@ function planningRows(sites, days){
   });
   return rows;
 }
+function jsStr(v){ return String(v).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+function shiftTooltip(s){
+  const parts = [siteLabel(s.site)+' / '+s.post, s.start+'–'+s.end];
+  if(s.description) parts.push(s.description);
+  return parts.join(' · ');
+}
+function renderShiftChip(s, canManage){
+  const desc = s.description? esc(s.description) : '';
+  return `
+    <div class="shift-chip status-${STATUS_CLASS[s.status]||'planifiee'} ${!s.agent?'no-agent':''}" draggable="${canManage?'true':'false'}"
+      title="${esc(shiftTooltip(s))}"
+      ondragstart="handleChipDragStart(event,'${s.id}')"
+      onclick="event.stopPropagation();openShiftModal('${s.id}')">
+      <div class="sc-time">${s.start}–${s.end}</div>
+      <div class="sc-agent">${s.agent? esc(agentLabel(s.agent)) : 'À affecter'}</div>
+      ${desc? `<div class="sc-desc">${desc}</div>` : ''}
+    </div>`;
+}
+function handleChipDragStart(ev, id){
+  DRAG_SHIFT = id;
+  try{ ev.dataTransfer.setData('text/plain', id); ev.dataTransfer.effectAllowed='move'; }catch(e){}
+}
+function handleCellDragOver(ev){
+  if(!DRAG_SHIFT) return;
+  ev.preventDefault();
+  ev.currentTarget.classList.add('drag-over');
+}
+function handleCellDragLeave(ev){ ev.currentTarget.classList.remove('drag-over'); }
+async function handleCellDrop(ev, target){
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('drag-over');
+  const id = DRAG_SHIFT; DRAG_SHIFT = null;
+  if(!id) return;
+  const s = STATE.shifts.find(x=>x.id===id);
+  if(!s) return;
+  const values = { site: target.site!=null? target.site : s.site, post: target.post!=null? target.post : s.post, date: target.date!=null? target.date : s.date, start:s.start, end:s.end, agent: target.agent!=null? target.agent : (s.agent||''), description: s.description||'' };
+  if(values.site===s.site && values.post===s.post && values.date===s.date && values.agent===(s.agent||'')) return;
+  const ok = await apiAction('edit', { id: s.id, version: s.version, reason:'Déplacement par glisser-déposer', values });
+  if(ok) toast('Service déplacé');
+}
+function planSetView(view){ PLAN_FILTER.view = view; renderCurrentPanel(); }
+
 function renderPlanning(el){
   planInitRange();
   const canManage = ['direction','planning','site'].includes(ACTOR.role);
@@ -828,7 +909,6 @@ function renderPlanning(el){
   const today = todayISO();
   const allSites = sortSitesByName(STATE.sites.filter(s=>!s.archived));
   const activeSites = PLAN_FILTER.site ? allSites.filter(s=>s.id===PLAN_FILTER.site) : allSites;
-  const rows = planningRows(activeSites, days);
 
   el.innerHTML = `
     <div class="ph">
@@ -844,29 +924,58 @@ function renderPlanning(el){
       <button class="btn btn-ghost btn-sm" onclick="planToday()">Aujourd’hui</button>
       <button class="btn btn-ghost btn-sm" onclick="planNav(1)">›</button>
       <select class="sel" onchange="PLAN_FILTER.site=this.value;renderCurrentPanel()"><option value="">Tous les sites</option>${allSites.map(s=>`<option value="${s.id}" ${PLAN_FILTER.site===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select>
-    </div>
-    <div class="calendar-scroll">
-      <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr));">
-        <div class="cell corner">Postes / Services</div>
-        ${days.map(d=>`<div class="cell day-header ${d===today?'is-today':''}">${WEEKDAY_SHORT[(new Date(d+'T12:00:00Z').getUTCDay()+6)%7]}<br>${Number(d.slice(8,10))}</div>`).join('')}
-        ${rows.length? rows.map(r=>`
-          <div class="cell row-label">${esc(r.siteName)}<br><span style="color:var(--text3);font-weight:400;">${esc(r.post)}</span></div>
-          ${days.map(d=>renderPlanningCell(r,d,today,canManage)).join('')}
-        `).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun poste configuré${PLAN_FILTER.site?' pour ce site':''}.</div>`}
+      <div style="display:flex;gap:0;border:1.5px solid var(--border2);border-radius:9px;overflow:hidden;">
+        <button class="btn btn-sm ${PLAN_FILTER.view==='site'?'btn-primary':'btn-ghost'}" style="border-radius:0;" onclick="planSetView('site')">Vue par site</button>
+        <button class="btn btn-sm ${PLAN_FILTER.view==='agent'?'btn-primary':'btn-ghost'}" style="border-radius:0;" onclick="planSetView('agent')">Vue par agent</button>
       </div>
+      ${canManage? (PLAN_FILTER.mode==='week'
+        ? `<button class="btn btn-ghost btn-sm" onclick="openCopyWeekModal()">⧉ Copier la semaine</button>`
+        : `<button class="btn btn-ghost btn-sm" onclick="openCopyMonthModal()">⧉ Copier le mois</button>`) : ''}
+    </div>
+    <div class="calendar-scroll" id="calendar-scroll">
+      ${PLAN_FILTER.view==='agent' ? renderAgentCalendar(days, today, canManage) : renderSiteCalendar(activeSites, days, today, canManage)}
+    </div>
+  `;
+}
+function renderSiteCalendar(activeSites, days, today, canManage){
+  const rows = planningRows(activeSites, days);
+  return `
+    <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr));">
+      <div class="cell corner">Postes / Services</div>
+      ${days.map(d=>`<div class="cell day-header ${d===today?'is-today':''}">${WEEKDAY_SHORT[(new Date(d+'T12:00:00Z').getUTCDay()+6)%7]}<br>${Number(d.slice(8,10))}</div>`).join('')}
+      ${rows.length? rows.map(r=>`
+        <div class="cell row-label">${esc(r.siteName)}<br><span style="color:var(--text3);font-weight:400;">${esc(r.post)}</span></div>
+        ${days.map(d=>renderPlanningCell(r,d,today,canManage)).join('')}
+      `).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun poste configuré${PLAN_FILTER.site?' pour ce site':''}.</div>`}
     </div>
   `;
 }
 function renderPlanningCell(row, date, today, canManage){
   const shifts = STATE.shifts.filter(s=>s.site===row.siteId && s.post===row.post && s.date===date).sort((a,b)=>a.start.localeCompare(b.start));
-  const chips = shifts.map(s=>`
-    <div class="shift-chip status-${STATUS_CLASS[s.status]||'planifiee'} ${!s.agent?'no-agent':''}" onclick="event.stopPropagation();openShiftModal('${s.id}')">
-      <div class="sc-time">${s.start}–${s.end}</div>
-      <div class="sc-agent">${s.agent? esc(agentLabel(s.agent)) : 'À affecter'}</div>
-    </div>`).join('');
-  const jsStr = v => String(v).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const chips = shifts.map(s=>renderShiftChip(s, canManage)).join('');
   const addBtn = canManage? `<div class="cell-add" onclick="openShiftModal(null,{site:'${jsStr(row.siteId)}',post:'${jsStr(row.post)}',date:'${date}'})" title="Ajouter un service">+</div>` : '';
-  return `<div class="cell shift-cell ${date===today?'is-today':''}">${chips}${addBtn}</div>`;
+  const dropAttrs = canManage? `ondragover="handleCellDragOver(event)" ondragleave="handleCellDragLeave(event)" ondrop="handleCellDrop(event,{site:'${jsStr(row.siteId)}',post:'${jsStr(row.post)}',date:'${date}'})"` : '';
+  return `<div class="cell shift-cell ${date===today?'is-today':''}" ${dropAttrs}>${chips}${addBtn}</div>`;
+}
+function renderAgentCalendar(days, today, canManage){
+  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
+  return `
+    <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr));">
+      <div class="cell corner">Agents</div>
+      ${days.map(d=>`<div class="cell day-header ${d===today?'is-today':''}">${WEEKDAY_SHORT[(new Date(d+'T12:00:00Z').getUTCDay()+6)%7]}<br>${Number(d.slice(8,10))}</div>`).join('')}
+      ${agents.length? agents.map(a=>`
+        <div class="cell row-label">${esc(displayNomPrenom(a))}</div>
+        ${days.map(d=>renderAgentPlanningCell(a,d,today,canManage)).join('')}
+      `).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun agent.</div>`}
+    </div>
+  `;
+}
+function renderAgentPlanningCell(agent, date, today, canManage){
+  const shifts = STATE.shifts.filter(s=>s.agent===agent.id && s.date===date).sort((a,b)=>a.start.localeCompare(b.start));
+  const chips = shifts.map(s=>renderShiftChip(s, canManage)).join('');
+  const addBtn = canManage? `<div class="cell-add" onclick="openShiftModal(null,{agent:'${jsStr(agent.id)}',date:'${date}'})" title="Ajouter un service">+</div>` : '';
+  const dropAttrs = canManage? `ondragover="handleCellDragOver(event)" ondragleave="handleCellDragLeave(event)" ondrop="handleCellDrop(event,{agent:'${jsStr(agent.id)}',date:'${date}'})"` : '';
+  return `<div class="cell shift-cell ${date===today?'is-today':''}" ${dropAttrs}>${chips}${addBtn}</div>`;
 }
 
 function openShiftModal(id, prefill){
@@ -876,19 +985,23 @@ function openShiftModal(id, prefill){
   const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
   const preSiteId = s? s.site : (prefill?.site || sites[0]?.id);
   const site = siteById(preSiteId);
+  const preAgent = s? s.agent : (prefill?.agent||'');
   const body = `
     <div class="fgrid">
       <div class="fg full"><div class="flabel">Site *</div><select class="fsel" id="sh-site" onchange="onShiftSiteChange()">${sites.map(x=>`<option value="${x.id}" ${preSiteId===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
       <div class="fg full"><div class="flabel">Poste *</div><div id="sh-post-wrap">${renderPostSelect(site, s?s.post:(prefill?.post||''))}</div></div>
       <div class="fg"><div class="flabel">Date *</div><input class="finp" type="date" id="sh-date" value="${s?s.date:(prefill?.date||todayISO())}"></div>
-      <div class="fg"><div class="flabel">Agent</div><select class="fsel" id="sh-agent"><option value="">— À affecter —</option>${agents.map(a=>`<option value="${a.id}" ${s&&s.agent===a.id?'selected':''}>${esc(displayNomPrenom(a.name))}</option>`).join('')}</select></div>
+      <div class="fg"><div class="flabel">Agent</div><select class="fsel" id="sh-agent"><option value="">— À affecter —</option>${agents.map(a=>`<option value="${a.id}" ${preAgent===a.id?'selected':''}>${esc(displayNomPrenom(a))}</option>`).join('')}</select></div>
       <div class="fg"><div class="flabel">Début *</div><input class="finp" type="time" id="sh-start" value="${s?s.start:'07:00'}"></div>
       <div class="fg"><div class="flabel">Fin *</div><input class="finp" type="time" id="sh-end" value="${s?s.end:'15:00'}"></div>
+      <div class="fg full"><div class="flabel">Description</div><textarea class="ftxt" id="sh-description" rows="2" placeholder="Notes libres sur ce service (optionnel)">${s?esc(s.description||''):''}</textarea></div>
       ${s? `<div class="fg full"><div class="flabel">Motif de la modification *</div><input class="finp" id="sh-reason" placeholder="Ex. remplacement, correction d’horaire…"></div>` : ''}
     </div>
     ${s? `<div class="hint">Statut actuel : ${esc(s.status)}</div>` : ''}
   `;
   const actions = `
+    ${s&&canManage? `<button class="btn btn-danger btn-sm" onclick="deleteShiftAction('${s.id}','${s.version}')">🗑 Supprimer</button>` : ''}
+    ${s&&canManage? `<button class="btn btn-ghost btn-sm" onclick="openCopyShiftModal('${s.id}','${s.version}')">⧉ Copier</button>` : ''}
     ${s&&canManage&&s.status==='Planifiée'? `<button class="btn btn-ghost btn-sm" onclick="publishShift('${s.id}')">Publier</button>` : ''}
     <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
     ${canManage? `<button class="btn btn-primary" onclick="saveShiftForm('${s?s.id+"|"+s.version:''}')">Enregistrer</button>` : ''}
@@ -906,7 +1019,7 @@ function onShiftSiteChange(){
 }
 async function saveShiftForm(idVersion){
   const [id, version] = idVersion? idVersion.split('|') : [null,null];
-  const values = { site: modalVal('sh-site'), post: modalVal('sh-post'), date: modalVal('sh-date'), start: modalVal('sh-start'), end: modalVal('sh-end'), agent: modalVal('sh-agent') };
+  const values = { site: modalVal('sh-site'), post: modalVal('sh-post'), date: modalVal('sh-date'), start: modalVal('sh-start'), end: modalVal('sh-end'), agent: modalVal('sh-agent'), description: modalVal('sh-description') };
   if(!values.date||!values.start||!values.end){ modalError('Renseignez la date et les horaires.'); return; }
   const params = { values };
   if(id){ params.id=id; params.version=Number(version); params.reason=modalVal('sh-reason'); }
@@ -916,6 +1029,61 @@ async function saveShiftForm(idVersion){
 async function publishShift(id){
   const ok = await apiAction('publish', { ids:[id] });
   if(ok){ closeModal(); toast('Service publié'); }
+}
+async function deleteShiftAction(id, version){
+  if(!confirm('Supprimer définitivement ce service ?')) return;
+  const ok = await apiAction('deleteShift', { id, version:Number(version), confirm:true });
+  if(ok){ closeModal(); toast('Service supprimé'); }
+}
+function openCopyShiftModal(id, version){
+  const s = STATE.shifts.find(x=>x.id===id);
+  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
+  openModal('copy-shift-modal', 'Copier le service', `
+    <div class="hint" style="margin-bottom:10px;">${esc(siteLabel(s.site))} / ${esc(s.post)} · ${s.start}–${s.end}</div>
+    <div class="fgrid">
+      <div class="fg"><div class="flabel">Nouvelle date *</div><input class="finp" type="date" id="cs-date" value="${s.date}"></div>
+      <div class="fg"><div class="flabel">Agent</div><select class="fsel" id="cs-agent"><option value="">— À affecter —</option>${agents.map(a=>`<option value="${a.id}" ${s.agent===a.id?'selected':''}>${esc(displayNomPrenom(a))}</option>`).join('')}</select></div>
+    </div>
+  `, `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="doCopyShift('${id}','${version}')">Copier</button>`);
+}
+async function doCopyShift(id, version){
+  const date = modalVal('cs-date'), agent = modalVal('cs-agent');
+  if(!date){ modalError('Choisissez une date.'); return; }
+  const ok = await apiAction('duplicateShift', { id, version:Number(version), targets:[{date, agent}] });
+  if(ok){ closeModal(); toast('Service copié'); }
+}
+function openCopyWeekModal(){
+  const allSites = sortSitesByName(STATE.sites.filter(s=>!s.archived));
+  openModal('copy-week-modal', 'Copier la semaine', `
+    <div class="hint" style="margin-bottom:10px;">Copie tous les services de la semaine affichée (${esc(planLabel())}) vers une autre semaine (lundis requis).</div>
+    <div class="fgrid">
+      <div class="fg full"><div class="flabel">Semaine de destination (lundi) *</div><input class="finp" type="date" id="cw-to" value="${addDays(PLAN_FILTER.anchor,7)}"></div>
+      <div class="fg full"><div class="flabel">Limiter à un site</div><select class="fsel" id="cw-site"><option value="">Tous les sites</option>${allSites.map(s=>`<option value="${s.id}" ${PLAN_FILTER.site===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div>
+    </div>
+  `, `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="doCopyWeek()">Copier</button>`);
+}
+async function doCopyWeek(){
+  const to = modalVal('cw-to'), site = modalVal('cw-site');
+  if(!to){ modalError('Choisissez la semaine de destination.'); return; }
+  const ok = await apiAction('duplicateWeek', { from: PLAN_FILTER.anchor, to, site });
+  if(ok){ closeModal(); toast('Semaine copiée en brouillon'); }
+}
+function openCopyMonthModal(){
+  const allSites = sortSitesByName(STATE.sites.filter(s=>!s.archived));
+  const nextMonth = (()=>{ const [y,m]=PLAN_FILTER.anchor.split('-').map(Number); const nd=new Date(Date.UTC(y,m,1)); return nd.toISOString().slice(0,7); })();
+  openModal('copy-month-modal', 'Copier le mois', `
+    <div class="hint" style="margin-bottom:10px;">Copie tous les services du mois affiché (${esc(planLabel())}) vers un autre mois. Les jours au-delà de la fin du mois de destination sont ramenés au dernier jour de ce mois.</div>
+    <div class="fgrid">
+      <div class="fg full"><div class="flabel">Mois de destination *</div><input class="finp" type="month" id="cm-to" value="${nextMonth}"></div>
+      <div class="fg full"><div class="flabel">Limiter à un site</div><select class="fsel" id="cm-site"><option value="">Tous les sites</option>${allSites.map(s=>`<option value="${s.id}" ${PLAN_FILTER.site===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div>
+    </div>
+  `, `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="doCopyMonth()">Copier</button>`);
+}
+async function doCopyMonth(){
+  const to = modalVal('cm-to'), site = modalVal('cm-site');
+  if(!to){ modalError('Choisissez le mois de destination.'); return; }
+  const ok = await apiAction('duplicateMonth', { sourceMonth: PLAN_FILTER.anchor.slice(0,7), targetMonth: to, site });
+  if(ok){ closeModal(); toast('Mois copié en brouillon'); }
 }
 
 // ── HEURES & PRÉSENCES ──────────────────────────────────────
@@ -1024,7 +1192,7 @@ function openAbsenceModal(id){
   const agents = sortAgentsByNom(STATE.agents.filter(x=>!x.deletedAt));
   const body = `
     <div class="fgrid">
-      ${canManage? `<div class="fg full"><div class="flabel">Agent *</div><select class="fsel" id="ab-agent" ${a?'disabled':''}>${agents.map(x=>`<option value="${x.id}" ${(a?a.agent===x.id:x.id===ACTOR.agent)?'selected':''}>${esc(displayNomPrenom(x.name))}</option>`).join('')}</select></div>` : ''}
+      ${canManage? `<div class="fg full"><div class="flabel">Agent *</div><select class="fsel" id="ab-agent" ${a?'disabled':''}>${agents.map(x=>`<option value="${x.id}" ${(a?a.agent===x.id:x.id===ACTOR.agent)?'selected':''}>${esc(displayNomPrenom(x))}</option>`).join('')}</select></div>` : ''}
       <div class="fg"><div class="flabel">Type *</div><select class="fsel" id="ab-kind"><option value="unavailable" ${a&&a.kind==='unavailable'?'selected':''}>Indisponibilité</option><option value="paid" ${a&&a.kind==='paid'?'selected':''}>Congé payé</option></select></div>
       <div class="fg"><div class="flabel">Du *</div><input class="finp" type="date" id="ab-from" value="${a?a.from:''}"></div>
       <div class="fg"><div class="flabel">Au *</div><input class="finp" type="date" id="ab-to" value="${a?a.to:''}"></div>
@@ -1070,7 +1238,7 @@ function renderSettings(el){
         <button class="btn btn-ghost btn-sm" onclick="openLeaveAccountModal()">+ Définir un solde</button>
       </div>
       <div class="tbl-wrap"><table><thead><tr><th>Agent</th><th>Année</th><th>Solde initial</th><th>Méthode</th></tr></thead><tbody>
-        ${agents.flatMap(a=>(a.leaveAccounts||[]).map(la=>`<tr><td>${esc(displayNomPrenom(a.name))}</td><td>${la.year}</td><td>${la.opening} j</td><td>${la.method==='scheduled'?'Jours planifiés':'Jours ouvrés'}</td></tr>`)).join('') || '<tr><td colspan="4" style="color:var(--text3);">Aucun compte congé défini</td></tr>'}
+        ${agents.flatMap(a=>(a.leaveAccounts||[]).map(la=>`<tr><td>${esc(displayNomPrenom(a))}</td><td>${la.year}</td><td>${la.opening} j</td><td>${la.method==='scheduled'?'Jours planifiés':'Jours ouvrés'}</td></tr>`)).join('') || '<tr><td colspan="4" style="color:var(--text3);">Aucun compte congé défini</td></tr>'}
       </tbody></table></div>
     </div>
 
@@ -1079,8 +1247,12 @@ function renderSettings(el){
         <div style="font-weight:700;">Droits d’accès</div>
         <button class="btn btn-ghost btn-sm" onclick="openMemberModal()">+ Ajouter un accès</button>
       </div>
-      <div class="tbl-wrap"><table><thead><tr><th>E-mail</th><th>Rôle</th><th>Agent lié</th><th>Sites</th></tr></thead><tbody>
-        ${members.map(m=>`<tr><td>${esc(m.email)}</td><td>${esc(m.role)}</td><td>${m.agent?esc(agentLabel(m.agent)):'—'}</td><td>${(m.sites||[]).map(siteLabel).join(', ')||'—'}</td></tr>`).join('') || '<tr><td colspan="4" style="color:var(--text3);">Aucun accès défini</td></tr>'}
+      <div class="tbl-wrap"><table><thead><tr><th>E-mail</th><th>Rôle</th><th>Agent lié</th><th>Sites</th><th></th></tr></thead><tbody>
+        ${members.map(m=>`<tr><td>${esc(m.email)}</td><td>${esc(m.role)}</td><td>${m.agent?esc(agentLabel(m.agent)):'—'}</td><td>${(m.sites||[]).map(siteLabel).join(', ')||'—'}</td>
+          <td style="text-align:right;white-space:nowrap;">
+            <button class="btn btn-sm btn-ghost" onclick="openMemberModal('${jsStr(m.email)}')" title="Modifier">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteMember('${jsStr(m.email)}')" title="Supprimer">🗑</button>
+          </td></tr>`).join('') || '<tr><td colspan="5" style="color:var(--text3);">Aucun accès défini</td></tr>'}
       </tbody></table></div>
     </div>` : ''}
   `;
@@ -1094,7 +1266,7 @@ function openLeaveAccountModal(){
   const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
   openModal('leave-modal','Solde de congés', `
     <div class="fgrid">
-      <div class="fg full"><div class="flabel">Agent *</div><select class="fsel" id="la-agent">${agents.map(a=>`<option value="${a.id}">${esc(displayNomPrenom(a.name))}</option>`).join('')}</select></div>
+      <div class="fg full"><div class="flabel">Agent *</div><select class="fsel" id="la-agent">${agents.map(a=>`<option value="${a.id}">${esc(displayNomPrenom(a))}</option>`).join('')}</select></div>
       <div class="fg"><div class="flabel">Année *</div><input class="finp" type="number" id="la-year" value="${new Date().getFullYear()}"></div>
       <div class="fg"><div class="flabel">Solde initial (j) *</div><input class="finp" type="number" id="la-opening" value="25"></div>
       <div class="fg full"><div class="flabel">Méthode de décompte</div><select class="fsel" id="la-method"><option value="weekdays">Jours ouvrés</option><option value="scheduled">Jours planifiés</option></select></div>
@@ -1105,28 +1277,46 @@ async function saveLeaveAccountForm(){
   const ok = await apiAction('saveLeaveAccount', { agent: modalVal('la-agent'), year: Number(modalVal('la-year')), opening: Number(modalVal('la-opening')), method: modalVal('la-method') });
   if(ok){ closeModal(); toast('Solde de congés enregistré'); }
 }
-function openMemberModal(){
+function openMemberModal(email){
+  const m = email? (STATE.members||[]).find(x=>x.email===email) : null;
   const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
   const sites = sortSitesByName(STATE.sites.filter(s=>!s.archived));
-  openModal('member-modal','Nouveau droit d’accès', `
+  openModal('member-modal', m? 'Modifier le droit d’accès' : 'Nouveau droit d’accès', `
     <div class="fgrid">
-      <div class="fg full"><div class="flabel">E-mail *</div><input class="finp" id="mb-email" type="email"></div>
+      <div class="fg full"><div class="flabel">E-mail *</div><input class="finp" id="mb-email" type="email" value="${m?esc(m.email):''}" ${m?'readonly title="L’e-mail identifie ce droit d’accès et ne peut pas être modifié ici"':''}></div>
       <div class="fg full"><div class="flabel">Rôle *</div><select class="fsel" id="mb-role" onchange="onMemberRoleChange()">
-        <option value="agent">Agent</option><option value="site">Responsable de site</option><option value="direction">Direction</option></select></div>
-      <div class="fg full" id="mb-agent-wrap"><div class="flabel">Agent lié</div><select class="fsel" id="mb-agent"><option value="">—</option>${agents.map(a=>`<option value="${a.id}">${esc(displayNomPrenom(a.name))}</option>`).join('')}</select></div>
-      <div class="fg full" id="mb-sites-wrap" style="display:none;"><div class="flabel">Sites</div><select class="fsel" id="mb-sites" multiple size="4">${sites.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></div>
+        <option value="agent" ${m&&m.role==='agent'?'selected':''}>Agent</option>
+        <option value="site" ${m&&m.role==='site'?'selected':''}>Responsable de site</option>
+        <option value="direction" ${m&&m.role==='direction'?'selected':''}>Direction</option></select></div>
+      <div class="fg full" id="mb-agent-wrap"><div class="flabel">Agent lié</div><select class="fsel" id="mb-agent"><option value="">—</option>${agents.map(a=>`<option value="${a.id}" ${m&&m.agent===a.id?'selected':''}>${esc(displayNomPrenom(a))}</option>`).join('')}</select></div>
+      <div class="fg full" id="mb-sites-wrap" style="display:${m&&m.role==='site'?'block':'none'};"><div class="flabel">Sites</div><select class="fsel" id="mb-sites" multiple size="4">${sites.map(s=>`<option value="${s.id}" ${m&&(m.sites||[]).includes(s.id)?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div>
     </div>
-  `, `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveMemberForm()">Enregistrer</button>`);
+  `, `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveMemberForm('${m?jsStr(m.email):''}')">Enregistrer</button>`);
 }
 function onMemberRoleChange(){
   const role = modalVal('mb-role');
   document.getElementById('mb-sites-wrap').style.display = role==='site'?'block':'none';
 }
-async function saveMemberForm(){
+async function saveMemberForm(originalEmail){
   const role = modalVal('mb-role');
-  const values = { email: modalVal('mb-email'), role, agent: modalVal('mb-agent'), sites: role==='site'? Array.from(document.getElementById('mb-sites').selectedOptions).map(o=>o.value) : [] };
+  const values = { email: (originalEmail||modalVal('mb-email')), role, agent: modalVal('mb-agent'), sites: role==='site'? Array.from(document.getElementById('mb-sites').selectedOptions).map(o=>o.value) : [] };
+  // saveMember upserts by e-mail: resubmitting the same address edits the existing row in place.
   const ok = await apiAction('saveMember', { values });
   if(ok){ closeModal(); toast('Droit d’accès enregistré'); }
+}
+async function deleteMember(email){
+  const members = STATE.members||[];
+  const m = members.find(x=>x.email===email);
+  if(!m) return;
+  if(currentSession && currentSession.email && currentSession.email.toLowerCase()===email.toLowerCase()){
+    toast('Impossible de supprimer votre propre accès', true); return;
+  }
+  if(m.role==='direction' && members.filter(x=>x.role==='direction').length<=1){
+    toast('Impossible de supprimer le dernier accès direction', true); return;
+  }
+  if(!confirm('Supprimer le droit d’accès de '+email+' ?')) return;
+  const ok = await apiAction('deleteMember', { email, confirm:true });
+  if(ok) toast('Droit d’accès supprimé');
 }
 
 // ── BOOT ────────────────────────────────────────────────────
