@@ -1,0 +1,1142 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Planning — RDZ Security Management</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=DM+Serif+Display&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --red:#c0272d;--accent-hover:#a31f24;--anthracite:#2d2d2d;
+  --bg:#f5f4f2;--bg2:#eeecea;--white:#fff;
+  --border:#e2e0dd;--border2:#d0cec9;
+  --text:#1a1917;--text2:#5a5753;--text3:#9a9794;
+  --green:#16a34a;--green-l:#f0fdf4;
+  --orange:#d97706;--orange-l:#fffbeb;
+  --blue:#2563eb;--blue-l:#eff6ff;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 4px 16px rgba(0,0,0,.05);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.12),0 2px 8px rgba(0,0,0,.06);
+  --radius:12px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh;}
+button,input,select,textarea{font-family:inherit;font-size:inherit;}
+a{color:var(--red);}
+
+/* ── LOGIN ── */
+#login-screen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;}
+.login-card{background:var(--white);border-radius:16px;box-shadow:var(--shadow-lg);width:100%;max-width:380px;overflow:hidden;}
+.login-head{background:var(--red);padding:28px;color:#fff;text-align:center;}
+.login-logo{width:44px;height:44px;background:rgba(255,255,255,.2);border-radius:10px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;letter-spacing:-1px;margin:0 auto 12px;}
+.login-title{font-family:'DM Serif Display';font-size:22px;}
+.login-sub{font-size:12px;opacity:.8;margin-top:2px;}
+.login-body{padding:26px 28px 28px;}
+.fg{margin-bottom:14px;}
+.flabel{font-size:12px;font-weight:600;color:var(--text2);margin-bottom:6px;}
+.finp,.fsel,.ftxt{width:100%;padding:11px 13px;border:1.5px solid var(--border2);border-radius:9px;background:#fff;color:var(--text);outline:none;transition:border-color .15s,box-shadow .15s;}
+.finp:focus,.fsel:focus,.ftxt:focus{border-color:var(--red);box-shadow:0 0 0 3px rgba(192,39,45,.08);}
+.btn{padding:10px 16px;border-radius:9px;border:none;font-weight:600;font-size:13.5px;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px;}
+.btn-primary{background:var(--red);color:#fff;}
+.btn-primary:hover{background:var(--accent-hover);}
+.btn-primary:disabled{background:var(--border2);cursor:not-allowed;}
+.btn-ghost{background:var(--bg2);color:var(--text2);}
+.btn-ghost:hover{background:var(--border);}
+.btn-success{background:var(--green);color:#fff;}
+.btn-danger{background:#fef2f2;color:#b91c1c;}
+.btn-danger:hover{background:#fee2e2;}
+.btn-sm{padding:6px 11px;font-size:12px;}
+.btn-block{width:100%;justify-content:center;}
+.login-err{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:8px;padding:9px 12px;font-size:12.5px;margin-bottom:14px;display:none;}
+
+/* ── APP SHELL ── */
+#app{display:none;min-height:100vh;flex-direction:column;}
+.topbar{background:var(--red);padding:10px 18px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:200;box-shadow:0 2px 8px rgba(0,0,0,.08);}
+.topbar-brand{display:flex;align-items:center;gap:9px;color:#fff;}
+.topbar-logo{width:28px;height:28px;background:rgba(255,255,255,.2);border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:11px;letter-spacing:-1px;}
+.topbar-title{font-family:'DM Serif Display';font-size:16px;line-height:1;}
+.topbar-sub{font-size:9.5px;opacity:.75;text-transform:uppercase;letter-spacing:.5px;}
+.topbar-nav{display:flex;gap:2px;flex:1;overflow-x:auto;}
+.tnav-btn{background:rgba(255,255,255,.12);color:rgba(255,255,255,.85);border:none;padding:8px 13px;border-radius:8px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s;}
+.tnav-btn:hover{background:rgba(255,255,255,.22);}
+.tnav-btn.active{background:#fff;color:var(--red);}
+.topbar-right{display:flex;align-items:center;gap:10px;}
+.sync-dot{width:9px;height:9px;border-radius:50%;background:#9ca3af;flex-shrink:0;}
+.sync-pill{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.15);color:#fff;font-size:11.5px;padding:5px 10px;border-radius:20px;cursor:default;}
+.user-pill{background:rgba(255,255,255,.15);color:#fff;border:none;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;}
+.user-pill:hover{background:rgba(255,255,255,.25);}
+
+.content{flex:1;padding:20px;max-width:1400px;width:100%;margin:0 auto;}
+.panel{display:none;}
+.panel.active{display:block;}
+
+.ph{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px;flex-wrap:wrap;}
+.ph-title{font-family:'DM Serif Display';font-size:22px;}
+.ph-sub{font-size:12.5px;color:var(--text3);margin-top:2px;}
+.ph-right{display:flex;gap:8px;flex-wrap:wrap;}
+
+.card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px;}
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;}
+.kpi{background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:all .15s;position:relative;}
+.kpi:hover{border-color:var(--border2);transform:translateY(-1px);box-shadow:var(--shadow);}
+.kpi-val{font-family:'DM Serif Display';font-size:26px;line-height:1;}
+.kpi-label{font-size:12px;font-weight:600;color:var(--text2);margin-top:6px;}
+.kpi-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.kpi.neutral .kpi-val{color:var(--anthracite);}
+.kpi.green .kpi-val{color:var(--green);}
+.kpi.blue .kpi-val{color:var(--blue);}
+.kpi.red .kpi-val{color:var(--red);}
+.kpi.orange .kpi-val{color:var(--orange);}
+
+.sbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center;}
+.sw{position:relative;flex:1;min-width:180px;}
+.sw-icon{position:absolute;left:11px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3);}
+.sw .inp{width:100%;padding:9px 12px 9px 30px;border:1.5px solid var(--border2);border-radius:9px;background:#fff;}
+.sel{padding:9px 12px;border:1.5px solid var(--border2);border-radius:9px;background:#fff;color:var(--text);}
+.count{font-size:11.5px;color:var(--text3);margin:2px 0 10px;}
+
+table{width:100%;border-collapse:collapse;}
+th{text-align:left;padding:8px 10px;font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.4px;border-bottom:2px solid var(--border);}
+td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-align:middle;}
+.tbl-wrap{overflow-x:auto;}
+
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:20px;font-size:10.5px;font-weight:700;}
+.badge-green{background:var(--green-l);color:#15803d;}
+.badge-orange{background:var(--orange-l);color:#b45309;}
+.badge-red{background:#fef2f2;color:#b91c1c;}
+.badge-blue{background:var(--blue-l);color:#1d4ed8;}
+.badge-grey{background:var(--bg2);color:var(--text2);}
+
+/* Agents & sites cards */
+.agents-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;}
+.agent-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;transition:all .15s;}
+.agent-card:hover{border-color:var(--red);box-shadow:var(--shadow);}
+.agent-card .ac-name{font-weight:700;font-size:13px;}
+.agent-card .ac-meta{font-size:10.5px;color:var(--text3);margin-top:2px;}
+.agent-card .ac-row{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);margin-top:6px;}
+.agent-card .ac-passport{margin-top:6px;display:flex;gap:4px;flex-wrap:wrap;}
+
+.sites-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:10px;}
+.site-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 12px;cursor:pointer;transition:all .15s;}
+.site-card:hover{border-color:var(--red);box-shadow:var(--shadow);}
+.site-card .sc-name{font-weight:700;font-size:13px;}
+.site-card .sc-meta{font-size:10.5px;color:var(--text3);margin-top:2px;}
+
+/* Planning — liste (Heures & présences réutilise ces classes) */
+.plan-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
+.shift-row{display:flex;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid #f0eeeb;font-size:12.5px;cursor:pointer;}
+.shift-row:hover{background:var(--bg);}
+.shift-time{font-family:'DM Mono';font-size:11.5px;color:var(--text2);width:100px;flex-shrink:0;}
+.shift-site{width:150px;flex-shrink:0;color:var(--text3);font-size:11px;}
+.shift-agent{flex:1;font-weight:600;}
+
+/* Planning — grille site/poste × jours */
+.calendar-scroll{overflow:auto;border:1px solid var(--border);border-radius:10px;background:#fff;max-height:74vh;-webkit-overflow-scrolling:touch;}
+.calendar{display:grid;}
+.calendar .cell{border-right:1px solid #f0eeeb;border-bottom:1px solid #f0eeeb;padding:5px;min-height:52px;font-size:11px;box-sizing:border-box;}
+.calendar .cell.corner{background:var(--bg2);font-weight:700;font-size:11.5px;position:sticky;left:0;top:0;z-index:3;display:flex;align-items:center;}
+.calendar .cell.day-header{background:var(--bg2);text-align:center;font-weight:700;font-size:11px;position:sticky;top:0;z-index:2;color:var(--text2);}
+.calendar .cell.day-header.is-today{color:var(--red);}
+.calendar .cell.row-label{background:#fbfaf9;font-size:11px;position:sticky;left:0;z-index:1;line-height:1.3;}
+.calendar .cell.shift-cell.is-today{background:#fff7f0;}
+.shift-chip{background:#fff;border:1px solid var(--border2);border-left:3px solid var(--text3);border-radius:6px;padding:3px 5px;font-size:10.5px;margin-bottom:3px;cursor:pointer;line-height:1.25;}
+.shift-chip:hover{box-shadow:var(--shadow);}
+.shift-chip .sc-time{font-family:'DM Mono';color:var(--text2);}
+.shift-chip .sc-agent{font-weight:600;}
+.shift-chip.no-agent{border-left-color:var(--red);}
+.shift-chip.no-agent .sc-agent{color:var(--red);}
+.shift-chip.status-publiee,.shift-chip.status-vue{border-left-color:var(--blue);}
+.shift-chip.status-validee{border-left-color:var(--green);}
+.shift-chip.status-effectuee{border-left-color:var(--orange);}
+.shift-chip.status-controlee{border-left-color:#15803d;background:#f7fdf9;}
+.cell-add{font-size:15px;color:var(--border2);text-align:center;cursor:pointer;line-height:1.4;}
+.cell-add:hover{color:var(--red);}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(20,18,16,.5);z-index:500;align-items:center;justify-content:center;padding:16px;}
+.modal-overlay.open{display:flex;}
+.modal{background:#fff;border-radius:14px;max-width:520px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow-lg);}
+.modal-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.modal-title{font-family:'DM Serif Display';font-size:17px;}
+.modal-close{background:none;border:none;font-size:18px;cursor:pointer;color:var(--text3);}
+.modal-body{padding:18px 20px;}
+.modal-actions{padding:14px 20px;border-top:1px solid var(--border);display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;}
+.fgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.fg.full{grid-column:1/-1;}
+.modal-err{background:#fef2f2;color:#b91c1c;border:1px solid #fecaca;border-radius:8px;padding:9px 12px;font-size:12.5px;margin-bottom:12px;display:none;}
+.checkline{display:flex;align-items:center;gap:8px;font-size:12.5px;padding:4px 0;}
+.hint{font-size:11px;color:var(--text3);margin-top:4px;}
+.sep{height:1px;background:var(--border);margin:14px 0;}
+
+.toast{position:fixed;bottom:20px;right:20px;background:var(--anthracite);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;box-shadow:var(--shadow-lg);z-index:900;display:none;}
+.toast.error{background:#b91c1c;}
+.toast.show{display:block;}
+
+.empty{text-align:center;padding:36px 16px;color:var(--text3);font-size:13px;}
+.demo-badge{background:#fef3c7;color:#92400e;}
+
+@media(max-width:720px){
+  .fgrid{grid-template-columns:1fr;}
+  .topbar{flex-wrap:wrap;}
+  .topbar-nav{order:3;width:100%;}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════ LOGIN ═══════════ -->
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-head">
+      <div class="login-logo">RDZ</div>
+      <div class="login-title">Planning RDZ</div>
+      <div class="login-sub">RDZ Security Management</div>
+    </div>
+    <div class="login-body">
+      <div class="login-err" id="login-err"></div>
+      <div class="fg"><div class="flabel">E-mail</div><input class="finp" id="login-email" type="email" autocomplete="username"></div>
+      <div class="fg"><div class="flabel">Mot de passe</div><input class="finp" id="login-pass" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"></div>
+      <button class="btn btn-primary btn-block" id="login-btn" onclick="doLogin()">Se connecter</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ APP ═══════════ -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-brand">
+      <div class="topbar-logo">RDZ</div>
+      <div>
+        <div class="topbar-title">Planning</div>
+        <div class="topbar-sub">Sécurité &amp; sûreté</div>
+      </div>
+    </div>
+    <div class="topbar-nav" id="topbar-nav"></div>
+    <div class="topbar-right">
+      <div class="sync-pill"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">—</span></div>
+      <button class="user-pill" id="user-btn" onclick="toggleUserMenu()">☰</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div id="panel-overview" class="panel"></div>
+    <div id="panel-planning" class="panel"></div>
+    <div id="panel-agents" class="panel"></div>
+    <div id="panel-sites" class="panel"></div>
+    <div id="panel-heures" class="panel"></div>
+    <div id="panel-settings" class="panel"></div>
+  </div>
+</div>
+
+<!-- ═══════════ MODALS (root, rendered by JS) ═══════════ -->
+<div id="modal-root"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ════════════════════════════════════════════════════════════
+// RDZ PLANNING — app front-end vanilla JS
+// ════════════════════════════════════════════════════════════
+
+// ── CONFIG ──────────────────────────────────────────────────
+const SUPA_URL = 'https://trdhtlcenmjlcvzuplid.supabase.co';
+const SUPA_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
+const API_URL = SUPA_URL + '/functions/v1/rdz-planning-api';
+const SK = 'rdz_planning_session';
+const DEMO_NAMES = ['Marc Dubois','Sofia Martins','Thomas Bernard','Alexandre Morel','Julie Favre','Nicolas Perrin'];
+
+let currentToken = null, currentSession = null;
+let STATE = null, ACTOR = null, RH_CONFIGURED = false;
+let UI = { tab: 'overview', simulate: '' };
+let modalStack = [];
+
+// ── UTILS ───────────────────────────────────────────────────
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function uuid(){ return crypto.randomUUID(); }
+function todayISO(){ return new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Zurich'}); }
+function fmtDate(d){ if(!d) return '—'; try{ return new Date(d+'T12:00:00Z').toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch(e){ return d; } }
+function fmtHours(mins){ if(!Number.isFinite(mins)) return '—'; const h=Math.floor(Math.abs(mins)/60), m=Math.round(Math.abs(mins)%60); return (mins<0?'-':'')+h+'h'+String(m).padStart(2,'0'); }
+function normalizeName(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,''); }
+
+// Agents are stored with a single free-text "name" field (usually "Prénom Nom" when it
+// comes from the RH sync). We split heuristically: last word = nom, everything before = prénom.
+function splitName(name){
+  const parts = String(name||'').trim().split(/\s+/);
+  if(parts.length<2) return { prenom:'', nom: parts[0]||'' };
+  const nom = parts[parts.length-1];
+  const prenom = parts.slice(0,-1).join(' ');
+  return { prenom, nom };
+}
+function displayNomPrenom(name){ const {prenom,nom}=splitName(name); return prenom? (nom+' '+prenom) : nom; }
+function sortKeyNom(name){ return normalizeName(splitName(name).nom); }
+function sortAgentsByNom(list){ return [...list].sort((a,b)=> sortKeyNom(a.name).localeCompare(sortKeyNom(b.name)) || normalizeName(a.name).localeCompare(normalizeName(b.name))); }
+function sortSitesByName(list){ return [...list].sort((a,b)=> a.name.localeCompare(b.name,'fr')); }
+function isDemoAgent(a){ return !a.rhAgentId && a.source!=='supabase-rh' && /^a[0-9]$/.test(a.id) && DEMO_NAMES.includes(a.name); }
+function isDemoShift(s){ return /^(s\d|open\d|past\d)/.test(s.id||''); }
+
+function agentById(id){ return (STATE?.agents||[]).find(a=>a.id===id); }
+function siteById(id){ return (STATE?.sites||[]).find(s=>s.id===id); }
+function clientById(id){ return (STATE?.clients||[]).find(c=>c.id===id); }
+function agentLabel(id){ const a=agentById(id); return a? displayNomPrenom(a.name) : (id? 'Agent introuvable' : 'À affecter'); }
+function siteLabel(id){ const s=siteById(id); return s? s.name : id; }
+
+// Contract-based weekly/annual objectives. Falls back to manually stored weekly/annual
+// when there is no monthly contract value (locally-created agents without RH sync).
+function computeObjectives(agent){
+  const monthly = agent.monthly;
+  if(Number.isFinite(monthly) && monthly>0){
+    const annual = Math.round(monthly*12);
+    const weekly = Math.round((annual/52)*10)/10;
+    return { weekly, annual, source:'contrat' };
+  }
+  return { weekly: agent.weekly||0, annual: agent.annual||0, source:'manuel' };
+}
+
+function toast(msg, isError){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (isError?' error':'');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>{ t.className='toast'; }, 3800);
+}
+
+function setSyncState(state, label){
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  const cfg = { ok:'#16a34a', saving:'#d97706', error:'#dc2626', idle:'#9ca3af' };
+  if(dot) dot.style.background = cfg[state]||cfg.idle;
+  if(lbl && label!=null) lbl.textContent = label;
+}
+
+// ── AUTH ────────────────────────────────────────────────────
+function getSession(){ try{ return JSON.parse(localStorage.getItem(SK)||'null'); }catch(e){ return null; } }
+function sessionOk(s){ return s && s.token && s.expires_at > Math.floor(Date.now()/1000)+30; }
+
+function doLogin(){
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const btn = document.getElementById('login-btn');
+  const err = document.getElementById('login-err');
+  err.style.display='none';
+  if(!email||!pass){ err.textContent='Remplissez tous les champs.'; err.style.display='block'; return; }
+  btn.textContent='Connexion…'; btn.disabled=true;
+  fetch(SUPA_URL+'/auth/v1/token?grant_type=password',{
+    method:'POST', headers:{'Content-Type':'application/json','apikey':SUPA_ANON},
+    body:JSON.stringify({email,password:pass})
+  }).then(r=>r.json()).then(auth=>{
+    if(!auth.access_token) throw new Error('E-mail ou mot de passe incorrect.');
+    const session = { token:auth.access_token, refresh:auth.refresh_token, expires_at:auth.expires_at, user_id:auth.user.id, email:auth.user.email };
+    localStorage.setItem(SK, JSON.stringify(session));
+    applySession(session);
+  }).catch(e=>{
+    err.textContent = e.message || 'Erreur réseau.';
+    err.style.display='block';
+    btn.textContent='Se connecter'; btn.disabled=false;
+  });
+}
+
+function applySession(session){
+  currentToken = session.token; currentSession = session;
+  document.getElementById('login-screen').style.display='none';
+  document.getElementById('app').style.display='flex';
+  fetchState();
+}
+
+function doLogout(){
+  const s = getSession();
+  localStorage.removeItem(SK);
+  currentToken=null; currentSession=null; STATE=null; ACTOR=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('login-screen').style.display='flex';
+  const btn=document.getElementById('login-btn'); if(btn){ btn.disabled=false; btn.textContent='Se connecter'; }
+  if(s && s.token) fetch(SUPA_URL+'/auth/v1/logout',{method:'POST',headers:{apikey:SUPA_ANON,Authorization:'Bearer '+s.token}}).catch(()=>{});
+}
+
+function toggleUserMenu(){
+  if(document.getElementById('user-menu-modal')){ closeModal(); return; }
+  const isOwner = ACTOR && ACTOR.owner;
+  const simOpts = isOwner ? sortAgentsByNom((STATE?.agents||[]).filter(a=>!a.deletedAt))
+    .map(a=>`<option value="${a.id}" ${UI.simulate===a.id?'selected':''}>${esc(displayNomPrenom(a.name))}</option>`).join('') : '';
+  openModal('user-menu-modal', 'Mon compte', `
+    <div class="fg"><div class="flabel">Connecté</div><div>${esc(currentSession?.email||'')}</div></div>
+    <div class="fg"><div class="flabel">Rôle</div><div>${esc(ACTOR?.role||'')}${ACTOR?.simulation?' (simulation : '+esc(ACTOR.simulation)+')':''}</div></div>
+    ${isOwner? `<div class="sep"></div><div class="fg"><div class="flabel">Prévisualiser en tant qu'agent</div>
+      <select class="fsel" id="simulate-select" onchange="setSimulate(this.value)"><option value="">— Vue direction —</option>${simOpts}</select></div>` : ''}
+  `, `<button class="btn btn-danger" onclick="doLogout()">Se déconnecter</button><button class="btn btn-ghost" onclick="closeModal()">Fermer</button>`);
+}
+function setSimulate(id){ UI.simulate = id||''; closeModal(); fetchState(); }
+
+// ── API ─────────────────────────────────────────────────────
+async function apiGet(){
+  setSyncState('saving','Chargement…');
+  try{
+    const url = API_URL + (UI.simulate? '?simulate='+encodeURIComponent(UI.simulate) : '');
+    const r = await fetch(url, { headers:{ apikey:SUPA_ANON, Authorization:'Bearer '+currentToken } });
+    const data = await r.json();
+    if(!r.ok) throw new Error(data.error||'Chargement impossible');
+    STATE = data.state; ACTOR = data.actor; RH_CONFIGURED = data.rhConfigured===true;
+    setSyncState('ok', 'Sync '+new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'}));
+    renderNav(); renderCurrentPanel();
+    return true;
+  }catch(e){
+    setSyncState('error','Hors ligne');
+    toast(e.message||'Connexion impossible', true);
+    return false;
+  }
+}
+function fetchState(){ return apiGet(); }
+
+async function apiAction(action, params){
+  if(!STATE){ toast('Chargement en cours, réessayez.', true); return false; }
+  setSyncState('saving','Enregistrement…');
+  try{
+    const r = await fetch(API_URL, {
+      method:'POST',
+      headers:{ apikey:SUPA_ANON, Authorization:'Bearer '+currentToken, 'content-type':'application/json' },
+      body: JSON.stringify({ action, ...params, revision: STATE.revision, simulate: UI.simulate||undefined })
+    });
+    const data = await r.json();
+    if(!r.ok){
+      if(r.status===409){
+        toast('Les données ont changé, actualisation…', true);
+        await apiGet();
+      } else {
+        toast(data.error||'Action impossible', true);
+      }
+      setSyncState('ok','Connecté');
+      return false;
+    }
+    STATE = data.state; ACTOR = data.actor;
+    setSyncState('ok','Enregistré · '+new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'}));
+    renderCurrentPanel();
+    return true;
+  }catch(e){
+    setSyncState('error','Hors ligne');
+    toast('Connexion indisponible. Rien n’a été enregistré.', true);
+    return false;
+  }
+}
+
+// ── NAV & MODALS ────────────────────────────────────────────
+const TABS = [
+  {id:'overview', label:'Vue d’ensemble'},
+  {id:'planning', label:'Planning'},
+  {id:'agents', label:'Agents'},
+  {id:'sites', label:'Clients & Sites'},
+  {id:'heures', label:'Heures & présences'},
+  {id:'settings', label:'Réglages'}
+];
+function renderNav(){
+  const nav = document.getElementById('topbar-nav');
+  const visible = TABS.filter(t => (ACTOR?.role==='direction'||ACTOR?.role==='planning') ? true : ['overview','planning','heures'].includes(t.id));
+  nav.innerHTML = visible.map(t=>`<button class="tnav-btn ${UI.tab===t.id?'active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('');
+}
+function switchTab(id){ UI.tab = id; renderNav(); renderCurrentPanel(); }
+function renderCurrentPanel(){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  const map = { overview:'panel-overview', planning:'panel-planning', agents:'panel-agents', sites:'panel-sites', heures:'panel-heures', settings:'panel-settings' };
+  const el = document.getElementById(map[UI.tab]||'panel-overview');
+  el.classList.add('active');
+  if(!STATE) { el.innerHTML = '<div class="empty">Chargement…</div>'; return; }
+  if(UI.tab==='overview') renderOverview(el);
+  else if(UI.tab==='planning') renderPlanning(el);
+  else if(UI.tab==='agents') renderAgents(el);
+  else if(UI.tab==='sites') renderSites(el);
+  else if(UI.tab==='heures') renderHeures(el);
+  else if(UI.tab==='settings') renderSettings(el);
+}
+
+function openModal(id, title, bodyHtml, actionsHtml){
+  const root = document.getElementById('modal-root');
+  root.innerHTML = `<div class="modal-overlay open" id="${id}-overlay" onmousedown="if(event.target===this)closeModal()">
+    <div class="modal" id="${id}">
+      <div class="modal-head"><div class="modal-title">${esc(title)}</div><button class="modal-close" onclick="closeModal()">✕</button></div>
+      <div class="modal-body"><div class="modal-err" id="modal-err"></div>${bodyHtml}</div>
+      ${actionsHtml? `<div class="modal-actions">${actionsHtml}</div>` : ''}
+    </div>
+  </div>`;
+}
+function closeModal(){ document.getElementById('modal-root').innerHTML=''; }
+function modalError(msg){ const e=document.getElementById('modal-err'); if(e){ e.textContent=msg; e.style.display='block'; } }
+function modalVal(id){ const el=document.getElementById(id); return el? el.value : ''; }
+
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+// ── VUE D'ENSEMBLE ──────────────────────────────────────────
+function renderOverview(el){
+  const today = todayISO();
+  const shifts = STATE.shifts;
+  const plannedToday = new Set(shifts.filter(s=>s.date===today && s.agent).map(s=>s.agent)).size;
+  const validated = shifts.filter(s=>['Validée','Contrôlée'].includes(s.status)).length;
+  const toValidate = shifts.filter(s=>['Publiée','Vue'].includes(s.status)).length;
+  const openPosts = shifts.filter(s=>!s.agent && s.date>=today).length;
+  const toControl = shifts.filter(s=>s.status==='Effectuée').length;
+  const pendingAbsences = (STATE.absences||[]).filter(a=>a.status==='Demandée').length;
+
+  const kpis = [
+    {label:'Agents planifiés', val:plannedToday, sub:'Aujourd’hui', cls:'neutral', tab:'planning'},
+    {label:'Plannings validés', val:validated, sub:'Tous les services', cls:'green', tab:'planning'},
+    {label:'À valider par les agents', val:toValidate, sub:'En attente des agents', cls:'blue', tab:'planning'},
+    {label:'Postes non couverts', val:openPosts, sub:'Affectation nécessaire', cls:'red', tab:'planning'},
+    {label:'Écarts à contrôler', val:toControl, sub:'Heures déclarées, en attente de contrôle RDZ', cls:'orange', tab:'heures'},
+    {label:'Demandes de congé', val:pendingAbsences, sub:'En attente de décision', cls:'blue', tab:'heures'}
+  ];
+  el.innerHTML = `
+    <div class="ph"><div><div class="ph-title">Vue d’ensemble</div><div class="ph-sub">${esc(fmtDate(today))}</div></div></div>
+    <div class="kpi-grid">${kpis.map(k=>`
+      <div class="kpi ${k.cls}" onclick="switchTab('${k.tab}')" title="${esc(k.sub)}">
+        <div class="kpi-val">${k.val}</div>
+        <div class="kpi-label">${esc(k.label)}</div>
+        <div class="kpi-sub">${esc(k.sub)}</div>
+      </div>`).join('')}
+    </div>
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:8px;">À propos de la carte « Écarts à contrôler »</div>
+      <div style="font-size:12.5px;color:var(--text2);line-height:1.6;">
+        Cette carte ne compare pas les heures planifiées et le contrat mensuel d’un agent. Elle compte les
+        <strong>services dont l’agent a déclaré ses heures réelles</strong> (statut « Effectuée ») et qui attendent
+        encore un contrôle RDZ avant d’être classés « Contrôlée ». Un écart contrat/planning se lit plutôt dans
+        la fiche de chaque agent (onglet Agents), où l’objectif mensuel/hebdomadaire est comparé aux heures
+        déjà planifiées.
+      </div>
+    </div>
+    ${renderDemoBanner()}
+  `;
+}
+
+function renderDemoBanner(){
+  const demoAgents = (STATE.agents||[]).filter(isDemoAgent);
+  if(!demoAgents.length) return '';
+  return `<div class="card" style="margin-top:14px;border-color:#fde68a;background:#fffbeb;">
+    <div style="font-weight:700;margin-bottom:6px;">⚠ Données de démonstration détectées</div>
+    <div style="font-size:12.5px;color:var(--text2);line-height:1.6;margin-bottom:10px;">
+      Ce planning a été initialisé avec un jeu d’exemple. Les agents suivants sont fictifs et peuvent avoir
+      reçu des services ou des congés par erreur si vous les avez sélectionnés dans une liste avant que la
+      synchro RH ne soit active&nbsp;: <strong>${esc(demoAgents.map(a=>a.name).join(', '))}</strong>.
+    </div>
+    <button class="btn btn-sm btn-ghost" onclick="switchTab('agents')">Aller à la vue Agents pour les supprimer</button>
+  </div>`;
+}
+
+// ── AGENTS ──────────────────────────────────────────────────
+let AG_FILTER = { search:'', showDeleted:false };
+function renderAgents(el){
+  const canManage = ACTOR.role==='direction'||ACTOR.role==='planning';
+  let list = STATE.agents.filter(a => AG_FILTER.showDeleted? !!a.deletedAt : !a.deletedAt);
+  if(AG_FILTER.search) list = list.filter(a=> normalizeName(a.name).includes(normalizeName(AG_FILTER.search)));
+  list = sortAgentsByNom(list);
+
+  el.innerHTML = `
+    <div class="ph">
+      <div><div class="ph-title">Agents</div><div class="ph-sub">${list.length} agent${list.length>1?'s':''}</div></div>
+      <div class="ph-right">
+        ${canManage? `<button class="btn btn-primary btn-sm" onclick="openAgentModal()">+ Nouvel agent</button>` : ''}
+        ${canManage? `<button class="btn btn-ghost btn-sm" onclick="openRhSyncModal()">⟲ Synchroniser RH</button>` : ''}
+      </div>
+    </div>
+    <div class="sbar">
+      <div class="sw"><span class="sw-icon">🔍</span><input class="inp" placeholder="Rechercher un agent…" value="${esc(AG_FILTER.search)}" oninput="AG_FILTER.search=this.value;renderCurrentPanel()"></div>
+      ${canManage? `<label class="checkline"><input type="checkbox" ${AG_FILTER.showDeleted?'checked':''} onchange="AG_FILTER.showDeleted=this.checked;renderCurrentPanel()"> Voir les agents supprimés</label>` : ''}
+    </div>
+    <div class="agents-grid">
+      ${list.length? list.map(a=>renderAgentCard(a, canManage)).join('') : '<div class="empty">Aucun agent</div>'}
+    </div>
+  `;
+}
+
+function renderAgentCard(a, canManage){
+  const obj = computeObjectives(a);
+  const demo = isDemoAgent(a);
+  const passport = a.competencePassport||[];
+  const certCount = passport.filter(p=>p.status==='certifie').length;
+  const quiz = (a.quizResults||[])[0];
+  return `<div class="agent-card" onclick="openAgentModal('${a.id}')">
+    <div class="ac-name">${esc(displayNomPrenom(a.name))} ${demo?'<span class="badge demo-badge">Démo</span>':''} ${a.deletedAt?'<span class="badge badge-red">Supprimé</span>':''}</div>
+    <div class="ac-meta">${a.rhContract?.type? esc(a.rhContract.type)+' · ':''}${Number.isFinite(a.monthly)? a.monthly+'h/mois' : (a.weekly? a.weekly+'h/sem (manuel)':'Contrat à renseigner')}</div>
+    <div class="ac-row"><span>Obj. semaine</span><strong>${obj.weekly? obj.weekly+'h':'—'}</strong></div>
+    <div class="ac-row"><span>Obj. annuel</span><strong>${obj.annual? obj.annual+'h':'—'}</strong></div>
+    ${passport.length? `<div class="ac-passport">${passport.map(p=>`<span class="badge ${p.status==='certifie'?'badge-green':p.status==='en_cours'?'badge-orange':'badge-red'}">${esc(siteLabel(p.site))}</span>`).join('')}</div>` : `<div class="ac-passport"><span class="badge badge-grey">Passeport : aucune évaluation</span></div>`}
+    <div class="ac-passport">${quiz? `<span class="badge badge-blue">${esc(quiz.title)} · ${quiz.score!=null?quiz.score+'%':'en attente'}</span>` : '<span class="badge badge-grey">Aucun quiz</span>'}</div>
+  </div>`;
+}
+
+function openAgentModal(id){
+  const a = id? agentById(id) : null;
+  const canManage = ACTOR.role==='direction'||ACTOR.role==='planning';
+  const obj = a? computeObjectives(a) : {weekly:0,annual:0};
+  const isRh = a && a.source==='supabase-rh';
+  const sitesOpts = sortSitesByName(STATE.sites.filter(s=>!s.archived)).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  const passport = a? (a.competencePassport||[]) : [];
+  const quizzes = a? (a.quizResults||[]) : [];
+  const body = `
+    <div class="fgrid">
+      <div class="fg full"><div class="flabel">Nom complet *</div><input class="finp" id="af-name" value="${a?esc(a.name):''}" ${isRh?'readonly title="Géré par la synchro RH"':''}></div>
+      <div class="fg"><div class="flabel">E-mail</div><input class="finp" id="af-email" value="${a?esc(a.email||''):''}"></div>
+      <div class="fg"><div class="flabel">Disponible</div>
+        <select class="fsel" id="af-available"><option value="1" ${!a||a.available?'selected':''}>Oui</option><option value="0" ${a&&!a.available?'selected':''}>Non</option></select></div>
+      ${isRh? `
+      <div class="fg full"><div class="flabel">Contrat (synchronisé RH)</div>
+        <div style="font-size:12.5px;color:var(--text2);">${esc(a.rhContract?.type||'—')} · ${a.monthly||0} h/mois · Objectif semaine ${obj.weekly}h · Objectif annuel ${obj.annual}h</div></div>
+      ` : `
+      <div class="fg"><div class="flabel">Objectif hebdomadaire (h) *</div><input class="finp" type="number" id="af-weekly" value="${a?a.weekly:''}"></div>
+      <div class="fg"><div class="flabel">Objectif annuel (h) *</div><input class="finp" type="number" id="af-annual" value="${a?a.annual:''}"></div>
+      `}
+      <div class="fg full"><div class="flabel">Site principal</div><select class="fsel" id="af-primary"><option value="">—</option>${sitesOpts}</select></div>
+    </div>
+    <details style="margin-top:12px;">
+      <summary style="cursor:pointer;font-size:12px;color:var(--text3);">Paramètres avancés (équipe, qualifications, documents, sites de formation)</summary>
+      <div class="fgrid" style="margin-top:10px;">
+        <div class="fg"><div class="flabel">Équipe</div><input class="finp" id="af-team" value="${a?esc(a.team||''):''}"></div>
+        <div class="fg"><div class="flabel">Qualifications (séparées par virgule)</div><input class="finp" id="af-quali" value="${a?esc((a.qualifications||[]).join(', ')):''}"></div>
+        <div class="fg"><div class="flabel">Document valable jusqu’au</div><input class="finp" type="date" id="af-docs" value="${a?a.documentsUntil||'':''}"></div>
+        <div class="fg"><div class="flabel">Autorisation valable jusqu’au</div><input class="finp" type="date" id="af-auth" value="${a?a.authorizationUntil||'':''}"></div>
+        <div class="fg full"><div class="flabel">Sites où la formation est validée</div>
+          <select class="fsel" id="af-sites" multiple size="4">${sortSitesByName(STATE.sites.filter(s=>!s.archived)).map(s=>`<option value="${s.id}" ${a&&(a.sites||[]).includes(s.id)?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div>
+      </div>
+    </details>
+    ${a? `<div class="sep"></div>
+      <div class="flabel">Passeport compétence (synchronisé)</div>
+      <div style="margin-bottom:8px;">${passport.length? passport.map(p=>`<span class="badge ${p.status==='certifie'?'badge-green':p.status==='en_cours'?'badge-orange':'badge-red'}" style="margin:2px;">${esc(siteLabel(p.site))} · ${p.status.replace('_',' ')}</span>`).join('') : '<span class="hint">Aucune évaluation compétence synchronisée.</span>'}</div>
+      <div class="flabel">Derniers résultats de quiz (synchronisés)</div>
+      <div>${quizzes.length? quizzes.map(q=>`<span class="badge badge-blue" style="margin:2px;">${esc(q.title)} · ${q.score!=null?q.score+'%':'en attente'}</span>`).join('') : '<span class="hint">Aucun quiz synchronisé.</span>'}</div>
+    ` : ''}
+  `;
+  const actions = `
+    ${a && canManage && !a.deletedAt? `<button class="btn btn-danger btn-sm" onclick="deleteAgent('${a.id}')">🗑 Supprimer</button>` : ''}
+    ${a && canManage && a.deletedAt? `<button class="btn btn-ghost btn-sm" onclick="restoreAgent('${a.id}')">↺ Restaurer</button>` : ''}
+    <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+    ${canManage? `<button class="btn btn-primary" onclick="saveAgentForm('${a?a.id:''}')">Enregistrer</button>` : ''}
+  `;
+  openModal('agent-modal', a? 'Fiche agent' : 'Nouvel agent', body, actions);
+  if(a && a.primarySite) setTimeout(()=>{ const el=document.getElementById('af-primary'); if(el) el.value=a.primarySite; },0);
+}
+
+async function saveAgentForm(id){
+  const a = id? agentById(id) : null;
+  const name = modalVal('af-name').trim();
+  if(!name){ modalError('Le nom est obligatoire.'); return; }
+  const isRh = a && a.source==='supabase-rh';
+  const values = {
+    name, email: modalVal('af-email'), available: modalVal('af-available')==='1',
+    team: modalVal('af-team')||'À définir',
+    qualifications: modalVal('af-quali'),
+    documentsUntil: modalVal('af-docs')||(a?a.documentsUntil:''),
+    authorizationUntil: modalVal('af-auth')||(a?a.authorizationUntil:''),
+    primarySite: modalVal('af-primary'),
+    sites: Array.from(document.getElementById('af-sites')?.selectedOptions||[]).map(o=>o.value)
+  };
+  if(isRh){
+    const obj = computeObjectives(a);
+    values.weekly = obj.weekly; values.annual = obj.annual; values.monthly = a.monthly;
+  } else {
+    const weekly = Number(modalVal('af-weekly')), annual = Number(modalVal('af-annual'));
+    if(!(weekly>0 && weekly<=80) || !(annual>0)){ modalError('Renseignez des objectifs hebdomadaire/annuel valides.'); return; }
+    values.weekly = weekly; values.annual = annual;
+  }
+  const ok = await apiAction('saveAgent', { id: id||undefined, values });
+  if(ok){ closeModal(); toast('Fiche agent enregistrée'); }
+}
+async function deleteAgent(id){
+  if(!confirm('Supprimer cet agent du planning ?')) return;
+  const ok = await apiAction('deleteAgent', { id, confirm:true });
+  if(ok){ closeModal(); toast('Agent supprimé'); }
+}
+async function restoreAgent(id){
+  const ok = await apiAction('restoreAgent', { id });
+  if(ok){ closeModal(); toast('Agent restauré'); }
+}
+
+function openRhSyncModal(){
+  openModal('rhsync-modal', 'Synchronisation RH', `
+    <div style="font-size:12.5px;color:var(--text2);line-height:1.6;">
+      Récupère depuis RH_RDZ le nom, prénom, contrat (heures/mois) de chaque agent actif, ainsi que le
+      passeport compétence (Competence_Validation_RDZ) et le dernier résultat de quiz par questionnaire
+      (Quiz_Agent_RDZ). Aucune donnée de site, congé ou qualification locale n’est effacée.
+    </div>
+    ${!RH_CONFIGURED? `<div class="hint" style="margin-top:10px;color:#b45309;">Connexion RH non configurée côté serveur (SUPABASE_URL / SERVICE_ROLE_KEY / unité de contrat).</div>` : ''}
+  `, `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" ${RH_CONFIGURED?'':'disabled'} onclick="runRhSync()">Synchroniser</button>`);
+}
+async function runRhSync(){
+  const ok = await apiAction('syncRH', {});
+  if(ok){ closeModal(); const rh=STATE.rhSync; toast(rh? `Synchro RH : ${rh.added} ajouté(s), ${rh.updated} mis à jour, ${rh.conflicts.length} à vérifier` : 'Synchronisation effectuée'); }
+}
+
+// ── CLIENTS & SITES ─────────────────────────────────────────
+let SITE_FILTER = { search:'', showArchived:false };
+function renderSites(el){
+  const canManage = ACTOR.role==='direction'||ACTOR.role==='planning';
+  let list = STATE.sites.filter(s => SITE_FILTER.showArchived? !!s.archived : !s.archived);
+  if(SITE_FILTER.search) list = list.filter(s=> normalizeName(s.name).includes(normalizeName(SITE_FILTER.search)));
+  list = sortSitesByName(list);
+  const clients = sortSitesByName((STATE.clients||[]).filter(c=>!c.archived));
+
+  el.innerHTML = `
+    <div class="ph">
+      <div><div class="ph-title">Clients &amp; Sites</div><div class="ph-sub">${list.length} site${list.length>1?'s':''} · ${clients.length} client${clients.length>1?'s':''}</div></div>
+      <div class="ph-right">
+        ${canManage? `<button class="btn btn-ghost btn-sm" onclick="openClientModal()">+ Client</button>` : ''}
+        ${canManage? `<button class="btn btn-primary btn-sm" onclick="openSiteModal()">+ Nouveau site</button>` : ''}
+      </div>
+    </div>
+    <div class="sbar">
+      <div class="sw"><span class="sw-icon">🔍</span><input class="inp" placeholder="Rechercher un site…" value="${esc(SITE_FILTER.search)}" oninput="SITE_FILTER.search=this.value;renderCurrentPanel()"></div>
+      ${canManage? `<label class="checkline"><input type="checkbox" ${SITE_FILTER.showArchived?'checked':''} onchange="SITE_FILTER.showArchived=this.checked;renderCurrentPanel()"> Voir les sites supprimés</label>` : ''}
+    </div>
+    <div class="sites-grid">
+      ${list.length? list.map(s=>renderSiteCard(s)).join('') : '<div class="empty">Aucun site</div>'}
+    </div>
+    ${canManage? `<div class="sep"></div><div class="ph-sub" style="margin-bottom:8px;">Clients</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;">${clients.map(c=>`<span class="badge badge-grey" style="cursor:pointer;" onclick="openClientModal('${c.id}')">${esc(c.name)}</span>`).join('') || '<span class="hint">Aucun client</span>'}</div>` : ''}
+  `;
+}
+function renderSiteCard(s){
+  const client = s.clientId? clientById(s.clientId) : null;
+  return `<div class="site-card" onclick="openSiteModal('${s.id}')">
+    <div class="sc-name">${esc(s.name)} ${s.temporary?'<span class="badge badge-grey">Mission</span>':''} ${s.archived?'<span class="badge badge-red">Supprimé</span>':''}</div>
+    <div class="sc-meta">${client? esc(client.name) : (s.client? esc(s.client) : 'Sans client')}</div>
+    <div class="sc-meta">${(s.posts||[]).length} poste${(s.posts||[]).length>1?'s':''}</div>
+  </div>`;
+}
+
+function openClientModal(id){
+  const c = id? clientById(id) : null;
+  const canManage = ACTOR.role==='direction'||ACTOR.role==='planning';
+  openModal('client-modal', c? 'Client' : 'Nouveau client', `
+    <div class="fg"><div class="flabel">Nom *</div><input class="finp" id="cf-name" value="${c?esc(c.name):''}"></div>
+  `, `${c&&canManage&&!c.archived?`<button class="btn btn-danger btn-sm" onclick="deleteClient('${c.id}')">🗑 Supprimer</button>`:''}${c&&canManage&&c.archived?`<button class="btn btn-ghost btn-sm" onclick="restoreClient('${c.id}')">↺ Restaurer</button>`:''}<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveClientForm('${c?c.id:''}')">Enregistrer</button>`);
+}
+async function saveClientForm(id){
+  const name = modalVal('cf-name').trim();
+  if(!name){ modalError('Le nom est obligatoire.'); return; }
+  const ok = await apiAction('saveClient', { id: id||undefined, values:{ name } });
+  if(ok){ closeModal(); toast('Client enregistré'); }
+}
+async function deleteClient(id){ if(!confirm('Supprimer ce client ?'))return; const ok=await apiAction('deleteClient',{id,confirm:true}); if(ok){closeModal();toast('Client supprimé');} }
+async function restoreClient(id){ const ok=await apiAction('restoreClient',{id}); if(ok){closeModal();toast('Client restauré');} }
+
+function openSiteModal(id){
+  const s = id? siteById(id) : null;
+  const canManage = ACTOR.role==='direction'||ACTOR.role==='planning';
+  const clients = sortSitesByName((STATE.clients||[]).filter(c=>!c.archived));
+  const posts = s? (s.posts||[]) : [{name:'',qualification:''}];
+  const body = `
+    <div class="fgrid">
+      <div class="fg full"><div class="flabel">Nom du site *</div><input class="finp" id="sf-name" value="${s?esc(s.name):''}"></div>
+      <div class="fg full"><div class="flabel">Client</div><select class="fsel" id="sf-client"><option value="">— Sans client —</option>${clients.map(c=>`<option value="${c.id}" ${s&&s.clientId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+      <div class="fg full"><div class="flabel">Adresse</div><input class="finp" id="sf-address" value="${s?esc(s.address||''):''}"></div>
+    </div>
+    <div class="hint" style="margin:8px 0;">Le suivi des heures est toujours déclaratif sur ce site (pas de pointage GPS).</div>
+    <div class="flabel">Postes</div>
+    <div id="sf-posts">${posts.map((p,i)=>renderPostRow(p,i,!!s)).join('')}</div>
+    ${!s? `<button type="button" class="btn btn-ghost btn-sm" onclick="addPostRow()">+ Ajouter un poste</button>` : '<div class="hint">Pour ajouter d’autres postes à un site existant, modifiez-le puis enregistrez.</div>'}
+  `;
+  openModal('site-modal', s? 'Site' : 'Nouveau site', body, `
+    ${s&&canManage&&!s.archived?`<button class="btn btn-danger btn-sm" onclick="deleteSite('${s.id}')">🗑 Supprimer</button>`:''}
+    ${s&&canManage&&s.archived?`<button class="btn btn-ghost btn-sm" onclick="restoreSite('${s.id}')">↺ Restaurer</button>`:''}
+    <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+    <button class="btn btn-primary" onclick="saveSiteForm('${s?s.id:''}')">Enregistrer</button>
+  `);
+}
+function renderPostRow(p,i,locked){
+  return `<div class="fgrid" style="margin-bottom:6px;" data-post-row="${i}">
+    <div class="fg"><input class="finp" placeholder="Nom du poste" value="${esc(p.name||'')}" data-post-name ${locked&&i>0?'':''}></div>
+    <div class="fg"><input class="finp" placeholder="Qualification requise" value="${esc(p.qualification||'')}" data-post-qual></div>
+  </div>`;
+}
+function addPostRow(){
+  const wrap = document.getElementById('sf-posts');
+  const i = wrap.children.length;
+  wrap.insertAdjacentHTML('beforeend', renderPostRow({name:'',qualification:''}, i, false));
+}
+async function saveSiteForm(id){
+  const name = modalVal('sf-name').trim();
+  if(!name){ modalError('Le nom du site est obligatoire.'); return; }
+  const rows = Array.from(document.querySelectorAll('#sf-posts [data-post-row]'));
+  const posts = rows.map(r=>({ name: r.querySelector('[data-post-name]').value.trim(), qualification: r.querySelector('[data-post-qual]').value.trim() })).filter(p=>p.name);
+  const values = { name, clientId: modalVal('sf-client'), address: modalVal('sf-address'), mode:'Déclaration', posts: posts.length? posts : undefined };
+  const ok = await apiAction('saveSite', { id: id||undefined, values });
+  if(ok){ closeModal(); toast('Site enregistré'); }
+}
+async function deleteSite(id){ if(!confirm('Supprimer ce site ?'))return; const ok=await apiAction('deleteSite',{id,confirm:true}); if(ok){closeModal();toast('Site supprimé');} }
+async function restoreSite(id){ const ok=await apiAction('restoreSite',{id}); if(ok){closeModal();toast('Site restauré');} }
+
+// ── PLANNING (grille site/poste × jours) ─────────────────────
+let PLAN_FILTER = { mode:'week', anchor:'', site:'' };
+const WEEKDAY_SHORT = ['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'];
+function mondayOf(dateStr){
+  const d = new Date(dateStr+'T12:00:00Z');
+  const shift = (d.getUTCDay()+6)%7;
+  d.setUTCDate(d.getUTCDate()-shift);
+  return d.toISOString().slice(0,10);
+}
+function addDays(dateStr, n){ const d=new Date(dateStr+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
+function planInitRange(){
+  if(!PLAN_FILTER.anchor) PLAN_FILTER.anchor = PLAN_FILTER.mode==='month' ? todayISO().slice(0,7)+'-01' : mondayOf(todayISO());
+}
+function planDays(){
+  if(PLAN_FILTER.mode==='month'){
+    const [y,m] = PLAN_FILTER.anchor.split('-').map(Number);
+    const nbDays = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    return Array.from({length:nbDays}, (_,i)=> `${String(y)}-${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`);
+  }
+  return Array.from({length:7}, (_,i)=> addDays(PLAN_FILTER.anchor, i));
+}
+function planLabel(){
+  if(PLAN_FILTER.mode==='month'){
+    return new Date(PLAN_FILTER.anchor+'T12:00:00Z').toLocaleDateString('fr-CH',{month:'long',year:'numeric'});
+  }
+  const days = planDays();
+  return 'Semaine du '+fmtDate(days[0])+' au '+fmtDate(days[6]);
+}
+function planSetMode(mode){
+  const today = todayISO();
+  PLAN_FILTER.mode = mode;
+  PLAN_FILTER.anchor = mode==='month' ? today.slice(0,7)+'-01' : mondayOf(today);
+  renderCurrentPanel();
+}
+function planNav(dir){
+  if(PLAN_FILTER.mode==='month'){
+    const [y,m] = PLAN_FILTER.anchor.split('-').map(Number);
+    const nd = new Date(Date.UTC(y, m-1+dir, 1));
+    PLAN_FILTER.anchor = nd.toISOString().slice(0,10).slice(0,7)+'-01';
+  } else {
+    PLAN_FILTER.anchor = addDays(PLAN_FILTER.anchor, dir*7);
+  }
+  renderCurrentPanel();
+}
+function planToday(){
+  PLAN_FILTER.anchor = PLAN_FILTER.mode==='month' ? todayISO().slice(0,7)+'-01' : mondayOf(todayISO());
+  renderCurrentPanel();
+}
+function statusBadgeClass(status){
+  return { 'Planifiée':'badge-grey','Publiée':'badge-blue','Vue':'badge-blue','Validée':'badge-green','Effectuée':'badge-orange','Contrôlée':'badge-green' }[status]||'badge-grey';
+}
+const STATUS_CLASS = { 'Planifiée':'planifiee','Publiée':'publiee','Vue':'vue','Validée':'validee','Effectuée':'effectuee','Contrôlée':'controlee' };
+
+function planningRows(sites, days){
+  const rows = [];
+  sites.forEach(site=>{
+    const declared = (site.posts||[]).map(p=>p.name);
+    const usedInRange = STATE.shifts.filter(s=>s.site===site.id && days.includes(s.date)).map(s=>s.post);
+    const postNames = [...new Set([...declared, ...usedInRange])];
+    (postNames.length? postNames : ['—']).forEach(post=> rows.push({ siteId: site.id, siteName: site.name, post }));
+  });
+  return rows;
+}
+function renderPlanning(el){
+  planInitRange();
+  const canManage = ['direction','planning','site'].includes(ACTOR.role);
+  const days = planDays();
+  const today = todayISO();
+  const allSites = sortSitesByName(STATE.sites.filter(s=>!s.archived));
+  const activeSites = PLAN_FILTER.site ? allSites.filter(s=>s.id===PLAN_FILTER.site) : allSites;
+  const rows = planningRows(activeSites, days);
+
+  el.innerHTML = `
+    <div class="ph">
+      <div><div class="ph-title">Planning</div><div class="ph-sub">${esc(planLabel())}</div></div>
+      <div class="ph-right">${canManage? `<button class="btn btn-primary btn-sm" onclick="openShiftModal()">+ Nouveau service</button>` : ''}</div>
+    </div>
+    <div class="plan-toolbar">
+      <div style="display:flex;gap:0;border:1.5px solid var(--border2);border-radius:9px;overflow:hidden;">
+        <button class="btn btn-sm ${PLAN_FILTER.mode==='week'?'btn-primary':'btn-ghost'}" style="border-radius:0;" onclick="planSetMode('week')">Semaine</button>
+        <button class="btn btn-sm ${PLAN_FILTER.mode==='month'?'btn-primary':'btn-ghost'}" style="border-radius:0;" onclick="planSetMode('month')">Mois</button>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="planNav(-1)">‹</button>
+      <button class="btn btn-ghost btn-sm" onclick="planToday()">Aujourd’hui</button>
+      <button class="btn btn-ghost btn-sm" onclick="planNav(1)">›</button>
+      <select class="sel" onchange="PLAN_FILTER.site=this.value;renderCurrentPanel()"><option value="">Tous les sites</option>${allSites.map(s=>`<option value="${s.id}" ${PLAN_FILTER.site===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select>
+    </div>
+    <div class="calendar-scroll">
+      <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr));">
+        <div class="cell corner">Postes / Services</div>
+        ${days.map(d=>`<div class="cell day-header ${d===today?'is-today':''}">${WEEKDAY_SHORT[(new Date(d+'T12:00:00Z').getUTCDay()+6)%7]}<br>${Number(d.slice(8,10))}</div>`).join('')}
+        ${rows.length? rows.map(r=>`
+          <div class="cell row-label">${esc(r.siteName)}<br><span style="color:var(--text3);font-weight:400;">${esc(r.post)}</span></div>
+          ${days.map(d=>renderPlanningCell(r,d,today,canManage)).join('')}
+        `).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun poste configuré${PLAN_FILTER.site?' pour ce site':''}.</div>`}
+      </div>
+    </div>
+  `;
+}
+function renderPlanningCell(row, date, today, canManage){
+  const shifts = STATE.shifts.filter(s=>s.site===row.siteId && s.post===row.post && s.date===date).sort((a,b)=>a.start.localeCompare(b.start));
+  const chips = shifts.map(s=>`
+    <div class="shift-chip status-${STATUS_CLASS[s.status]||'planifiee'} ${!s.agent?'no-agent':''}" onclick="event.stopPropagation();openShiftModal('${s.id}')">
+      <div class="sc-time">${s.start}–${s.end}</div>
+      <div class="sc-agent">${s.agent? esc(agentLabel(s.agent)) : 'À affecter'}</div>
+    </div>`).join('');
+  const jsStr = v => String(v).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const addBtn = canManage? `<div class="cell-add" onclick="openShiftModal(null,{site:'${jsStr(row.siteId)}',post:'${jsStr(row.post)}',date:'${date}'})" title="Ajouter un service">+</div>` : '';
+  return `<div class="cell shift-cell ${date===today?'is-today':''}">${chips}${addBtn}</div>`;
+}
+
+function openShiftModal(id, prefill){
+  const s = id? STATE.shifts.find(x=>x.id===id) : null;
+  const canManage = ACTOR.role==='direction'||ACTOR.role==='planning';
+  const sites = sortSitesByName(STATE.sites.filter(x=>!x.archived));
+  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
+  const preSiteId = s? s.site : (prefill?.site || sites[0]?.id);
+  const site = siteById(preSiteId);
+  const body = `
+    <div class="fgrid">
+      <div class="fg full"><div class="flabel">Site *</div><select class="fsel" id="sh-site" onchange="onShiftSiteChange()">${sites.map(x=>`<option value="${x.id}" ${preSiteId===x.id?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
+      <div class="fg full"><div class="flabel">Poste *</div><div id="sh-post-wrap">${renderPostSelect(site, s?s.post:(prefill?.post||''))}</div></div>
+      <div class="fg"><div class="flabel">Date *</div><input class="finp" type="date" id="sh-date" value="${s?s.date:(prefill?.date||todayISO())}"></div>
+      <div class="fg"><div class="flabel">Agent</div><select class="fsel" id="sh-agent"><option value="">— À affecter —</option>${agents.map(a=>`<option value="${a.id}" ${s&&s.agent===a.id?'selected':''}>${esc(displayNomPrenom(a.name))}</option>`).join('')}</select></div>
+      <div class="fg"><div class="flabel">Début *</div><input class="finp" type="time" id="sh-start" value="${s?s.start:'07:00'}"></div>
+      <div class="fg"><div class="flabel">Fin *</div><input class="finp" type="time" id="sh-end" value="${s?s.end:'15:00'}"></div>
+      ${s? `<div class="fg full"><div class="flabel">Motif de la modification *</div><input class="finp" id="sh-reason" placeholder="Ex. remplacement, correction d’horaire…"></div>` : ''}
+    </div>
+    ${s? `<div class="hint">Statut actuel : ${esc(s.status)}</div>` : ''}
+  `;
+  const actions = `
+    ${s&&canManage&&s.status==='Planifiée'? `<button class="btn btn-ghost btn-sm" onclick="publishShift('${s.id}')">Publier</button>` : ''}
+    <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+    ${canManage? `<button class="btn btn-primary" onclick="saveShiftForm('${s?s.id+"|"+s.version:''}')">Enregistrer</button>` : ''}
+  `;
+  openModal('shift-modal', s? 'Service' : 'Nouveau service', body, actions);
+}
+function renderPostSelect(site, current){
+  if(!site) return '<select class="fsel" id="sh-post"></select>';
+  if(site.temporary) return `<input class="finp" id="sh-post" placeholder="Intitulé de la mission" value="${esc(current||'')}">`;
+  return `<select class="fsel" id="sh-post">${(site.posts||[]).map(p=>`<option value="${esc(p.name)}" ${current===p.name?'selected':''}>${esc(p.name)}</option>`).join('')}</select>`;
+}
+function onShiftSiteChange(){
+  const site = siteById(modalVal('sh-site'));
+  document.getElementById('sh-post-wrap').innerHTML = renderPostSelect(site, '');
+}
+async function saveShiftForm(idVersion){
+  const [id, version] = idVersion? idVersion.split('|') : [null,null];
+  const values = { site: modalVal('sh-site'), post: modalVal('sh-post'), date: modalVal('sh-date'), start: modalVal('sh-start'), end: modalVal('sh-end'), agent: modalVal('sh-agent') };
+  if(!values.date||!values.start||!values.end){ modalError('Renseignez la date et les horaires.'); return; }
+  const params = { values };
+  if(id){ params.id=id; params.version=Number(version); params.reason=modalVal('sh-reason'); }
+  const ok = await apiAction(id?'edit':'create', params);
+  if(ok){ closeModal(); toast(id? 'Service modifié' : 'Service créé'); }
+}
+async function publishShift(id){
+  const ok = await apiAction('publish', { ids:[id] });
+  if(ok){ closeModal(); toast('Service publié'); }
+}
+
+// ── HEURES & PRÉSENCES ──────────────────────────────────────
+function renderHeures(el){
+  const canManage = ACTOR.role==='direction'||ACTOR.role==='planning';
+  const isAgent = ACTOR.role==='agent';
+  const myId = ACTOR.agent;
+  const shifts = STATE.shifts;
+  const toValidate = shifts.filter(s=> (!isAgent || s.agent===myId) && ['Publiée','Vue'].includes(s.status));
+  const toDeclare = shifts.filter(s=> (!isAgent || s.agent===myId) && s.status==='Validée' && _shiftEndPassed(s));
+  const toControl = shifts.filter(s=> s.status==='Effectuée');
+  const absences = (STATE.absences||[]).slice().sort((a,b)=> b.from.localeCompare(a.from));
+  const pendingAbsences = absences.filter(a=>a.status==='Demandée');
+
+  el.innerHTML = `
+    <div class="ph"><div><div class="ph-title">Heures &amp; présences</div><div class="ph-sub">Validation, déclaration, contrôle et congés</div></div>
+      <div class="ph-right"><button class="btn btn-primary btn-sm" onclick="openAbsenceModal()">+ Demande de congé / indisponibilité</button></div>
+    </div>
+
+    ${toValidate.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">À valider par l’agent (${toValidate.length})</div>
+      ${toValidate.map(s=>renderHeureRow(s,'accept')).join('')}</div>` : ''}
+
+    ${toDeclare.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">Heures à déclarer (${toDeclare.length})</div>
+      ${toDeclare.map(s=>renderHeureRow(s,'declare')).join('')}</div>` : ''}
+
+    ${canManage? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">Écarts à contrôler — heures déclarées (${toControl.length})</div>
+      ${toControl.length? toControl.map(s=>renderHeureRow(s,'check')).join('') : '<div class="hint">Rien à contrôler.</div>'}</div>` : ''}
+
+    ${canManage && pendingAbsences.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">Demandes de congé en attente (${pendingAbsences.length})</div>
+      ${pendingAbsences.map(a=>renderAbsenceRow(a,true)).join('')}</div>` : ''}
+
+    <div class="card">
+      <div style="font-weight:700;margin-bottom:8px;">Congés &amp; indisponibilités</div>
+      ${absences.length? absences.map(a=>renderAbsenceRow(a,false)).join('') : '<div class="hint">Aucune demande.</div>'}
+    </div>
+  `;
+}
+function _shiftEndPassed(s){
+  try{ const end=new Date(s.date+'T'+s.end+':00Z').getTime(); return end<=Date.now(); }catch(e){ return true; }
+}
+function renderHeureRow(s, kind){
+  return `<div class="shift-row" onclick="${kind==='accept'?`openAcceptModal('${s.id}')`:kind==='declare'?`openDeclareModal('${s.id}')`:`openControlModal('${s.id}')`}">
+    <span class="shift-time">${esc(fmtDate(s.date))} · ${s.start}–${s.end}</span>
+    <span class="shift-site">${esc(siteLabel(s.site))} · ${esc(s.post)}</span>
+    <span class="shift-agent">${esc(agentLabel(s.agent))}</span>
+    <span class="badge ${statusBadgeClass(s.status)}">${esc(s.status)}</span>
+  </div>`;
+}
+function openAcceptModal(id){
+  const s = STATE.shifts.find(x=>x.id===id);
+  openModal('accept-modal','Valider le service', `<div>${esc(fmtDate(s.date))} · ${s.start}–${s.end} · ${esc(siteLabel(s.site))} / ${esc(s.post)}</div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Fermer</button><button class="btn btn-primary" onclick="acceptShift('${s.id}','${s.version}')">Valider</button>`);
+}
+async function acceptShift(id,version){ const ok=await apiAction('accept',{id,version:Number(version)}); if(ok){closeModal();toast('Service validé');} }
+function openDeclareModal(id){
+  const s = STATE.shifts.find(x=>x.id===id);
+  openModal('declare-modal','Déclarer les heures réelles', `
+    <div class="fgrid">
+      <div class="fg"><div class="flabel">Début réel</div><input class="finp" type="time" id="dc-start" value="${s.start}"></div>
+      <div class="fg"><div class="flabel">Fin réelle</div><input class="finp" type="time" id="dc-end" value="${s.end}"></div>
+      <div class="fg full"><div class="flabel">Motif si horaire modifié</div><input class="finp" id="dc-reason" placeholder="Conforme au planning si inchangé"></div>
+    </div>`, `<button class="btn btn-ghost" onclick="closeModal()">Fermer</button><button class="btn btn-primary" onclick="declareShift('${s.id}')">Déclarer</button>`);
+}
+async function declareShift(id){
+  const ok = await apiAction('declare', { id, start:modalVal('dc-start'), end:modalVal('dc-end'), reason:modalVal('dc-reason') });
+  if(ok){ closeModal(); toast('Heures déclarées'); }
+}
+function openControlModal(id){
+  const s = STATE.shifts.find(x=>x.id===id);
+  openModal('control-modal','Contrôler le service', `
+    <div>${esc(fmtDate(s.date))} · ${esc(siteLabel(s.site))} / ${esc(s.post)} · ${esc(agentLabel(s.agent))}</div>
+    <div class="hint">Prévu ${s.start}–${s.end} · Réel ${s.actualStart||'—'}–${s.actualEnd||'—'}${s.reason?' · '+esc(s.reason):''}</div>
+  `, `<button class="btn btn-ghost" onclick="closeModal()">Fermer</button><button class="btn btn-primary" onclick="controlShift('${s.id}')">Marquer contrôlé</button>`);
+}
+async function controlShift(id){ const ok=await apiAction('check',{id}); if(ok){closeModal();toast('Heures contrôlées');} }
+
+// ── ABSENCES ────────────────────────────────────────────────
+function renderAbsenceRow(a, forApproval){
+  const canManage = ACTOR.role==='direction'||ACTOR.role==='planning';
+  const mine = ACTOR.role==='agent' && a.agent===ACTOR.agent;
+  const canEdit = a.status==='Demandée' && (canManage||mine);
+  const canDelete = (a.status==='Demandée' && (canManage||mine)) || canManage;
+  const demo = isDemoAgent(agentById(a.agent)||{});
+  return `<div class="shift-row" style="cursor:default;">
+    <span class="shift-time">${esc(fmtDate(a.from))} → ${esc(fmtDate(a.to))}</span>
+    <span class="shift-site">${a.kind==='paid'?'Congé payé':'Indisponibilité'}${a.days?' · '+a.days+' j':''}</span>
+    <span class="shift-agent">${esc(agentLabel(a.agent))} ${demo?'<span class="badge demo-badge">Démo</span>':''}</span>
+    <span class="badge ${a.status==='Acceptée'?'badge-green':a.status==='Refusée'?'badge-red':'badge-orange'}">${esc(a.status)}</span>
+    <span style="display:flex;gap:4px;">
+      ${forApproval? `<button class="btn btn-sm btn-success" onclick="decideAbsence('${a.id}',true)">Accepter</button><button class="btn btn-sm btn-danger" onclick="decideAbsence('${a.id}',false)">Refuser</button>` : ''}
+      ${canEdit? `<button class="btn btn-sm btn-ghost" onclick="openAbsenceModal('${a.id}')">✏️</button>` : ''}
+      ${canDelete? `<button class="btn btn-sm btn-danger" onclick="deleteAbsence('${a.id}','${a.status}')">🗑</button>` : ''}
+    </span>
+  </div>`;
+}
+async function decideAbsence(id, accept){ const ok=await apiAction('approveAbsence',{id,accept}); if(ok) toast(accept?'Demande acceptée':'Demande refusée'); }
+async function deleteAbsence(id, status){
+  const confirmNeeded = status!=='Demandée';
+  if(!confirm(confirmNeeded? 'Cette demande a déjà été traitée. La supprimer quand même ?' : 'Supprimer cette demande ?')) return;
+  const ok = await apiAction('deleteAbsence', { id, confirm: confirmNeeded||undefined });
+  if(ok) toast('Demande supprimée');
+}
+function openAbsenceModal(id){
+  const a = id? STATE.absences.find(x=>x.id===id) : null;
+  const canManage = ACTOR.role==='direction'||ACTOR.role==='planning';
+  const agents = sortAgentsByNom(STATE.agents.filter(x=>!x.deletedAt));
+  const body = `
+    <div class="fgrid">
+      ${canManage? `<div class="fg full"><div class="flabel">Agent *</div><select class="fsel" id="ab-agent" ${a?'disabled':''}>${agents.map(x=>`<option value="${x.id}" ${(a?a.agent===x.id:x.id===ACTOR.agent)?'selected':''}>${esc(displayNomPrenom(x.name))}</option>`).join('')}</select></div>` : ''}
+      <div class="fg"><div class="flabel">Type *</div><select class="fsel" id="ab-kind"><option value="unavailable" ${a&&a.kind==='unavailable'?'selected':''}>Indisponibilité</option><option value="paid" ${a&&a.kind==='paid'?'selected':''}>Congé payé</option></select></div>
+      <div class="fg"><div class="flabel">Du *</div><input class="finp" type="date" id="ab-from" value="${a?a.from:''}"></div>
+      <div class="fg"><div class="flabel">Au *</div><input class="finp" type="date" id="ab-to" value="${a?a.to:''}"></div>
+      <div class="fg full"><div class="flabel">Motif</div><input class="finp" id="ab-reason" value="${a?esc(a.reason||''):''}"></div>
+    </div>
+  `;
+  openModal('absence-modal', a? 'Modifier la demande' : 'Nouvelle demande', body,
+    `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveAbsenceForm('${a?a.id:''}')">Enregistrer</button>`);
+}
+async function saveAbsenceForm(id){
+  const canManage = ACTOR.role==='direction'||ACTOR.role==='planning';
+  const params = { kind: modalVal('ab-kind'), from: modalVal('ab-from'), to: modalVal('ab-to'), reason: modalVal('ab-reason') };
+  if(!params.from||!params.to){ modalError('Renseignez les deux dates.'); return; }
+  if(canManage && !id) params.agent = modalVal('ab-agent');
+  let ok;
+  if(id) ok = await apiAction('editAbsence', { id, ...params });
+  else ok = await apiAction('absence', params);
+  if(ok){ closeModal(); toast(id?'Demande modifiée':'Demande envoyée'); }
+}
+
+// ── RÉGLAGES ────────────────────────────────────────────────
+function renderSettings(el){
+  const isOwner = ACTOR.owner;
+  const rules = STATE.rules;
+  const members = STATE.members||[];
+  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
+  el.innerHTML = `
+    <div class="ph"><div><div class="ph-title">Réglages</div><div class="ph-sub">Règles de contrôle, droits d’accès, comptes congés</div></div></div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <div style="font-weight:700;margin-bottom:10px;">Règles de contrôle</div>
+      <div class="fgrid">
+        <div class="fg"><div class="flabel">Repos minimum (h)</div><input class="finp" type="number" id="rl-rest" value="${rules.rest}"></div>
+        <div class="fg"><div class="flabel">Seuil hebdomadaire (h)</div><input class="finp" type="number" id="rl-weekly" value="${rules.weekly}"></div>
+        <div class="fg"><div class="flabel">Alerte seuil annuel (%)</div><input class="finp" type="number" id="rl-annual" value="${rules.annualAlert}"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="saveRulesForm()">Enregistrer les règles</button>
+    </div>
+
+    <div class="card" style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-weight:700;">Comptes congés</div>
+        <button class="btn btn-ghost btn-sm" onclick="openLeaveAccountModal()">+ Définir un solde</button>
+      </div>
+      <div class="tbl-wrap"><table><thead><tr><th>Agent</th><th>Année</th><th>Solde initial</th><th>Méthode</th></tr></thead><tbody>
+        ${agents.flatMap(a=>(a.leaveAccounts||[]).map(la=>`<tr><td>${esc(displayNomPrenom(a.name))}</td><td>${la.year}</td><td>${la.opening} j</td><td>${la.method==='scheduled'?'Jours planifiés':'Jours ouvrés'}</td></tr>`)).join('') || '<tr><td colspan="4" style="color:var(--text3);">Aucun compte congé défini</td></tr>'}
+      </tbody></table></div>
+    </div>
+
+    ${isOwner? `<div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-weight:700;">Droits d’accès</div>
+        <button class="btn btn-ghost btn-sm" onclick="openMemberModal()">+ Ajouter un accès</button>
+      </div>
+      <div class="tbl-wrap"><table><thead><tr><th>E-mail</th><th>Rôle</th><th>Agent lié</th><th>Sites</th></tr></thead><tbody>
+        ${members.map(m=>`<tr><td>${esc(m.email)}</td><td>${esc(m.role)}</td><td>${m.agent?esc(agentLabel(m.agent)):'—'}</td><td>${(m.sites||[]).map(siteLabel).join(', ')||'—'}</td></tr>`).join('') || '<tr><td colspan="4" style="color:var(--text3);">Aucun accès défini</td></tr>'}
+      </tbody></table></div>
+    </div>` : ''}
+  `;
+}
+async function saveRulesForm(){
+  const values = { rest:Number(modalVal('rl-rest')), weekly:Number(modalVal('rl-weekly')), annualAlert:Number(modalVal('rl-annual')) };
+  const ok = await apiAction('rules', { values });
+  if(ok) toast('Règles mises à jour');
+}
+function openLeaveAccountModal(){
+  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
+  openModal('leave-modal','Solde de congés', `
+    <div class="fgrid">
+      <div class="fg full"><div class="flabel">Agent *</div><select class="fsel" id="la-agent">${agents.map(a=>`<option value="${a.id}">${esc(displayNomPrenom(a.name))}</option>`).join('')}</select></div>
+      <div class="fg"><div class="flabel">Année *</div><input class="finp" type="number" id="la-year" value="${new Date().getFullYear()}"></div>
+      <div class="fg"><div class="flabel">Solde initial (j) *</div><input class="finp" type="number" id="la-opening" value="25"></div>
+      <div class="fg full"><div class="flabel">Méthode de décompte</div><select class="fsel" id="la-method"><option value="weekdays">Jours ouvrés</option><option value="scheduled">Jours planifiés</option></select></div>
+    </div>
+  `, `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveLeaveAccountForm()">Enregistrer</button>`);
+}
+async function saveLeaveAccountForm(){
+  const ok = await apiAction('saveLeaveAccount', { agent: modalVal('la-agent'), year: Number(modalVal('la-year')), opening: Number(modalVal('la-opening')), method: modalVal('la-method') });
+  if(ok){ closeModal(); toast('Solde de congés enregistré'); }
+}
+function openMemberModal(){
+  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
+  const sites = sortSitesByName(STATE.sites.filter(s=>!s.archived));
+  openModal('member-modal','Nouveau droit d’accès', `
+    <div class="fgrid">
+      <div class="fg full"><div class="flabel">E-mail *</div><input class="finp" id="mb-email" type="email"></div>
+      <div class="fg full"><div class="flabel">Rôle *</div><select class="fsel" id="mb-role" onchange="onMemberRoleChange()">
+        <option value="agent">Agent</option><option value="site">Responsable de site</option><option value="direction">Direction</option></select></div>
+      <div class="fg full" id="mb-agent-wrap"><div class="flabel">Agent lié</div><select class="fsel" id="mb-agent"><option value="">—</option>${agents.map(a=>`<option value="${a.id}">${esc(displayNomPrenom(a.name))}</option>`).join('')}</select></div>
+      <div class="fg full" id="mb-sites-wrap" style="display:none;"><div class="flabel">Sites</div><select class="fsel" id="mb-sites" multiple size="4">${sites.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></div>
+    </div>
+  `, `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveMemberForm()">Enregistrer</button>`);
+}
+function onMemberRoleChange(){
+  const role = modalVal('mb-role');
+  document.getElementById('mb-sites-wrap').style.display = role==='site'?'block':'none';
+}
+async function saveMemberForm(){
+  const role = modalVal('mb-role');
+  const values = { email: modalVal('mb-email'), role, agent: modalVal('mb-agent'), sites: role==='site'? Array.from(document.getElementById('mb-sites').selectedOptions).map(o=>o.value) : [] };
+  const ok = await apiAction('saveMember', { values });
+  if(ok){ closeModal(); toast('Droit d’accès enregistré'); }
+}
+
+// ── BOOT ────────────────────────────────────────────────────
+(function init(){
+  const s = getSession();
+  if(sessionOk(s)){
+    applySession(s);
+  }
+})();
+
+</script>
+</body>
+</html>
