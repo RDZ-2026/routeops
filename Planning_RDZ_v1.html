@@ -534,7 +534,7 @@ function renderDemoBanner(){
     <div style="font-size:12.5px;color:var(--text2);line-height:1.6;margin-bottom:10px;">
       Ce planning a été initialisé avec un jeu d’exemple. Les agents suivants sont fictifs et peuvent avoir
       reçu des services ou des congés par erreur si vous les avez sélectionnés dans une liste avant que la
-      synchro RH ne soit active&nbsp;: <strong>${esc(demoAgents.map(a=>a.name).join(', '))}</strong>.
+      synchro RH ne soit active&nbsp;: <strong>${esc(demoAgents.map(a=>displayNomPrenom(a)).join(', '))}</strong>.
     </div>
     <button class="btn btn-sm btn-ghost" onclick="switchTab('agents')">Aller à la vue Agents pour les supprimer</button>
   </div>`;
@@ -570,12 +570,63 @@ function renderAgentCard(a, canManage){
   const obj = computeObjectives(a);
   const demo = isDemoAgent(a);
   // Formations/quiz are shown in the agent fiche (openAgentModal), not on this summary card.
+  const siteChips = a.primarySite? `<span class="badge badge-blue" title="Site principal">${esc(siteLabel(a.primarySite))}</span>` : `<span class="badge badge-grey">Aucun site</span>`;
+  const additionalChips = (a.additionalSites||[]).map(id=>`<span class="badge badge-grey" title="Site secondaire">${esc(siteLabel(id))}</span>`).join('');
   return `<div class="agent-card" onclick="openAgentModal('${a.id}')">
     <div class="ac-name">${esc(displayNomPrenom(a))} ${demo?'<span class="badge demo-badge">Démo</span>':''} ${a.deletedAt?'<span class="badge badge-red">Supprimé</span>':''}</div>
     <div class="ac-meta">${a.rhContract?.type? esc(a.rhContract.type)+' · ':''}${Number.isFinite(a.monthly)? a.monthly+'h/mois' : (a.weekly? a.weekly+'h/sem (manuel)':'Contrat à renseigner')}</div>
     <div class="ac-row"><span>Obj. semaine</span><strong>${obj.weekly? obj.weekly+'h':'—'}</strong></div>
     <div class="ac-row"><span>Obj. annuel</span><strong>${obj.annual? obj.annual+'h':'—'}</strong></div>
+    ${canManage? `<div class="ac-sites" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:8px;" onclick="event.stopPropagation()">
+      ${siteChips}${additionalChips}
+      <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px;" onclick="openAgentSitesModal('${a.id}')">🏷 Gérer les sites</button>
+    </div>` : ''}
   </div>`;
+}
+
+// ── Quick-assign popover: change an agent's site assignment(s) without opening
+// the full fiche. Writes primarySite/additionalSites via saveAgent, same as the
+// full agent form, keeping every other field on the agent untouched.
+function openAgentSitesModal(id){
+  const a = agentById(id);
+  if(!a) return;
+  const sitesForSelect = sortSitesByName(STATE.sites.filter(s=>!s.archived));
+  const primaryOpts = sitesForSelect.map(s=>`<option value="${s.id}" ${a.primarySite===s.id?'selected':''}>${esc(s.name)}</option>`).join('');
+  const additionalOpts = sitesForSelect.map(s=>`<option value="${s.id}" ${(a.additionalSites||[]).includes(s.id)?'selected':''}>${esc(s.name)}</option>`).join('');
+  const body = `
+    <div class="fgrid">
+      <div class="fg full"><div class="flabel">Site principal</div><select class="fsel" id="as-primary"><option value="">—</option>${primaryOpts}</select></div>
+      <div class="fg full"><div class="flabel">Sites secondaires</div>
+        <select class="fsel" id="as-additional" multiple size="4">${additionalOpts}</select>
+        <div class="hint">Sites complémentaires où cet agent peut aussi être planifié.</div></div>
+    </div>
+  `;
+  const actions = `
+    <button class="btn btn-ghost" onclick="closeModal()">Annuler</button>
+    <button class="btn btn-primary" onclick="saveAgentSitesForm('${a.id}')">Enregistrer</button>
+  `;
+  openModal('agent-sites-modal', 'Sites de '+displayNomPrenom(a), body, actions);
+}
+async function saveAgentSitesForm(id){
+  const a = agentById(id);
+  if(!a) return;
+  const isRh = a.source==='supabase-rh';
+  // Rebuild the full required payload from the agent's current data — saveAgent
+  // requires name/email/available/weekly/annual on every call, so a partial
+  // "just the sites" payload would wipe those fields if left out.
+  const values = {
+    name: a.name, nom: a.nom, prenom: a.prenom, email: a.email||'', available: !!a.available,
+    primarySite: modalVal('as-primary'),
+    additionalSites: Array.from(document.getElementById('as-additional')?.selectedOptions||[]).map(o=>o.value)
+  };
+  if(isRh){
+    const obj = computeObjectives(a);
+    values.weekly = obj.weekly; values.annual = obj.annual; values.monthly = a.monthly;
+  } else {
+    values.weekly = a.weekly; values.annual = a.annual;
+  }
+  const ok = await apiAction('saveAgent', { id: a.id, values });
+  if(ok){ closeModal(); toast('Sites de l’agent mis à jour'); }
 }
 
 function openAgentModal(id){
@@ -583,7 +634,9 @@ function openAgentModal(id){
   const canManage = ACTOR.role==='direction'||ACTOR.role==='planning';
   const obj = a? computeObjectives(a) : {weekly:0,annual:0};
   const isRh = a && a.source==='supabase-rh';
-  const sitesOpts = sortSitesByName(STATE.sites.filter(s=>!s.archived)).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');
+  const sitesForSelect = sortSitesByName(STATE.sites.filter(s=>!s.archived));
+  const primaryOpts = sitesForSelect.map(s=>`<option value="${s.id}" ${a&&a.primarySite===s.id?'selected':''}>${esc(s.name)}</option>`).join('');
+  const additionalOpts = sitesForSelect.map(s=>`<option value="${s.id}" ${a&&(a.additionalSites||[]).includes(s.id)?'selected':''}>${esc(s.name)}</option>`).join('');
   const passport = a? (a.competencePassport||[]) : [];
   const quizzes = a? (a.quizResults||[]) : [];
   const np = getNomPrenom(a);
@@ -601,19 +654,11 @@ function openAgentModal(id){
       <div class="fg"><div class="flabel">Objectif hebdomadaire (h) *</div><input class="finp" type="number" id="af-weekly" value="${a?a.weekly:''}"></div>
       <div class="fg"><div class="flabel">Objectif annuel (h) *</div><input class="finp" type="number" id="af-annual" value="${a?a.annual:''}"></div>
       `}
-      <div class="fg full"><div class="flabel">Site principal</div><select class="fsel" id="af-primary"><option value="">—</option>${sitesOpts}</select></div>
+      <div class="fg full"><div class="flabel">Site principal</div><select class="fsel" id="af-primary"><option value="">—</option>${primaryOpts}</select></div>
+      <div class="fg full"><div class="flabel">Sites secondaires</div>
+        <select class="fsel" id="af-additional-sites" multiple size="4">${additionalOpts}</select>
+        <div class="hint">Sites complémentaires où cet agent peut aussi être planifié.</div></div>
     </div>
-    <details style="margin-top:12px;">
-      <summary style="cursor:pointer;font-size:12px;color:var(--text3);">Paramètres avancés (équipe, qualifications, documents, sites de formation)</summary>
-      <div class="fgrid" style="margin-top:10px;">
-        <div class="fg"><div class="flabel">Équipe</div><input class="finp" id="af-team" value="${a?esc(a.team||''):''}"></div>
-        <div class="fg"><div class="flabel">Qualifications (séparées par virgule)</div><input class="finp" id="af-quali" value="${a?esc((a.qualifications||[]).join(', ')):''}"></div>
-        <div class="fg"><div class="flabel">Document valable jusqu’au</div><input class="finp" type="date" id="af-docs" value="${a?a.documentsUntil||'':''}"></div>
-        <div class="fg"><div class="flabel">Autorisation valable jusqu’au</div><input class="finp" type="date" id="af-auth" value="${a?a.authorizationUntil||'':''}"></div>
-        <div class="fg full"><div class="flabel">Sites où la formation est validée</div>
-          <select class="fsel" id="af-sites" multiple size="4">${sortSitesByName(STATE.sites.filter(s=>!s.archived)).map(s=>`<option value="${s.id}" ${a&&(a.sites||[]).includes(s.id)?'selected':''}>${esc(s.name)}</option>`).join('')}</select></div>
-      </div>
-    </details>
     ${a? `<div class="sep"></div>
       <div class="flabel">Passeport compétence (synchronisé)</div>
       <div style="margin-bottom:8px;">${passport.length? passport.map(p=>`<span class="badge ${p.status==='certifie'?'badge-green':p.status==='en_cours'?'badge-orange':'badge-red'}" style="margin:2px;">${esc(siteLabel(p.site))} · ${p.status.replace('_',' ')}</span>`).join('') : '<span class="hint">Aucune évaluation compétence synchronisée.</span>'}</div>
@@ -628,7 +673,6 @@ function openAgentModal(id){
     ${canManage? `<button class="btn btn-primary" onclick="saveAgentForm('${a?a.id:''}')">Enregistrer</button>` : ''}
   `;
   openModal('agent-modal', a? 'Fiche agent' : 'Nouvel agent', body, actions);
-  if(a && a.primarySite) setTimeout(()=>{ const el=document.getElementById('af-primary'); if(el) el.value=a.primarySite; },0);
 }
 
 async function saveAgentForm(id){
@@ -638,14 +682,13 @@ async function saveAgentForm(id){
   const prenom = modalVal('af-prenom').trim();
   if(!nom){ modalError('Le nom est obligatoire.'); return; }
   const name = prenom? (prenom+' '+nom) : nom;
+  // team/qualifications/documentsUntil/authorizationUntil/sites (formation validée) are no
+  // longer edited from this form (see "Paramètres avancés" removal) — they are intentionally
+  // omitted here so the backend preserves the agent's existing values untouched.
   const values = {
     name, nom, prenom, email: modalVal('af-email'), available: modalVal('af-available')==='1',
-    team: modalVal('af-team')||'À définir',
-    qualifications: modalVal('af-quali'),
-    documentsUntil: modalVal('af-docs')||(a?a.documentsUntil:''),
-    authorizationUntil: modalVal('af-auth')||(a?a.authorizationUntil:''),
     primarySite: modalVal('af-primary'),
-    sites: Array.from(document.getElementById('af-sites')?.selectedOptions||[]).map(o=>o.value)
+    additionalSites: Array.from(document.getElementById('af-additional-sites')?.selectedOptions||[]).map(o=>o.value)
   };
   if(isRh){
     const obj = computeObjectives(a);
@@ -797,7 +840,7 @@ async function deleteSite(id){ if(!confirm('Supprimer ce site ?'))return; const 
 async function restoreSite(id){ const ok=await apiAction('restoreSite',{id}); if(ok){closeModal();toast('Site restauré');} }
 
 // ── PLANNING (grille site/poste × jours, ou grille agent × jours) ──
-let PLAN_FILTER = { mode:'week', anchor:'', site:'', view:'site' };
+let PLAN_FILTER = { mode:'week', anchor:'', site:'', view:'site', onlyActive:false };
 let DRAG_SHIFT = null;
 const WEEKDAY_SHORT = ['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'];
 function mondayOf(dateStr){
@@ -931,14 +974,17 @@ function renderPlanning(el){
       ${canManage? (PLAN_FILTER.mode==='week'
         ? `<button class="btn btn-ghost btn-sm" onclick="openCopyWeekModal()">⧉ Copier la semaine</button>`
         : `<button class="btn btn-ghost btn-sm" onclick="openCopyMonthModal()">⧉ Copier le mois</button>`) : ''}
+      <label class="checkline"><input type="checkbox" ${PLAN_FILTER.onlyActive?'checked':''} onchange="PLAN_FILTER.onlyActive=this.checked;renderCurrentPanel()"> Uniquement ${PLAN_FILTER.view==='agent'?'les agents':'les postes'} avec service</label>
     </div>
     <div class="calendar-scroll" id="calendar-scroll">
       ${PLAN_FILTER.view==='agent' ? renderAgentCalendar(days, today, canManage) : renderSiteCalendar(activeSites, days, today, canManage)}
     </div>
   `;
 }
+function rowHasShiftInRange(row, days){ return STATE.shifts.some(s=>s.site===row.siteId && s.post===row.post && days.includes(s.date)); }
 function renderSiteCalendar(activeSites, days, today, canManage){
-  const rows = planningRows(activeSites, days);
+  let rows = planningRows(activeSites, days);
+  if(PLAN_FILTER.onlyActive) rows = rows.filter(r=>rowHasShiftInRange(r, days));
   return `
     <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr));">
       <div class="cell corner">Postes / Services</div>
@@ -946,7 +992,7 @@ function renderSiteCalendar(activeSites, days, today, canManage){
       ${rows.length? rows.map(r=>`
         <div class="cell row-label">${esc(r.siteName)}<br><span style="color:var(--text3);font-weight:400;">${esc(r.post)}</span></div>
         ${days.map(d=>renderPlanningCell(r,d,today,canManage)).join('')}
-      `).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun poste configuré${PLAN_FILTER.site?' pour ce site':''}.</div>`}
+      `).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun poste ${PLAN_FILTER.onlyActive?'avec service sur cette période':'configuré'+(PLAN_FILTER.site?' pour ce site':'')}.</div>`}
     </div>
   `;
 }
@@ -957,8 +1003,13 @@ function renderPlanningCell(row, date, today, canManage){
   const dropAttrs = canManage? `ondragover="handleCellDragOver(event)" ondragleave="handleCellDragLeave(event)" ondrop="handleCellDrop(event,{site:'${jsStr(row.siteId)}',post:'${jsStr(row.post)}',date:'${date}'})"` : '';
   return `<div class="cell shift-cell ${date===today?'is-today':''}" ${dropAttrs}>${chips}${addBtn}</div>`;
 }
+function agentHasShiftInRange(agent, days){ return STATE.shifts.some(s=>s.agent===agent.id && days.includes(s.date)); }
 function renderAgentCalendar(days, today, canManage){
-  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
+  let agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
+  // When a specific site is selected, agent view only shows agents whose primary
+  // assignment site (agent.primarySite) matches — "tous les sites" shows everyone.
+  if(PLAN_FILTER.site) agents = agents.filter(a=>a.primarySite===PLAN_FILTER.site);
+  if(PLAN_FILTER.onlyActive) agents = agents.filter(a=>agentHasShiftInRange(a, days));
   return `
     <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr));">
       <div class="cell corner">Agents</div>
@@ -966,7 +1017,7 @@ function renderAgentCalendar(days, today, canManage){
       ${agents.length? agents.map(a=>`
         <div class="cell row-label">${esc(displayNomPrenom(a))}</div>
         ${days.map(d=>renderAgentPlanningCell(a,d,today,canManage)).join('')}
-      `).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun agent.</div>`}
+      `).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun agent${PLAN_FILTER.site?' assigné à ce site en site principal':''}${PLAN_FILTER.onlyActive?' avec service sur cette période':''}.</div>`}
     </div>
   `;
 }
