@@ -840,7 +840,7 @@ async function deleteSite(id){ if(!confirm('Supprimer ce site ?'))return; const 
 async function restoreSite(id){ const ok=await apiAction('restoreSite',{id}); if(ok){closeModal();toast('Site restauré');} }
 
 // ── PLANNING (grille site/poste × jours, ou grille agent × jours) ──
-let PLAN_FILTER = { mode:'week', anchor:'', site:'', view:'site', onlyActive:false };
+let PLAN_FILTER = { mode:'week', anchor:'', site:'', scope:'all', viewId:'', view:'site', onlyActive:false };
 let DRAG_SHIFT = null;
 const WEEKDAY_SHORT = ['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'];
 function mondayOf(dateStr){
@@ -945,13 +945,39 @@ async function handleCellDrop(ev, target){
 }
 function planSetView(view){ PLAN_FILTER.view = view; renderCurrentPanel(); }
 
+// Resolves the two-tier scope selector's current <select> value: 'all', 'site'
+// or 'view:<id>' for a saved custom view.
+function planScopeSelectValue(){
+  if(PLAN_FILTER.scope==='view' && PLAN_FILTER.viewId) return 'view:'+PLAN_FILTER.viewId;
+  return PLAN_FILTER.scope==='site' ? 'site' : 'all';
+}
+function planSetScope(value){
+  if(value==='site'){ PLAN_FILTER.scope='site'; PLAN_FILTER.viewId=''; }
+  else if(value.indexOf('view:')===0){ PLAN_FILTER.scope='view'; PLAN_FILTER.viewId=value.slice(5); }
+  else { PLAN_FILTER.scope='all'; PLAN_FILTER.viewId=''; PLAN_FILTER.site=''; }
+  renderCurrentPanel();
+}
+// Guards against a stale PLAN_FILTER.viewId (e.g. the selected view was deleted
+// from another session/tab): falls back to "Tous les sites" cleanly.
+function planCurrentView(){
+  if(PLAN_FILTER.scope!=='view') return null;
+  const v = (STATE.planningViews||[]).find(x=>x.id===PLAN_FILTER.viewId);
+  if(!v){ PLAN_FILTER.scope='all'; PLAN_FILTER.viewId=''; return null; }
+  return v;
+}
+
 function renderPlanning(el){
   planInitRange();
   const canManage = ['direction','planning','site'].includes(ACTOR.role);
   const days = planDays();
   const today = todayISO();
   const allSites = sortSitesByName(STATE.sites.filter(s=>!s.archived));
-  const activeSites = PLAN_FILTER.site ? allSites.filter(s=>s.id===PLAN_FILTER.site) : allSites;
+  const planningViews = STATE.planningViews||[];
+  const activeView = planCurrentView();
+  let activeSites;
+  if(PLAN_FILTER.scope==='site'){ activeSites = PLAN_FILTER.site ? allSites.filter(s=>s.id===PLAN_FILTER.site) : allSites; }
+  else if(PLAN_FILTER.scope==='view'){ activeSites = activeView ? allSites.filter(s=>(activeView.siteIds||[]).includes(s.id)) : []; }
+  else { activeSites = allSites; }
 
   el.innerHTML = `
     <div class="ph">
@@ -966,7 +992,12 @@ function renderPlanning(el){
       <button class="btn btn-ghost btn-sm" onclick="planNav(-1)">‹</button>
       <button class="btn btn-ghost btn-sm" onclick="planToday()">Aujourd’hui</button>
       <button class="btn btn-ghost btn-sm" onclick="planNav(1)">›</button>
-      <select class="sel" onchange="PLAN_FILTER.site=this.value;renderCurrentPanel()"><option value="">Tous les sites</option>${allSites.map(s=>`<option value="${s.id}" ${PLAN_FILTER.site===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select>
+      <select class="sel" onchange="planSetScope(this.value)">
+        <option value="all" ${PLAN_FILTER.scope==='all'?'selected':''}>Tous les sites</option>
+        <option value="site" ${PLAN_FILTER.scope==='site'?'selected':''}>Par site</option>
+        ${planningViews.length? `<optgroup label="Vues personnalisées">${planningViews.map(v=>`<option value="view:${v.id}" ${PLAN_FILTER.scope==='view'&&PLAN_FILTER.viewId===v.id?'selected':''}>${esc(v.name)}</option>`).join('')}</optgroup>` : ''}
+      </select>
+      ${PLAN_FILTER.scope==='site'? `<select class="sel" onchange="PLAN_FILTER.site=this.value;renderCurrentPanel()"><option value="">Tous les sites</option>${allSites.map(s=>`<option value="${s.id}" ${PLAN_FILTER.site===s.id?'selected':''}>${esc(s.name)}</option>`).join('')}</select>` : ''}
       <div style="display:flex;gap:0;border:1.5px solid var(--border2);border-radius:9px;overflow:hidden;">
         <button class="btn btn-sm ${PLAN_FILTER.view==='site'?'btn-primary':'btn-ghost'}" style="border-radius:0;" onclick="planSetView('site')">Vue par site</button>
         <button class="btn btn-sm ${PLAN_FILTER.view==='agent'?'btn-primary':'btn-ghost'}" style="border-radius:0;" onclick="planSetView('agent')">Vue par agent</button>
@@ -977,7 +1008,7 @@ function renderPlanning(el){
       <label class="checkline"><input type="checkbox" ${PLAN_FILTER.onlyActive?'checked':''} onchange="PLAN_FILTER.onlyActive=this.checked;renderCurrentPanel()"> Uniquement ${PLAN_FILTER.view==='agent'?'les agents':'les postes'} avec service</label>
     </div>
     <div class="calendar-scroll" id="calendar-scroll">
-      ${PLAN_FILTER.view==='agent' ? renderAgentCalendar(days, today, canManage) : renderSiteCalendar(activeSites, days, today, canManage)}
+      ${PLAN_FILTER.view==='agent' ? renderAgentCalendar(days, today, canManage, activeView) : renderSiteCalendar(activeSites, days, today, canManage)}
     </div>
   `;
 }
@@ -992,7 +1023,7 @@ function renderSiteCalendar(activeSites, days, today, canManage){
       ${rows.length? rows.map(r=>`
         <div class="cell row-label">${esc(r.siteName)}<br><span style="color:var(--text3);font-weight:400;">${esc(r.post)}</span></div>
         ${days.map(d=>renderPlanningCell(r,d,today,canManage)).join('')}
-      `).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun poste ${PLAN_FILTER.onlyActive?'avec service sur cette période':'configuré'+(PLAN_FILTER.site?' pour ce site':'')}.</div>`}
+      `).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun poste ${PLAN_FILTER.onlyActive?'avec service sur cette période':'configuré'+(PLAN_FILTER.scope==='site'&&PLAN_FILTER.site?' pour ce site':(PLAN_FILTER.scope==='view'?' pour cette vue':''))}.</div>`}
     </div>
   `;
 }
@@ -1004,11 +1035,21 @@ function renderPlanningCell(row, date, today, canManage){
   return `<div class="cell shift-cell ${date===today?'is-today':''}" ${dropAttrs}>${chips}${addBtn}</div>`;
 }
 function agentHasShiftInRange(agent, days){ return STATE.shifts.some(s=>s.agent===agent.id && days.includes(s.date)); }
-function renderAgentCalendar(days, today, canManage){
+function renderAgentCalendar(days, today, canManage, activeView){
   let agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
-  // When a specific site is selected, agent view only shows agents whose primary
-  // assignment site (agent.primarySite) matches — "tous les sites" shows everyone.
-  if(PLAN_FILTER.site) agents = agents.filter(a=>a.primarySite===PLAN_FILTER.site);
+  let emptyReason = '';
+  if(PLAN_FILTER.scope==='site' && PLAN_FILTER.site){
+    // When a specific site is selected, agent view only shows agents whose primary
+    // assignment site (agent.primarySite) matches — "tous les sites" shows everyone.
+    agents = agents.filter(a=>a.primarySite===PLAN_FILTER.site);
+    emptyReason = ' assigné à ce site en site principal';
+  } else if(PLAN_FILTER.scope==='view'){
+    // A saved view's agent list is explicit and authoritative: it ignores
+    // primarySite/additionalSites entirely, ­unlike the plain single-site filter above.
+    const agentIds = activeView? (activeView.agentIds||[]) : [];
+    agents = agents.filter(a=>agentIds.includes(a.id));
+    emptyReason = ' dans cette vue';
+  }
   if(PLAN_FILTER.onlyActive) agents = agents.filter(a=>agentHasShiftInRange(a, days));
   return `
     <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr));">
@@ -1017,7 +1058,7 @@ function renderAgentCalendar(days, today, canManage){
       ${agents.length? agents.map(a=>`
         <div class="cell row-label">${esc(displayNomPrenom(a))}</div>
         ${days.map(d=>renderAgentPlanningCell(a,d,today,canManage)).join('')}
-      `).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun agent${PLAN_FILTER.site?' assigné à ce site en site principal':''}${PLAN_FILTER.onlyActive?' avec service sur cette période':''}.</div>`}
+      `).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun agent${emptyReason}${PLAN_FILTER.onlyActive?' avec service sur cette période':''}.</div>`}
     </div>
   `;
 }
@@ -1267,8 +1308,10 @@ async function saveAbsenceForm(id){
 // ── RÉGLAGES ────────────────────────────────────────────────
 function renderSettings(el){
   const isOwner = ACTOR.owner;
+  const canManageViews = ACTOR.role==='direction'||ACTOR.role==='planning';
   const rules = STATE.rules;
   const members = STATE.members||[];
+  const planningViews = STATE.planningViews||[];
   const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
   el.innerHTML = `
     <div class="ph"><div><div class="ph-title">Réglages</div><div class="ph-sub">Règles de contrôle, droits d’accès, comptes congés</div></div></div>
@@ -1292,6 +1335,21 @@ function renderSettings(el){
         ${agents.flatMap(a=>(a.leaveAccounts||[]).map(la=>`<tr><td>${esc(displayNomPrenom(a))}</td><td>${la.year}</td><td>${la.opening} j</td><td>${la.method==='scheduled'?'Jours planifiés':'Jours ouvrés'}</td></tr>`)).join('') || '<tr><td colspan="4" style="color:var(--text3);">Aucun compte congé défini</td></tr>'}
       </tbody></table></div>
     </div>
+
+    ${canManageViews? `<div class="card" style="margin-bottom:14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+        <div style="font-weight:700;">Vues de planning</div>
+        <button class="btn btn-ghost btn-sm" onclick="openPlanningViewModal()">+ Nouvelle vue</button>
+      </div>
+      <div class="hint" style="margin-bottom:10px;">Regroupez plusieurs sites et une liste précise d’agents pour créer un filtre réutilisable dans le planning.</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Nom</th><th>Sites</th><th>Agents</th><th></th></tr></thead><tbody>
+        ${planningViews.map(v=>`<tr><td>${esc(v.name)}</td><td>${(v.siteIds||[]).map(siteLabel).join(', ')||'—'}</td><td>${(v.agentIds||[]).length} agent${(v.agentIds||[]).length>1?'s':''}</td>
+          <td style="text-align:right;white-space:nowrap;">
+            <button class="btn btn-sm btn-ghost" onclick="openPlanningViewModal('${jsStr(v.id)}')" title="Modifier">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="deletePlanningViewAction('${jsStr(v.id)}')" title="Supprimer">🗑</button>
+          </td></tr>`).join('') || '<tr><td colspan="4" style="color:var(--text3);">Aucune vue définie</td></tr>'}
+      </tbody></table></div>
+    </div>` : ''}
 
     ${isOwner? `<div class="card">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
@@ -1368,6 +1426,41 @@ async function deleteMember(email){
   if(!confirm('Supprimer le droit d’accès de '+email+' ?')) return;
   const ok = await apiAction('deleteMember', { email, confirm:true });
   if(ok) toast('Droit d’accès supprimé');
+}
+function openPlanningViewModal(id){
+  const v = id? (STATE.planningViews||[]).find(x=>x.id===id) : null;
+  const sites = sortSitesByName(STATE.sites.filter(s=>!s.archived));
+  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
+  const siteOpts = sites.map(s=>`<option value="${s.id}" ${v&&(v.siteIds||[]).includes(s.id)?'selected':''}>${esc(s.name)}</option>`).join('');
+  const agentOpts = agents.map(a=>`<option value="${a.id}" ${v&&(v.agentIds||[]).includes(a.id)?'selected':''}>${esc(displayNomPrenom(a))}</option>`).join('');
+  openModal('planning-view-modal', v? 'Modifier la vue' : 'Nouvelle vue de planning', `
+    <div class="fgrid">
+      <div class="fg full"><div class="flabel">Nom de la vue *</div><input class="finp" id="pv-name" value="${v?esc(v.name):''}"></div>
+      <div class="fg full"><div class="flabel">Sites regroupés</div><select class="fsel" id="pv-sites" multiple size="6">${siteOpts}</select></div>
+      <div class="fg full"><div class="flabel">Agents à afficher dans cette vue</div><select class="fsel" id="pv-agents" multiple size="6">${agentOpts}</select></div>
+    </div>
+  `, `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="savePlanningViewForm('${v?jsStr(v.id):''}')">Enregistrer</button>`);
+}
+async function savePlanningViewForm(id){
+  const name = modalVal('pv-name');
+  if(!name || !name.trim()){ modalError('Indiquez un nom pour cette vue.'); return; }
+  const siteIds = Array.from(document.getElementById('pv-sites')?.selectedOptions||[]).map(o=>o.value);
+  const agentIds = Array.from(document.getElementById('pv-agents')?.selectedOptions||[]).map(o=>o.value);
+  const params = { values: { name, siteIds, agentIds } };
+  if(id) params.id = id;
+  const ok = await apiAction('savePlanningView', params);
+  if(ok){ closeModal(); toast('Vue de planning enregistrée'); }
+}
+async function deletePlanningViewAction(id){
+  const v = (STATE.planningViews||[]).find(x=>x.id===id);
+  if(!v) return;
+  if(!confirm('Supprimer la vue « '+v.name+' » ?')) return;
+  const ok = await apiAction('deletePlanningView', { id, confirm:true });
+  if(ok){
+    // If the deleted view was the one active in the Planning panel, fall back to "Tous les sites" cleanly.
+    if(PLAN_FILTER.scope==='view' && PLAN_FILTER.viewId===id){ PLAN_FILTER.scope='all'; PLAN_FILTER.viewId=''; }
+    toast('Vue de planning supprimée');
+  }
 }
 
 // ── BOOT ────────────────────────────────────────────────────
