@@ -136,10 +136,10 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .calendar-scroll{overflow:auto;border:1px solid var(--border);border-radius:10px;background:#fff;max-height:74vh;-webkit-overflow-scrolling:touch;contain:layout paint;}
 .calendar{display:grid;}
 .calendar .cell{border-right:1px solid #f0eeeb;border-bottom:1px solid #f0eeeb;padding:5px;min-height:52px;font-size:11px;box-sizing:border-box;}
-.calendar .cell.corner{background:var(--bg2);font-weight:700;font-size:11.5px;position:sticky;left:0;top:0;z-index:4;display:flex;align-items:center;}
+.calendar .cell.corner{background:var(--bg2);font-weight:700;font-size:11.5px;position:sticky;left:0;top:0;z-index:4;display:flex;align-items:center;box-shadow:2px 0 5px -2px rgba(0,0,0,.18);}
 .calendar .cell.day-header{background:var(--bg2);text-align:center;font-weight:700;font-size:11px;position:sticky;top:0;z-index:3;color:var(--text2);}
 .calendar .cell.day-header.is-today{color:var(--red);}
-.calendar .cell.row-label{background:#fbfaf9;font-size:11px;position:sticky;left:0;z-index:2;line-height:1.3;}
+.calendar .cell.row-label{background:#fbfaf9;font-size:11px;position:sticky;left:0;z-index:2;line-height:1.3;box-shadow:2px 0 5px -2px rgba(0,0,0,.18);}
 .calendar .cell.shift-cell.is-today{background:#fff7f0;}
 .calendar .cell.shift-cell.drag-over{background:#fff0ef;outline:2px dashed var(--red);outline-offset:-2px;}
 .shift-chip{background:#fff;border:1px solid var(--border2);border-left:3px solid var(--text3);border-radius:6px;padding:3px 5px;font-size:10.5px;margin-bottom:3px;cursor:grab;line-height:1.25;}
