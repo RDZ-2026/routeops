@@ -1117,6 +1117,15 @@ async function restoreSite(id){ const ok=await apiAction('restoreSite',{id}); if
 let PLAN_FILTER = { mode:'week', anchor:'', site:'', scope:'all', viewId:'', view:'site', onlyActive:false };
 let DRAG_SHIFT = null;
 const WEEKDAY_SHORT = ['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'];
+// Full weekday + day + full month name for the planning calendar's day headers
+// (e.g. "lundi 21 septembre"), always computed in UTC to match how `days` (an
+// array of YYYY-MM-DD strings) is built, regardless of the viewer's local timezone.
+function dayHeaderLabel(d){
+  const date = new Date(d+'T12:00:00Z');
+  const weekday = date.toLocaleDateString('fr-CH', { weekday:'long', timeZone:'UTC' });
+  const dayMonth = date.toLocaleDateString('fr-CH', { day:'numeric', month:'long', timeZone:'UTC' });
+  return `${weekday}<br>${dayMonth}`;
+}
 function mondayOf(dateStr){
   const d = new Date(dateStr+'T12:00:00Z');
   const shift = (d.getUTCDay()+6)%7;
@@ -1156,6 +1165,14 @@ function planNav(dir){
   } else {
     PLAN_FILTER.anchor = addDays(PLAN_FILTER.anchor, dir*7);
   }
+  renderCurrentPanel();
+}
+// Jumps straight to any date picked in the toolbar's native date input: lands on
+// the Monday of that week (week mode) or the 1st of that month (month mode), same
+// anchoring logic as planNav/planSetMode.
+function planGoTo(dateStr){
+  if(!dateStr) return;
+  PLAN_FILTER.anchor = PLAN_FILTER.mode==='month' ? dateStr.slice(0,7)+'-01' : mondayOf(dateStr);
   renderCurrentPanel();
 }
 function planToday(){
@@ -1266,6 +1283,7 @@ function renderPlanning(el){
       <button class="btn btn-ghost btn-sm" onclick="planNav(-1)">‹</button>
       <button class="btn btn-ghost btn-sm" onclick="planToday()">Aujourd’hui</button>
       <button class="btn btn-ghost btn-sm" onclick="planNav(1)">›</button>
+      <input type="date" class="sel" style="max-width:150px;" value="${PLAN_FILTER.anchor}" onchange="planGoTo(this.value)" title="Aller à une date précise">
       <select class="sel" onchange="planSetScope(this.value)">
         <option value="all" ${PLAN_FILTER.scope==='all'?'selected':''}>Tous les sites</option>
         <option value="site" ${PLAN_FILTER.scope==='site'?'selected':''}>Par site</option>
@@ -1293,7 +1311,7 @@ function renderSiteCalendar(activeSites, days, today, canManage){
   return `
     <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr));">
       <div class="cell corner">Postes / Services</div>
-      ${days.map(d=>`<div class="cell day-header ${d===today?'is-today':''}">${WEEKDAY_SHORT[(new Date(d+'T12:00:00Z').getUTCDay()+6)%7]}<br>${Number(d.slice(8,10))}</div>`).join('')}
+      ${days.map(d=>`<div class="cell day-header ${d===today?'is-today':''}">${dayHeaderLabel(d)}</div>`).join('')}
       ${rows.length? rows.map(r=>`
         <div class="cell row-label">${esc(r.siteName)}<br><span style="color:var(--text3);font-weight:400;">${esc(r.post)}</span></div>
         ${days.map(d=>renderPlanningCell(r,d,today,canManage)).join('')}
@@ -1329,7 +1347,7 @@ function renderAgentCalendar(days, today, canManage, activeView){
   return `
     <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr));">
       <div class="cell corner">Agents</div>
-      ${days.map(d=>`<div class="cell day-header ${d===today?'is-today':''}">${WEEKDAY_SHORT[(new Date(d+'T12:00:00Z').getUTCDay()+6)%7]}<br>${Number(d.slice(8,10))}</div>`).join('')}
+      ${days.map(d=>`<div class="cell day-header ${d===today?'is-today':''}">${dayHeaderLabel(d)}</div>`).join('')}
       ${agents.length? agents.map(a=>{
         const isSecondary = PLAN_FILTER.scope==='site' && PLAN_FILTER.site && a.primarySite!==PLAN_FILTER.site;
         return `
