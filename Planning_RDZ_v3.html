@@ -1660,8 +1660,27 @@ async function saveShiftForm(idVersion){
   if(!values.date||!values.start||!values.end){ modalError('Renseignez la date et les horaires.'); return; }
   const params = { values };
   if(id){ params.id=id; params.version=Number(version); params.reason=modalVal('sh-reason'); }
+  // Best-effort preview of non-blocking warnings (qualification/formation
+  // manquante, etc.) so the person still sees them even though nothing stops
+  // the save anymore. A failure here must never prevent saving — it only
+  // feeds the toast shown after a successful save.
+  let warnings = [];
+  if(values.agent){
+    try{
+      const check = await rpc('rdz_planning_check_agent_shift', {
+        p_agent_id: values.agent, p_site_id: values.site, p_post_name: values.post,
+        p_date: values.date, p_start: values.start, p_end: values.end,
+        p_exclude_shift_id: id||null, p_break_minutes: values.breakMinutes, p_break_paid: values.breakPaid
+      });
+      warnings = (check && check.warn) || [];
+    }catch(e){ /* ignore — non-blocking preview only */ }
+  }
   const ok = await apiAction(id?'edit':'create', params);
-  if(ok){ closeModal(); toast(id? 'Service modifié' : 'Service créé'); }
+  if(ok){
+    closeModal();
+    const base = id? 'Service modifié' : 'Service créé';
+    toast(warnings.length? `${base} — ⚠️ ${warnings.join(' · ')}` : base);
+  }
 }
 async function publishShift(id){
   const ok = await apiAction('publish', { ids:[id] });
