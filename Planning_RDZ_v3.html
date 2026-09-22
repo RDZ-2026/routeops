@@ -1308,6 +1308,26 @@ function planCurrentView(){
   return v;
 }
 
+// Draft ('Planifiée') shifts within the currently displayed period and site
+// filter — used both to count and to bulk-publish them in one click.
+function visibleDraftShiftIds(activeSites, days){
+  const siteIds = new Set(activeSites.map(s=>s.id));
+  return STATE.shifts.filter(s=>s.status==='Planifiée' && days.includes(s.date) && siteIds.has(s.site)).map(s=>s.id);
+}
+async function publishVisibleDrafts(){
+  const days = planDays();
+  const allSites = sortSitesByName(STATE.sites.filter(s=>!s.archived));
+  const activeView = planCurrentView();
+  let activeSites;
+  if(PLAN_FILTER.scope==='site'){ activeSites = PLAN_FILTER.site ? allSites.filter(s=>s.id===PLAN_FILTER.site) : allSites; }
+  else if(PLAN_FILTER.scope==='view'){ activeSites = activeView ? allSites.filter(s=>(activeView.siteIds||[]).includes(s.id)) : []; }
+  else { activeSites = allSites; }
+  const ids = visibleDraftShiftIds(activeSites, days);
+  if(!ids.length) return;
+  if(!confirm(`Publier ${ids.length} service(s) en brouillon sur la période affichée ? Les agents concernés pourront alors les voir et les valider.`)) return;
+  const ok = await apiAction('publish', { ids });
+  if(ok) toast(ids.length>1? `${ids.length} services publiés` : 'Service publié');
+}
 function renderPlanning(el){
   planInitRange();
   const canManage = ['direction','planning','site'].includes(ACTOR.role);
@@ -1327,6 +1347,11 @@ function renderPlanning(el){
       <div class="ph-right">${canManage? `<button class="btn btn-primary btn-sm" onclick="openShiftModal()">+ Nouveau service</button>` : ''}</div>
     </div>
     <div class="plan-toolbar">
+      ${(()=>{
+        if(!canManage) return '';
+        const draftCount = visibleDraftShiftIds(activeSites, days).length;
+        return draftCount? `<button class="btn btn-success btn-sm" onclick="publishVisibleDrafts()">📤 Publier ${draftCount} service${draftCount>1?'s':''}</button>` : '';
+      })()}
       <div style="display:flex;gap:0;border:1.5px solid var(--border2);border-radius:9px;overflow:hidden;">
         <button class="btn btn-sm ${PLAN_FILTER.mode==='week'?'btn-primary':'btn-ghost'}" style="border-radius:0;" onclick="planSetMode('week')">Semaine</button>
         <button class="btn btn-sm ${PLAN_FILTER.mode==='month'?'btn-primary':'btn-ghost'}" style="border-radius:0;" onclick="planSetMode('month')">Mois</button>
