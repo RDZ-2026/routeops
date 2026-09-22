@@ -477,13 +477,44 @@ function setSimulate(id){ UI.simulate = id||''; closeModal(); fetchState(); }
 function authHeaders(extra){
   return Object.assign({ apikey:SUPA_ANON, Authorization:'Bearer '+currentToken }, extra||{});
 }
+// Supabase access tokens are short-lived (about 1h). Every write used to keep
+// using the token from login until it expired, then fail with "JWT expired"
+// until the person logged out and back in. This refreshes it transparently,
+// right before it's needed, using the long-lived refresh_token saved at login
+// — so a shift can be created hours into a session without any manual step.
+async function ensureFreshSession(){
+  if(!currentSession) return;
+  if(currentSession.expires_at > Math.floor(Date.now()/1000)+30) return;
+  try{
+    const r = await fetch(SUPA_URL+'/auth/v1/token?grant_type=refresh_token', {
+      method:'POST', headers:{'Content-Type':'application/json','apikey':SUPA_ANON},
+      body: JSON.stringify({ refresh_token: currentSession.refresh })
+    });
+    const auth = await r.json().catch(()=>null);
+    if(!r.ok || !auth || !auth.access_token) throw new Error('refresh failed');
+    const session = {
+      token: auth.access_token, refresh: auth.refresh_token, expires_at: auth.expires_at,
+      user_id: auth.user? auth.user.id : currentSession.user_id, email: auth.user? auth.user.email : currentSession.email
+    };
+    currentToken = session.token; currentSession = session;
+    localStorage.setItem(SK, JSON.stringify(session));
+  }catch(e){
+    // The refresh_token itself is gone or invalid (very old session, revoked
+    // access...) — nothing left to try, send the person back to login rather
+    // than let every subsequent request fail silently.
+    doLogout();
+    throw new Error('Votre session a expiré, merci de vous reconnecter.');
+  }
+}
 async function restSelect(table, query){
+  await ensureFreshSession();
   const r = await fetch(SUPA_URL+'/rest/v1/'+table+(query?('?'+query):''), { headers: authHeaders() });
   const data = await r.json().catch(()=>null);
   if(!r.ok) throw new Error((data&&(data.message||data.error))||('Lecture impossible : '+table));
   return data||[];
 }
 async function restInsert(table, rows){
+  await ensureFreshSession();
   const r = await fetch(SUPA_URL+'/rest/v1/'+table, {
     method:'POST',
     headers: authHeaders({ 'content-type':'application/json', Prefer:'return=representation' }),
@@ -494,6 +525,7 @@ async function restInsert(table, rows){
   return data;
 }
 async function restUpdate(table, filterQuery, patch){
+  await ensureFreshSession();
   const r = await fetch(SUPA_URL+'/rest/v1/'+table+'?'+filterQuery, {
     method:'PATCH',
     headers: authHeaders({ 'content-type':'application/json', Prefer:'return=representation' }),
@@ -504,10 +536,12 @@ async function restUpdate(table, filterQuery, patch){
   return data;
 }
 async function restDelete(table, filterQuery){
+  await ensureFreshSession();
   const r = await fetch(SUPA_URL+'/rest/v1/'+table+'?'+filterQuery, { method:'DELETE', headers: authHeaders() });
   if(!r.ok){ const data = await r.json().catch(()=>null); throw new Error((data&&(data.message||data.error))||('Suppression impossible : '+table)); }
 }
 async function rpc(name, args){
+  await ensureFreshSession();
   const r = await fetch(SUPA_URL+'/rest/v1/rpc/'+name, {
     method:'POST',
     headers: authHeaders({ 'content-type':'application/json' }),
