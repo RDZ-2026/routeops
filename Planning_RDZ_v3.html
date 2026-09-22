@@ -150,7 +150,8 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .shift-chip .sc-desc{color:var(--text3);font-size:9.5px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .shift-chip.no-agent{border-left-color:var(--red);}
 .shift-chip.no-agent .sc-agent{color:var(--red);}
-.shift-chip.status-publiee,.shift-chip.status-vue{border-left-color:var(--blue);}
+.shift-chip.status-publiee{border-left-color:var(--blue);}
+.shift-chip.status-vue{border-left-color:#7c3aed;}
 .shift-chip.status-validee{border-left-color:var(--green);}
 .shift-chip.status-effectuee{border-left-color:var(--orange);}
 .shift-chip.status-controlee{border-left-color:#15803d;background:#f7fdf9;}
@@ -334,6 +335,16 @@ function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,
 function uuid(){ return crypto.randomUUID(); }
 function todayISO(){ return new Date().toLocaleDateString('en-CA',{timeZone:'Europe/Zurich'}); }
 function fmtDate(d){ if(!d) return '—'; try{ return new Date(d+'T12:00:00Z').toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric'}); }catch(e){ return d; } }
+// Full date+time (used for seen_at/accepted_at/checked_at, which are real
+// timestamps, unlike the plain YYYY-MM-DD dates fmtDate handles).
+function fmtDateTime(iso){
+  if(!iso) return null;
+  try{
+    const d = new Date(iso);
+    return d.toLocaleDateString('fr-CH',{day:'2-digit',month:'2-digit',year:'numeric',timeZone:'Europe/Zurich'})
+      + ' à ' + d.toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit',timeZone:'Europe/Zurich'});
+  }catch(e){ return iso; }
+}
 function fmtHours(mins){ if(!Number.isFinite(mins)) return '—'; const h=Math.floor(Math.abs(mins)/60), m=Math.round(Math.abs(mins)%60); return (mins<0?'-':'')+h+'h'+String(m).padStart(2,'0'); }
 function normalizeName(s){ return String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,''); }
 
@@ -1211,11 +1222,25 @@ function planningRows(sites, days){
 function jsStr(v){ return String(v).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
 const BREAK_OPTIONS = [ {min:0,label:'Aucune'}, {min:30,label:'30 min'}, {min:60,label:'1 h'}, {min:90,label:'1 h 30'}, {min:120,label:'2 h'} ];
 function breakLabel(min){ return (BREAK_OPTIONS.find(o=>o.min===min)||BREAK_OPTIONS[0]).label; }
+function renderStatusLegendItem(color, label){
+  return `<span style="display:inline-flex;align-items:center;gap:5px;"><span style="width:9px;height:9px;border-radius:2px;background:${color};display:inline-block;"></span>${esc(label)}</span>`;
+}
 function shiftTooltip(s){
   const parts = [siteLabel(s.site)+' / '+s.post, s.start+'–'+s.end];
   if(s.breakMinutes) parts.push('Pause '+breakLabel(s.breakMinutes)+(s.breakPaid?' (payée)':' (non payée)'));
   if(s.description) parts.push(s.description);
   return parts.join(' · ');
+}
+// Human-readable trail of what the agent has actually done with a published
+// shift: opened it (seen_at), confirmed it (accepted_at), and/or a supervisor
+// controlled the worked hours (checked_at). A draft ('Planifiée') hasn't
+// reached the agent yet, so there's nothing to report there.
+function shiftStatusDetail(s){
+  if(s.status==='Planifiée') return 'Brouillon — pas encore publié, l’agent ne le voit pas.';
+  const bits = [ s.seen? ('Vu par l’agent le '+fmtDateTime(s.seen)) : 'Pas encore vu par l’agent' ];
+  bits.push(s.accepted? ('Validé par l’agent le '+fmtDateTime(s.accepted)) : 'Pas encore validé par l’agent');
+  if(s.checked) bits.push('Contrôlé le '+fmtDateTime(s.checked));
+  return bits.join(' · ');
 }
 // context 'site': the calendar row already identifies the site/post, so the chip's
 // second line shows the agent's name. context 'agent': the row already identifies
@@ -1325,6 +1350,14 @@ function renderPlanning(el){
         : `<button class="btn btn-ghost btn-sm" onclick="openCopyMonthModal()">⧉ Copier le mois</button>`) : ''}
       <label class="checkline"><input type="checkbox" ${PLAN_FILTER.onlyActive?'checked':''} onchange="PLAN_FILTER.onlyActive=this.checked;renderCurrentPanel()"> Uniquement ${PLAN_FILTER.view==='agent'?'les agents':'les postes'} avec service</label>
     </div>
+    <div class="plan-legend" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:11px;color:var(--text2);margin:-6px 0 10px;">
+      ${renderStatusLegendItem('var(--text3)','Brouillon (non publié)')}
+      ${renderStatusLegendItem('var(--blue)','Publié (agent pas encore ouvert)')}
+      ${renderStatusLegendItem('#7c3aed','Vu par l’agent')}
+      ${renderStatusLegendItem('var(--green)','Validé par l’agent')}
+      ${renderStatusLegendItem('var(--orange)','Effectué')}
+      ${renderStatusLegendItem('#15803d','Contrôlé')}
+    </div>
     <div class="calendar-scroll" id="calendar-scroll">
       ${PLAN_FILTER.view==='agent' ? renderAgentCalendar(days, today, canManage, activeView) : renderSiteCalendar(activeSites, days, today, canManage)}
     </div>
@@ -1412,7 +1445,7 @@ function openShiftModal(id, prefill){
       <div class="fg full"><div class="flabel">Description</div><textarea class="ftxt" id="sh-description" rows="2" placeholder="Notes libres sur ce service (optionnel)">${s?esc(s.description||''):''}</textarea></div>
       ${s? `<div class="fg full"><div class="flabel">Motif de la modification *</div><input class="finp" id="sh-reason" placeholder="Ex. remplacement, correction d’horaire…"></div>` : ''}
     </div>
-    ${s? `<div class="hint">Statut actuel : ${esc(s.status)}</div>` : ''}
+    ${s? `<div class="hint">Statut actuel : ${esc(s.status)}<br>${esc(shiftStatusDetail(s))}</div>` : ''}
   `;
   const actions = `
     ${s&&canManage? `<button class="btn btn-danger btn-sm" onclick="deleteShiftAction('${s.id}','${s.version}')">🗑 Supprimer</button>` : ''}
