@@ -1212,15 +1212,22 @@ function shiftTooltip(s){
   if(s.description) parts.push(s.description);
   return parts.join(' · ');
 }
-function renderShiftChip(s, canManage){
+// context 'site': the calendar row already identifies the site/post, so the chip's
+// second line shows the agent's name. context 'agent': the row already identifies
+// the agent, so the chip shows the site + post instead — repeating the agent's own
+// name on every one of their chips is redundant.
+function renderShiftChip(s, canManage, context){
   const desc = s.description? esc(s.description) : '';
+  const secondLine = context==='agent'
+    ? esc(s.site? (siteLabel(s.site)+' / '+s.post) : s.post)
+    : (s.agent? esc(agentLabel(s.agent)) : 'À affecter');
   return `
     <div class="shift-chip status-${STATUS_CLASS[s.status]||'planifiee'} ${!s.agent?'no-agent':''}" draggable="${canManage?'true':'false'}"
       title="${esc(shiftTooltip(s))}"
       ondragstart="handleChipDragStart(event,'${s.id}')"
       onclick="event.stopPropagation();openShiftModal('${s.id}')">
       <div class="sc-time">${s.start}–${s.end}</div>
-      <div class="sc-agent">${s.agent? esc(agentLabel(s.agent)) : 'À affecter'}</div>
+      <div class="sc-agent">${secondLine}</div>
       ${desc? `<div class="sc-desc">${desc}</div>` : ''}
     </div>`;
 }
@@ -1371,8 +1378,7 @@ function renderAgentCalendar(days, today, canManage, activeView){
 }
 function renderAgentPlanningCell(agent, date, today, canManage){
   const shifts = STATE.shifts.filter(s=>s.agent===agent.id && s.date===date).sort((a,b)=>a.start.localeCompare(b.start));
-  const chips = shifts.map(s=>renderShiftChip(s, canManage)).join('');
-  const addBtn = canManage? `<div class="cell-add" onclick="openShiftModal(null,{agent:'${jsStr(agent.id)}',date:'${date}'})" title="Ajouter un service">+</div>` : '';
+  const chips = shifts.map(s=>renderShiftChip(s, canManage, 'agent')).join('');
   const dropAttrs = canManage? `ondragover="handleCellDragOver(event)" ondragleave="handleCellDragLeave(event)" ondrop="handleCellDrop(event,{agent:'${jsStr(agent.id)}',date:'${date}'})"` : '';
   return `<div class="cell shift-cell ${date===today?'is-today':''}" ${dropAttrs}>${chips}${addBtn}</div>`;
 }
