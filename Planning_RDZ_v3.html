@@ -543,7 +543,8 @@ function mapShift(row){
   const s = {
     id: row.id, agent: row.agent_id||'', site: row.site_id, post: row.post_name, date: row.date,
     start: (row.start_time||'').slice(0,5), end: (row.end_time||'').slice(0,5), status: row.status,
-    description: row.description||'', reason: row.reason||'', version: row.version
+    description: row.description||'', reason: row.reason||'', version: row.version,
+    breakMinutes: row.break_minutes||0, breakPaid: !!row.break_paid
   };
   if(row.actual_start) s.actualStart = row.actual_start.slice(0,5);
   if(row.actual_end) s.actualEnd = row.actual_end.slice(0,5);
@@ -668,7 +669,8 @@ async function apiAction(action, params){
         await rpc('rdz_planning_shift_upsert', {
           p_id: params.id||null, p_version: params.version ?? null,
           p_site_id: v.site, p_post_name: v.post, p_date: v.date, p_start: v.start, p_end: v.end,
-          p_agent_id: v.agent||null, p_description: v.description||'', p_reason: params.reason||null
+          p_agent_id: v.agent||null, p_description: v.description||'', p_reason: params.reason||null,
+          p_break_minutes: v.breakMinutes||0, p_break_paid: !!v.breakPaid
         });
         break;
       }
@@ -1207,8 +1209,11 @@ function planningRows(sites, days){
   return rows;
 }
 function jsStr(v){ return String(v).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
+const BREAK_OPTIONS = [ {min:0,label:'Aucune'}, {min:30,label:'30 min'}, {min:60,label:'1 h'}, {min:90,label:'1 h 30'}, {min:120,label:'2 h'} ];
+function breakLabel(min){ return (BREAK_OPTIONS.find(o=>o.min===min)||BREAK_OPTIONS[0]).label; }
 function shiftTooltip(s){
   const parts = [siteLabel(s.site)+' / '+s.post, s.start+'–'+s.end];
+  if(s.breakMinutes) parts.push('Pause '+breakLabel(s.breakMinutes)+(s.breakPaid?' (payée)':' (non payée)'));
   if(s.description) parts.push(s.description);
   return parts.join(' · ');
 }
@@ -1221,6 +1226,7 @@ function renderShiftChip(s, canManage, context){
   const secondLine = context==='agent'
     ? esc(s.site? (siteLabel(s.site)+' / '+s.post) : s.post)
     : (s.agent? esc(agentLabel(s.agent)) : 'À affecter');
+  const breakLine = s.breakMinutes? `<div class="sc-desc">Pause ${breakLabel(s.breakMinutes)}${s.breakPaid?'':' (non payée)'}</div>` : '';
   return `
     <div class="shift-chip status-${STATUS_CLASS[s.status]||'planifiee'} ${!s.agent?'no-agent':''}" draggable="${canManage?'true':'false'}"
       title="${esc(shiftTooltip(s))}"
@@ -1228,6 +1234,7 @@ function renderShiftChip(s, canManage, context){
       onclick="event.stopPropagation();openShiftModal('${s.id}')">
       <div class="sc-time">${s.start}–${s.end}</div>
       <div class="sc-agent">${secondLine}</div>
+      ${breakLine}
       ${desc? `<div class="sc-desc">${desc}</div>` : ''}
     </div>`;
 }
@@ -1400,6 +1407,8 @@ function openShiftModal(id, prefill){
       <div class="fg"><div class="flabel">Agent</div><select class="fsel" id="sh-agent"><option value="">— À affecter —</option>${agents.map(a=>`<option value="${a.id}" ${preAgent===a.id?'selected':''}>${esc(displayNomPrenom(a))}</option>`).join('')}</select></div>
       <div class="fg"><div class="flabel">Début *</div><input class="finp" type="time" id="sh-start" value="${s?s.start:'07:00'}"></div>
       <div class="fg"><div class="flabel">Fin *</div><input class="finp" type="time" id="sh-end" value="${s?s.end:'15:00'}"></div>
+      <div class="fg"><div class="flabel">Pause</div><select class="fsel" id="sh-break">${BREAK_OPTIONS.map(o=>`<option value="${o.min}" ${(s?(s.breakMinutes||0):0)===o.min?'selected':''}>${o.label}</option>`).join('')}</select></div>
+      <div class="fg"><div class="flabel">Pause payée</div><select class="fsel" id="sh-break-paid"><option value="1" ${!s||s.breakPaid?'selected':''}>Oui</option><option value="0" ${s&&!s.breakPaid?'selected':''}>Non</option></select></div>
       <div class="fg full"><div class="flabel">Description</div><textarea class="ftxt" id="sh-description" rows="2" placeholder="Notes libres sur ce service (optionnel)">${s?esc(s.description||''):''}</textarea></div>
       ${s? `<div class="fg full"><div class="flabel">Motif de la modification *</div><input class="finp" id="sh-reason" placeholder="Ex. remplacement, correction d’horaire…"></div>` : ''}
     </div>
@@ -1425,7 +1434,7 @@ function onShiftSiteChange(){
 }
 async function saveShiftForm(idVersion){
   const [id, version] = idVersion? idVersion.split('|') : [null,null];
-  const values = { site: modalVal('sh-site'), post: modalVal('sh-post'), date: modalVal('sh-date'), start: modalVal('sh-start'), end: modalVal('sh-end'), agent: modalVal('sh-agent'), description: modalVal('sh-description') };
+  const values = { site: modalVal('sh-site'), post: modalVal('sh-post'), date: modalVal('sh-date'), start: modalVal('sh-start'), end: modalVal('sh-end'), agent: modalVal('sh-agent'), description: modalVal('sh-description'), breakMinutes: Number(modalVal('sh-break'))||0, breakPaid: modalVal('sh-break-paid')==='1' };
   if(!values.date||!values.start||!values.end){ modalError('Renseignez la date et les horaires.'); return; }
   const params = { values };
   if(id){ params.id=id; params.version=Number(version); params.reason=modalVal('sh-reason'); }
