@@ -1379,6 +1379,7 @@ function renderAgentCalendar(days, today, canManage, activeView){
 function renderAgentPlanningCell(agent, date, today, canManage){
   const shifts = STATE.shifts.filter(s=>s.agent===agent.id && s.date===date).sort((a,b)=>a.start.localeCompare(b.start));
   const chips = shifts.map(s=>renderShiftChip(s, canManage, 'agent')).join('');
+  const addBtn = canManage? `<div class="cell-add" onclick="openShiftModal(null,{agent:'${jsStr(agent.id)}',date:'${date}'})" title="Ajouter un service">+</div>` : '';
   const dropAttrs = canManage? `ondragover="handleCellDragOver(event)" ondragleave="handleCellDragLeave(event)" ondrop="handleCellDrop(event,{agent:'${jsStr(agent.id)}',date:'${date}'})"` : '';
   return `<div class="cell shift-cell ${date===today?'is-today':''}" ${dropAttrs}>${chips}${addBtn}</div>`;
 }
