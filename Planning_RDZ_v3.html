@@ -255,6 +255,7 @@ a{color:var(--red)}
 .btn-primary:hover{background:#b31219!important;}
 .finp:focus,.fsel:focus,.ftxt:focus{border-color:#d71920!important;box-shadow:0 0 0 3px rgba(215,25,32,.10)!important;}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -1328,6 +1329,114 @@ async function publishVisibleDrafts(){
   const ok = await apiAction('publish', { ids });
   if(ok) toast(ids.length>1? `${ids.length} services publiés` : 'Service publié');
 }
+// ── EXPORT EXCEL ─────────────────────────────────────────────
+// Full schedule export for one agent (every site) or one site (every agent),
+// over an arbitrary day/week/month — independent of whatever PLAN_FILTER
+// currently shows on screen, so the export always reflects what was picked
+// in the modal rather than the calendar view underneath it.
+function periodDays(mode, anchorDate){
+  if(mode==='day') return [anchorDate];
+  if(mode==='month'){
+    const [y,m] = anchorDate.slice(0,7).split('-').map(Number);
+    const nbDays = new Date(Date.UTC(y, m, 0)).getUTCDate();
+    return Array.from({length:nbDays}, (_,i)=> `${String(y)}-${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`);
+  }
+  const monday = mondayOf(anchorDate);
+  return Array.from({length:7}, (_,i)=> addDays(monday, i));
+}
+function weekdayFullName(d){
+  const w = new Date(d+'T12:00:00Z').toLocaleDateString('fr-CH', { weekday:'long', timeZone:'UTC' });
+  return w.charAt(0).toUpperCase()+w.slice(1);
+}
+function periodLabel(mode, anchorDate, days){
+  if(mode==='day') return fmtDate(anchorDate);
+  if(mode==='month') return new Date(anchorDate+'T12:00:00Z').toLocaleDateString('fr-CH',{month:'long',year:'numeric',timeZone:'UTC'});
+  return 'Semaine du '+fmtDate(days[0])+' au '+fmtDate(days[days.length-1]);
+}
+function renderExportTargetSelect(type){
+  if(type==='site'){
+    const sites = sortSitesByName(STATE.sites.filter(s=>!s.archived));
+    return `<div class="flabel">Site</div><select class="fsel" id="ex-target">${sites.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select>`;
+  }
+  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
+  return `<div class="flabel">Agent</div><select class="fsel" id="ex-target">${agents.map(a=>`<option value="${a.id}">${esc(displayNomPrenom(a))}</option>`).join('')}</select>`;
+}
+function onExportTypeChange(){
+  document.getElementById('ex-target-wrap').innerHTML = renderExportTargetSelect(modalVal('ex-type'));
+}
+function openExportModal(){
+  const body = `
+    <div class="fgrid">
+      <div class="fg full"><div class="flabel">Exporter la planification de</div>
+        <select class="fsel" id="ex-type" onchange="onExportTypeChange()">
+          <option value="agent">Un agent (tous ses sites)</option>
+          <option value="site">Un site (tous ses agents)</option>
+        </select>
+      </div>
+      <div class="fg full" id="ex-target-wrap">${renderExportTargetSelect('agent')}</div>
+      <div class="fg"><div class="flabel">Période</div>
+        <select class="fsel" id="ex-period">
+          <option value="day">Jour</option>
+          <option value="week" selected>Semaine</option>
+          <option value="month">Mois</option>
+        </select>
+      </div>
+      <div class="fg"><div class="flabel">Date de référence *</div><input class="finp" type="date" id="ex-anchor" value="${todayISO()}"></div>
+    </div>
+    <div class="hint">Semaine = du lundi au dimanche contenant la date choisie. Mois = le mois complet de cette date.</div>
+  `;
+  const actions = `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="generateExcelExport()">📊 Générer le fichier Excel</button>`;
+  openModal('export-modal', 'Exporter la planification', body, actions);
+}
+function generateExcelExport(){
+  const type = modalVal('ex-type');
+  const targetId = modalVal('ex-target');
+  const mode = modalVal('ex-period');
+  const anchor = modalVal('ex-anchor');
+  if(!targetId){ modalError('Choisissez '+(type==='site'?'un site':'un agent')+'.'); return; }
+  if(!anchor){ modalError('Choisissez une date de référence.'); return; }
+  if(typeof XLSX==='undefined'){ modalError('La bibliothèque Excel n’a pas pu se charger (vérifiez la connexion internet puis réessayez).'); return; }
+
+  const days = periodDays(mode, anchor);
+  const daySet = new Set(days);
+  const header = ['Date','Jour',type==='agent'?'Site':'Poste',type==='agent'?'Poste':'Agent','Début','Fin','Pause','Pause payée','Statut','Description'];
+  let shifts, title, fileLabel;
+
+  if(type==='agent'){
+    const agent = agentById(targetId);
+    title = 'Planning de '+displayNomPrenom(agent);
+    fileLabel = displayNomPrenom(agent).replace(/\s+/g,'_');
+    shifts = STATE.shifts.filter(s=>s.agent===targetId && daySet.has(s.date));
+  } else {
+    const site = siteById(targetId);
+    title = 'Planning du site '+site.name;
+    fileLabel = site.name.replace(/\s+/g,'_');
+    shifts = STATE.shifts.filter(s=>s.site===targetId && daySet.has(s.date));
+  }
+  shifts = shifts.sort((a,b)=> a.date===b.date? a.start.localeCompare(b.start) : a.date.localeCompare(b.date));
+
+  const rows = [
+    [title], [periodLabel(mode, anchor, days)], [],
+    header,
+    ...shifts.map(s=>[
+      fmtDate(s.date), weekdayFullName(s.date),
+      type==='agent'? siteLabel(s.site) : s.post,
+      type==='agent'? s.post : (s.agent? displayNomPrenom(agentById(s.agent)) : 'À affecter'),
+      s.start, s.end,
+      s.breakMinutes? breakLabel(s.breakMinutes) : '—',
+      s.breakMinutes? (s.breakPaid?'Oui':'Non') : '—',
+      s.status, s.description||''
+    ])
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [ {wch:12},{wch:11},{wch:20},{wch:18},{wch:7},{wch:7},{wch:9},{wch:12},{wch:11},{wch:30} ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Planning');
+  XLSX.writeFile(wb, `Planning_${fileLabel}_${anchor}.xlsx`);
+  closeModal();
+  toast(shifts.length? `${shifts.length} service(s) exporté(s)` : 'Aucun service sur cette période — fichier vide généré');
+}
 function renderPlanning(el){
   planInitRange();
   const canManage = ['direction','planning','site'].includes(ACTOR.role);
@@ -1344,7 +1453,7 @@ function renderPlanning(el){
   el.innerHTML = `
     <div class="ph">
       <div><div class="ph-title">Planning</div><div class="ph-sub">${esc(planLabel())}</div></div>
-      <div class="ph-right">${canManage? `<button class="btn btn-primary btn-sm" onclick="openShiftModal()">+ Nouveau service</button>` : ''}</div>
+      <div class="ph-right">${canManage? `<button class="btn btn-ghost btn-sm" onclick="openExportModal()">📊 Exporter Excel</button> <button class="btn btn-primary btn-sm" onclick="openShiftModal()">+ Nouveau service</button>` : ''}</div>
     </div>
     <div class="plan-toolbar">
       ${(()=>{
