@@ -136,10 +136,10 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .calendar-scroll{overflow:auto;border:1px solid var(--border);border-radius:10px;background:#fff;max-height:74vh;-webkit-overflow-scrolling:touch;}
 .calendar{display:grid;}
 .calendar .cell{border-right:1px solid #f0eeeb;border-bottom:1px solid #f0eeeb;padding:5px;min-height:52px;font-size:11px;box-sizing:border-box;}
-.calendar .cell.corner{background:var(--bg2);font-weight:700;font-size:11.5px;position:sticky;left:0;top:0;z-index:4;display:flex;align-items:center;box-shadow:2px 0 5px -2px rgba(0,0,0,.18);}
-.calendar .cell.day-header{background:var(--bg2);text-align:center;font-weight:700;font-size:11px;position:sticky;top:0;z-index:3;color:var(--text2);}
+.calendar .cell.corner{background:var(--bg2);font-weight:700;font-size:11.5px;position:relative;z-index:4;display:flex;align-items:center;box-shadow:2px 0 5px -2px rgba(0,0,0,.18);}
+.calendar .cell.day-header{background:var(--bg2);text-align:center;font-weight:700;font-size:11px;position:relative;z-index:3;color:var(--text2);}
 .calendar .cell.day-header.is-today{color:var(--red);}
-.calendar .cell.row-label{background:#fbfaf9;font-size:11px;position:sticky;left:0;z-index:2;line-height:1.3;box-shadow:2px 0 5px -2px rgba(0,0,0,.18);}
+.calendar .cell.row-label{background:#fbfaf9;font-size:11px;position:relative;z-index:2;line-height:1.3;box-shadow:2px 0 5px -2px rgba(0,0,0,.18);}
 .calendar .cell.shift-cell.is-today{background:#fff7f0;}
 .calendar .cell.shift-cell.drag-over{background:#fff0ef;outline:2px dashed var(--red);outline-offset:-2px;}
 .shift-chip{background:#fff;border:1px solid var(--border2);border-left:3px solid var(--text3);border-radius:6px;padding:3px 5px;font-size:10.5px;margin-bottom:3px;cursor:grab;line-height:1.25;}
@@ -1437,6 +1437,26 @@ function generateExcelExport(){
   closeModal();
   toast(shifts.length? `${shifts.length} service(s) exporté(s)` : 'Aucun service sur cette période — fichier vide généré');
 }
+// Freezes the row-label column and the day-header row "by hand" via transform,
+// re-applied on every scroll event. CSS position:sticky was tried first and
+// turned out not to work reliably on this very wide grid in practice, so this
+// JS-driven approach replaces it — same visual result, no reliance on the
+// browser's sticky implementation.
+function bindCalendarFreeze(){
+  const scroller = document.getElementById('calendar-scroll');
+  if(!scroller) return;
+  const labels = scroller.querySelectorAll('.cell.row-label');
+  const headers = scroller.querySelectorAll('.cell.day-header');
+  const corner = scroller.querySelector('.cell.corner');
+  const apply = () => {
+    const x = scroller.scrollLeft, y = scroller.scrollTop;
+    labels.forEach(el=>{ el.style.transform = `translateX(${x}px)`; });
+    headers.forEach(el=>{ el.style.transform = `translateY(${y}px)`; });
+    if(corner) corner.style.transform = `translate(${x}px, ${y}px)`;
+  };
+  scroller.addEventListener('scroll', apply, { passive:true });
+  apply();
+}
 function renderPlanning(el){
   planInitRange();
   const canManage = ['direction','planning','site'].includes(ACTOR.role);
@@ -1496,6 +1516,7 @@ function renderPlanning(el){
       ${PLAN_FILTER.view==='agent' ? renderAgentCalendar(days, today, canManage, activeView) : renderSiteCalendar(activeSites, days, today, canManage)}
     </div>
   `;
+  bindCalendarFreeze();
 }
 function rowHasShiftInRange(row, days){ return STATE.shifts.some(s=>s.site===row.siteId && s.post===row.post && days.includes(s.date)); }
 function renderSiteCalendar(activeSites, days, today, canManage){
