@@ -134,6 +134,12 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 
 /* Planning — grille site/poste × jours */
 .calendar-scroll{overflow:auto;border:1px solid var(--border);border-radius:10px;background:#fff;max-height:74vh;-webkit-overflow-scrolling:touch;}
+.cs-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.cs-dow{font-size:10px;color:var(--text3);text-align:center;font-weight:600;padding:2px 0;}
+.cs-day{text-align:center;padding:6px 0;border-radius:6px;font-size:12px;cursor:pointer;background:#f1f5f9;user-select:none;}
+.cs-day:hover{background:#e2e8f0;}
+.cs-day.cs-selected{background:var(--red);color:#fff;font-weight:700;}
+.cs-day.cs-empty{cursor:default;background:transparent;}
 .calendar{display:grid;}
 .calendar .cell{border-right:1px solid #f0eeeb;border-bottom:1px solid #f0eeeb;padding:5px;min-height:52px;font-size:11px;box-sizing:border-box;}
 .calendar .cell.corner{background:var(--bg2);font-weight:700;font-size:11.5px;position:relative;z-index:4;display:flex;align-items:center;box-shadow:2px 0 5px -2px rgba(0,0,0,.18);}
@@ -1693,22 +1699,67 @@ async function deleteShiftAction(id, version){
   const ok = await apiAction('deleteShift', { id, version:Number(version), confirm:true });
   if(ok){ closeModal(); toast('Service supprimé'); }
 }
+let CS_SELECTED = new Set();
+let CS_MONTH = '';
 function openCopyShiftModal(id, version){
   const s = STATE.shifts.find(x=>x.id===id);
   const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
+  CS_SELECTED = new Set([s.date]);
+  CS_MONTH = s.date.slice(0,7);
   openModal('copy-shift-modal', 'Copier le service', `
     <div class="hint" style="margin-bottom:10px;">${esc(siteLabel(s.site))} / ${esc(s.post)} · ${s.start}–${s.end}</div>
-    <div class="fgrid">
-      <div class="fg"><div class="flabel">Nouvelle date *</div><input class="finp" type="date" id="cs-date" value="${s.date}"></div>
-      <div class="fg"><div class="flabel">Agent</div><select class="fsel" id="cs-agent"><option value="">— À affecter —</option>${agents.map(a=>`<option value="${a.id}" ${s.agent===a.id?'selected':''}>${esc(displayNomPrenom(a))}</option>`).join('')}</select></div>
+    <div class="fg full"><div class="flabel">Agent (appliqué à toutes les dates choisies)</div>
+      <select class="fsel" id="cs-agent"><option value="">— À affecter —</option>${agents.map(a=>`<option value="${a.id}" ${s.agent===a.id?'selected':''}>${esc(displayNomPrenom(a))}</option>`).join('')}</select>
     </div>
+    <div class="flabel" style="margin-top:12px;">Dates *</div>
+    <div id="cs-calendar">${renderCopyShiftCalendar()}</div>
+    <div class="hint" id="cs-count" style="margin-top:6px;">1 date sélectionnée.</div>
   `, `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="doCopyShift('${id}','${version}')">Copier</button>`);
 }
+function renderCopyShiftCalendar(){
+  const [y,m] = CS_MONTH.split('-').map(Number);
+  const first = new Date(Date.UTC(y, m-1, 1));
+  const startWeekday = (first.getUTCDay()+6)%7; // Monday-first grid
+  const nbDays = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  const monthLabel = first.toLocaleDateString('fr-CH', {month:'long', year:'numeric', timeZone:'UTC'});
+  let cells = '';
+  for(let i=0;i<startWeekday;i++) cells += `<div class="cs-day cs-empty"></div>`;
+  for(let d=1; d<=nbDays; d++){
+    const dateStr = `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    cells += `<div class="cs-day ${CS_SELECTED.has(dateStr)?'cs-selected':''}" onclick="toggleCsDate('${dateStr}')">${d}</div>`;
+  }
+  return `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+      <button type="button" class="btn btn-ghost btn-sm" onclick="csNavMonth(-1)">‹</button>
+      <div style="font-weight:600;text-transform:capitalize;">${esc(monthLabel)}</div>
+      <button type="button" class="btn btn-ghost btn-sm" onclick="csNavMonth(1)">›</button>
+    </div>
+    <div class="cs-grid">
+      ${['L','M','M','J','V','S','D'].map(d=>`<div class="cs-dow">${d}</div>`).join('')}
+      ${cells}
+    </div>
+  `;
+}
+function csNavMonth(dir){
+  const [y,m] = CS_MONTH.split('-').map(Number);
+  const d = new Date(Date.UTC(y, m-1+dir, 1));
+  CS_MONTH = `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}`;
+  const cal = document.getElementById('cs-calendar');
+  if(cal) cal.innerHTML = renderCopyShiftCalendar();
+}
+function toggleCsDate(dateStr){
+  if(CS_SELECTED.has(dateStr)) CS_SELECTED.delete(dateStr); else CS_SELECTED.add(dateStr);
+  const cal = document.getElementById('cs-calendar');
+  if(cal) cal.innerHTML = renderCopyShiftCalendar();
+  const count = document.getElementById('cs-count');
+  if(count) count.textContent = CS_SELECTED.size? `${CS_SELECTED.size} date${CS_SELECTED.size>1?'s':''} sélectionnée${CS_SELECTED.size>1?'s':''}.` : 'Aucune date sélectionnée.';
+}
 async function doCopyShift(id, version){
-  const date = modalVal('cs-date'), agent = modalVal('cs-agent');
-  if(!date){ modalError('Choisissez une date.'); return; }
-  const ok = await apiAction('duplicateShift', { id, version:Number(version), targets:[{date, agent}] });
-  if(ok){ closeModal(); toast('Service copié'); }
+  const agent = modalVal('cs-agent');
+  if(!CS_SELECTED.size){ modalError('Choisissez au moins une date dans le calendrier.'); return; }
+  const targets = Array.from(CS_SELECTED).sort().map(date=>({date, agent}));
+  const ok = await apiAction('duplicateShift', { id, version:Number(version), targets });
+  if(ok){ closeModal(); toast(targets.length>1? `${targets.length} copies créées` : 'Service copié'); }
 }
 function openCopyWeekModal(){
   const allSites = sortSitesByName(STATE.sites.filter(s=>!s.archived));
