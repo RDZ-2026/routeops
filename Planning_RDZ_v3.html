@@ -861,18 +861,31 @@ function renderAgentCard(a, canManage){
 // ── Quick-assign popover: change an agent's site assignment(s) without opening
 // the full fiche. Writes primarySite/additionalSites via saveAgent, same as the
 // full agent form, keeping every other field on the agent untouched.
+//
+// Secondary sites are rendered as checkboxes rather than a <select multiple>: a
+// native multi-select requires Ctrl/Cmd-click to pick more than one option, which
+// isn't discoverable, and agents routinely cover more than one secondary site.
+function renderSiteCheckboxes(inputName, sitesForSelect, selectedIds){
+  return sitesForSelect.map(s=>`
+    <label class="checkline" style="display:block;padding:4px 0;">
+      <input type="checkbox" name="${inputName}" value="${s.id}" ${(selectedIds||[]).includes(s.id)?'checked':''}> ${esc(s.name)}
+    </label>
+  `).join('');
+}
+function getCheckedSites(inputName){
+  return Array.from(document.querySelectorAll(`input[name="${inputName}"]:checked`)).map(el=>el.value);
+}
 function openAgentSitesModal(id){
   const a = agentById(id);
   if(!a) return;
   const sitesForSelect = sortSitesByName(STATE.sites.filter(s=>!s.archived));
   const primaryOpts = sitesForSelect.map(s=>`<option value="${s.id}" ${a.primarySite===s.id?'selected':''}>${esc(s.name)}</option>`).join('');
-  const additionalOpts = sitesForSelect.map(s=>`<option value="${s.id}" ${(a.additionalSites||[]).includes(s.id)?'selected':''}>${esc(s.name)}</option>`).join('');
   const body = `
     <div class="fgrid">
       <div class="fg full"><div class="flabel">Site principal</div><select class="fsel" id="as-primary"><option value="">—</option>${primaryOpts}</select></div>
       <div class="fg full"><div class="flabel">Sites secondaires</div>
-        <select class="fsel" id="as-additional" multiple size="4">${additionalOpts}</select>
-        <div class="hint">Sites complémentaires où cet agent peut aussi être planifié.</div></div>
+        <div style="max-height:160px;overflow-y:auto;border:1px solid var(--border2);border-radius:8px;padding:4px 10px;">${renderSiteCheckboxes('as-additional', sitesForSelect, a.additionalSites)}</div>
+        <div class="hint">Sites complémentaires où cet agent peut aussi être planifié (cochez-en autant que besoin).</div></div>
     </div>
   `;
   const actions = `
@@ -891,7 +904,7 @@ async function saveAgentSitesForm(id){
   const values = {
     name: a.name, nom: a.nom, prenom: a.prenom, email: a.email||'', available: !!a.available,
     primarySite: modalVal('as-primary'),
-    additionalSites: Array.from(document.getElementById('as-additional')?.selectedOptions||[]).map(o=>o.value)
+    additionalSites: getCheckedSites('as-additional')
   };
   if(isRh){
     const obj = computeObjectives(a);
@@ -910,7 +923,6 @@ function openAgentModal(id){
   const isRh = a && a.source==='supabase-rh';
   const sitesForSelect = sortSitesByName(STATE.sites.filter(s=>!s.archived));
   const primaryOpts = sitesForSelect.map(s=>`<option value="${s.id}" ${a&&a.primarySite===s.id?'selected':''}>${esc(s.name)}</option>`).join('');
-  const additionalOpts = sitesForSelect.map(s=>`<option value="${s.id}" ${a&&(a.additionalSites||[]).includes(s.id)?'selected':''}>${esc(s.name)}</option>`).join('');
   const passport = a? (a.competencePassport||[]) : [];
   const quizzes = a? (a.quizResults||[]) : [];
   const np = getNomPrenom(a);
@@ -930,8 +942,8 @@ function openAgentModal(id){
       `}
       <div class="fg full"><div class="flabel">Site principal</div><select class="fsel" id="af-primary"><option value="">—</option>${primaryOpts}</select></div>
       <div class="fg full"><div class="flabel">Sites secondaires</div>
-        <select class="fsel" id="af-additional-sites" multiple size="4">${additionalOpts}</select>
-        <div class="hint">Sites complémentaires où cet agent peut aussi être planifié.</div></div>
+        <div style="max-height:160px;overflow-y:auto;border:1px solid var(--border2);border-radius:8px;padding:4px 10px;">${renderSiteCheckboxes('af-additional-sites', sitesForSelect, a?a.additionalSites:[])}</div>
+        <div class="hint">Sites complémentaires où cet agent peut aussi être planifié (cochez-en autant que besoin).</div></div>
     </div>
     ${a? `<div class="sep"></div>
       <div class="flabel">Passeport compétence (synchronisé)</div>
@@ -962,7 +974,7 @@ async function saveAgentForm(id){
   const values = {
     name, nom, prenom, email: modalVal('af-email'), available: modalVal('af-available')==='1',
     primarySite: modalVal('af-primary'),
-    additionalSites: Array.from(document.getElementById('af-additional-sites')?.selectedOptions||[]).map(o=>o.value)
+    additionalSites: getCheckedSites('af-additional-sites')
   };
   if(isRh){
     const obj = computeObjectives(a);
