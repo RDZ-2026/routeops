@@ -84,6 +84,64 @@ body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min
 
 .footer{padding:16px 28px;border-top:1px solid var(--border);background:white;text-align:center;font-size:11px;color:var(--text3);}
 </style>
+
+<style id="rdz-design-system-2026">
+/* RDZ Design System — modernisation visuelle uniquement */
+:root{
+  --red:#d71920;--red-d:#aa1016;
+  --bg:#f4f7fb;--white:#fff;
+  --anth:#111c2e;--anth2:#17263b;
+  --border:#e2e8f0;
+  --text:#172033;--text2:#64748b;--text3:#94a3b8;
+  --green:#15803d;--green-l:#f0fdf4;
+  --orange:#c2410c;
+  --shadow:0 8px 24px rgba(15,23,42,.06);
+  --shadow-lg:0 16px 40px rgba(15,23,42,.12);
+}
+body{font-family:Inter,'DM Sans',system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text);}
+.topbar{
+  height:72px;padding:0 32px;gap:16px;background:linear-gradient(135deg,#111c2e 0%,#17263b 100%);
+  border-bottom:3px solid var(--red);box-shadow:0 5px 20px rgba(15,23,42,.20);
+}
+.topbar>img{width:104px!important;height:46px!important;object-fit:contain!important;background:#fff;border-radius:8px;padding:4px 7px;box-shadow:0 2px 8px rgba(0,0,0,.15);}
+.tb-mark{display:none;}
+.tb-brand{font-family:Inter,'DM Sans',system-ui,sans-serif;font-size:14px;font-weight:700;letter-spacing:.01em;}
+.tb-sub{font-size:10px;color:rgba(255,255,255,.58);letter-spacing:.08em;margin-top:3px;}
+.main{max-width:1220px;padding:46px 32px 76px;}
+.hero{margin-bottom:40px;background:#fff;border:1px solid var(--border);border-radius:16px;padding:28px 30px;box-shadow:var(--shadow);position:relative;overflow:hidden;}
+.hero:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--red);}
+.hero-eyebrow{font-size:11px;color:var(--red);letter-spacing:.11em;margin-bottom:8px;}
+.hero-title{font-family:Inter,'DM Sans',system-ui,sans-serif;font-size:30px;line-height:1.15;font-weight:750;color:var(--anth);letter-spacing:-.025em;margin-bottom:9px;}
+.hero-sub{font-size:14px;color:var(--text2);line-height:1.55;}
+.hero-date{font-size:12px;color:var(--text3);margin-top:8px;text-transform:capitalize;}
+.sec-head{gap:14px;margin:0 0 16px;}
+.sec-label{font-size:11px;font-weight:750;color:#475569;letter-spacing:.1em;}
+.sec-line{background:#dbe2ea;}
+.modules{grid-template-columns:repeat(auto-fill,minmax(315px,1fr));gap:18px;margin-bottom:42px;}
+.mod{
+  border:1px solid var(--border);border-radius:14px;padding:22px 22px 20px;gap:13px;box-shadow:var(--shadow);
+  background:#fff;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease;
+}
+.mod::before{height:3px;background:var(--mc,var(--red));}
+.mod:hover:not(.mod-off){transform:translateY(-3px);box-shadow:var(--shadow-lg);border-color:#cbd5e1;}
+.mod-head{gap:13px;align-items:center;}
+.mod-icon{width:44px;height:44px;border-radius:10px;font-size:21px;border:1px solid rgba(148,163,184,.18);}
+.mod-name{font-family:Inter,'DM Sans',system-ui,sans-serif;font-size:15px;font-weight:750;color:var(--anth);letter-spacing:-.01em;}
+.mod-ver{font-family:Inter,'DM Sans',system-ui,sans-serif;font-size:10.5px;color:var(--text3);margin-top:3px;}
+.mod-desc{font-size:13px;color:var(--text2);line-height:1.58;min-height:41px;}
+.mod-foot{gap:7px;margin-top:auto;padding-top:2px;}
+.badge{font-size:10px;font-weight:750;padding:4px 9px;border-radius:999px;line-height:1.2;}
+.b-admin{background:#eff6ff;color:#1d4ed8}.b-terrain{background:#f0fdf4;color:#15803d}.b-parking{background:#fffbeb;color:#a16207}
+.mod-arrow{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;background:#f8fafc;border:1px solid var(--border);font-size:16px;transition:.18s;}
+.mod:hover:not(.mod-off) .mod-arrow{background:#fff;border-color:var(--mc,var(--red));color:var(--mc,var(--red));}
+.footer{padding:18px 28px;border-top:1px solid var(--border);background:#fff;color:var(--text3);font-size:11px;}
+@media(max-width:720px){
+ .topbar{height:64px;padding:0 16px}.topbar>img{width:86px!important;height:40px!important}.tb-brand{font-size:12.5px}.tb-sub{font-size:9px}
+ .main{padding:24px 16px 52px}.hero{padding:22px 20px 22px 23px;margin-bottom:30px;border-radius:14px}.hero-title{font-size:25px}
+ .modules{grid-template-columns:1fr;gap:14px;margin-bottom:34px}.mod{padding:19px;border-radius:13px}.mod-desc{min-height:0}.footer{padding:16px;font-size:10px}
+}
+</style>
+
 </head>
 <body>
 
