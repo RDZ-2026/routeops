@@ -140,12 +140,16 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .cs-day:hover{background:#e2e8f0;}
 .cs-day.cs-selected{background:var(--red);color:#fff;font-weight:700;}
 .cs-day.cs-empty{cursor:default;background:transparent;}
+.shift-chip.chip-selected{outline:3px solid var(--text);outline-offset:1px;}
+.cell-add.cell-target{background:#fdecec;color:var(--red);font-weight:700;opacity:1;}
+.cell-add.cell-target:hover{background:var(--red);color:#fff;}
 .calendar{display:grid;}
 .calendar .cell{border-right:1px solid #f0eeeb;border-bottom:1px solid #f0eeeb;padding:5px;min-height:52px;font-size:11px;box-sizing:border-box;}
 .calendar .cell.corner{background:var(--bg2);font-weight:700;font-size:11.5px;position:relative;z-index:4;display:flex;align-items:center;box-shadow:2px 0 5px -2px rgba(0,0,0,.18);}
 .calendar .cell.day-header{background:var(--bg2);text-align:center;font-weight:700;font-size:11px;position:relative;z-index:3;color:var(--text2);}
 .calendar .cell.day-header.is-today{color:var(--red);}
 .calendar .cell.row-label{background:#fbfaf9;font-size:11px;position:relative;z-index:2;line-height:1.3;box-shadow:2px 0 5px -2px rgba(0,0,0,.18);}
+.calendar .cell.total-cell{text-align:center;font-weight:700;background:#fafaf8;color:var(--text2);font-family:'DM Mono';font-size:11px;}
 .calendar .cell.shift-cell.is-today{background:#fff7f0;}
 .calendar .cell.shift-cell.drag-over{background:#fff0ef;outline:2px dashed var(--red);outline-offset:-2px;}
 .shift-chip{background:#eef1f5;color:#334155;border:1px solid transparent;border-radius:6px;padding:3px 5px;font-size:10.5px;margin-bottom:3px;cursor:grab;line-height:1.25;}
@@ -155,15 +159,6 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .shift-chip .sc-agent{font-weight:600;}
 .shift-chip .sc-desc{opacity:.8;font-size:9.5px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .shift-chip.status-publiee{background:#2563eb;color:#fff;}
-/* Pilote planning agent : service refusé par l'agent */
-.shift-chip.refused{box-shadow:inset 0 0 0 2px #dc2626;background:#fef2f2!important;color:#991b1b!important;}
-.shift-chip .sc-refused{font-weight:700;font-size:9.5px;letter-spacing:.02em;}
-.refusal-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid #f0eeeb;font-size:12.5px;flex-wrap:wrap;}
-.refusal-row:first-of-type{border-top:none;}
-.refusal-row .rr-main{flex:1;min-width:220px;}
-.refusal-row .rr-reason{color:#991b1b;margin-top:2px;}
-.refusal-row .rr-meta{color:#9ca3af;font-size:11.5px;}
-.shift-chip.status-vue{background:#7c3aed;color:#fff;}
 .shift-chip.status-validee{background:#16a34a;color:#fff;}
 .shift-chip.status-effectuee{background:#d97706;color:#fff;}
 .shift-chip.status-controlee{background:#15803d;color:#fff;}
@@ -676,10 +671,6 @@ async function apiGet(){
       planningViews: (viewRows||[]).map(mapView),
       events: []
     };
-    // Pilote planning agent : services refusés par les agents (non bloquant)
-    state.refusals = (member.role==='direction'||member.role==='planning')
-      ? await rpc('rdz_planning_pilot_admin_refusals', {}).then(r=>Array.isArray(r)?r:[]).catch(()=>[])
-      : [];
 
     ACTOR = { role: member.role, agent: member.agent_id||'', sites: member.sites||[], email: currentSession.email, name: currentSession.email, owner: member.role==='direction', simulation:'' };
     RH_CONFIGURED = (member.role==='direction'||member.role==='planning');
@@ -752,7 +743,6 @@ async function apiAction(action, params){
       case 'absence': await rpc('rdz_planning_request_absence', { p_agent: params.agent||null, p_kind: params.kind||'unavailable', p_from: params.from, p_to: params.to, p_reason: params.reason||'' }); break;
       case 'editAbsence': await rpc('rdz_planning_edit_absence', { p_id: params.id, p_kind: params.kind||null, p_from: params.from, p_to: params.to, p_reason: params.reason||'' }); break;
       case 'deleteAbsence': await rpc('rdz_planning_delete_absence', { p_id: params.id, p_confirm: !!params.confirm }); break;
-      case 'dismissRefusal': await rpc('rdz_planning_pilot_admin_dismiss_refusal', { p_shift_id: params.id }); break;
       case 'approveAbsence': await rpc('rdz_planning_approve_absence', { p_id: params.id, p_accept: !!params.accept }); break;
 
       case 'saveLeaveAccount': await rpc('rdz_planning_save_leave_account', { p_agent: params.agent, p_year: params.year, p_opening: params.opening, p_method: params.method }); break;
@@ -846,8 +836,6 @@ function renderOverview(el){
     {label:'Écarts à contrôler', val:toControl, sub:'Heures déclarées, en attente de contrôle RDZ', cls:'orange', tab:'heures'},
     {label:'Demandes de congé', val:pendingAbsences, sub:'En attente de décision', cls:'blue', tab:'heures'}
   ];
-  const refusedCount = (STATE.refusals||[]).length;
-  if(refusedCount) kpis.splice(3, 0, {label:'Services refusés', val:refusedCount, sub:'Refusés par l’agent, à réorganiser', cls:'red', tab:'heures'});
   el.innerHTML = `
     <div class="ph"><div><div class="ph-title">Vue d’ensemble</div><div class="ph-sub">${esc(fmtDate(today))}</div></div></div>
     <div class="kpi-grid">${kpis.map(k=>`
@@ -1199,6 +1187,14 @@ async function restoreSite(id){ const ok=await apiAction('restoreSite',{id}); if
 // ── PLANNING (grille site/poste × jours, ou grille agent × jours) ──
 let PLAN_FILTER = { mode:'week', anchor:'', site:'', scope:'all', viewId:'', view:'site', onlyActive:false };
 let DRAG_SHIFT = null;
+// Click-based alternative to drag-and-drop for copying/transferring a shift —
+// mainly for touch/tablet use where native HTML5 drag-and-drop is unreliable.
+// SELECT_MODE: whether the "Sélectionner" toggle is on. SELECTED_SHIFT: id of
+// the shift chosen to act on. PENDING_ACTION: null | 'copy' | 'transfer' —
+// once armed, clicking an empty cell applies it there.
+let SELECT_MODE = false;
+let SELECTED_SHIFT = null;
+let PENDING_ACTION = null;
 const WEEKDAY_SHORT = ['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'];
 // Full weekday + day + full month name for the planning calendar's day headers
 // (e.g. "lundi 21 septembre"), always computed in UTC to match how `days` (an
@@ -1265,7 +1261,7 @@ function planToday(){
 function statusBadgeClass(status){
   return { 'Planifiée':'badge-grey','Publiée':'badge-blue','Vue':'badge-blue','Validée':'badge-green','Effectuée':'badge-orange','Contrôlée':'badge-green' }[status]||'badge-grey';
 }
-const STATUS_CLASS = { 'Planifiée':'planifiee','Publiée':'publiee','Vue':'vue','Validée':'validee','Effectuée':'effectuee','Contrôlée':'controlee' };
+const STATUS_CLASS = { 'Planifiée':'planifiee','Publiée':'publiee','Vue':'publiee','Validée':'validee','Effectuée':'effectuee','Contrôlée':'controlee' };
 
 function planningRows(sites, days){
   const rows = [];
@@ -1304,25 +1300,39 @@ function shiftStatusDetail(s){
 // second line shows the agent's name. context 'agent': the row already identifies
 // the agent, so the chip shows the site + post instead — repeating the agent's own
 // name on every one of their chips is redundant.
-function refusalFor(shiftId){ return ((STATE&&STATE.refusals)||[]).find(r=>String(r.shift_id)===String(shiftId)) || null; }
 function renderShiftChip(s, canManage, context){
   const desc = s.description? esc(s.description) : '';
   const secondLine = context==='agent'
     ? esc(s.site? (siteLabel(s.site)+' / '+s.post) : s.post)
     : (s.agent? esc(agentLabel(s.agent)) : 'À affecter');
   const breakLine = s.breakMinutes? `<div class="sc-desc">Pause ${breakLabel(s.breakMinutes)}${s.breakPaid?'':' (non payée)'}</div>` : '';
-  const refusal = refusalFor(s.id);
+  const isSelected = SELECT_MODE && SELECTED_SHIFT===s.id;
+  const clickHandler = SELECT_MODE
+    ? `event.stopPropagation();selectShiftForAction('${s.id}')`
+    : `event.stopPropagation();openShiftModal('${s.id}')`;
   return `
-    <div class="shift-chip status-${STATUS_CLASS[s.status]||'planifiee'} ${!s.agent?'no-agent':''} ${refusal?'refused':''}" draggable="${canManage?'true':'false'}"
-      title="${esc(refusal? 'REFUSÉ par l’agent : '+refusal.reason+'\n\n' : '')}${esc(shiftTooltip(s))}"
+    <div class="shift-chip status-${STATUS_CLASS[s.status]||'planifiee'} ${!s.agent?'no-agent':''} ${isSelected?'chip-selected':''}" draggable="${canManage && !SELECT_MODE?'true':'false'}"
+      title="${esc(shiftTooltip(s))}"
       ondragstart="handleChipDragStart(event,'${s.id}')"
-      onclick="event.stopPropagation();openShiftModal('${s.id}')">
-      ${refusal? '<div class="sc-refused">⛔ REFUSÉ</div>' : ''}
+      onclick="${clickHandler}">
       <div class="sc-time">${s.start}–${s.end}</div>
       <div class="sc-agent">${secondLine}</div>
       ${breakLine}
       ${desc? `<div class="sc-desc">${desc}</div>` : ''}
     </div>`;
+}
+// Shared by drag-and-drop and the click-based copy/transfer below: merges a
+// partial target ({site?, post?, date?, agent?}) onto a source shift's own
+// values — whatever the target doesn't specify carries over unchanged.
+function buildTargetValues(s, target){
+  return {
+    site: target.site!=null? target.site : s.site,
+    post: target.post!=null? target.post : s.post,
+    date: target.date!=null? target.date : s.date,
+    agent: target.agent!=null? target.agent : (s.agent||''),
+    start: s.start, end: s.end, description: s.description||'',
+    breakMinutes: s.breakMinutes||0, breakPaid: !!s.breakPaid
+  };
 }
 function handleChipDragStart(ev, id){
   DRAG_SHIFT = id;
@@ -1341,10 +1351,61 @@ async function handleCellDrop(ev, target){
   if(!id) return;
   const s = STATE.shifts.find(x=>x.id===id);
   if(!s) return;
-  const values = { site: target.site!=null? target.site : s.site, post: target.post!=null? target.post : s.post, date: target.date!=null? target.date : s.date, start:s.start, end:s.end, agent: target.agent!=null? target.agent : (s.agent||''), description: s.description||'' };
+  const values = buildTargetValues(s, target);
   if(values.site===s.site && values.post===s.post && values.date===s.date && values.agent===(s.agent||'')) return;
   const ok = await apiAction('edit', { id: s.id, version: s.version, reason:'Déplacement par glisser-déposer', values });
   if(ok) toast('Service déplacé');
+}
+function toggleSelectMode(){
+  SELECT_MODE = !SELECT_MODE;
+  SELECTED_SHIFT = null; PENDING_ACTION = null;
+  renderCurrentPanel();
+}
+function selectShiftForAction(id){
+  SELECTED_SHIFT = (SELECTED_SHIFT===id)? null : id;
+  PENDING_ACTION = null;
+  renderCurrentPanel();
+}
+function armAction(action){
+  if(!SELECTED_SHIFT) return;
+  PENDING_ACTION = action;
+  renderCurrentPanel();
+}
+function cancelSelection(){
+  SELECTED_SHIFT = null; PENDING_ACTION = null;
+  renderCurrentPanel();
+}
+async function applySelectionToTarget(target){
+  if(!SELECTED_SHIFT || !PENDING_ACTION) return;
+  const s = STATE.shifts.find(x=>x.id===SELECTED_SHIFT);
+  if(!s) return;
+  const values = buildTargetValues(s, target);
+  if(PENDING_ACTION==='transfer'){
+    if(values.site===s.site && values.post===s.post && values.date===s.date && values.agent===(s.agent||'')){
+      toast('Choisissez une case différente pour transférer.', true); return;
+    }
+    const ok = await apiAction('edit', { id: s.id, version: s.version, reason:'Transfert', values });
+    if(ok){ toast('Service transféré'); cancelSelection(); }
+  } else {
+    const ok = await apiAction('create', { values });
+    if(ok) toast('Service copié — cliquez une autre case vide pour continuer, ou "Terminé"');
+  }
+}
+function renderSelectModeBar(){
+  if(!SELECTED_SHIFT){
+    return `<span class="hint">Cliquez sur un service planifié pour le sélectionner.</span> <button class="btn btn-ghost btn-sm" onclick="toggleSelectMode()">Annuler</button>`;
+  }
+  if(PENDING_ACTION==='copy'){
+    return `<span class="hint">Cliquez sur une case vide pour y coller une copie.</span> <button class="btn btn-ghost btn-sm" onclick="cancelSelection()">Terminé</button>`;
+  }
+  if(PENDING_ACTION==='transfer'){
+    return `<span class="hint">Cliquez sur une case vide pour y transférer le service.</span> <button class="btn btn-ghost btn-sm" onclick="cancelSelection()">Annuler</button>`;
+  }
+  return `
+    <button class="btn btn-primary btn-sm" onclick="armAction('copy')">📋 Copier</button>
+    <button class="btn btn-primary btn-sm" onclick="armAction('transfer')">↔ Transférer</button>
+    <button class="btn btn-ghost btn-sm" onclick="cancelSelection()">✕ Annuler la sélection</button>
+  `;
 }
 function planSetView(view){ PLAN_FILTER.view = view; renderCurrentPanel(); }
 
@@ -1562,12 +1623,13 @@ function renderPlanning(el){
       ${canManage? (PLAN_FILTER.mode==='week'
         ? `<button class="btn btn-ghost btn-sm" onclick="openCopyWeekModal()">⧉ Copier la semaine</button>`
         : `<button class="btn btn-ghost btn-sm" onclick="openCopyMonthModal()">⧉ Copier le mois</button>`) : ''}
+      ${canManage? `<button class="btn btn-sm ${SELECT_MODE?'btn-primary':'btn-ghost'}" onclick="toggleSelectMode()">🖱 Sélectionner</button>` : ''}
+      ${canManage && SELECT_MODE? renderSelectModeBar() : ''}
       <label class="checkline"><input type="checkbox" ${PLAN_FILTER.onlyActive?'checked':''} onchange="PLAN_FILTER.onlyActive=this.checked;renderCurrentPanel()"> Uniquement ${PLAN_FILTER.view==='agent'?'les agents':'les postes'} avec service</label>
     </div>
     <div class="plan-legend" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:11px;color:var(--text2);margin:-6px 0 10px;">
       ${renderStatusLegendItem('#eef1f5','Brouillon (non publié)')}
-      ${renderStatusLegendItem('#2563eb','Publié (agent pas encore ouvert)')}
-      ${renderStatusLegendItem('#7c3aed','Vu par l’agent')}
+      ${renderStatusLegendItem('#2563eb','Publié')}
       ${renderStatusLegendItem('#16a34a','Validé par l’agent')}
       ${renderStatusLegendItem('#d97706','Effectué')}
       ${renderStatusLegendItem('#15803d','Contrôlé')}
@@ -1596,11 +1658,33 @@ function renderSiteCalendar(activeSites, days, today, canManage){
 function renderPlanningCell(row, date, today, canManage){
   const shifts = STATE.shifts.filter(s=>s.site===row.siteId && s.post===row.post && s.date===date).sort((a,b)=>a.start.localeCompare(b.start));
   const chips = shifts.map(s=>renderShiftChip(s, canManage)).join('');
-  const addBtn = canManage? `<div class="cell-add" onclick="openShiftModal(null,{site:'${jsStr(row.siteId)}',post:'${jsStr(row.post)}',date:'${date}'})" title="Ajouter un service">+</div>` : '';
-  const dropAttrs = canManage? `ondragover="handleCellDragOver(event)" ondragleave="handleCellDragLeave(event)" ondrop="handleCellDrop(event,{site:'${jsStr(row.siteId)}',post:'${jsStr(row.post)}',date:'${date}'})"` : '';
+  let addBtn = '';
+  if(canManage && !SELECT_MODE){
+    addBtn = `<div class="cell-add" onclick="openShiftModal(null,{site:'${jsStr(row.siteId)}',post:'${jsStr(row.post)}',date:'${date}'})" title="Ajouter un service">+</div>`;
+  } else if(canManage && PENDING_ACTION && !shifts.length){
+    addBtn = `<div class="cell-add cell-target" onclick="applySelectionToTarget({site:'${jsStr(row.siteId)}',post:'${jsStr(row.post)}',date:'${date}'})" title="${PENDING_ACTION==='copy'?'Coller ici':'Transférer ici'}">${PENDING_ACTION==='copy'?'📋':'↔'}</div>`;
+  }
+  const dropAttrs = canManage && !SELECT_MODE? `ondragover="handleCellDragOver(event)" ondragleave="handleCellDragLeave(event)" ondrop="handleCellDrop(event,{site:'${jsStr(row.siteId)}',post:'${jsStr(row.post)}',date:'${date}'})"` : '';
   return `<div class="cell shift-cell ${date===today?'is-today':''}" ${dropAttrs}>${chips}${addBtn}</div>`;
 }
 function agentHasShiftInRange(agent, days){ return STATE.shifts.some(s=>s.agent===agent.id && days.includes(s.date)); }
+// Hours actually counted toward the agent's total: the shift's clock span,
+// minus its break only when that break is unpaid — same rule as the backend's
+// weekly/annual objective calculation, kept in sync so the number shown here
+// matches what counts against the agent's objectives.
+function shiftDurationHours(s){
+  const [sh,sm] = s.start.split(':').map(Number);
+  const [eh,em] = s.end.split(':').map(Number);
+  let mins = (eh*60+em) - (sh*60+sm);
+  if(mins <= 0) mins += 24*60; // overnight shift
+  mins -= s.breakPaid? 0 : (s.breakMinutes||0);
+  return Math.max(mins,0) / 60;
+}
+function agentHoursInRange(agentId, days){
+  const daySet = new Set(days);
+  return STATE.shifts.filter(s=>s.agent===agentId && daySet.has(s.date)).reduce((sum,s)=>sum+shiftDurationHours(s), 0);
+}
+function fmtHours(h){ return (Math.round(h*10)/10)+'h'; }
 function renderAgentCalendar(days, today, canManage, activeView){
   let agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
   let emptyReason = '';
@@ -1618,15 +1702,25 @@ function renderAgentCalendar(days, today, canManage, activeView){
     emptyReason = ' dans cette vue';
   }
   if(PLAN_FILTER.onlyActive) agents = agents.filter(a=>agentHasShiftInRange(a, days));
+  // Week total only makes sense as a distinct figure in week mode — in month
+  // mode the displayed period already *is* the month, so showing both would
+  // just repeat the same number twice.
+  const showWeekCol = PLAN_FILTER.mode!=='month';
+  const monthDays = periodDays('month', days[0]);
+  const extraCols = showWeekCol? 2 : 1;
   return `
-    <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr));">
+    <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr)) repeat(${extraCols}, 92px);">
       <div class="cell corner">Agents</div>
       ${days.map(d=>`<div class="cell day-header ${d===today?'is-today':''}">${dayHeaderLabel(d)}</div>`).join('')}
+      ${showWeekCol? `<div class="cell corner" style="justify-content:center;text-align:center;">Total<br>semaine</div>` : ''}
+      <div class="cell corner" style="justify-content:center;text-align:center;">Total<br>mois</div>
       ${agents.length? agents.map(a=>{
         const isSecondary = PLAN_FILTER.scope==='site' && PLAN_FILTER.site && a.primarySite!==PLAN_FILTER.site;
         return `
         <div class="cell row-label">${esc(displayNomPrenom(a))}${isSecondary? ' <span class="badge badge-grey" style="font-weight:400;">secondaire</span>' : ''}</div>
         ${days.map(d=>renderAgentPlanningCell(a,d,today,canManage)).join('')}
+        ${showWeekCol? `<div class="cell total-cell">${fmtHours(agentHoursInRange(a.id, days))}</div>` : ''}
+        <div class="cell total-cell">${fmtHours(agentHoursInRange(a.id, monthDays))}</div>
       `;}).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun agent${emptyReason}${PLAN_FILTER.onlyActive?' avec service sur cette période':''}.</div>`}
     </div>
   `;
@@ -1634,8 +1728,13 @@ function renderAgentCalendar(days, today, canManage, activeView){
 function renderAgentPlanningCell(agent, date, today, canManage){
   const shifts = STATE.shifts.filter(s=>s.agent===agent.id && s.date===date).sort((a,b)=>a.start.localeCompare(b.start));
   const chips = shifts.map(s=>renderShiftChip(s, canManage, 'agent')).join('');
-  const addBtn = canManage? `<div class="cell-add" onclick="openShiftModal(null,{agent:'${jsStr(agent.id)}',date:'${date}'})" title="Ajouter un service">+</div>` : '';
-  const dropAttrs = canManage? `ondragover="handleCellDragOver(event)" ondragleave="handleCellDragLeave(event)" ondrop="handleCellDrop(event,{agent:'${jsStr(agent.id)}',date:'${date}'})"` : '';
+  let addBtn = '';
+  if(canManage && !SELECT_MODE){
+    addBtn = `<div class="cell-add" onclick="openShiftModal(null,{agent:'${jsStr(agent.id)}',date:'${date}'})" title="Ajouter un service">+</div>`;
+  } else if(canManage && PENDING_ACTION && !shifts.length){
+    addBtn = `<div class="cell-add cell-target" onclick="applySelectionToTarget({agent:'${jsStr(agent.id)}',date:'${date}'})" title="${PENDING_ACTION==='copy'?'Coller ici':'Transférer ici'}">${PENDING_ACTION==='copy'?'📋':'↔'}</div>`;
+  }
+  const dropAttrs = canManage && !SELECT_MODE? `ondragover="handleCellDragOver(event)" ondragleave="handleCellDragLeave(event)" ondrop="handleCellDrop(event,{agent:'${jsStr(agent.id)}',date:'${date}'})"` : '';
   return `<div class="cell shift-cell ${date===today?'is-today':''}" ${dropAttrs}>${chips}${addBtn}</div>`;
 }
 
@@ -1658,7 +1757,7 @@ function openShiftModal(id, prefill){
       <div class="fg"><div class="flabel">Pause</div><select class="fsel" id="sh-break">${BREAK_OPTIONS.map(o=>`<option value="${o.min}" ${(s?(s.breakMinutes||0):0)===o.min?'selected':''}>${o.label}</option>`).join('')}</select></div>
       <div class="fg"><div class="flabel">Pause payée</div><select class="fsel" id="sh-break-paid"><option value="1" ${!s||s.breakPaid?'selected':''}>Oui</option><option value="0" ${s&&!s.breakPaid?'selected':''}>Non</option></select></div>
       <div class="fg full"><div class="flabel">Description</div><textarea class="ftxt" id="sh-description" rows="2" placeholder="Notes libres sur ce service (optionnel)">${s?esc(s.description||''):''}</textarea></div>
-      ${s? `<div class="fg full"><div class="flabel">Motif de la modification *</div><input class="finp" id="sh-reason" placeholder="Ex. remplacement, correction d’horaire…"></div>` : ''}
+      ${s? `<div class="fg full"><div class="flabel">Motif de la modification (optionnel)</div><input class="finp" id="sh-reason" placeholder="Ex. remplacement, correction d’horaire…"></div>` : ''}
     </div>
     ${s? `<div class="hint">Statut actuel : ${esc(s.status)}<br>${esc(shiftStatusDetail(s))}</div>` : ''}
   `;
@@ -1830,10 +1929,6 @@ function renderHeures(el){
       <div class="ph-right"><button class="btn btn-primary btn-sm" onclick="openAbsenceModal()">+ Demande de congé / indisponibilité</button></div>
     </div>
 
-    ${canManage && (STATE.refusals||[]).length? `<div class="card" style="margin-bottom:14px;border:1.5px solid #fecaca;"><div style="font-weight:700;margin-bottom:8px;color:#b91c1c;">⛔ Services refusés par l’agent (${STATE.refusals.length})</div>
-      ${STATE.refusals.map(renderRefusalRow).join('')}
-      <div class="hint" style="margin-top:8px;">Modifier ou réaffecter le service annule le refus. « Marquer traité » le renvoie à l’agent pour validation.</div></div>` : ''}
-
     ${toValidate.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">À valider par l’agent (${toValidate.length})</div>
       ${toValidate.map(s=>renderHeureRow(s,'accept')).join('')}</div>` : ''}
 
@@ -1854,23 +1949,6 @@ function renderHeures(el){
 }
 function _shiftEndPassed(s){
   try{ const end=new Date(s.date+'T'+s.end+':00Z').getTime(); return end<=Date.now(); }catch(e){ return true; }
-}
-function renderRefusalRow(r){
-  const when = r.refused_at? new Date(r.refused_at).toLocaleString('fr-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
-  return `<div class="refusal-row">
-    <div class="rr-main">
-      <div><b>${esc(fmtDate(String(r.date).slice(0,10)))} · ${esc(r.start_time||'')}–${esc(r.end_time||'')}</b> · ${esc(r.site_name||'')}${r.post_name?' / '+esc(r.post_name):''} · ${esc(r.agent_name||'')}</div>
-      <div class="rr-reason">Motif : « ${esc(r.reason||'')} »</div>
-      <div class="rr-meta">Refusé le ${esc(when)}</div>
-    </div>
-    <button class="btn btn-sm btn-ghost" onclick="openShiftModal('${jsStr(String(r.shift_id))}')">Ouvrir le service</button>
-    <button class="btn btn-sm btn-primary" onclick="dismissRefusal('${jsStr(String(r.shift_id))}')">Marquer traité</button>
-  </div>`;
-}
-async function dismissRefusal(id){
-  if(!confirm('Marquer ce refus comme traité ? Le service sera de nouveau proposé à l’agent pour validation.')) return;
-  const ok = await apiAction('dismissRefusal', { id });
-  if(ok) toast('Refus marqué comme traité');
 }
 function renderHeureRow(s, kind){
   return `<div class="shift-row" onclick="${kind==='accept'?`openAcceptModal('${s.id}')`:kind==='declare'?`openDeclareModal('${s.id}')`:`openControlModal('${s.id}')`}">
