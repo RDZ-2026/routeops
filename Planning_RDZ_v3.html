@@ -158,6 +158,9 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 /* Pilote planning agent : service refusé par l'agent */
 .shift-chip.refused{box-shadow:inset 0 0 0 2px #dc2626;background:#fef2f2!important;color:#991b1b!important;}
 .shift-chip .sc-refused{font-weight:700;font-size:9.5px;letter-spacing:.02em;}
+.row-sub{font-size:10.5px;font-weight:400;color:var(--text3,#9ca3af);margin-top:3px;line-height:1.35;}
+.row-sub b{color:var(--text2,#4b5563);font-weight:600;}
+.shift-chip .sc-real{font-size:9px;opacity:.85;}
 .refusal-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid #f0eeeb;font-size:12.5px;flex-wrap:wrap;}
 .refusal-row:first-of-type{border-top:none;}
 .refusal-row .rr-main{flex:1;min-width:220px;}
@@ -680,6 +683,12 @@ async function apiGet(){
     state.refusals = (member.role==='direction'||member.role==='planning')
       ? await rpc('rdz_planning_pilot_admin_refusals', {}).then(r=>Array.isArray(r)?r:[]).catch(()=>[])
       : [];
+    // Horaires initiaux des services dont les heures validées ont remplacé le planning
+    state.plannedTimes = {};
+    if(member.role==='direction'||member.role==='planning'){
+      const pt = await restSelect('rdz_planning_shift_planned_times','select=shift_id,planned_start,planned_end').catch(()=>[]);
+      (pt||[]).forEach(r=>{ state.plannedTimes[String(r.shift_id)] = { start:r.planned_start, end:r.planned_end }; });
+    }
 
     ACTOR = { role: member.role, agent: member.agent_id||'', sites: member.sites||[], email: currentSession.email, name: currentSession.email, owner: member.role==='direction', simulation:'' };
     RH_CONFIGURED = (member.role==='direction'||member.role==='planning');
@@ -1313,13 +1322,14 @@ function renderShiftChip(s, canManage, context){
     : (s.agent? esc(agentLabel(s.agent)) : 'À affecter');
   const breakLine = s.breakMinutes? `<div class="sc-desc">Pause ${breakLabel(s.breakMinutes)}${s.breakPaid?'':' (non payée)'}</div>` : '';
   const refusal = refusalFor(s.id);
+  const planned = (STATE&&STATE.plannedTimes||{})[String(s.id)] || null;
   return `
     <div class="shift-chip status-${STATUS_CLASS[s.status]||'planifiee'} ${!s.agent?'no-agent':''} ${refusal?'refused':''}" draggable="${canManage?'true':'false'}"
-      title="${esc(refusal? 'REFUSÉ par l’agent : '+refusal.reason+'\n\n' : '')}${esc(shiftTooltip(s))}"
+      title="${esc(refusal? 'REFUSÉ par l’agent : '+refusal.reason+'\n\n' : '')}${esc(planned? 'Heures réelles validées (prévu initialement '+planned.start+'–'+planned.end+')\n\n' : '')}${esc(shiftTooltip(s))}"
       ondragstart="handleChipDragStart(event,'${s.id}')"
       onclick="event.stopPropagation();openShiftModal('${s.id}')">
       ${refusal? '<div class="sc-refused">⛔ REFUSÉ</div>' : ''}
-      <div class="sc-time">${s.start}–${s.end}</div>
+      <div class="sc-time">${s.start}–${s.end}${planned? ' <span class="sc-real" title="Heures réelles validées">✓ réel</span>' : ''}</div>
       <div class="sc-agent">${secondLine}</div>
       ${breakLine}
       ${desc? `<div class="sc-desc">${desc}</div>` : ''}
@@ -1626,11 +1636,36 @@ function renderAgentCalendar(days, today, canManage, activeView){
       ${agents.length? agents.map(a=>{
         const isSecondary = PLAN_FILTER.scope==='site' && PLAN_FILTER.site && a.primarySite!==PLAN_FILTER.site;
         return `
-        <div class="cell row-label">${esc(displayNomPrenom(a))}${isSecondary? ' <span class="badge badge-grey" style="font-weight:400;">secondaire</span>' : ''}</div>
+        <div class="cell row-label">${esc(displayNomPrenom(a))}${isSecondary? ' <span class="badge badge-grey" style="font-weight:400;">secondaire</span>' : ''}${renderAgentMonthSub(a, days)}</div>
         ${days.map(d=>renderAgentPlanningCell(a,d,today,canManage)).join('')}
       `;}).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun agent${emptyReason}${PLAN_FILTER.onlyActive?' avec service sur cette période':''}.</div>`}
     </div>
   `;
+}
+// Cumul mensuel : heures validées (contrôlées, donc réelles), en attente de
+// contrôle (déclarées) et planifiées, pauses non payées déduites.
+function _shiftPaidMin(s, useActual){
+  const a = useActual && s.actualStart && s.actualEnd;
+  return _spanMin(a? s.actualStart : s.start, a? s.actualEnd : s.end) - ((s.breakMinutes && !s.breakPaid)? s.breakMinutes : 0);
+}
+function agentMonthStats(agentId, ym){
+  const list = (STATE.shifts||[]).filter(s=>s.agent===agentId && String(s.date).slice(0,7)===ym);
+  const sum = (arr, act)=> arr.reduce((n,s)=>n+Math.max(0,_shiftPaidMin(s,act)),0);
+  return {
+    validated: sum(list.filter(s=>s.status==='Contrôlée'), true),
+    pending:   sum(list.filter(s=>s.status==='Effectuée'), true),
+    planned:   sum(list, false)
+  };
+}
+function renderAgentMonthSub(a, days){
+  if(!days || !days.length) return '';
+  const mid = days[Math.floor(days.length/2)];
+  const ym = String(mid).slice(0,7);
+  const st = agentMonthStats(a.id, ym);
+  if(!st.planned && !st.validated) return '';
+  const month = new Date(ym+'-15T12:00:00').toLocaleDateString('fr-CH',{month:'short'}).replace('.','');
+  const contract = Number.isFinite(a.monthly) && a.monthly>0 ? ' / '+a.monthly+'h' : '';
+  return `<div class="row-sub">${esc(month)} : <b>${fmtHours(st.validated)}</b> validées${st.pending? ' · '+fmtHours(st.pending)+' à contrôler' : ''}<br>${fmtHours(st.planned)} planifiées${contract}</div>`;
 }
 function renderAgentPlanningCell(agent, date, today, canManage){
   const shifts = STATE.shifts.filter(s=>s.agent===agent.id && s.date===date).sort((a,b)=>a.start.localeCompare(b.start));
