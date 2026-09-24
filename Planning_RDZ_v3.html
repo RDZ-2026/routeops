@@ -1668,7 +1668,7 @@ function openShiftModal(id, prefill){
       <div class="fg"><div class="flabel">Pause</div><select class="fsel" id="sh-break">${BREAK_OPTIONS.map(o=>`<option value="${o.min}" ${(s?(s.breakMinutes||0):0)===o.min?'selected':''}>${o.label}</option>`).join('')}</select></div>
       <div class="fg"><div class="flabel">Pause payée</div><select class="fsel" id="sh-break-paid"><option value="1" ${!s||s.breakPaid?'selected':''}>Oui</option><option value="0" ${s&&!s.breakPaid?'selected':''}>Non</option></select></div>
       <div class="fg full"><div class="flabel">Description</div><textarea class="ftxt" id="sh-description" rows="2" placeholder="Notes libres sur ce service (optionnel)">${s?esc(s.description||''):''}</textarea></div>
-      ${s? `<div class="fg full"><div class="flabel">Motif de la modification *</div><input class="finp" id="sh-reason" placeholder="Ex. remplacement, correction d’horaire…"></div>` : ''}
+      ${s? `<div class="fg full"><div class="flabel">Motif de la modification (optionnel)</div><input class="finp" id="sh-reason" placeholder="Ex. remplacement, correction d’horaire…"></div>` : ''}
     </div>
     ${s? `<div class="hint">Statut actuel : ${esc(s.status)}<br>${esc(shiftStatusDetail(s))}</div>` : ''}
   `;
