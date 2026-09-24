@@ -146,6 +146,7 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .calendar .cell.day-header{background:var(--bg2);text-align:center;font-weight:700;font-size:11px;position:relative;z-index:3;color:var(--text2);}
 .calendar .cell.day-header.is-today{color:var(--red);}
 .calendar .cell.row-label{background:#fbfaf9;font-size:11px;position:relative;z-index:2;line-height:1.3;box-shadow:2px 0 5px -2px rgba(0,0,0,.18);}
+.calendar .cell.total-cell{text-align:center;font-weight:700;background:#fafaf8;color:var(--text2);font-family:'DM Mono';font-size:11px;}
 .calendar .cell.shift-cell.is-today{background:#fff7f0;}
 .calendar .cell.shift-cell.drag-over{background:#fff0ef;outline:2px dashed var(--red);outline-offset:-2px;}
 .shift-chip{background:#eef1f5;color:#334155;border:1px solid transparent;border-radius:6px;padding:3px 5px;font-size:10.5px;margin-bottom:3px;cursor:grab;line-height:1.25;}
@@ -1583,6 +1584,23 @@ function renderPlanningCell(row, date, today, canManage){
   return `<div class="cell shift-cell ${date===today?'is-today':''}" ${dropAttrs}>${chips}${addBtn}</div>`;
 }
 function agentHasShiftInRange(agent, days){ return STATE.shifts.some(s=>s.agent===agent.id && days.includes(s.date)); }
+// Hours actually counted toward the agent's total: the shift's clock span,
+// minus its break only when that break is unpaid — same rule as the backend's
+// weekly/annual objective calculation, kept in sync so the number shown here
+// matches what counts against the agent's objectives.
+function shiftDurationHours(s){
+  const [sh,sm] = s.start.split(':').map(Number);
+  const [eh,em] = s.end.split(':').map(Number);
+  let mins = (eh*60+em) - (sh*60+sm);
+  if(mins <= 0) mins += 24*60; // overnight shift
+  mins -= s.breakPaid? 0 : (s.breakMinutes||0);
+  return Math.max(mins,0) / 60;
+}
+function agentHoursInRange(agentId, days){
+  const daySet = new Set(days);
+  return STATE.shifts.filter(s=>s.agent===agentId && daySet.has(s.date)).reduce((sum,s)=>sum+shiftDurationHours(s), 0);
+}
+function fmtHours(h){ return (Math.round(h*10)/10)+'h'; }
 function renderAgentCalendar(days, today, canManage, activeView){
   let agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
   let emptyReason = '';
@@ -1600,15 +1618,25 @@ function renderAgentCalendar(days, today, canManage, activeView){
     emptyReason = ' dans cette vue';
   }
   if(PLAN_FILTER.onlyActive) agents = agents.filter(a=>agentHasShiftInRange(a, days));
+  // Week total only makes sense as a distinct figure in week mode — in month
+  // mode the displayed period already *is* the month, so showing both would
+  // just repeat the same number twice.
+  const showWeekCol = PLAN_FILTER.mode!=='month';
+  const monthDays = periodDays('month', days[0]);
+  const extraCols = showWeekCol? 2 : 1;
   return `
-    <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr));">
+    <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr)) repeat(${extraCols}, 92px);">
       <div class="cell corner">Agents</div>
       ${days.map(d=>`<div class="cell day-header ${d===today?'is-today':''}">${dayHeaderLabel(d)}</div>`).join('')}
+      ${showWeekCol? `<div class="cell corner" style="justify-content:center;text-align:center;">Total<br>semaine</div>` : ''}
+      <div class="cell corner" style="justify-content:center;text-align:center;">Total<br>mois</div>
       ${agents.length? agents.map(a=>{
         const isSecondary = PLAN_FILTER.scope==='site' && PLAN_FILTER.site && a.primarySite!==PLAN_FILTER.site;
         return `
         <div class="cell row-label">${esc(displayNomPrenom(a))}${isSecondary? ' <span class="badge badge-grey" style="font-weight:400;">secondaire</span>' : ''}</div>
         ${days.map(d=>renderAgentPlanningCell(a,d,today,canManage)).join('')}
+        ${showWeekCol? `<div class="cell total-cell">${fmtHours(agentHoursInRange(a.id, days))}</div>` : ''}
+        <div class="cell total-cell">${fmtHours(agentHoursInRange(a.id, monthDays))}</div>
       `;}).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun agent${emptyReason}${PLAN_FILTER.onlyActive?' avec service sur cette période':''}.</div>`}
     </div>
   `;
