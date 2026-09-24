@@ -1841,7 +1841,8 @@ function renderHeures(el){
     ${toDeclare.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">Heures à déclarer (${toDeclare.length})</div>
       ${toDeclare.map(s=>renderHeureRow(s,'declare')).join('')}</div>` : ''}
 
-    ${canManage? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">Écarts à contrôler — heures déclarées (${toControl.length})</div>
+    ${canManage? `<div class="card" style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;"><div style="font-weight:700;">Écarts à contrôler — heures déclarées (${toControl.length})</div>
+      ${toControl.filter(x=>!_hoursChanged(x)).length? `<button class="btn btn-sm btn-primary" onclick="validateConformHours()">Valider tous les conformes (${toControl.filter(x=>!_hoursChanged(x)).length})</button>` : ''}</div>
       ${toControl.length? toControl.map(s=>renderHeureRow(s,'check')).join('') : '<div class="hint">Rien à contrôler.</div>'}</div>` : ''}
 
     ${canManage && pendingAbsences.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">Demandes de congé en attente (${pendingAbsences.length})</div>
@@ -1875,10 +1876,11 @@ async function dismissRefusal(id){
 }
 function _spanMin(a,b){ if(!a||!b) return 0; const [ah,am]=a.split(':').map(Number),[bh,bm]=b.split(':').map(Number); let d=(bh*60+bm)-(ah*60+am); if(d<=0) d+=1440; return d; }
 function _fmtDiff(m){ const n=m<0; m=Math.abs(m); const h=Math.floor(m/60), r=m%60; return (n?'−':'+')+(h? h+'h'+(r?String(r).padStart(2,'0'):'') : r+' min'); }
+const PILOT_AUTO_REASON = 'Heures pré-remplies automatiquement à la fin du service';
 function _hoursChanged(s){ return !!s.actualStart && (s.actualStart!==s.start || s.actualEnd!==s.end); }
 function renderHeureRow(s, kind){
   const declared = kind==='check' && s.actualStart
-    ? `<span class="shift-site" style="flex:none;">Déclaré <b>${esc(s.actualStart)}–${esc(s.actualEnd||'—')}</b>${_hoursChanged(s)? ' <span class="badge badge-orange">Modifié '+_fmtDiff(_spanMin(s.actualStart,s.actualEnd)-_spanMin(s.start,s.end))+'</span>' : ' <span class="badge badge-green">Conforme</span>'}</span>`
+    ? `<span class="shift-site" style="flex:none;">Déclaré <b>${esc(s.actualStart)}–${esc(s.actualEnd||'—')}</b>${_hoursChanged(s)? ' <span class="badge badge-orange">Modifié '+_fmtDiff(_spanMin(s.actualStart,s.actualEnd)-_spanMin(s.start,s.end))+'</span>' : (s.reason===PILOT_AUTO_REASON? ' <span class="badge" title="Pré-rempli à la fin du service, pas encore confirmé par l’agent">Auto</span>' : ' <span class="badge badge-green">Conforme</span>')}</span>`
     : '';
   return `<div class="shift-row" onclick="${kind==='accept'?`openAcceptModal('${s.id}')`:kind==='declare'?`openDeclareModal('${s.id}')`:`openControlModal('${s.id}')`}">
     <span class="shift-time">${esc(fmtDate(s.date))} · ${s.start}–${s.end}</span>
@@ -1932,6 +1934,17 @@ async function controlShift(id){
     catch(e){ toast(e.message||'Correction impossible', true); return; }
   }
   const ok=await apiAction('check',{id}); if(ok){closeModal();toast('Heures validées');}
+}
+async function validateConformHours(){
+  const list = STATE.shifts.filter(x=>x.status==='Effectuée' && !_hoursChanged(x));
+  if(!list.length) return;
+  if(!confirm('Valider '+list.length+' service(s) dont les heures sont conformes au planning ?')) return;
+  setSyncState('saving','Validation…');
+  let ok=0, ko=0;
+  for(const x of list){ try{ await rpc('rdz_planning_check_shift', { p_id:x.id }); ok++; }catch(e){ ko++; } }
+  await apiGet(); renderCurrentPanel();
+  setSyncState('ok','Enregistré');
+  toast(ok+' service(s) validé(s)'+(ko? ' · '+ko+' en erreur' : ''), !!ko);
 }
 async function rejectHours(id){
   const note = (modalVal('ct-note')||'').trim();
