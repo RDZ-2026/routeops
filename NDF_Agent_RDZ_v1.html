@@ -289,6 +289,9 @@ const CATS = [
   { id: 'materiel', label: 'Frais matériel', short: 'Matériel', icon: '🧰', vat: 8.1 },
 ];
 const VAT_RATES = [0, 2.6, 3.8, 8.1];
+// Wording: agents record an expense (« dépense »), the direction manages expense reports (« note de frais »)
+const XP = PUBLIC_AGENT ? 'dépense' : 'note de frais';
+const XPc = XP.charAt(0).toUpperCase() + XP.slice(1);
 const CURRENCIES = ['CHF', 'EUR', 'USD', 'GBP', 'AED', 'SAR', 'QAR', 'KWD', 'BHD', 'MAD', 'TRY', 'JPY', 'CNY', 'SGD', 'HKD', 'RUB', 'ILS', 'EGP', 'CAD', 'AUD', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF'];
 
 const TABLES = {
@@ -593,7 +596,7 @@ async function runOp(op) {
 function describeOp(op) {
   if (op.type === 'upload') return 'Envoi du justificatif';
   if (op.type === 'remove') return 'Suppression du justificatif';
-  const what = { ndf_missions: 'Mission', ndf_mission_agents: 'Affectation', ndf_expenses: 'Note de frais' }[op.table];
+  const what = { ndf_missions: 'Mission', ndf_mission_agents: 'Affectation', ndf_expenses: XPc }[op.table];
   return `${what} (${op.type === 'delete' ? 'suppression' : 'enregistrement'})`;
 }
 
@@ -929,7 +932,7 @@ function renderMission(m) {
     ${admin ? '' : `<div class="whoami">Vous êtes <b>${esc(userName(me))}</b><button class="btn ghost" id="switch-me">Changer</button></div>`}
     ${statusBar}
     <div class="actions">
-      ${canAdd ? `<button class="btn primary ${admin ? '' : 'hide-m'}" id="add">Ajouter une note de frais</button>` : ''}
+      ${canAdd ? `<button class="btn primary ${admin ? '' : 'hide-m'}" id="add">Ajouter une ${XP}</button>` : ''}
       ${admin ? `<button class="btn" id="edit">Modifier la mission</button>
         <button class="btn" id="xls" ${allX.length ? '' : 'disabled'}>Exporter en Excel</button>
         <button class="btn" id="pdf" ${t.receipts ? '' : 'disabled'}>PDF des justificatifs</button>` : ''}
@@ -950,7 +953,7 @@ function renderMission(m) {
   if (canAdd && !admin) {
     const fab = document.createElement('button');
     fab.className = 'btn primary block fab show';
-    fab.textContent = 'Ajouter une note de frais';
+    fab.textContent = `Ajouter une ${XP}`;
     fab.onclick = () => expenseModal(m);
     document.body.appendChild(fab);
   }
@@ -1153,7 +1156,7 @@ function expenseModal(m, x) {
   const agentSel = admin
     ? `<div class="field"><label for="x-user">Agent</label><select class="inp" id="x-user">${members.map((u) => `<option value="${u}" ${u === x.agent_id ? 'selected' : ''}>${esc(userName(u))}</option>`).join('')}</select></div>` : '';
   const md = openModal({
-    title: isNew ? 'Nouvelle note de frais' : 'Note de frais',
+    title: isNew ? `Nouvelle ${XP}` : XPc,
     body: `${agentSel}
       <div class="field"><span class="flabel">Type de frais</span><div class="seg" id="x-cat">${CATS.map((c) => `<button type="button" data-cat="${c.id}" class="${st.cat === c.id ? 'on' : ''}"><span class="ic">${c.icon}</span>${c.short}</button>`).join('')}</div></div>
       <div class="row2"><div class="field"><label for="x-date">Date</label><input class="inp" type="date" id="x-date" value="${esc(x.expense_date)}"><div class="warnline" id="x-datewarn"></div></div>
@@ -1173,7 +1176,7 @@ function expenseModal(m, x) {
       <input type="file" id="x-file" accept="image/*,application/pdf" hidden>
       <datalist id="xcurlist">${CURRENCIES.map((c) => `<option value="${c}">`).join('')}</datalist>
       <div class="login-err" id="x-err"></div>`,
-    foot: `${!isNew ? '<button class="btn danger" id="x-del">Supprimer</button>' : ''}<span class="sp"></span><button class="btn" data-close>Annuler</button><button class="btn primary" id="x-save">${isNew ? 'Créer la note de frais' : 'Enregistrer'}</button>`,
+    foot: `${!isNew ? '<button class="btn danger" id="x-del">Supprimer</button>' : ''}<span class="sp"></span><button class="btn" data-close>Annuler</button><button class="btn primary" id="x-save">${isNew ? `Créer la ${XP}` : 'Enregistrer'}</button>`,
   });
   const el = md.el;
   const q = (s) => el.querySelector(s);
@@ -1323,18 +1326,18 @@ function expenseModal(m, x) {
     cleanup();
     md.close();
     await enqueue(ops);
-    toast(isNew ? (navigator.onLine ? 'Note de frais créée' : 'Note de frais enregistrée — envoi au retour du réseau') : 'Note de frais enregistrée', 'ok');
+    toast(isNew ? (navigator.onLine ? `${XPc} créée` : `${XPc} enregistrée — envoi au retour du réseau`) : `${XPc} enregistrée`, 'ok');
   };
 
   const del = q('#x-del');
   if (del) del.onclick = async () => {
-    if (!(await confirmDialog('Supprimer la note de frais', `${catOf(x.category).label} du ${fdate(x.expense_date)}, ${fmt(x.amount_chf)} CHF.`, 'Supprimer', true))) return;
+    if (!(await confirmDialog(`Supprimer la ${XP}`, `${catOf(x.category).label} du ${fdate(x.expense_date)}, ${fmt(x.amount_chf)} CHF.`, 'Supprimer', true))) return;
     cleanup();
     md.close();
     const ops = [{ type: 'delete', table: 'ndf_expenses', row: { id: x.id } }];
     if (x.receipt_path) ops.push({ type: 'remove', path: x.receipt_path });
     await enqueue(ops);
-    toast('Note de frais supprimée', 'ok');
+    toast(`${XPc} supprimée`, 'ok');
   };
 }
 
