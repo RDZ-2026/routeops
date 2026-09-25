@@ -158,11 +158,11 @@ main{flex:1;width:100%;max-width:1160px;margin:0 auto;padding:22px 18px calc(90p
 .cat.repas{background:#fef3c7;color:#92400e;}
 .cat.hebergement{background:#ede9fe;color:#5b21b6;}
 .cat.deplacement{background:#e0f2fe;color:#075985;}
+.cat.materiel{background:#e2e8f0;color:#334155;}
 
 /* receipt summary: the signature element */
-.side{position:sticky;top:76px;}
-@media (max-width:900px){.side{position:static;}}
-.receipt-wrap{filter:drop-shadow(0 2px 5px rgba(0,0,0,.08)) drop-shadow(0 8px 18px rgba(0,0,0,.05));margin-bottom:26px;}
+.side{display:flex;flex-direction:column;gap:16px;}
+.receipt-wrap{filter:drop-shadow(0 2px 5px rgba(0,0,0,.08)) drop-shadow(0 8px 18px rgba(0,0,0,.05));margin-bottom:12px;}
 .receipt{position:relative;background:#fff;border-radius:10px 10px 0 0;padding:20px 20px 16px;font-family:'DM Mono',monospace;font-size:13px;}
 .receipt::after{content:"";position:absolute;left:0;right:0;bottom:-9px;height:9px;background:radial-gradient(circle at 7px 0,#fff 7px,transparent 7.5px) 0 0/14px 9px repeat-x;}
 .receipt .rh{font-family:'DM Sans',sans-serif;text-align:center;padding-bottom:12px;border-bottom:1px dashed var(--border2);margin-bottom:12px;}
@@ -193,7 +193,8 @@ main{flex:1;width:100%;max-width:1160px;margin:0 auto;padding:22px 18px calc(90p
 .mb{padding:18px 20px;overflow-y:auto;flex:1;}
 .mf{display:flex;gap:8px;padding:12px 20px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--border);align-items:center;}
 .mf .sp{flex:1;}
-.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
+.seg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+@media (max-width:520px){.seg{grid-template-columns:repeat(2,1fr);}.seg button{flex-direction:row;justify-content:center;gap:8px;padding:11px 6px;}}
 .seg button{border:1.5px solid var(--border);background:#fff;border-radius:var(--radius-sm);padding:10px 6px;font-weight:600;font-size:13px;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--text2);}
 .seg button .ic{font-size:20px;}
 .seg button.on{border-color:var(--red);background:var(--red-l);color:var(--red);}
@@ -224,9 +225,16 @@ main{flex:1;width:100%;max-width:1160px;margin:0 auto;padding:22px 18px calc(90p
 .picker h2{font-size:18px;margin-bottom:4px;}
 .picker p{font-size:13px;color:var(--text2);margin-bottom:14px;}
 .picker .btn{margin-bottom:8px;justify-content:flex-start;font-size:15px;}
-.share-row{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);flex-wrap:wrap;}
-.share-row .sn{flex:1;min-width:140px;font-weight:600;font-size:14px;}
-.share-row .btn{padding:7px 11px;font-size:12.5px;text-decoration:none;color:inherit;}
+.links{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;}
+.links h3{font-size:14px;font-weight:700;margin-bottom:4px;}
+.links p{font-size:12.5px;color:var(--text2);margin-bottom:8px;}
+.lk{padding:10px 0;border-top:1px solid var(--border);}
+.lk.common{border-top-style:dashed;}
+.lk-name{font-weight:600;font-size:14px;display:flex;justify-content:space-between;gap:8px;align-items:baseline;margin-bottom:6px;}
+.lk-name span{font-weight:400;font-size:11.5px;color:var(--text3);font-family:'DM Mono',monospace;text-align:right;}
+.lk.common .lk-name span{font-family:'DM Sans',sans-serif;}
+.lk-btns{display:flex;gap:6px;}
+.lk-btns .btn{flex:1;padding:7px 8px;font-size:12.5px;text-decoration:none;color:inherit;}
 .kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:13.5px;margin-top:14px;}
 .kv dt{color:var(--text3);}
 .kv dd{font-family:'DM Mono',monospace;}
@@ -278,6 +286,7 @@ const CATS = [
   { id: 'repas', label: 'Frais repas', short: 'Repas', icon: '🍽️', vat: 8.1 },
   { id: 'hebergement', label: 'Frais hébergement', short: 'Hébergement', icon: '🏨', vat: 3.8 },
   { id: 'deplacement', label: 'Frais déplacement', short: 'Déplacement', icon: '🚗', vat: 8.1 },
+  { id: 'materiel', label: 'Frais matériel', short: 'Matériel', icon: '🧰', vat: 8.1 },
 ];
 const VAT_RATES = [0, 2.6, 3.8, 8.1];
 const CURRENCIES = ['CHF', 'EUR', 'USD', 'GBP', 'AED', 'SAR', 'QAR', 'KWD', 'BHD', 'MAD', 'TRY', 'JPY', 'CNY', 'SGD', 'HKD', 'RUB', 'ILS', 'EGP', 'CAD', 'AUD', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF'];
@@ -340,13 +349,33 @@ function userName(aid) {
   const u = S.users.find((u) => u.id === aid);
   return u ? u.full_name : 'Agent ' + String(aid).slice(0, 8);
 }
-// Public page: which agent is using this device, per mission
-const identityKey = (mid) => 'ndf_agent_' + mid;
+// Public page: agent identities remembered on this device (set by the personal link or the name picker).
+// The agent only sees the missions he is assigned to under one of these identities.
+const IDS_KEY = 'ndf_agent_ids';
+function myIds() { try { const v = JSON.parse(localStorage.getItem(IDS_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch (_) { return []; } }
+function saveIds(ids) { localStorage.setItem(IDS_KEY, JSON.stringify([...new Set(ids)])); }
+function addMyId(aid) { if (aid) saveIds([...myIds(), aid]); }
 function meFor(mid) {
-  const id = localStorage.getItem(identityKey(mid));
-  return id && S.members.some((m) => m.mission_id === mid && m.agent_id === id) ? id : null;
+  const ids = myIds();
+  const m = S.members.find((x) => x.mission_id === mid && ids.includes(x.agent_id));
+  return m ? m.agent_id : null;
 }
-function setMe(mid, aid) { if (aid) localStorage.setItem(identityKey(mid), aid); else localStorage.removeItem(identityKey(mid)); }
+function setMe(mid, aid) {
+  if (aid) return addMyId(aid);
+  const cur = meFor(mid);
+  if (cur) saveIds(myIds().filter((x) => x !== cur));
+}
+// Former storage (one key per mission) → merged into the device identity list
+(function migrateIdentities() {
+  const found = [];
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const k = localStorage.key(i);
+    if (k && /^ndf_agent_[0-9a-f-]{36}$/i.test(k)) { found.push(localStorage.getItem(k)); localStorage.removeItem(k); }
+  }
+  if (found.length) saveIds([...myIds(), ...found.filter(Boolean)]);
+})();
+// PostgREST "in" filter with quoted values (agent ids may contain any character)
+const inList = (vals) => 'in.' + encodeURIComponent('(' + vals.map((v) => '"' + String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"').join(',') + ')');
 
 // ════════════════════════════════════════════════════════════════
 //  INDEXEDDB (cache, outbox, receipt blobs)
@@ -454,12 +483,16 @@ async function fetchAll() {
   try {
     let missions, members, expenses;
     if (PUBLIC_AGENT) {
-      // Agent page: only open missions and their data are downloaded to the phone
-      missions = (await api('ndf_missions?select=id,name,destination,start_date,end_date,default_currency,status&status=eq.en_cours&order=start_date.desc.nullslast')) || [];
-      const ids = missions.map((m) => m.id).join(',');
-      [members, expenses] = ids ? await Promise.all([
-        api(`ndf_mission_agents?select=mission_id,agent_id,agent_name&mission_id=in.(${ids})`),
-        api(`ndf_expenses?select=*&mission_id=in.(${ids})&order=expense_date.asc,created_at.asc`),
+      // Agent page: only this agent's open missions (plus the mission of the opened link) and his own expenses
+      const ids = myIds();
+      const mids = new Set();
+      if (ids.length) ((await api(`ndf_mission_agents?select=mission_id&agent_id=${inList(ids)}`)) || []).forEach((r) => mids.add(r.mission_id));
+      if (route.view === 'mission' && route.missionId) mids.add(route.missionId);
+      missions = mids.size ? (await api(`ndf_missions?select=id,name,destination,start_date,end_date,default_currency,status&status=eq.en_cours&id=${inList([...mids])}&order=start_date.desc.nullslast`)) || [] : [];
+      const open = missions.map((m) => m.id);
+      [members, expenses] = open.length ? await Promise.all([
+        api(`ndf_mission_agents?select=mission_id,agent_id,agent_name&mission_id=${inList(open)}`),
+        ids.length ? api(`ndf_expenses?select=*&mission_id=${inList(open)}&agent_id=${inList(ids)}&order=expense_date.asc,created_at.asc`) : [],
       ]) : [[], []];
     } else {
       [missions, members, expenses] = await Promise.all([
@@ -772,7 +805,7 @@ function totals(list) {
 }
 function visibleMissions() {
   if (isAdmin()) return S.missions;
-  return S.missions.filter((m) => m.status === 'en_cours');
+  return S.missions.filter((m) => m.status === 'en_cours' && meFor(m.id));
 }
 function canEditExpense(x, mission) {
   if (isAdmin()) return true;
@@ -821,11 +854,11 @@ function renderList() {
   if (!list.length) {
     if (!all.length) empty = admin
       ? `<div class="empty"><b>Aucune mission pour l'instant</b>Créez une mission, affectez-y les agents, et ils pourront y déposer leurs notes de frais.<br><button class="btn primary" data-new>Créer une mission</button></div>`
-      : `<div class="empty"><b>Aucune mission en cours</b>Les missions ouvertes par la direction apparaissent ici. Si vous avez reçu un lien de mission, ouvrez-le directement.</div>`;
+      : `<div class="empty"><b>Aucune mission en cours pour vous</b>Ouvrez le lien personnel envoyé par la direction : vos missions apparaîtront ensuite ici.</div>`;
     else empty = `<div class="empty"><b>Aucune mission dans cette vue</b>Changez de filtre ou de recherche.</div>`;
   }
   $('main').innerHTML = `
-    <div class="page-head"><div class="grow"><h1>${admin ? 'Missions' : 'Missions en cours'}</h1>
+    <div class="page-head"><div class="grow"><h1>${admin ? 'Missions' : 'Mes missions'}</h1>
       <div class="meta">${admin ? 'Frais de protection rapprochée par mission' : 'Choisissez votre mission pour déposer vos frais'}</div></div>
       ${admin ? '<button class="btn primary" data-new>Nouvelle mission</button>' : ''}</div>
     ${admin ? `<div class="tabs">${tabs}</div>` : ''}
@@ -890,22 +923,21 @@ function renderMission(m) {
     ? `<div class="rsec">TVA récupérable par taux</div>${Object.entries(t.byRate).sort((a, b) => Number(a[0]) - Number(b[0])).map(([r, v]) => `<div class="rl sm vat"><span>${String(r).replace('.', ',')} % sur ${fmt(v.base)}</span><span>${fmt(v.vat)}</span></div>`).join('')}` : '';
 
   $('main').innerHTML = `
-    <button class="backlink" id="back">← Missions</button>
+    <button class="backlink" id="back">← ${isAdmin() ? 'Missions' : 'Mes missions'}</button>
     <div class="page-head"><div class="grow"><h1>${esc(m.name)}</h1>${meta ? `<div class="meta">${meta}</div>` : ''}</div>
       ${admin ? '' : `<span class="st ${m.status}">${statusOf(m.status).label}</span>`}</div>
     ${admin ? '' : `<div class="whoami">Vous êtes <b>${esc(userName(me))}</b><button class="btn ghost" id="switch-me">Changer</button></div>`}
     ${statusBar}
     <div class="actions">
       ${canAdd ? `<button class="btn primary ${admin ? '' : 'hide-m'}" id="add">Ajouter une note de frais</button>` : ''}
-      ${admin ? `<button class="btn" id="share" ${members.length ? '' : 'disabled'}>Envoyer le lien aux agents</button>
-        <button class="btn" id="edit">Modifier la mission</button>
+      ${admin ? `<button class="btn" id="edit">Modifier la mission</button>
         <button class="btn" id="xls" ${allX.length ? '' : 'disabled'}>Exporter en Excel</button>
         <button class="btn" id="pdf" ${t.receipts ? '' : 'disabled'}>PDF des justificatifs</button>` : ''}
     </div>
     ${notice}
     <div class="detail">
       <section>${agentChips}${daysHtml || `<div class="empty"><b>Aucune note de frais</b>${canAdd ? 'Ajoutez la première dépense : date, type, montant et photo du ticket.' : 'Les frais déposés apparaîtront ici.'}</div>`}</section>
-      <aside class="side"><div class="receipt-wrap"><div class="receipt">
+      <aside class="side">${admin ? linksCard(m) : ''}<div class="receipt-wrap"><div class="receipt">
         <div class="rh"><b>${admin ? 'Total mission' : 'Mes frais'}</b><span>${t.count} note${t.count > 1 ? 's' : ''}, ${t.receipts} justificatif${t.receipts > 1 ? 's' : ''}</span></div>
         ${CATS.map((c) => `<div class="rl"><span>${c.short}</span><span>${fmt(t.byCat[c.id])}</span></div>`).join('')}
         <div class="rl tot"><span>Total CHF</span><span>${fmt(t.chf)}</span></div>
@@ -924,7 +956,7 @@ function renderMission(m) {
   }
   $('back').onclick = backToList;
   const sw = $('switch-me'); if (sw) sw.onclick = () => { setMe(m.id, null); render(); };
-  const shB = $('share'); if (shB) shB.onclick = () => shareModal(m);
+  $('main').querySelectorAll('[data-copy]').forEach((b) => b.onclick = () => copyText(b.dataset.copy));
   const addB = $('add'); if (addB) addB.onclick = () => expenseModal(m);
   if (admin) {
     $('edit').onclick = () => missionModal(m);
@@ -945,13 +977,13 @@ function renderIdentityPicker(m) {
   const members = S.members.filter((x) => x.mission_id === m.id).sort((a, b) => a.agent_name.localeCompare(b.agent_name));
   const dates = m.start_date ? (m.end_date && m.end_date !== m.start_date ? `Du ${fdate(m.start_date)} au ${fdate(m.end_date)}` : `Le ${fdate(m.start_date)}`) : '';
   $('main').innerHTML = `
-    <button class="backlink" id="back">← Missions</button>
+    <button class="backlink" id="back">← ${isAdmin() ? 'Missions' : 'Mes missions'}</button>
     <div class="page-head"><div class="grow"><h1>${esc(m.name)}</h1><div class="meta">${[m.destination, dates].filter(Boolean).map(esc).join(', ')}</div></div></div>
     <div class="picker"><h2>Qui êtes-vous ?</h2><p>Choisissez votre nom. Il sera mémorisé sur ce téléphone pour cette mission.</p>
       ${members.length ? members.map((a) => `<button class="btn block" data-me="${esc(a.agent_id)}">${esc(a.agent_name)}</button>`).join('') : '<div class="notice warn">Aucun agent n\'est encore affecté à cette mission. Contactez la direction.</div>'}
     </div>`;
   $('back').onclick = backToList;
-  $('main').querySelectorAll('[data-me]').forEach((b) => b.onclick = () => { setMe(m.id, b.dataset.me); render(); });
+  $('main').querySelectorAll('[data-me]').forEach((b) => b.onclick = async () => { setMe(m.id, b.dataset.me); render(); await fetchAll(); });
 }
 
 function agentLink(m, aid) {
@@ -963,22 +995,29 @@ async function copyText(t) {
   try { await navigator.clipboard.writeText(t); toast('Lien copié', 'ok'); }
   catch (_) { window.prompt('Copiez le lien :', t); }
 }
-function shareModal(m) {
+// Permanent links: always the same URL for a given mission + agent, so they can be re-sent at any time
+function linksCard(m) {
   const members = S.members.filter((x) => x.mission_id === m.id).sort((a, b) => a.agent_name.localeCompare(b.agent_name));
-  const msg = (url) => `Bonjour, voici le lien pour déposer vos notes de frais de la mission « ${m.name} » : ${url}`;
-  const row = (label, url) => `<div class="share-row"><div class="sn">${esc(label)}</div>
-      <button class="btn" data-copy="${esc(url)}">Copier le lien</button>
-      <a class="btn" href="https://wa.me/?text=${encodeURIComponent(msg(url))}" target="_blank" rel="noopener">WhatsApp</a></div>`;
-  const md = openModal({
-    title: 'Envoyer le lien aux agents',
-    body: `<p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Chaque lien ouvre directement la mission avec le nom de l'agent déjà choisi. Aucun mot de passe n'est demandé. Le lien ne fonctionne que tant que la mission est « En cours ».</p>
-      ${members.map((a) => row(a.agent_name, agentLink(m, a.agent_id))).join('')}
-      <div class="share-row" style="border-top:1px dashed var(--border2);margin-top:6px;"><div class="sn">Lien commun<br><span style="font-weight:400;color:var(--text3);font-size:12px;">l'agent choisit son nom</span></div>
-      <button class="btn" data-copy="${esc(agentLink(m))}">Copier le lien</button>
-      <a class="btn" href="https://wa.me/?text=${encodeURIComponent(msg(agentLink(m)))}" target="_blank" rel="noopener">WhatsApp</a></div>`,
-    foot: '<span class="sp"></span><button class="btn" data-close>Fermer</button>',
-  });
-  md.el.querySelectorAll('[data-copy]').forEach((b) => b.onclick = () => copyText(b.dataset.copy));
+  const byAgent = totals(missionExpenses(m.id, false)).byAgent;
+  const counts = {};
+  missionExpenses(m.id, false).forEach((x) => (counts[x.agent_id] = (counts[x.agent_id] || 0) + 1));
+  const wa = (text) => `https://wa.me/?text=${encodeURIComponent(text)}`;
+  const msgFor = (name, url) => `Bonjour ${name.split(' ')[0]}, voici votre lien personnel pour déposer vos notes de frais de la mission « ${m.name} » : ${url}`;
+  const rows = members.map((a) => {
+    const url = agentLink(m, a.agent_id);
+    const n = counts[a.agent_id] || 0;
+    return `<div class="lk"><div class="lk-name">${esc(a.agent_name)}<span>${n} note${n > 1 ? 's' : ''}, ${fmt(byAgent[a.agent_id] || 0)} CHF</span></div>
+      <div class="lk-btns"><button class="btn" data-copy="${esc(url)}" title="${esc(url)}">Copier le lien</button>
+      <a class="btn" href="${wa(msgFor(a.agent_name, url))}" target="_blank" rel="noopener">WhatsApp</a></div></div>`;
+  }).join('');
+  const common = agentLink(m);
+  return `<div class="links"><h3>Liens des agents</h3>
+    <p>Chaque lien est personnel et <b>ne change jamais</b> pour cette mission : vous pouvez le renvoyer à tout moment.${m.status !== 'en_cours' ? ' <span style="color:var(--orange);">Inactifs tant que la mission n\'est pas « En cours ».</span>' : ''}</p>
+    ${rows || '<p style="color:var(--text3);">Aucun agent affecté. Modifiez la mission pour en ajouter.</p>'}
+    ${members.length ? `<div class="lk common"><div class="lk-name">Lien commun<span>l'agent choisit son nom</span></div>
+      <div class="lk-btns"><button class="btn" data-copy="${esc(common)}" title="${esc(common)}">Copier le lien</button>
+      <a class="btn" href="${wa(`Bonjour, voici le lien pour déposer vos notes de frais de la mission « ${m.name} » : ${common}`)}" target="_blank" rel="noopener">WhatsApp</a></div></div>` : ''}
+  </div>`;
 }
 
 function xpRow(x, admin) {
@@ -1128,7 +1167,7 @@ function expenseModal(m, x) {
         <div class="vats" id="x-vats">${VAT_RATES.map((r) => `<button type="button" data-vat="${r}">${r === 0 ? 'Sans TVA' : String(r).replace('.', ',') + ' %'}</button>`).join('')}<button type="button" data-vat="other">Autre</button></div>
         <input class="inp mono" id="x-vatother" inputmode="decimal" placeholder="Taux en %" style="display:none;max-width:140px;margin-top:8px;">
         <div class="vatinfo" id="x-vatinfo"></div></div>
-      <div class="field"><label for="x-desc">Description</label><input class="inp" id="x-desc" value="${esc(x.description || '')}" placeholder="Ex. dîner équipe, taxi aéroport, hôtel 2 nuits"></div>
+      <div class="field"><label for="x-desc">Description</label><input class="inp" id="x-desc" value="${esc(x.description || '')}" placeholder="Ex. dîner équipe, taxi aéroport, hôtel 2 nuits, piles radio"></div>
       <div class="field"><span class="flabel">Justificatif</span><div id="x-receipt"></div></div>
       <input type="file" id="x-cam" accept="image/*" capture="environment" hidden>
       <input type="file" id="x-file" accept="image/*,application/pdf" hidden>
@@ -1507,7 +1546,7 @@ function readHash() {
   if (!mid || !/^[0-9a-f-]{36}$/i.test(mid)) return false;
   route.view = 'mission'; route.missionId = mid;
   const a = h.get('a');
-  if (a && PUBLIC_AGENT) { localStorage.setItem(identityKey(mid), a); history.replaceState(null, '', '#m=' + mid); }
+  if (a && PUBLIC_AGENT) { addMyId(a); history.replaceState(null, '', '#m=' + mid); }
   return true;
 }
 
