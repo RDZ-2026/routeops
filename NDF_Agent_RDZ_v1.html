@@ -365,22 +365,17 @@ function userName(aid) {
   const u = S.users.find((u) => u.id === aid);
   return u ? u.full_name : 'Agent ' + String(aid).slice(0, 8);
 }
-// Public page: agent identities remembered on this device (set by the personal link or the name picker).
-// The agent only sees the missions he is assigned to under one of these identities.
+// Public page: agent identity remembered on this device. A personal link (or picking a name) REPLACES it:
+// one phone = one agent, so a phone that opened someone else's link before never shows that person's missions.
 const IDS_KEY = 'ndf_agent_ids';
 function myIds() { try { const v = JSON.parse(localStorage.getItem(IDS_KEY) || '[]'); return Array.isArray(v) ? v : []; } catch (_) { return []; } }
 function saveIds(ids) { localStorage.setItem(IDS_KEY, JSON.stringify([...new Set(ids)])); }
-function addMyId(aid) { if (aid) saveIds([...myIds(), aid]); }
 function meFor(mid) {
   const ids = myIds();
   const m = S.members.find((x) => x.mission_id === mid && ids.includes(x.agent_id));
   return m ? m.agent_id : null;
 }
-function setMe(mid, aid) {
-  if (aid) return addMyId(aid);
-  const cur = meFor(mid);
-  if (cur) saveIds(myIds().filter((x) => x !== cur));
-}
+function setMe(mid, aid) { if (aid) saveIds([aid]); }
 // Former storage (one key per mission) → merged into the device identity list
 (function migrateIdentities() {
   const found = [];
@@ -388,7 +383,7 @@ function setMe(mid, aid) {
     const k = localStorage.key(i);
     if (k && /^ndf_agent_[0-9a-f-]{36}$/i.test(k)) { found.push(localStorage.getItem(k)); localStorage.removeItem(k); }
   }
-  if (found.length) saveIds([...myIds(), ...found.filter(Boolean)]);
+  if (found.length && !myIds().length) saveIds([found.filter(Boolean)[0]].filter(Boolean));
 })();
 // PostgREST "in" filter with quoted values (agent ids may contain any character)
 const inList = (vals) => 'in.' + encodeURIComponent('(' + vals.map((v) => '"' + String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"').join(',') + ')');
@@ -499,11 +494,9 @@ async function fetchAll() {
   try {
     let missions, members, expenses;
     if (PUBLIC_AGENT) {
-      // Agent page: only this agent's open missions (plus the mission of the opened link) and his own expenses
+      // Agent page: only the mission of the opened link, and only this agent's own expenses
       const ids = myIds();
-      const mids = new Set();
-      if (ids.length) ((await api(`ndf_mission_agents?select=mission_id&agent_id=${inList(ids)}`)) || []).forEach((r) => mids.add(r.mission_id));
-      if (route.view === 'mission' && route.missionId) mids.add(route.missionId);
+      const mids = new Set(route.view === 'mission' && route.missionId ? [route.missionId] : []);
       missions = mids.size ? (await api(`ndf_missions?select=id,name,destination,start_date,end_date,default_currency,status&status=eq.en_cours&id=${inList([...mids])}&order=start_date.desc.nullslast`)) || [] : [];
       const open = missions.map((m) => m.id);
       [members, expenses] = open.length ? await Promise.all([
@@ -945,15 +938,21 @@ function canEditExpense(x, mission) {
 function render() {
   const fab = document.querySelector('.fab');
   if (fab) fab.remove();
+  // Agent page: one link = one mission. No mission list, no way to browse other missions.
+  if (PUBLIC_AGENT && route.view !== 'mission') return agentMessage('Ouvrez le lien de votre mission', 'Utilisez le lien personnel envoyé par la direction pour déposer vos dépenses.');
   if (route.view === 'mission') {
     const m = S.missions.find((x) => x.id === route.missionId && (isAdmin() || x.status === 'en_cours'));
     if (m) return renderMission(m);
     if (!lastFetch) { $('main').innerHTML = '<div class="empty" style="margin-top:20px;"><b>Chargement de la mission…</b>Une connexion est nécessaire la première fois.</div>'; return; }
-    if (PUBLIC_AGENT) toast('Cette mission n\'est plus ouverte aux dépôts de frais. Contactez la direction.', 'warn');
+    if (PUBLIC_AGENT) return agentMessage('Mission clôturée', 'Cette mission n\'est plus ouverte aux dépôts de dépenses. Pour toute question, contactez la direction.');
     route.view = 'list';
     if (location.hash) history.replaceState(null, '', location.pathname);
   }
   renderList();
+}
+
+function agentMessage(title, text) {
+  $('main').innerHTML = `<div class="empty" style="margin-top:20px;"><b>${esc(title)}</b>${esc(text)}</div>`;
 }
 
 function renderList() {
@@ -986,7 +985,8 @@ function renderList() {
   }
   $('main').innerHTML = `
     <div class="page-head"><div class="grow"><h1>${admin ? 'Missions' : 'Mes missions'}</h1>
-      <div class="meta">${admin ? 'Frais de protection rapprochée par mission' : 'Choisissez votre mission pour déposer vos frais'}</div></div>
+      <div class="meta">${admin ? 'Frais de protection rapprochée par mission' : 'Choisissez votre mission pour déposer vos frais'}</div>
+</div>
       ${admin ? '<button class="btn primary" data-new>Nouvelle mission</button>' : ''}</div>
     ${admin ? `<div class="tabs">${tabs}</div>` : ''}
     ${all.length > 5 ? `<div class="search"><input class="inp" id="q" placeholder="Rechercher une mission, un client, une destination" value="${esc(route.search)}"></div>` : ''}
@@ -1050,10 +1050,10 @@ function renderMission(m) {
     ? `<div class="rsec">TVA récupérable par taux</div>${Object.entries(t.byRate).sort((a, b) => Number(a[0]) - Number(b[0])).map(([r, v]) => `<div class="rl sm vat"><span>${String(r).replace('.', ',')} % sur ${fmt(v.base)}</span><span>${fmt(v.vat)}</span></div>`).join('')}` : '';
 
   $('main').innerHTML = `
-    <button class="backlink" id="back">← ${isAdmin() ? 'Missions' : 'Mes missions'}</button>
+    ${admin ? '<button class="backlink" id="back">← Missions</button>' : ''}
     <div class="page-head"><div class="grow"><h1>${esc(m.name)}</h1>${meta ? `<div class="meta">${meta}</div>` : ''}</div>
       ${admin ? '' : `<span class="st ${m.status}">${statusOf(m.status).label}</span>`}</div>
-    ${admin ? '' : `<div class="whoami">Vous êtes <b>${esc(userName(me))}</b><button class="btn ghost" id="switch-me">Changer</button></div>`}
+    ${admin ? '' : `<div class="whoami">Vous êtes <b>${esc(userName(me))}</b></div>`}
     ${statusBar}
     <div class="actions">
       ${canAdd ? `<button class="btn primary ${admin ? '' : 'hide-m'}" id="add">Ajouter une ${XP}</button>` : ''}
@@ -1081,8 +1081,7 @@ function renderMission(m) {
     fab.onclick = () => expenseModal(m);
     document.body.appendChild(fab);
   }
-  $('back').onclick = backToList;
-  const sw = $('switch-me'); if (sw) sw.onclick = () => { setMe(m.id, null); render(); };
+  const bk = $('back'); if (bk) bk.onclick = backToList;
   $('main').querySelectorAll('[data-copy]').forEach((b) => b.onclick = () => copyText(b.dataset.copy));
   const addB = $('add'); if (addB) addB.onclick = () => expenseModal(m);
   if (admin) {
@@ -1104,12 +1103,10 @@ function renderIdentityPicker(m) {
   const members = S.members.filter((x) => x.mission_id === m.id).sort((a, b) => a.agent_name.localeCompare(b.agent_name));
   const dates = m.start_date ? (m.end_date && m.end_date !== m.start_date ? `Du ${fdate(m.start_date)} au ${fdate(m.end_date)}` : `Le ${fdate(m.start_date)}`) : '';
   $('main').innerHTML = `
-    <button class="backlink" id="back">← ${isAdmin() ? 'Missions' : 'Mes missions'}</button>
     <div class="page-head"><div class="grow"><h1>${esc(m.name)}</h1><div class="meta">${[m.destination, dates].filter(Boolean).map(esc).join(', ')}</div></div></div>
-    <div class="picker"><h2>Qui êtes-vous ?</h2><p>Choisissez votre nom. Il sera mémorisé sur ce téléphone pour cette mission.</p>
+    <div class="picker"><h2>Qui êtes-vous ?</h2><p>Choisissez votre nom. Il sera mémorisé sur ce téléphone.</p>
       ${members.length ? members.map((a) => `<button class="btn block" data-me="${esc(a.agent_id)}">${esc(a.agent_name)}</button>`).join('') : '<div class="notice warn">Aucun agent n\'est encore affecté à cette mission. Contactez la direction.</div>'}
     </div>`;
-  $('back').onclick = backToList;
   $('main').querySelectorAll('[data-me]').forEach((b) => b.onclick = async () => { setMe(m.id, b.dataset.me); render(); await fetchAll(); });
 }
 
@@ -1692,7 +1689,7 @@ function readHash() {
   if (!mid || !/^[0-9a-f-]{36}$/i.test(mid)) return false;
   route.view = 'mission'; route.missionId = mid;
   const a = h.get('a');
-  if (a && PUBLIC_AGENT) { addMyId(a); history.replaceState(null, '', '#m=' + mid); }
+  if (a && PUBLIC_AGENT) { saveIds([a]); history.replaceState(null, '', '#m=' + mid); }
   return true;
 }
 
@@ -1720,9 +1717,17 @@ async function startApp() {
 $('sync').onclick = () => { if ($('sync').classList.contains('clickable')) openOutbox(); else if (navigator.onLine) fetchAll(); };
 window.addEventListener('online', async () => { toast('Connexion rétablie — synchronisation', 'ok'); await sync(); await fetchAll(); });
 window.addEventListener('offline', () => { updateSyncBadge(); toast('Hors ligne — vos saisies sont conservées sur cet appareil', 'warn'); });
-window.addEventListener('popstate', () => {
+window.addEventListener('popstate', async () => {
   if (document.querySelector('.overlay')) { document.querySelectorAll('.overlay').forEach((o) => o.remove()); document.body.style.overflow = ''; }
+  const idsBefore = JSON.stringify(myIds());
   if (!readHash()) route.view = 'list';
+  // A new link opened in an already-open page: load that mission / identity before rendering
+  const unknown = route.view === 'mission' && !S.missions.some((m) => m.id === route.missionId);
+  if (navigator.onLine && (unknown || (PUBLIC_AGENT && JSON.stringify(myIds()) !== idsBefore))) {
+    if (unknown) $('main').innerHTML = '<div class="empty" style="margin-top:20px;"><b>Chargement de la mission…</b></div>';
+    await fetchAll();
+    return;
+  }
   render();
 });
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && navigator.onLine && Date.now() - lastFetch > 60000) { sync().then(fetchAll); } });
