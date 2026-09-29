@@ -1,4 +1,7 @@
 <!DOCTYPE html>
+<!-- RDZ · Quiz_Agent_RDZ · 2026-09-30 · liste des agents lue depuis rh_agents_annuaire
+     (rh_agents n'est plus lisible sans connexion) + enregistrement de l'id
+     de l'agent choisi dans quiz_sessions.agent_id (était toujours null). -->
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -376,7 +379,10 @@ async function init() {
 
     // Load agents for selection
     try {
-      agents = await sb('rh_agents?select=id,nom,prenom&order=nom&statut=eq.actif') || [];
+      // 2026-09-30 : lecture via l'annuaire public minimal (id, nom, prénom,
+      // statut, fonction) au lieu de rh_agents, fermée à l'accès anonyme
+      // (voir migration-securite-rh-phase1.sql).
+      agents = await sb('rh_agents_annuaire?select=id,nom,prenom&order=nom&statut=eq.actif') || [];
     } catch (_) { agents = []; }
 
     // Build welcome screen
@@ -480,7 +486,7 @@ async function startQuiz() {
       id: uuid(),
       template_id: quizTemplate.id,
       agent_name: agentName || null,
-      agent_id: null,
+      agent_id: agentId || null,   // 2026-09-30 : l'id de l'agent choisi était perdu (toujours null)
       started_at: new Date().toISOString(),
       status: 'pending'
     };
