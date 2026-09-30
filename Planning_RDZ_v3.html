@@ -147,6 +147,13 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .msg-list-item.active{background:var(--red);color:#fff;font-weight:600;}
 .msg-list-item{display:flex;align-items:center;gap:8px;}
 .msg-dot{width:9px;height:9px;border-radius:50%;background:var(--red);flex:none;margin-left:auto;}
+.msg-list-sec{padding:12px 14px 4px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3,#9ca3af);}
+.msg-list-item.msg-new{color:var(--red);font-weight:600;}
+.msg-list-item .msg-count{font-size:10.5px;color:var(--text3,#9ca3af);margin-left:auto;}
+.msg-list-item.active .msg-count{color:rgba(255,255,255,.8);}
+.msg-list-item .msg-count + .msg-dot{margin-left:6px;}
+.msg-thread-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);}
+.msg-sender{font-size:10.5px;font-weight:700;color:var(--red);margin-bottom:2px;}
 .msg-thread{flex:1;display:flex;flex-direction:column;min-width:0;}
 .msg-scroll{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;}
 .msg-bubble{max-width:70%;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.4;word-wrap:break-word;}
@@ -2323,24 +2330,42 @@ async function loadMsgLatest(){
     MSG_LATEST = {}; (r||[]).forEach(x=>{ if(x.agent_id && !MSG_LATEST[x.agent_id]) MSG_LATEST[x.agent_id]=x.created_at; });
   }catch(e){}
 }
+// Groupes de discussion (MSG_THREAD = 'g:<id>')
+let MSG_GROUPS = [];
+function isGroupThread(t){ return typeof t==='string' && t.startsWith('g:'); }
+function groupOf(t){ return isGroupThread(t)? MSG_GROUPS.find(g=>'g:'+g.id===t) || null : null; }
+function groupUnread(g){ if(!g.last_agent_at) return false; const seen=localStorage.getItem(msgSeenKey('g:'+g.id)); return !seen || new Date(g.last_agent_at) > new Date(seen); }
+async function loadMsgGroups(){
+  try{ const r = await rpc('rdz_planning_group_list', {}); MSG_GROUPS = Array.isArray(r)? r : []; }catch(e){ MSG_GROUPS = []; }
+}
 async function renderMessagesStaff(el){
-  await loadMsgLatest();
+  await Promise.all([loadMsgLatest(), loadMsgGroups()]);
+  if(isGroupThread(MSG_THREAD) && !groupOf(MSG_THREAD)) MSG_THREAD = null;   // groupe archivé
   if(MSG_THREAD) markMsgSeen(MSG_THREAD);
   const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt))
     .map((a,i)=>({a,i}))
     .sort((x,y)=>{ const ux=msgUnread(x.a.id), uy=msgUnread(y.a.id); if(ux!==uy) return ux? -1 : 1;
       const lx=MSG_LATEST[x.a.id]||'', ly=MSG_LATEST[y.a.id]||''; if(lx!==ly) return lx>ly? -1 : 1; return x.i-y.i; })
     .map(x=>x.a);
+  const groups = [...MSG_GROUPS].sort((x,y)=>{ const ux=groupUnread(x), uy=groupUnread(y); if(ux!==uy) return ux? -1:1; return String(y.last_at||y.created_at).localeCompare(String(x.last_at||x.created_at)); });
+  const g = groupOf(MSG_THREAD);
+  const memberNames = g? (g.member_ids||[]).map(id=>{ const a=STATE.agents.find(x=>String(x.id)===String(id)); return a? displayNomPrenom(a) : '—'; }) : [];
   el.innerHTML = `
     <div class="msg-layout">
       <div class="msg-list">
         <div class="msg-list-item ${MSG_THREAD===null?'active':''}" onclick="selectMsgThread(null)">📢 Canal groupé</div>
+        <div class="msg-list-sec">Groupes</div>
+        <div class="msg-list-item msg-new" onclick="openGroupModal(null)">＋ Nouveau groupe</div>
+        ${groups.map(gr=>`<div class="msg-list-item ${MSG_THREAD==='g:'+gr.id?'active':''}" onclick="selectMsgThread('g:${jsStr(gr.id)}')"><span>👥 ${esc(gr.name)}</span><span class="msg-count">${(gr.member_ids||[]).length}</span>${MSG_THREAD!=='g:'+gr.id && groupUnread(gr)? '<span class="msg-dot" title="Nouveau message"></span>' : ''}</div>`).join('')}
+        <div class="msg-list-sec">Agents</div>
         ${agents.map(a=>`<div class="msg-list-item ${MSG_THREAD===a.id?'active':''}" onclick="selectMsgThread('${jsStr(a.id)}')"><span>${esc(displayNomPrenom(a))}</span>${MSG_THREAD!==a.id && msgUnread(a.id)? '<span class="msg-dot" title="Nouveau message"></span>' : ''}</div>`).join('')}
       </div>
       <div class="msg-thread">
+        ${g? `<div class="msg-thread-head"><div style="min-width:0;"><div style="font-weight:700;">👥 ${esc(g.name)}</div><div class="hint" style="margin:2px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(memberNames.join(', '))}</div></div>
+            <div style="display:flex;gap:6px;flex:none;"><button class="btn btn-sm btn-ghost" onclick="openGroupModal('${jsStr(g.id)}')">Modifier</button><button class="btn btn-sm btn-danger" onclick="archiveGroup('${jsStr(g.id)}')">Archiver</button></div></div>` : ''}
         <div class="msg-scroll" id="msg-scroll"><div class="empty">Chargement…</div></div>
         <div class="msg-compose">
-          <textarea id="msg-input" class="ftxt" rows="2" placeholder="${MSG_THREAD===null?'Écrire une annonce à tous les agents…':'Écrire un message…'}"></textarea>
+          <textarea id="msg-input" class="ftxt" rows="2" placeholder="${MSG_THREAD===null?'Écrire une annonce à tous les agents…':g?'Écrire au groupe…':'Écrire un message…'}"></textarea>
           <button class="btn btn-primary" onclick="sendMessageForm()">Envoyer</button>
         </div>
       </div>
@@ -2353,15 +2378,25 @@ function selectMsgThread(agentId){
   const panel = document.getElementById('panel-messages');
   if(panel) renderMessagesStaff(panel);
 }
+function renderGroupBubble(row){
+  const when = new Date(row.created_at).toLocaleString('fr-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+  const mine = !row.from_agent;
+  return `<div class="msg-bubble ${mine?'mine':'theirs'}">${mine? '' : `<div class="msg-sender">${esc(row.sender_name||'Agent')}</div>`}<div class="msg-body">${esc(row.body).replace(/\n/g,'<br>')}</div><div class="msg-meta">${mine? esc(row.sender_name||'Direction')+' · ' : ''}${when}</div></div>`;
+}
 async function refreshMessageThread(){
   const scroll = document.getElementById('msg-scroll');
   if(!scroll) return;
-  const filter = MSG_THREAD? `agent_id=eq.${MSG_THREAD}&order=created_at.asc&limit=500` : `agent_id=is.null&order=created_at.asc&limit=500`;
+  const isGroup = isGroupThread(MSG_THREAD);
   let rows;
-  try{ rows = await restSelect('rdz_planning_messages', filter); }catch(e){ return; }
+  try{
+    rows = isGroup
+      ? await rpc('rdz_planning_group_messages', { p_id: MSG_THREAD.slice(2) })
+      : await restSelect('rdz_planning_messages', MSG_THREAD? `agent_id=eq.${MSG_THREAD}&order=created_at.asc&limit=500` : `agent_id=is.null&order=created_at.asc&limit=500`);
+  }catch(e){ return; }
+  rows = Array.isArray(rows)? rows : [];
   const wasNearBottom = scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 40;
   const firstLoad = scroll.dataset.loaded !== 'yes';
-  scroll.innerHTML = rows.length? rows.map(r=>renderMessageBubble(r, !r.from_agent)).join('') : `<div class="empty">Aucun message pour l’instant.</div>`;
+  scroll.innerHTML = rows.length? rows.map(r=> isGroup? renderGroupBubble(r) : renderMessageBubble(r, !r.from_agent)).join('') : `<div class="empty">Aucun message pour l’instant.</div>`;
   scroll.dataset.loaded = 'yes';
   if(wasNearBottom || firstLoad) scroll.scrollTop = scroll.scrollHeight;
   if(MSG_THREAD) markMsgSeen(MSG_THREAD);
@@ -2371,10 +2406,52 @@ async function sendMessageForm(){
   const body = input.value.trim();
   if(!body) return;
   try{
-    await rpc('rdz_planning_send_message', { p_agent_id: MSG_THREAD, p_body: body });
+    if(isGroupThread(MSG_THREAD)) await rpc('rdz_planning_group_send', { p_id: MSG_THREAD.slice(2), p_body: body });
+    else await rpc('rdz_planning_send_message', { p_agent_id: MSG_THREAD, p_body: body });
     input.value = '';
     await refreshMessageThread();
   }catch(e){ toast(e.message||'Envoi impossible', true); }
+}
+// Création / modification d'un groupe
+function openGroupModal(groupId){
+  const g = groupId? MSG_GROUPS.find(x=>String(x.id)===String(groupId)) : null;
+  const selected = new Set((g&&g.member_ids||[]).map(String));
+  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
+  openModal('group-modal', g? 'Modifier le groupe' : 'Nouveau groupe', `
+    <div class="fg"><div class="flabel">Nom du groupe</div><input class="finp" id="grp-name" maxlength="80" placeholder="Ex. Équipe REGM, Nuits week-end…" value="${esc(g? g.name : '')}"></div>
+    <div class="fg" style="margin-top:12px;"><div class="flabel">Agents (<span id="grp-count">${selected.size}</span> sélectionné${selected.size>1?'s':''})</div>
+      <input class="finp" id="grp-search" placeholder="Rechercher un agent…" oninput="filterGroupAgents(this.value)" style="margin-bottom:8px;">
+      <div id="grp-agents" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px 10px;">
+        ${agents.map(a=>`<label class="checkline grp-agent" data-name="${esc(displayNomPrenom(a).toLowerCase())}" style="display:block;padding:4px 0;"><input type="checkbox" name="grp-agent" value="${esc(a.id)}" ${selected.has(String(a.id))?'checked':''} onchange="updateGroupCount()"> ${esc(displayNomPrenom(a))}</label>`).join('')}
+      </div>
+    </div>
+    <div class="hint">Tous les membres voient les messages du groupe et peuvent répondre. Pour l’instant, seuls les agents du pilote planning le voient dans leur application.</div>
+  `, `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveGroup(${g? `'${jsStr(g.id)}'` : 'null'})">${g? 'Enregistrer' : 'Créer le groupe'}</button>`);
+  setTimeout(()=>document.getElementById('grp-name')?.focus(), 50);
+}
+function filterGroupAgents(q){
+  q=(q||'').trim().toLowerCase();
+  document.querySelectorAll('#grp-agents .grp-agent').forEach(l=>{ l.style.display = !q || l.dataset.name.includes(q) ? 'block' : 'none'; });
+}
+function updateGroupCount(){
+  const n=document.querySelectorAll('input[name="grp-agent"]:checked').length;
+  const el=document.getElementById('grp-count'); if(el) el.textContent=n;
+}
+async function saveGroup(groupId){
+  const name = (modalVal('grp-name')||'').trim();
+  const ids = Array.from(document.querySelectorAll('input[name="grp-agent"]:checked')).map(x=>x.value);
+  if(!name){ modalError('Donne un nom au groupe.'); return; }
+  if(!ids.length){ modalError('Choisis au moins un agent.'); return; }
+  try{
+    const id = await rpc('rdz_planning_group_save', { p_id: groupId, p_name: name, p_agent_ids: ids });
+    closeModal(); toast(groupId? 'Groupe mis à jour' : 'Groupe créé');
+    selectMsgThread('g:'+(id||groupId));
+  }catch(e){ modalError(e.message||'Enregistrement impossible'); }
+}
+async function archiveGroup(groupId){
+  if(!confirm('Archiver ce groupe ? Il disparaîtra de la messagerie de ses membres.')) return;
+  try{ await rpc('rdz_planning_group_archive', { p_id: groupId }); toast('Groupe archivé'); selectMsgThread(null); }
+  catch(e){ toast(e.message||'Archivage impossible', true); }
 }
 async function renderMessagesAgent(el){
   el.innerHTML = `
