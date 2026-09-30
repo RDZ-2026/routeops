@@ -1133,7 +1133,7 @@ function loadState(){
   }catch(e){console.warn('loadState error:',e);}
 }
 function saveAll(){
-  localStorage.setItem('routeops_v6',JSON.stringify(S));
+  _persistLocal();
   syncTrackChange();
   showSaved();
   if(currentUser) pushToSupabase();
@@ -1168,7 +1168,7 @@ function syncLoad(){
   try{return JSON.parse(localStorage.getItem(SYNC_KEY)||'{}');}catch(e){return{};}
 }
 function syncSave(obj){
-  localStorage.setItem(SYNC_KEY,JSON.stringify(obj));
+  try{localStorage.setItem(SYNC_KEY,JSON.stringify(obj));}catch(e){console.warn('syncSave:',e);}
 }
 
 function syncTrackChange(){
@@ -3769,11 +3769,13 @@ function _autoFixIds(){
     Object.entries(bm).forEach(([b,v])=>{ newT[na][sMap[b]||fixId(b)]=v })
   })
   S.travel=newT
-  localStorage.setItem('routeops_v6',JSON.stringify(S))
 }
 
 // ── Session ──
-function _saveSession(d){ localStorage.setItem('rdz_auth',JSON.stringify(d)) }
+function _saveSession(d){
+  try{ localStorage.setItem('rdz_auth',JSON.stringify(d)) }
+  catch(e){ if(_isQuota(e)){ try{ localStorage.removeItem(LOCAL_KEY); localStorage.setItem('rdz_auth',JSON.stringify(d)); _persistLocal() }catch(_){ console.warn('_saveSession:',_) } } }
+}
 function _loadSession(){ try{ return JSON.parse(localStorage.getItem('rdz_auth')||'null') }catch(e){ return null } }
 function _clearSession(){ localStorage.removeItem('rdz_auth') }
 function _sessionValid(s){ return s&&s.access_token&&s.expires_at>Math.floor(Date.now()/1000) }
@@ -3909,7 +3911,7 @@ function loadFromDB(token){
         S.travel[t.site_a][t.site_b]=t.minutes
       })
     }
-    localStorage.setItem('routeops_v6',JSON.stringify(S))
+    _persistLocal()
     if(typeof buildJournee==='function') buildJournee()
     if(typeof updateSyncDot==='function') updateSyncDot()
     _setSyncDot('ok')
@@ -3935,10 +3937,69 @@ function _setSyncDot(state){
 }
 
 // ── saveAll — appelé à chaque modification ──
+// ── Local cache (localStorage) ─────────────────────────────────
+// localStorage is limited (~5 MB) and shared by every module hosted on the same site.
+// The local copy is only an offline cache: Supabase stays the reference. It keeps the
+// sites, missions, templates and the dated sheets from 30 days back to 30 days ahead
+// (other sheets stay in memory and in Supabase, nothing is deleted). Writing it never
+// breaks a save.
+var LOCAL_KEY='routeops_v6';
+var _storageWarned=false;
+function _cleanObj(o,keepEmpty){
+  const r={};
+  for(const k in o){const v=o[k];
+    if(v===undefined||v===null) continue;
+    if(v===''&&!(keepEmpty&&keepEmpty.includes(k))) continue;
+    if(v===false&&k==='isTemplate') continue;
+    r[k]=v;}
+  return r;
+}
+// Offline cache window: templates + dated sheets from today-N to today+N days
+var OFFLINE_WINDOW_DAYS=30;
+function _compactState(windowDays){
+  const today=todayStr();
+  const from=_addDays(today,-windowDays),to=_addDays(today,windowDays);
+  const sheets=(S.sheets||[])
+    .filter(sh=>sh.isTemplate||!sh.date||(sh.date>=from&&sh.date<=to))
+    .map(sh=>{
+      const c=_cleanObj(sh);
+      if(c.endTime&&c.endTime===c.endService) delete c.endTime;
+      c.tasks=(sh.tasks||[]).map(t=>_cleanObj(t,['overrideDesc']));
+      return c;
+    });
+  return {...S,sheets};
+}
+function _isQuota(e){return e&&(e.name==='QuotaExceededError'||e.name==='NS_ERROR_DOM_QUOTA_REACHED'||e.code===22||e.code===1014);}
+function _persistLocal(){
+  // Normal window first (±30 days); only if the shared storage is really full, narrow it
+  const steps=[OFFLINE_WINDOW_DAYS,14,7,2];
+  for(const days of steps){
+    try{
+      localStorage.setItem(LOCAL_KEY,JSON.stringify(_compactState(days)));
+      if(days!==OFFLINE_WINDOW_DAYS) _storageWarn(`Stockage local presque plein : le mode hors ligne ne garde que les feuilles à ±${days} jours. Tout reste enregistré en ligne.`);
+      return true;
+    }catch(e){
+      if(!_isQuota(e)){console.error('_persistLocal:',e);return false;}
+    }
+  }
+  _storageWarn('Stockage local plein : le mode hors ligne n\'est plus garanti. Les modifications continuent d\'être envoyées en ligne dès que la connexion est disponible.');
+  return false;
+}
+function _storageWarn(msg){
+  console.warn('[RouteOps] '+msg);
+  if(_storageWarned) return;
+  _storageWarned=true;
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;top:64px;left:50%;transform:translateX(-50%);z-index:9999;background:#fff7ed;border:1px solid #fdba74;color:#9a3412;padding:10px 14px;border-radius:8px;font-size:12px;max-width:92vw;box-shadow:var(--shadow-md);display:flex;gap:10px;align-items:flex-start';
+  d.innerHTML=`<span>⚠</span><span style="flex:1">${esc(msg)}</span><button style="border:none;background:none;cursor:pointer;color:#9a3412;font-size:14px;line-height:1" title="Fermer">✕</button>`;
+  d.querySelector('button').onclick=()=>d.remove();
+  document.body.appendChild(d);
+}
+
 function saveAll(hint){
   _autoFixIds()
-  localStorage.setItem('routeops_v6',JSON.stringify(S))
-  if(typeof syncTrackChange==='function') syncTrackChange()
+  _persistLocal()
+  try{ if(typeof syncTrackChange==='function') syncTrackChange() }catch(e){ console.warn('syncTrackChange:',e) }
   if(!hint||hint==='all'){
     _dirty.sites=true;_dirty.missions=true;_dirty.sheets=true;_dirty.travel=true
   } else {
