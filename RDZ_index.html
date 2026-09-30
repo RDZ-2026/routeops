@@ -140,6 +140,9 @@ body{font-family:Inter,'DM Sans',system-ui,-apple-system,BlinkMacSystemFont,"Seg
  .main{padding:24px 16px 52px}.hero{padding:22px 20px 22px 23px;margin-bottom:30px;border-radius:14px}.hero-title{font-size:25px}
  .modules{grid-template-columns:1fr;gap:14px;margin-bottom:34px}.mod{padding:19px;border-radius:13px}.mod-desc{min-height:0}.footer{padding:16px;font-size:10px}
 }
+
+/* Sticky header: topbar stays fixed while page scrolls underneath */
+.topbar{position:sticky;top:0;z-index:1000;}
 </style>
 
 </head>
@@ -167,69 +170,6 @@ body{font-family:Inter,'DM Sans',system-ui,-apple-system,BlinkMacSystemFont,"Seg
   </div>
   <div class="modules">
 
-    <a class="mod" style="--mc:#7c3aed;" href="Direction_RDZ_v1.html">
-      <div class="mod-head">
-        <div class="mod-icon" style="background:#f5f3ff;">🏛</div>
-        <div>
-          <div class="mod-name">Direction_RDZ</div>
-          <div class="mod-ver">v1 · Production</div>
-        </div>
-      </div>
-      <div class="mod-desc">Comité de direction — suivi stratégique, indicateurs clés, décisions et pilotage opérationnel.</div>
-      <div class="mod-foot">
-        <span class="badge b-live">✓ Actif</span>
-        <span class="badge b-admin">🔒 Admin</span>
-        <span class="mod-arrow">→</span>
-      </div>
-    </a>
-
-    <a class="mod" style="--mc:#c0272d;" href="https://rdz-2026.github.io/routeops/RouteOps_v12.html">
-      <div class="mod-head">
-        <div class="mod-icon" style="background:#fdf2f2;">📅</div>
-        <div>
-          <div class="mod-name">RouteOps</div>
-          <div class="mod-ver">v11 · Production</div>
-        </div>
-      </div>
-      <div class="mod-desc">Planification quotidienne — feuilles de route agents, Gantt, contrôles horaires, impression.</div>
-      <div class="mod-foot">
-        <span class="badge b-live">✓ Actif</span>
-        <span class="mod-arrow">→</span>
-      </div>
-    </a>
-
-    <a class="mod" style="--mc:#2563eb;" href="RH_RDZ_v10.html">
-      <div class="mod-head">
-        <div class="mod-icon" style="background:#eff6ff;">👥</div>
-        <div>
-          <div class="mod-name">RH_RDZ</div>
-          <div class="mod-ver">v7 · Production</div>
-        </div>
-      </div>
-      <div class="mod-desc">Ressources humaines — fiches agents, documents & alertes, process RH, main courante, formations.</div>
-      <div class="mod-foot">
-        <span class="badge b-live">✓ Actif</span>
-        <span class="badge b-admin">🔒 Admin</span>
-        <span class="mod-arrow">→</span>
-      </div>
-    </a>
-
-    <a class="mod" style="--mc:#16a34a;" href="https://rdz-2026.github.io/routeops/Fleet_RDZ_v5.html">
-      <div class="mod-head">
-        <div class="mod-icon" style="background:#f0fdf4;">🚗</div>
-        <div>
-          <div class="mod-name">Fleet_RDZ</div>
-          <div class="mod-ver">v4 · Production</div>
-        </div>
-      </div>
-      <div class="mod-desc">Gestion de flotte — véhicules, entretiens, assurances, kilométrage, fournisseurs.</div>
-      <div class="mod-foot">
-        <span class="badge b-live">✓ Actif</span>
-        <span class="badge b-admin">🔒 Admin</span>
-        <span class="mod-arrow">→</span>
-      </div>
-    </a>
-
     <a class="mod" style="--mc:#c0272d;" href="CRM_RDZ_v3.html">
       <div class="mod-head">
         <div class="mod-icon" style="background:#fdf2f2;">💼</div>
@@ -246,15 +186,111 @@ body{font-family:Inter,'DM Sans',system-ui,-apple-system,BlinkMacSystemFont,"Seg
       </div>
     </a>
 
-    <a class="mod" style="--mc:#d97706;" href="DocTrack_RDZ_v3.html">
+    <a class="mod" style="--mc:#0f766e;" href="Finance_RDZ_v1.html">
       <div class="mod-head">
-        <div class="mod-icon" style="background:#fffbeb;">📋</div>
+        <div class="mod-icon" style="background:#f0fdfa;">💰</div>
         <div>
-          <div class="mod-name">DocTrack_RDZ</div>
-          <div class="mod-ver">v2 · Production</div>
+          <div class="mod-name">Finance_RDZ</div>
+          <div class="mod-ver">v1 · Production</div>
         </div>
       </div>
-      <div class="mod-desc">Suivi CDC &amp; procédures par site — création, validation, Team Admin &amp; Agents, SharePoint, classeur.</div>
+      <div class="mod-desc">Suivi financier — budgets, dépenses, recettes et indicateurs financiers de la société.</div>
+      <div class="mod-foot">
+        <span class="badge b-live">✓ Actif</span>
+        <span class="badge b-admin">🔒 Admin</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+
+    <a class="mod" style="--mc:#16a34a;" href="Fleet_RDZ_v5.html">
+      <div class="mod-head">
+        <div class="mod-icon" style="background:#f0fdf4;">🚗</div>
+        <div>
+          <div class="mod-name">Fleet_RDZ</div>
+          <div class="mod-ver">v5 · Production</div>
+        </div>
+      </div>
+      <div class="mod-desc">Gestion de flotte — véhicules, entretiens, assurances, kilométrage, fournisseurs.</div>
+      <div class="mod-foot">
+        <span class="badge b-live">✓ Actif</span>
+        <span class="badge b-admin">🔒 Admin</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+
+    <a class="mod" style="--mc:#d97706;" href="NDF_RDZ_v4.html">
+      <div class="mod-head">
+        <div class="mod-icon" style="background:#fffbeb;">🧾</div>
+        <div>
+          <div class="mod-name">NDF_RDZ</div>
+          <div class="mod-ver">v4 · Production</div>
+        </div>
+      </div>
+      <div class="mod-desc">Notes de frais — saisie, justificatifs, validation et suivi des remboursements.</div>
+      <div class="mod-foot">
+        <span class="badge b-live">✓ Actif</span>
+        <span class="badge b-admin">🔒 Admin</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+
+    <a class="mod" style="--mc:#7c3aed;" href="Planning_RDZ_v3.html">
+      <div class="mod-head">
+        <div class="mod-icon" style="background:#f5f3ff;">🗓</div>
+        <div>
+          <div class="mod-name">Planning_RDZ</div>
+          <div class="mod-ver">v3 · Production</div>
+        </div>
+      </div>
+      <div class="mod-desc">Planning des agents — services par site et par agent, congés, absences, affectations, synchro RH.</div>
+      <div class="mod-foot">
+        <span class="badge b-live">✓ Actif</span>
+        <span class="badge b-admin">🔒 Admin</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+
+    <a class="mod" style="--mc:#2563eb;" href="RH_RDZ_v10.html">
+      <div class="mod-head">
+        <div class="mod-icon" style="background:#eff6ff;">👥</div>
+        <div>
+          <div class="mod-name">RH_RDZ</div>
+          <div class="mod-ver">v10 · Production</div>
+        </div>
+      </div>
+      <div class="mod-desc">Ressources humaines — fiches agents, documents &amp; alertes, process RH, main courante, formations.</div>
+      <div class="mod-foot">
+        <span class="badge b-live">✓ Actif</span>
+        <span class="badge b-admin">🔒 Admin</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+
+    <a class="mod" style="--mc:#c0272d;" href="RouteOps_v13.html">
+      <div class="mod-head">
+        <div class="mod-icon" style="background:#fdf2f2;">📅</div>
+        <div>
+          <div class="mod-name">RouteOps</div>
+          <div class="mod-ver">v13 · Production</div>
+        </div>
+      </div>
+      <div class="mod-desc">Planification quotidienne — feuilles de route agents, Gantt, contrôles horaires, impression.</div>
+      <div class="mod-foot">
+        <span class="badge b-live">✓ Actif</span>
+        <span class="badge b-admin">🔒 Admin</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+
+    <a class="mod" style="--mc:#0891b2;" href="rdz_heures_2026.html">
+      <div class="mod-head">
+        <div class="mod-icon" style="background:#ecfeff;">⏱</div>
+        <div>
+          <div class="mod-name">Heures RDZ 2026</div>
+          <div class="mod-ver">2026 · Production</div>
+        </div>
+      </div>
+      <div class="mod-desc">Suivi des heures 2026 — décompte des heures travaillées par agent et par période.</div>
       <div class="mod-foot">
         <span class="badge b-live">✓ Actif</span>
         <span class="badge b-admin">🔒 Admin</span>
