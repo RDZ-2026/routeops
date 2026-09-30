@@ -1,7 +1,10 @@
 <!DOCTYPE html>
-<!-- RDZ · Quiz_Agent_RDZ · 2026-09-30 · liste des agents lue depuis rh_agents_annuaire
-     (rh_agents n'est plus lisible sans connexion) + enregistrement de l'id
-     de l'agent choisi dans quiz_sessions.agent_id (était toujours null). -->
+<!-- RDZ · Quiz_Agent_RDZ · v2 · 2026-09-30 · la session est démarrée et envoyée
+     via deux fonctions serveur (quiz_start_session / quiz_submit_session) :
+     l'agent n'a plus d'accès direct aux tables de résultats, et la note des
+     questions fermées est calculée par le serveur (migration-quiz-gestionnaire-rh.sql).
+     v1 · 2026-09-30 · liste des agents lue depuis rh_agents_annuaire + id de
+     l'agent choisi enregistré dans la session. -->
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -480,22 +483,20 @@ function onAgentSelect() {
 // ════════════════════════════════════════
 async function startQuiz() {
   if (!agentName) return;
-  // Create session in Supabase
+  // Démarrer la session côté serveur (fonction quiz_start_session)
   try {
-    const session = {
-      id: uuid(),
-      template_id: quizTemplate.id,
-      agent_name: agentName || null,
-      agent_id: agentId || null,   // 2026-09-30 : l'id de l'agent choisi était perdu (toujours null)
-      started_at: new Date().toISOString(),
-      status: 'pending'
-    };
-    await sb('quiz_sessions', { method: 'POST', prefer: 'return=minimal', noBody: true, body: JSON.stringify(session) });
-    sessionId = session.id;
+    const res = await fetch(`${SB_URL}/rest/v1/rpc/quiz_start_session`, {
+      method: 'POST',
+      headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ p_template_id: quizTemplate.id, p_agent_name: agentName, p_agent_id: agentId || null })
+    });
+    if (!res.ok) throw new Error(res.status + ': ' + await res.text().catch(() => ''));
+    sessionId = await res.json();
+    if (!sessionId) throw new Error('Session non créée');
   } catch (e) {
     console.error('Session create error:', e);
-    // Continue even if session creation fails (offline mode)
-    sessionId = uuid();
+    alert("Impossible de démarrer le questionnaire (connexion ?). Vérifiez le réseau puis réessayez.\n\n" + e.message);
+    return;
   }
 
   // Start timer if needed
@@ -726,24 +727,32 @@ async function submitQuiz() {
 
   autoScore = maxTotal > 0 ? Math.round((autoTotal / maxTotal) * 100) : 0;
 
-  // Save to Supabase
-  try {
-    if (answersPayload.length) {
-      await sb('quiz_answers', { method: 'POST', prefer: 'return=minimal', body: JSON.stringify(answersPayload), noBody: true });
+  // Envoi au serveur : il enregistre les réponses et calcule lui-même la note
+  // des questions fermées (fonction quiz_submit_session). L'objet envoyé est
+  // { "<id question>": réponse }.
+  const payload = {};
+  questions.forEach(q => { if (answers[q.id] !== undefined) payload[q.id] = answers[q.id]; });
+  let saved = false;
+  for (let attempt = 0; attempt < 3 && !saved; attempt++) {
+    try {
+      const res = await fetch(`${SB_URL}/rest/v1/rpc/quiz_submit_session`, {
+        method: 'POST',
+        headers: { 'apikey': SB_KEY, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ p_session_id: sessionId, p_answers: payload })
+      });
+      if (!res.ok) throw new Error(res.status + ': ' + await res.text().catch(() => ''));
+      const out = await res.json().catch(() => null);
+      if (out && typeof out.auto_score === 'number') autoScore = out.auto_score;
+      saved = true;
+    } catch (e) {
+      console.error('Save error:', e);
+      // Réponse déjà reçue par le serveur (ex. coupure réseau au retour) : rien à renvoyer.
+      if (/d[ée]j[àa] envoy/i.test(e.message)) { saved = true; break; }
+      if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
+      else alert("Vos réponses n'ont pas pu être envoyées (connexion ?). Ne fermez pas cette page : prévenez votre responsable ou réessayez plus tard en appuyant de nouveau sur « Soumettre ».\n\n" + e.message);
     }
-    await sb(`quiz_sessions?id=eq.${sessionId}`, {
-      method: 'PATCH', prefer: 'return=minimal', noBody: true,
-      body: JSON.stringify({
-        submitted_at: new Date().toISOString(),
-        auto_score: hasOpen ? autoScore : autoScore,
-        final_score: hasOpen ? null : autoScore,
-        status: hasOpen ? 'submitted' : 'corrected'
-      })
-    });
-  } catch (e) {
-    console.error('Save error:', e);
-    // Show result anyway
   }
+  if (!saved) return;
 
   renderResult(autoScore, hasOpen);
 }
