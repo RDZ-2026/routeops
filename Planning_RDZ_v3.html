@@ -1679,7 +1679,7 @@ function renderPlanning(el){
   el.innerHTML = `
     <div class="ph">
       <div><div class="ph-title">Planning</div><div class="ph-sub">${esc(planLabel())}</div></div>
-      <div class="ph-right">${canManage? `<button class="btn btn-ghost btn-sm" onclick="openExportModal()">📊 Exporter Excel</button> <button class="btn btn-primary btn-sm" onclick="openShiftModal()">+ Nouveau service</button>` : ''}</div>
+      <div class="ph-right">${canManage? `<button class="btn btn-ghost btn-sm" onclick="openExportModal()">📊 Exporter Excel</button> <button class="btn btn-primary btn-sm" onclick="openShiftModal(null, (PLAN_FILTER.scope==='site' && PLAN_FILTER.site) ? {site:PLAN_FILTER.site} : null)">+ Nouveau service</button>` : ''}</div>
     </div>
     <div class="plan-toolbar">
       ${(()=>{
