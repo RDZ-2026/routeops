@@ -192,6 +192,44 @@ body{background:linear-gradient(180deg,#f8fafc 0%,var(--rdz-bg) 100%);color:var(
 .footer{background:rgba(255,255,255,.92);border-top-color:var(--rdz-border);}
 @media(max-width:680px){.modules{grid-template-columns:1fr}.mod{min-height:0}}
 </style>
+
+<style id="rdz-function-dashboard-2026">
+@media screen{
+:root{--fd-navy:#091624;--fd-navy2:#14283b;--fd-red:#e3062c;--fd-ink:#111f31;--fd-muted:#6a798c;--fd-line:#e2e9ef;--fd-bg:#f3f6f9}
+body{background:linear-gradient(180deg,#eaf0f5 0,#f8fafc 260px,#f3f6f9 100%)!important}
+.topbar{height:74px!important;background:linear-gradient(100deg,#081421,#11263a 64%,#183149 100%)!important;border-bottom:3px solid var(--fd-red)!important;box-shadow:0 7px 25px rgba(4,16,29,.25)!important}
+.topbar>img{width:105px!important;height:52px!important;background:#fff!important;border-radius:9px!important;padding:5px 8px!important}
+.rdz-function-dashboard{max-width:1420px!important;padding:24px 32px 48px!important;display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:14px!important;align-items:start!important}
+.rdz-func-panel{--accent:#b1122e;--soft:#fff0f3;--wash:rgba(177,18,46,.08);padding:15px!important;border:1px solid var(--fd-line);border-radius:14px;background:rgba(255,255,255,.96);box-shadow:0 8px 24px rgba(18,38,58,.055);transition:transform .2s ease,box-shadow .2s ease;min-width:0}
+.rdz-func-panel:hover{transform:translateY(-2px);box-shadow:0 13px 30px rgba(18,38,58,.085)}
+.rdz-rh{--accent:#b1122e;--soft:#fff0f3;--wash:rgba(177,18,46,.08)}
+.rdz-finance{--accent:#d97706;--soft:#fff7e8;--wash:rgba(217,119,6,.08)}
+.rdz-ops{--accent:#1264bd;--soft:#edf5ff;--wash:rgba(18,100,189,.08)}
+.rdz-commercial{--accent:#8136a9;--soft:#f7effb;--wash:rgba(129,54,169,.08)}
+.rdz-logistique{--accent:#0f9460;--soft:#e9f8f1;--wash:rgba(15,148,96,.08)}
+.rdz-autres{--accent:#687686;--soft:#f1f4f7;--wash:rgba(104,118,134,.08)}
+.rdz-func-head{display:flex;align-items:center;gap:10px;margin:0 0 12px;padding:0 0 11px;border-bottom:1px solid #edf1f4;color:var(--accent);font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:.075em}
+.rdz-func-icon{width:32px;height:32px;flex:0 0 32px;border-radius:9px;background-color:var(--soft);background-position:center;background-repeat:no-repeat;background-size:17px;box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--accent) 10%,transparent)}
+.rdz-rh .rdz-func-icon{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23b1122e' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2'/%3E%3Ccircle cx='9' cy='7' r='4'/%3E%3Cpath d='M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75'/%3E%3C/svg%3E")}
+.rdz-finance .rdz-func-icon{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23d97706' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='2' y='5' width='20' height='14' rx='2'/%3E%3Cpath d='M2 10h20M16 15h2'/%3E%3C/svg%3E")}
+.rdz-ops .rdz-func-icon{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231264bd' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 11l3 3L22 4'/%3E%3Cpath d='M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'/%3E%3C/svg%3E")}
+.rdz-commercial .rdz-func-icon{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238136a9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='7' width='18' height='13' rx='2'/%3E%3Cpath d='M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18'/%3E%3C/svg%3E")}
+.rdz-logistique .rdz-func-icon{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f9460' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h11v10H3zM14 9h4l3 3v4h-7z'/%3E%3Ccircle cx='7' cy='18' r='2'/%3E%3Ccircle cx='18' cy='18' r='2'/%3E%3C/svg%3E")}
+.rdz-autres .rdz-func-icon{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23687686' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='3' width='7' height='7' rx='1'/%3E%3Crect x='14' y='3' width='7' height='7' rx='1'/%3E%3Crect x='3' y='14' width='7' height='7' rx='1'/%3E%3Crect x='14' y='14' width='7' height='7' rx='1'/%3E%3C/svg%3E")}
+.rdz-func-panel .modules{display:flex!important;flex-direction:column!important;gap:7px!important;margin:0!important}
+.rdz-func-panel .mod{min-height:61px!important;padding:9px 10px!important;display:grid!important;grid-template-columns:40px minmax(0,1fr) 66px 25px!important;align-items:center!important;gap:9px!important;border:1px solid #e7edf2!important;border-radius:10px!important;background:linear-gradient(145deg,#fff,#fbfcfd)!important;box-shadow:0 2px 8px rgba(18,38,58,.025)!important;transition:transform .18s cubic-bezier(.2,.8,.2,1),box-shadow .18s,border-color .18s,background .18s!important}
+.rdz-func-panel .mod::before,.rdz-func-panel .mod::after{display:none!important}
+.rdz-func-panel .mod:hover:not(.mod-off){transform:translateX(3px)!important;border-color:color-mix(in srgb,var(--accent) 24%,#dfe7ee)!important;background:linear-gradient(100deg,#fff,var(--soft))!important;box-shadow:0 7px 17px var(--wash)!important}
+.rdz-func-panel .mod-head{display:contents!important}.rdz-func-panel .mod-icon{grid-column:1;width:36px!important;height:36px!important;border-radius:9px!important;font-size:18px!important;border:0!important;box-shadow:none!important}
+.rdz-func-panel .mod-head>div:last-child{grid-column:2;min-width:0}.rdz-func-panel .mod-name{font-size:11.8px!important;line-height:1.25!important;color:var(--fd-ink)!important}.rdz-func-panel .mod-ver{font-size:8.8px!important;margin-top:2px!important}
+.rdz-func-panel .mod-desc{display:none!important}.rdz-func-panel .mod-foot{display:contents!important}.rdz-func-panel .badge{display:none!important}.rdz-func-panel .badge.b-live{display:inline-block!important;grid-column:3!important;justify-self:end;font-size:8px!important;padding:3px 7px!important;white-space:nowrap}
+.rdz-func-panel .mod-arrow{grid-column:4!important;width:24px!important;height:24px!important;border-radius:50%!important;background:var(--soft)!important;border:0!important;color:var(--accent)!important;font-size:14px!important}.rdz-func-panel .mod:hover:not(.mod-off) .mod-arrow{transform:translateX(2px)!important;background:var(--soft)!important;border:0!important;color:var(--accent)!important}
+.footer{padding:17px 32px 24px!important;border-top:1px solid #dfe6ec!important;color:#8492a3!important}
+@media(max-width:1050px){.rdz-function-dashboard{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media(max-width:680px){.topbar{height:66px!important;padding:0 14px!important}.topbar>img{width:82px!important;height:40px!important}.rdz-function-dashboard{grid-template-columns:1fr!important;padding:14px!important;gap:10px!important}.rdz-func-panel{padding:12px!important}.rdz-func-panel:hover{transform:none}.rdz-func-panel .mod{grid-template-columns:40px minmax(0,1fr) 25px!important}.rdz-func-panel .badge.b-live{display:none!important}.rdz-func-panel .mod-arrow{grid-column:3!important}}
+}
+</style>
+
 </head>
 <body>
 
@@ -203,18 +241,35 @@ body{background:linear-gradient(180deg,#f8fafc 0%,var(--rdz-bg) 100%);color:var(
   </div>
 </div>
 
-<div class="main">
-  <div class="sec-head">
-    <span class="sec-label">Modules Direction</span>
-    <div class="sec-line"></div>
-  </div>
+<div class="main rdz-function-dashboard">
+<section class="rdz-func-panel rdz-finance">
+  <div class="rdz-func-head"><span class="rdz-func-icon" aria-hidden="true"></span><span>Finance</span></div>
   <div class="modules">
-
-    <a class="mod" style="--mc:#2563eb;" href="RH_RDZ_v10.html">
+<a class="mod" style="--mc:#d97706;" href="NDF_RDZ_v4.html">
+      <div class="mod-head">
+        <div class="mod-icon" style="background:#fffbeb;">🧾</div>
+        <div>
+          <div class="mod-name">Notes de frais</div>
+          <div class="mod-ver">v4 · Production</div>
+        </div>
+      </div>
+      <div class="mod-desc">Notes de frais — saisie, justificatifs, validation et suivi des remboursements.</div>
+      <div class="mod-foot">
+        <span class="badge b-live">✓ Actif</span>
+        <span class="badge b-admin">🔒 Admin</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+  </div>
+</section>
+<section class="rdz-func-panel rdz-rh">
+  <div class="rdz-func-head"><span class="rdz-func-icon" aria-hidden="true"></span><span>Ressources humaines</span></div>
+  <div class="modules">
+<a class="mod" style="--mc:#2563eb;" href="RH_RDZ_v10.html">
       <div class="mod-head">
         <div class="mod-icon" style="background:#eff6ff;">👥</div>
         <div>
-          <div class="mod-name">RH_RDZ</div>
+          <div class="mod-name">Logiciel RH</div>
           <div class="mod-ver">v10 · Production</div>
         </div>
       </div>
@@ -225,8 +280,22 @@ body{background:linear-gradient(180deg,#f8fafc 0%,var(--rdz-bg) 100%);color:var(
         <span class="mod-arrow">→</span>
       </div>
     </a>
-
-    <a class="mod" style="--mc:#0891b2;" href="rdz_heures_2026.html">
+<a class="mod" style="--mc:#7c3aed;" href="Planning_RDZ_v3.html">
+      <div class="mod-head">
+        <div class="mod-icon" style="background:#f5f3ff;">🗓</div>
+        <div>
+          <div class="mod-name">Planning RDZ</div>
+          <div class="mod-ver">v3 · Production</div>
+        </div>
+      </div>
+      <div class="mod-desc">Planning des agents — services par site et par agent, congés, absences, affectations, synchro RH.</div>
+      <div class="mod-foot">
+        <span class="badge b-live">✓ Actif</span>
+        <span class="badge b-admin">🔒 Admin</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+<a class="mod" style="--mc:#0891b2;" href="rdz_heures_2026.html">
       <div class="mod-head">
         <div class="mod-icon" style="background:#ecfeff;">⏱</div>
         <div>
@@ -241,44 +310,16 @@ body{background:linear-gradient(180deg,#f8fafc 0%,var(--rdz-bg) 100%);color:var(
         <span class="mod-arrow">→</span>
       </div>
     </a>
-
-    <a class="mod" style="--mc:#d97706;" href="NDF_RDZ_v4.html">
-      <div class="mod-head">
-        <div class="mod-icon" style="background:#fffbeb;">🧾</div>
-        <div>
-          <div class="mod-name">NDF_RDZ</div>
-          <div class="mod-ver">v4 · Production</div>
-        </div>
-      </div>
-      <div class="mod-desc">Notes de frais — saisie, justificatifs, validation et suivi des remboursements.</div>
-      <div class="mod-foot">
-        <span class="badge b-live">✓ Actif</span>
-        <span class="badge b-admin">🔒 Admin</span>
-        <span class="mod-arrow">→</span>
-      </div>
-    </a>
-
-    <a class="mod" style="--mc:#7c3aed;" href="Planning_RDZ_v3.html">
-      <div class="mod-head">
-        <div class="mod-icon" style="background:#f5f3ff;">🗓</div>
-        <div>
-          <div class="mod-name">Planning_RDZ</div>
-          <div class="mod-ver">v3 · Production</div>
-        </div>
-      </div>
-      <div class="mod-desc">Planning des agents — services par site et par agent, congés, absences, affectations, synchro RH.</div>
-      <div class="mod-foot">
-        <span class="badge b-live">✓ Actif</span>
-        <span class="badge b-admin">🔒 Admin</span>
-        <span class="mod-arrow">→</span>
-      </div>
-    </a>
-
-    <a class="mod" style="--mc:#c0272d;" href="RouteOps_v13.html">
+  </div>
+</section>
+<section class="rdz-func-panel rdz-ops">
+  <div class="rdz-func-head"><span class="rdz-func-icon" aria-hidden="true"></span><span>Opérationnel</span></div>
+  <div class="modules">
+<a class="mod" style="--mc:#c0272d;" href="RouteOps_v13.html">
       <div class="mod-head">
         <div class="mod-icon" style="background:#fdf2f2;">📅</div>
         <div>
-          <div class="mod-name">RouteOps</div>
+          <div class="mod-name">Route Ops</div>
           <div class="mod-ver">v13 · Production</div>
         </div>
       </div>
@@ -289,100 +330,11 @@ body{background:linear-gradient(180deg,#f8fafc 0%,var(--rdz-bg) 100%);color:var(
         <span class="mod-arrow">→</span>
       </div>
     </a>
-
-    <a class="mod" style="--mc:#16a34a;" href="Fleet_RDZ_v5.html">
-      <div class="mod-head">
-        <div class="mod-icon" style="background:#f0fdf4;">🚗</div>
-        <div>
-          <div class="mod-name">Fleet_RDZ</div>
-          <div class="mod-ver">v5 · Production</div>
-        </div>
-      </div>
-      <div class="mod-desc">Gestion de flotte — véhicules, entretiens, assurances, kilométrage, fournisseurs.</div>
-      <div class="mod-foot">
-        <span class="badge b-live">✓ Actif</span>
-        <span class="badge b-admin">🔒 Admin</span>
-        <span class="mod-arrow">→</span>
-      </div>
-    </a>
-
-    <a class="mod" style="--mc:#c0272d;" href="CRM_RDZ_v3.html">
-      <div class="mod-head">
-        <div class="mod-icon" style="background:#fdf2f2;">💼</div>
-        <div>
-          <div class="mod-name">CRM_RDZ</div>
-          <div class="mod-ver">v3 · Production</div>
-        </div>
-      </div>
-      <div class="mod-desc">Gestion commerciale — clients, missions, interlocuteurs, pipeline, facturation récurrente.</div>
-      <div class="mod-foot">
-        <span class="badge b-live">✓ Actif</span>
-        <span class="badge b-admin">🔒 Admin</span>
-        <span class="mod-arrow">→</span>
-      </div>
-    </a>
-
-  </div>
-
-  <div class="sec-head">
-    <span class="sec-label">Modules Loge</span>
-    <div class="sec-line"></div>
-  </div>
-  <div class="modules">
-
-    <a class="mod" style="--mc:#8B1A1A;" href="https://rdz-2026.github.io/RDZ_Agent/index.html" target="_blank" rel="noopener">
-      <div class="mod-head">
-        <div class="mod-icon" style="background:#fdf2f2;">🏢</div>
-        <div>
-          <div class="mod-name">Modules Centraliste</div>
-          <div class="mod-ver">Production · RDZ Agent</div>
-        </div>
-      </div>
-      <div class="mod-desc">Accès à l'ensemble des modules de la loge — consignes, événements, constats, résidents, feuilles de route, véhicules.</div>
-      <div class="mod-foot">
-        <span class="badge b-live">✓ Actif</span>
-        <span class="badge b-terrain">🛡 Terrain</span>
-        <span class="mod-arrow">↗</span>
-      </div>
-    </a>
-
-  </div>
-
-  <div class="sec-head">
-    <span class="sec-label">Applications Terrain</span>
-    <div class="sec-line"></div>
-  </div>
-  <div class="modules">
-
-    <a class="mod" style="--mc:#a16207;" href="https://rdz-2026.github.io/RDZ_Agent/application/mobile.html" target="_blank" rel="noopener">
-      <div class="mod-head">
-        <div class="mod-icon" style="background:#fefce8;">📱</div>
-        <div>
-          <div class="mod-name">Application Mobile Agent</div>
-          <div class="mod-ver">Production · RDZ Agent</div>
-        </div>
-      </div>
-      <div class="mod-desc">Point d'entrée unique pour les agents terrain — prise de poste, parking, badges, matériel, véhicules, événements.</div>
-      <div class="mod-foot">
-        <span class="badge b-live">✓ Actif</span>
-        <span class="badge b-terrain">🛡 Terrain</span>
-        <span class="mod-arrow">↗</span>
-      </div>
-    </a>
-
-  </div>
-
-  <div class="sec-head">
-    <span class="sec-label">Modules Admin / Supervision</span>
-    <div class="sec-line"></div>
-  </div>
-  <div class="modules">
-
-    <a class="mod" style="--mc:#2563eb;" href="https://rdz-2026.github.io/RDZ_Agent/direction/journal-agents.html" target="_blank" rel="noopener">
+<a class="mod" style="--mc:#2563eb;" href="https://rdz-2026.github.io/RDZ_Agent/direction/journal-agents.html" target="_blank" rel="noopener">
       <div class="mod-head">
         <div class="mod-icon" style="background:#eff6ff;">📜</div>
         <div>
-          <div class="mod-name">Journal Modifications Accès</div>
+          <div class="mod-name">Journal modification d’accès</div>
           <div class="mod-ver">Production · RDZ Agent</div>
         </div>
       </div>
@@ -393,12 +345,51 @@ body{background:linear-gradient(180deg,#f8fafc 0%,var(--rdz-bg) 100%);color:var(
         <span class="mod-arrow">↗</span>
       </div>
     </a>
-
-    <a class="mod" style="--mc:#7c3aed;" href="https://rdz-2026.github.io/RDZ_Agent/direction/stock-admin.html" target="_blank" rel="noopener">
+  </div>
+</section>
+<section class="rdz-func-panel rdz-commercial">
+  <div class="rdz-func-head"><span class="rdz-func-icon" aria-hidden="true"></span><span>Commercial</span></div>
+  <div class="modules">
+<a class="mod" style="--mc:#c0272d;" href="CRM_RDZ_v3.html">
+      <div class="mod-head">
+        <div class="mod-icon" style="background:#fdf2f2;">💼</div>
+        <div>
+          <div class="mod-name">CRM</div>
+          <div class="mod-ver">v3 · Production</div>
+        </div>
+      </div>
+      <div class="mod-desc">Gestion commerciale — clients, missions, interlocuteurs, pipeline, facturation récurrente.</div>
+      <div class="mod-foot">
+        <span class="badge b-live">✓ Actif</span>
+        <span class="badge b-admin">🔒 Admin</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+  </div>
+</section>
+<section class="rdz-func-panel rdz-logistique">
+  <div class="rdz-func-head"><span class="rdz-func-icon" aria-hidden="true"></span><span>Logistique</span></div>
+  <div class="modules">
+<a class="mod" style="--mc:#16a34a;" href="Fleet_RDZ_v5.html">
+      <div class="mod-head">
+        <div class="mod-icon" style="background:#f0fdf4;">🚗</div>
+        <div>
+          <div class="mod-name">Flotte de véhicules</div>
+          <div class="mod-ver">v5 · Production</div>
+        </div>
+      </div>
+      <div class="mod-desc">Gestion de flotte — véhicules, entretiens, assurances, kilométrage, fournisseurs.</div>
+      <div class="mod-foot">
+        <span class="badge b-live">✓ Actif</span>
+        <span class="badge b-admin">🔒 Admin</span>
+        <span class="mod-arrow">→</span>
+      </div>
+    </a>
+<a class="mod" style="--mc:#7c3aed;" href="https://rdz-2026.github.io/RDZ_Agent/direction/stock-admin.html" target="_blank" rel="noopener">
       <div class="mod-head">
         <div class="mod-icon" style="background:#f5f3ff;">📦</div>
         <div>
-          <div class="mod-name">Gestion des Stocks</div>
+          <div class="mod-name">Gestion des stocks</div>
           <div class="mod-ver">Production · RDZ Agent</div>
         </div>
       </div>
@@ -409,9 +400,43 @@ body{background:linear-gradient(180deg,#f8fafc 0%,var(--rdz-bg) 100%);color:var(
         <span class="mod-arrow">↗</span>
       </div>
     </a>
-
   </div>
-
+</section>
+<section class="rdz-func-panel rdz-autres">
+  <div class="rdz-func-head"><span class="rdz-func-icon" aria-hidden="true"></span><span>Autres applications</span></div>
+  <div class="modules">
+<a class="mod" style="--mc:#8B1A1A;" href="https://rdz-2026.github.io/RDZ_Agent/index.html" target="_blank" rel="noopener">
+      <div class="mod-head">
+        <div class="mod-icon" style="background:#fdf2f2;">🏢</div>
+        <div>
+          <div class="mod-name">Module pour le centraliste</div>
+          <div class="mod-ver">Production · RDZ Agent</div>
+        </div>
+      </div>
+      <div class="mod-desc">Accès à l'ensemble des modules de la loge — consignes, événements, constats, résidents, feuilles de route, véhicules.</div>
+      <div class="mod-foot">
+        <span class="badge b-live">✓ Actif</span>
+        <span class="badge b-terrain">🛡 Terrain</span>
+        <span class="mod-arrow">↗</span>
+      </div>
+    </a>
+<a class="mod" style="--mc:#a16207;" href="https://rdz-2026.github.io/RDZ_Agent/application/mobile.html" target="_blank" rel="noopener">
+      <div class="mod-head">
+        <div class="mod-icon" style="background:#fefce8;">📱</div>
+        <div>
+          <div class="mod-name">Application mobile agent</div>
+          <div class="mod-ver">Production · RDZ Agent</div>
+        </div>
+      </div>
+      <div class="mod-desc">Point d'entrée unique pour les agents terrain — prise de poste, parking, badges, matériel, véhicules, événements.</div>
+      <div class="mod-foot">
+        <span class="badge b-live">✓ Actif</span>
+        <span class="badge b-terrain">🛡 Terrain</span>
+        <span class="mod-arrow">↗</span>
+      </div>
+    </a>
+  </div>
+</section>
 </div>
 
 <div class="footer">RDZ Security Management SA — Suite Applicative — Usage interne exclusivement</div>
