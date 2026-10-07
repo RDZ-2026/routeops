@@ -493,7 +493,7 @@ function applySession(session){
 }
 
 function doLogout(){
-  stopMessagePolling(); stopUnreadPolling();
+  stopMessagePolling(); stopUnreadPolling(); PLAN_DEFAULTS_APPLIED = false;
   const s = getSession();
   localStorage.removeItem(SK);
   currentToken=null; currentSession=null; STATE=null; ACTOR=null;
@@ -929,6 +929,7 @@ function computePlanningAlerts(){
   return groups;
 }
 function openAlertTarget(date, agentId){
+  PLAN_DEFAULTS_APPLIED = true;
   PLAN_FILTER.mode='week'; PLAN_FILTER.anchor=mondayOf(date); PLAN_FILTER.scope='all'; PLAN_FILTER.site=''; PLAN_FILTER.viewId='';
   PLAN_FILTER.view = agentId? 'agent' : 'site';
   switchTab('planning');
@@ -1316,6 +1317,19 @@ async function restoreSite(id){ const ok=await apiAction('restoreSite',{id}); if
 
 // ── PLANNING (grille site/poste × jours, ou grille agent × jours) ──
 let PLAN_FILTER = { mode:'week', anchor:'', site:'', scope:'all', viewId:'', view:'site', onlyActive:false };
+// Réglage par défaut à la première ouverture du Planning : vue par agent, filtrée
+// sur le site IHEID. Appliqué une seule fois par session (ensuite ce que vous
+// choisissez est conservé) et seulement pour les profils qui gèrent le planning.
+let PLAN_DEFAULTS_APPLIED = false;
+const PLAN_DEFAULT_SITE_NAME = 'IHEID';
+function applyPlanDefaults(){
+  if(PLAN_DEFAULTS_APPLIED) return;
+  PLAN_DEFAULTS_APPLIED = true;
+  if(!['direction','planning','site'].includes(ACTOR && ACTOR.role)) return;
+  const site = (STATE.sites||[]).find(x=>!x.archived && x.name.trim().toLowerCase()===PLAN_DEFAULT_SITE_NAME.toLowerCase());
+  if(!site) return; // site introuvable : on garde l'affichage habituel
+  PLAN_FILTER.view = 'agent'; PLAN_FILTER.scope = 'site'; PLAN_FILTER.site = site.id;
+}
 let DRAG_SHIFT = null;
 // Click-based alternative to drag-and-drop for copying/transferring/bulk-
 // editing shifts — mainly for touch/tablet use where native HTML5 drag-and-
@@ -2174,6 +2188,7 @@ function bindCalendarFreeze(){
   apply();
 }
 function renderPlanning(el){
+  applyPlanDefaults();
   planInitRange();
   const canManage = ['direction','planning','site'].includes(ACTOR.role);
   const days = planDays();
