@@ -1979,17 +1979,28 @@ function printSiteWeek(){
 
 // ── EXPORT POUR LA PAIE ─────────────────────────────────────
 // Heures par agent et par mois, ventilées nuit / dimanche / jours fériés (Genève).
-// Les trois ventilations sont indépendantes et PEUVENT SE CHEVAUCHER (une heure de
-// nuit un dimanche férié compte dans les trois) : c'est à la paie de les combiner.
+// Règles RDZ : nuit 23h→6h ; « dimanche » = samedi 23h→lundi 6h ; jour férié =
+// veille 23h→lendemain 6h. Les trois ventilations sont indépendantes et PEUVENT SE
+// CHEVAUCHER (une heure de nuit un dimanche férié compte dans les trois) : c'est à
+// la paie de les combiner.
 // La pause non payée est déduite proportionnellement (on ne connaît pas son heure).
 function classifyMinutes(startAbs, endAbs, ns, ne){
+  // Fenêtres (ns = début de nuit, ne = fin de nuit ; 23h / 6h chez RDZ) :
+  //  · nuit      : chaque jour de ns à ne ;
+  //  · dimanche  : du samedi à ns jusqu'au lundi à ne ;
+  //  · jour férié: de la veille à ns jusqu'au lendemain à ne.
   let night=0, sunday=0, holiday=0; const cache = {};
+  const dayInfo = i=>{
+    let c = cache[i];
+    if(!c){ const dd = new Date(i*86400000); c = cache[i] = { sun: dd.getUTCDay()===0, hol: !!holidayName(dd.toISOString().slice(0,10)) }; }
+    return c;
+  };
   for(let t=startAbs; t<endAbs; t++){
-    const dayIdx = Math.floor(t/1440), mod = t - dayIdx*1440;
-    let dc = cache[dayIdx];
-    if(!dc){ const dd = new Date(dayIdx*86400000); dc = cache[dayIdx] = { sun: dd.getUTCDay()===0, hol: !!holidayName(dd.toISOString().slice(0,10)) }; }
+    const di = Math.floor(t/1440), mod = t - di*1440;
     if(ns>ne ? (mod>=ns || mod<ne) : (mod>=ns && mod<ne)) night++;
-    if(dc.sun) sunday++; if(dc.hol) holiday++;
+    const cur = dayInfo(di), prev = dayInfo(di-1), next = dayInfo(di+1);
+    if(cur.sun || (prev.sun && mod<ne) || (next.sun && mod>=ns)) sunday++;
+    if(cur.hol || (prev.hol && mod<ne) || (next.hol && mod>=ns)) holiday++;
   }
   return { night, sunday, holiday };
 }
@@ -2018,7 +2029,7 @@ function openPayrollExportModal(){
       <div class="fg"><div class="flabel">Début des heures de nuit</div><input class="finp" type="time" id="px-ns" value="23:00"></div>
       <div class="fg"><div class="flabel">Fin des heures de nuit</div><input class="finp" type="time" id="px-ne" value="06:00"></div>
     </div>
-    <div class="hint">⚠ Les heures de nuit sont paramétrables : vérifiez la plage exacte dans la CCT / vos règles de paie avant d’utiliser le fichier. Nuit, dimanche et jours fériés sont comptés séparément et peuvent se chevaucher. Un service est rattaché au mois de sa date de début. La pause non payée est déduite (proportionnellement entre les catégories).</div>`,
+    <div class="hint">Règles appliquées : <strong>nuit</strong> de la plage ci-dessus (23h → 6h) ; <strong>dimanche</strong> du samedi 23h au lundi 6h ; <strong>jour férié</strong> de la veille 23h au lendemain 6h (mêmes heures de début/fin que la nuit). Nuit, dimanche et jours fériés sont comptés séparément et peuvent se chevaucher. Un service est rattaché au mois de sa date de début. La pause non payée est déduite proportionnellement entre les catégories.</div>`,
     `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="generatePayrollExport()">💶 Générer le fichier Excel</button>`);
 }
 function generatePayrollExport(){
@@ -2040,20 +2051,21 @@ function generatePayrollExport(){
     return [np.nom, np.prenom, contract, v.n, r2(v.paid), r2(v.night), r2(v.sunday), r2(v.holiday), contract!=null? r2(v.paid-contract) : ''];
   });
   const sheet1 = [
-    ['RDZ Security Management — Heures pour la paie'], [`Mois : ${month} · Base : ${baseLabel} · Nuit : ${nsT}–${neT} · Jours fériés : Genève`], [],
-    ['Nom','Prénom','Contrat (h/mois)','Nb services','Heures payées','dont nuit','dont dimanche','dont jours fériés','Écart vs contrat'],
+    ['RDZ Security Management — Heures pour la paie'], [`Mois : ${month} · Base : ${baseLabel}`],
+    [`Nuit : ${nsT} → ${neT} · Dimanche : samedi ${nsT} → lundi ${neT} · Jour férié (Genève) : veille ${nsT} → lendemain ${neT} · les catégories peuvent se chevaucher`], [],
+    ['Nom','Prénom','Contrat (h/mois)','Nb services','Heures payées','dont nuit','dont dimanche (sam. → lun.)','dont jours fériés (veille → lendemain)','Écart vs contrat'],
     ...sumRows,
     ['TOTAL','','',tot.n,r2(tot.paid),r2(tot.night),r2(tot.sunday),r2(tot.holiday),'']
   ];
-  const detail = [['Date','Jour','Nom','Prénom','Site','Poste','Début','Fin','Pause (min)','Pause payée','Statut','Heures payées','Nuit','Dimanche','Jour férié'],
+  const detail = [['Date','Jour','Nom','Prénom','Site','Poste','Début','Fin','Pause (min)','Pause payée','Statut','Heures payées','Nuit','Dimanche (sam.→lun.)','Jour férié (veille→lendemain)'],
     ...rows.sort((a,b)=>a.shift.date.localeCompare(b.shift.date)||a.start.localeCompare(b.start)).map(w=>{
       const a = agentById(w.shift.agent), np = a? getNomPrenom(a) : {nom:'?',prenom:''};
       return [fmtDate(w.shift.date), weekdayFullName(w.shift.date), np.nom, np.prenom, siteLabel(w.shift.site), w.shift.post, w.start, w.end,
         w.shift.breakMinutes||0, w.shift.breakMinutes? (w.shift.breakPaid?'Oui':'Non') : '—', w.shift.status, r2(w.paid), r2(w.night), r2(w.sunday), r2(w.holiday)];
     })];
   const wb = XLSX.utils.book_new();
-  const ws1 = XLSX.utils.aoa_to_sheet(sheet1); ws1['!cols'] = [{wch:20},{wch:16},{wch:15},{wch:11},{wch:13},{wch:10},{wch:13},{wch:16},{wch:15}];
-  const ws2 = XLSX.utils.aoa_to_sheet(detail); ws2['!cols'] = [{wch:11},{wch:11},{wch:18},{wch:14},{wch:16},{wch:18},{wch:7},{wch:7},{wch:11},{wch:11},{wch:11},{wch:13},{wch:8},{wch:10},{wch:10}];
+  const ws1 = XLSX.utils.aoa_to_sheet(sheet1); ws1['!cols'] = [{wch:20},{wch:16},{wch:15},{wch:11},{wch:13},{wch:10},{wch:26},{wch:34},{wch:15}];
+  const ws2 = XLSX.utils.aoa_to_sheet(detail); ws2['!cols'] = [{wch:11},{wch:11},{wch:18},{wch:14},{wch:16},{wch:18},{wch:7},{wch:7},{wch:11},{wch:11},{wch:11},{wch:13},{wch:8},{wch:20},{wch:26}];
   XLSX.utils.book_append_sheet(wb, ws1, 'Synthèse'); XLSX.utils.book_append_sheet(wb, ws2, 'Détail');
   XLSX.writeFile(wb, `Paie_Heures_${month}.xlsx`);
   closeModal(); toast(`${rows.length} service(s) exporté(s) pour ${sumRows.length} agent(s)`);
