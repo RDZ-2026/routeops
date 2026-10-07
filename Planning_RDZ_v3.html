@@ -143,9 +143,9 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .calendar .cell.shift-cell.is-holiday{background:#fff8e8;}
 .calendar .cell.day-header.is-holiday{color:#b45309;background:#fef3c7;}
 .hol-tag{display:inline-block;font-size:9px;font-weight:600;background:#fde68a;color:#92400e;border-radius:4px;padding:0 5px;margin-top:2px;}
-.calendar .cell.shift-cell.is-absent{background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 6px,#e9eaee 6px,#e9eaee 12px);}
+.calendar .cell.shift-cell.is-absent{background:repeating-linear-gradient(45deg,#fee2e2,#fee2e2 6px,#fecaca 6px,#fecaca 12px);}
 .calendar .cell.shift-cell.is-absence-pending{background:repeating-linear-gradient(45deg,#fffbeb,#fffbeb 6px,#fef3c7 6px,#fef3c7 12px);}
-.abs-tag{font-size:9.5px;font-weight:600;color:#4b5563;margin-bottom:3px;}
+.abs-tag{font-size:10px;font-weight:700;color:#b91c1c;margin-bottom:3px;}
 .abs-tag.pending{color:#92400e;}
 .slot-missing{border:1.5px dashed #c0272d;color:#c0272d;border-radius:6px;padding:2px 5px;font-size:10px;margin-bottom:3px;cursor:pointer;background:#fff;}
 .slot-missing:hover{background:#fdecec;}
@@ -200,7 +200,10 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .shift-chip.status-publiee{background:#2563eb;color:#fff;}
 .shift-chip.status-validee{background:#16a34a;color:#fff;}
 .shift-chip.status-effectuee{background:#d97706;color:#fff;}
-.shift-chip.status-controlee{background:#15803d;color:#fff;}
+.shift-chip.status-controlee{background:#d97706;color:#fff;}
+.shift-chip.status-acontroler{background:#7c3aed;color:#fff;}
+.badge-purple{background:#ede9fe;color:#6d28d9;}
+.abs-pill{display:inline-block;background:#fff;color:#b91c1c;font-weight:700;font-size:9.5px;border-radius:4px;padding:0 5px;margin-top:3px;}
 /* "À affecter" (no agent yet) needs to jump out regardless of status, so it's
    declared after the status-* rules to win the cascade when both apply. */
 .shift-chip.no-agent{background:#fee2e2;color:#b91c1c;}
@@ -923,6 +926,10 @@ function computePlanningAlerts(){
   });
   push('red','Repos insuffisant entre deux services', rest);
 
+  push('amber','Horaires modifiés à contrôler',
+    STATE.shifts.filter(x=>shiftEffectiveState(x)==='acontroler').sort(byDate)
+      .map(x=>({text:`${fmtDate(x.date)} · ${agentLabel(x.agent)} · prévu ${x.start}–${x.end}, déclaré ${x.actualStart}–${x.actualEnd}`,date:x.date,agent:x.agent})));
+
   push('red','Services pendant une absence acceptée',
     upcoming.filter(x=>x.agent && (agentAbsenceOn(x.agent,x.date)||{}).status==='Acceptée').sort(byDate)
       .map(x=>({text:`${fmtDate(x.date)} · ${agentLabel(x.agent)} · ${siteLabel(x.site)} / ${x.post}`,date:x.date,agent:x.agent})));
@@ -955,7 +962,7 @@ function renderOverview(el){
   const validated = shifts.filter(s=>['Validée','Contrôlée'].includes(s.status)).length;
   const toValidate = shifts.filter(s=>['Publiée','Vue'].includes(s.status)).length;
   const openPosts = shifts.filter(s=>!s.agent && s.date>=today).length;
-  const toControl = shifts.filter(s=>s.status==='Effectuée').length;
+  const toControl = shifts.filter(s=>shiftEffectiveState(s)==='acontroler').length;
   const pendingAbsences = (STATE.absences||[]).filter(a=>a.status==='Demandée').length;
 
   const kpis = [
@@ -963,7 +970,7 @@ function renderOverview(el){
     {label:'Plannings validés', val:validated, sub:'Tous les services', cls:'green', tab:'planning'},
     {label:'À valider par les agents', val:toValidate, sub:'En attente des agents', cls:'blue', tab:'planning'},
     {label:'Postes non couverts', val:openPosts, sub:'Affectation nécessaire', cls:'red', tab:'planning'},
-    {label:'Écarts à contrôler', val:toControl, sub:'Heures déclarées, en attente de contrôle RDZ', cls:'orange', tab:'heures'},
+    {label:'Écarts à contrôler', val:toControl, sub:'Horaires modifiés par l’agent, à contrôler', cls:'orange', tab:'heures'},
     {label:'Demandes de congé', val:pendingAbsences, sub:'En attente de décision', cls:'blue', tab:'heures'}
   ];
   el.innerHTML = `
@@ -980,8 +987,9 @@ function renderOverview(el){
       <div style="font-weight:700;margin-bottom:8px;">À propos de la carte « Écarts à contrôler »</div>
       <div style="font-size:12.5px;color:var(--text2);line-height:1.6;">
         Cette carte ne compare pas les heures planifiées et le contrat mensuel d’un agent. Elle compte les
-        <strong>services dont l’agent a déclaré ses heures réelles</strong> (statut « Effectuée ») et qui attendent
-        encore un contrôle RDZ avant d’être classés « Contrôlée ». Un écart contrat/planning se lit plutôt dans
+        <strong>services dont l’agent a modifié les horaires</strong> à la fin du service (en violet dans le
+        planning) et qui attendent un contrôle RDZ. Un service terminé dont l’agent ne change rien passe
+        automatiquement en « Effectué » (orange), sans contrôle. Un écart contrat/planning se lit plutôt dans
         la fiche de chaque agent (onglet Agents), où l’objectif mensuel/hebdomadaire est comparé aux heures
         déjà planifiées.
       </div>
@@ -1440,7 +1448,40 @@ function planToday(){
 function statusBadgeClass(status){
   return { 'Planifiée':'badge-grey','Publiée':'badge-blue','Vue':'badge-blue','Validée':'badge-green','Effectuée':'badge-orange','Contrôlée':'badge-green' }[status]||'badge-grey';
 }
-const STATUS_CLASS = { 'Planifiée':'planifiee','Publiée':'publiee','Vue':'publiee','Validée':'validee','Effectuée':'effectuee','Contrôlée':'controlee' };
+const STATUS_CLASS = { 'Planifiée':'planifiee','Publiée':'publiee','Vue':'publiee','Validée':'validee','Effectuée':'effectuee','Contrôlée':'effectuee' };
+
+// ── ÉTAT « EFFECTIF » D'UN SERVICE (code couleur) ───────────
+// gris = brouillon · bleu = publié · vert = validé par l'agent · orange = effectué ·
+// violet = à contrôler (l'agent a modifié ses horaires) · rouge = absent (congé/indisponible).
+//  · Un service validé dont l'heure de fin est passée est « Effectué » d'office, sans
+//    rien à faire pour l'agent (horaires prévus conservés).
+//  · S'il déclare des horaires différents du prévu, il passe en violet « à contrôler » ;
+//    une fois contrôlé par la direction il redevient orange « Effectué ».
+//  · Un service publié mais jamais validé reste bleu, même terminé (rien n'a été confirmé).
+// Calculé à l'affichage : le statut en base ne change pas tant que personne n'agit.
+function zurichNowAbs(){
+  try{
+    const parts = {}; new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Zurich',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'})
+      .formatToParts(new Date()).forEach(p=>{ parts[p.type]=p.value; });
+    return Date.UTC(Number(parts.year),Number(parts.month)-1,Number(parts.day),Number(parts.hour),Number(parts.minute))/60000;
+  }catch(e){ return Date.now()/60000 + 60; }
+}
+function shiftEnded(s){ return absSpan(s.date,s.start,s.end).e <= zurichNowAbs(); }
+function shiftHoursModified(s){ return !!(s.actualStart && s.actualEnd && (s.actualStart!==s.start || s.actualEnd!==s.end)); }
+function shiftEffectiveState(s){
+  switch(s.status){
+    case 'Planifiée': return 'planifiee';
+    case 'Publiée': case 'Vue': return 'publiee';
+    case 'Validée': return shiftEnded(s)? 'effectuee' : 'validee';
+    case 'Effectuée': return shiftHoursModified(s)? 'acontroler' : 'effectuee';
+    case 'Contrôlée': return 'effectuee';
+    default: return 'planifiee';
+  }
+}
+const STATE_LABELS = { planifiee:'Brouillon (non publié)', publiee:'Publié', validee:'Validé par l’agent', effectuee:'Effectué', acontroler:'À contrôler (horaires modifiés)' };
+const STATE_BADGES = { planifiee:'badge-grey', publiee:'badge-blue', validee:'badge-green', effectuee:'badge-orange', acontroler:'badge-purple' };
+function shiftStateLabel(s){ return STATE_LABELS[shiftEffectiveState(s)]; }
+function absenceKindLabel(k){ return k==='paid'? 'Congé payé' : 'Indisponibilité'; }
 
 function planningRows(sites, days){
   const rows = [];
@@ -1462,6 +1503,7 @@ function shiftTooltip(s){
   const parts = [siteLabel(s.site)+' / '+s.post, s.start+'–'+s.end];
   if(s.breakMinutes) parts.push('Pause '+breakLabel(s.breakMinutes)+(s.breakPaid?' (payée)':' (non payée)'));
   if(s.description) parts.push(s.description);
+  parts.push(shiftStateLabel(s));
   return parts.join(' · ');
 }
 // Human-readable trail of what the agent has actually done with a published
@@ -1470,6 +1512,10 @@ function shiftTooltip(s){
 // reached the agent yet, so there's nothing to report there.
 function shiftStatusDetail(s){
   if(s.status==='Planifiée') return 'Brouillon — pas encore publié, l’agent ne le voit pas.';
+  const st = shiftEffectiveState(s);
+  if(st==='acontroler') return `Horaires modifiés par l’agent : prévu ${s.start}–${s.end}, déclaré ${s.actualStart}–${s.actualEnd}${s.reason? ' ('+s.reason+')':''}. À contrôler dans « Heures & présences ».`;
+  if(st==='effectuee' && s.status==='Validée') return 'Service terminé : considéré « Effectué » avec les horaires prévus (l’agent n’a rien modifié).';
+  if(st==='effectuee' && s.status==='Effectuée') return `Heures déclarées par l’agent, conformes au planning (${s.actualStart}–${s.actualEnd}).`;
   const bits = [ s.seen? ('Vu par l’agent le '+fmtDateTime(s.seen)) : 'Pas encore vu par l’agent' ];
   bits.push(s.accepted? ('Validé par l’agent le '+fmtDateTime(s.accepted)) : 'Pas encore validé par l’agent');
   if(s.checked) bits.push('Contrôlé le '+fmtDateTime(s.checked));
@@ -1486,9 +1532,11 @@ function renderShiftChip(s, canManage, context){
     : (s.agent? esc(agentLabel(s.agent)) : 'À affecter');
   const breakLine = s.breakMinutes? `<div class="sc-desc">Pause ${breakLabel(s.breakMinutes)}${s.breakPaid?'':' (non payée)'}</div>` : '';
   const isSelected = SELECT_MODE && SELECTED_SHIFTS.has(s.id);
+  const chipAbs = s.agent? agentAbsenceOn(s.agent, s.date) : null;
+  const absPill = (chipAbs && chipAbs.status==='Acceptée')? `<div class="abs-pill">⛔ ${esc(absenceKindLabel(chipAbs.kind))}</div>` : '';
   const checkbox = (SELECT_MODE && canManage)? `<input type="checkbox" class="chip-check" ${isSelected?'checked':''} onclick="event.stopPropagation();toggleShiftSelection('${s.id}')">` : '';
   return `
-    <div class="shift-chip status-${STATUS_CLASS[s.status]||'planifiee'} ${!s.agent?'no-agent':''} ${isSelected?'chip-selected':''}" draggable="${canManage && !SELECT_MODE?'true':'false'}"
+    <div class="shift-chip status-${shiftEffectiveState(s)} ${!s.agent?'no-agent':''} ${isSelected?'chip-selected':''}" draggable="${canManage && !SELECT_MODE?'true':'false'}"
       title="${esc(shiftTooltip(s))}"
       ondragstart="handleChipDragStart(event,'${s.id}')"
       onclick="event.stopPropagation();openShiftModal('${s.id}')">
@@ -1496,6 +1544,7 @@ function renderShiftChip(s, canManage, context){
       <div class="sc-time">${s.start}–${s.end}</div>
       <div class="sc-agent">${secondLine}</div>
       ${breakLine}
+      ${absPill}
       ${desc? `<div class="sc-desc">${desc}</div>` : ''}
     </div>`;
 }
@@ -2005,11 +2054,16 @@ function classifyMinutes(startAbs, endAbs, ns, ne){
   return { night, sunday, holiday };
 }
 function computePayrollRows(month, base, ns, ne){
-  const rows = [];
+  const rows = []; rows.excluded = 0;
   STATE.shifts.filter(x=>x.agent && x.date.startsWith(month)).forEach(x=>{
     if(base==='planned_pub' && x.status==='Planifiée') return;
-    if(base==='real' && !(x.status==='Contrôlée' && x.actualStart && x.actualEnd)) return;
-    const st = base==='real'? x.actualStart : x.start, en = base==='real'? x.actualEnd : x.end;
+    if(base==='real'){
+      const es = shiftEffectiveState(x);
+      if(es==='acontroler'){ rows.excluded++; return; }   // horaires modifiés pas encore contrôlés
+      if(es!=='effectuee') return;                        // pas (encore) effectué
+    }
+    const useActual = base==='real' && x.actualStart && x.actualEnd;
+    const st = useActual? x.actualStart : x.start, en = useActual? x.actualEnd : x.end;
     const sp = absSpan(x.date, st, en), span = sp.e - sp.s;
     const unpaid = x.breakPaid? 0 : (x.breakMinutes||0);
     const paidMin = Math.max(span-unpaid,0), ratio = span>0? paidMin/span : 0;
@@ -2025,11 +2079,11 @@ function openPayrollExportModal(){
       <div class="fg"><div class="flabel">Base de calcul</div><select class="fsel" id="px-base">
         <option value="planned_pub">Prévu — services publiés ou au-delà</option>
         <option value="planned_all">Prévu — tous, brouillons inclus</option>
-        <option value="real">Réel — services contrôlés (heures réelles)</option></select></div>
+        <option value="real">Réel — services effectués (heures déclarées, sinon prévues)</option></select></div>
       <div class="fg"><div class="flabel">Début des heures de nuit</div><input class="finp" type="time" id="px-ns" value="23:00"></div>
       <div class="fg"><div class="flabel">Fin des heures de nuit</div><input class="finp" type="time" id="px-ne" value="06:00"></div>
     </div>
-    <div class="hint">Règles appliquées : <strong>nuit</strong> de la plage ci-dessus (23h → 6h) ; <strong>dimanche</strong> du samedi 23h au lundi 6h ; <strong>jour férié</strong> de la veille 23h au lendemain 6h (mêmes heures de début/fin que la nuit). Nuit, dimanche et jours fériés sont comptés séparément et peuvent se chevaucher. Un service est rattaché au mois de sa date de début. La pause non payée est déduite proportionnellement entre les catégories.</div>`,
+    <div class="hint">Règles appliquées : <strong>nuit</strong> de la plage ci-dessus (23h → 6h) ; <strong>dimanche</strong> du samedi 23h au lundi 6h ; <strong>jour férié</strong> de la veille 23h au lendemain 6h (mêmes heures de début/fin que la nuit). Nuit, dimanche et jours fériés sont comptés séparément et peuvent se chevaucher. Un service est rattaché au mois de sa date de début. La pause non payée est déduite proportionnellement entre les catégories. Base « Réel » : les services « à contrôler » (horaires modifiés par l’agent, en violet) sont exclus tant qu’ils ne sont pas contrôlés.</div>`,
     `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="generatePayrollExport()">💶 Générer le fichier Excel</button>`);
 }
 function generatePayrollExport(){
@@ -2042,7 +2096,7 @@ function generatePayrollExport(){
   const r2 = x=>Math.round(x*100)/100;
   const per = {};
   rows.forEach(w=>{ const a = per[w.shift.agent] ||= { n:0, paid:0, night:0, sunday:0, holiday:0 }; a.n++; a.paid+=w.paid; a.night+=w.night; a.sunday+=w.sunday; a.holiday+=w.holiday; });
-  const baseLabel = { planned_pub:'Prévu (publiés ou au-delà)', planned_all:'Prévu (brouillons inclus)', real:'Réel (contrôlés)' }[base];
+  const baseLabel = { planned_pub:'Prévu (publiés ou au-delà)', planned_all:'Prévu (brouillons inclus)', real:'Réel (effectués)' }[base];
   const agentsSorted = sortAgentsByNom(Object.keys(per).map(id=>agentById(id)).filter(Boolean));
   const tot = { n:0, paid:0, night:0, sunday:0, holiday:0 };
   const sumRows = agentsSorted.map(a=>{
@@ -2051,7 +2105,7 @@ function generatePayrollExport(){
     return [np.nom, np.prenom, contract, v.n, r2(v.paid), r2(v.night), r2(v.sunday), r2(v.holiday), contract!=null? r2(v.paid-contract) : ''];
   });
   const sheet1 = [
-    ['RDZ Security Management — Heures pour la paie'], [`Mois : ${month} · Base : ${baseLabel}`],
+    ['RDZ Security Management — Heures pour la paie'], [`Mois : ${month} · Base : ${baseLabel}${rows.excluded? ` · ⚠ ${rows.excluded} service(s) « à contrôler » NON inclus` : ''}`],
     [`Nuit : ${nsT} → ${neT} · Dimanche : samedi ${nsT} → lundi ${neT} · Jour férié (Genève) : veille ${nsT} → lendemain ${neT} · les catégories peuvent se chevaucher`], [],
     ['Nom','Prénom','Contrat (h/mois)','Nb services','Heures payées','dont nuit','dont dimanche (sam. → lun.)','dont jours fériés (veille → lendemain)','Écart vs contrat'],
     ...sumRows,
@@ -2061,14 +2115,14 @@ function generatePayrollExport(){
     ...rows.sort((a,b)=>a.shift.date.localeCompare(b.shift.date)||a.start.localeCompare(b.start)).map(w=>{
       const a = agentById(w.shift.agent), np = a? getNomPrenom(a) : {nom:'?',prenom:''};
       return [fmtDate(w.shift.date), weekdayFullName(w.shift.date), np.nom, np.prenom, siteLabel(w.shift.site), w.shift.post, w.start, w.end,
-        w.shift.breakMinutes||0, w.shift.breakMinutes? (w.shift.breakPaid?'Oui':'Non') : '—', w.shift.status, r2(w.paid), r2(w.night), r2(w.sunday), r2(w.holiday)];
+        w.shift.breakMinutes||0, w.shift.breakMinutes? (w.shift.breakPaid?'Oui':'Non') : '—', shiftStateLabel(w.shift), r2(w.paid), r2(w.night), r2(w.sunday), r2(w.holiday)];
     })];
   const wb = XLSX.utils.book_new();
   const ws1 = XLSX.utils.aoa_to_sheet(sheet1); ws1['!cols'] = [{wch:20},{wch:16},{wch:15},{wch:11},{wch:13},{wch:10},{wch:26},{wch:34},{wch:15}];
   const ws2 = XLSX.utils.aoa_to_sheet(detail); ws2['!cols'] = [{wch:11},{wch:11},{wch:18},{wch:14},{wch:16},{wch:18},{wch:7},{wch:7},{wch:11},{wch:11},{wch:11},{wch:13},{wch:8},{wch:20},{wch:26}];
   XLSX.utils.book_append_sheet(wb, ws1, 'Synthèse'); XLSX.utils.book_append_sheet(wb, ws2, 'Détail');
   XLSX.writeFile(wb, `Paie_Heures_${month}.xlsx`);
-  closeModal(); toast(`${rows.length} service(s) exporté(s) pour ${sumRows.length} agent(s)`);
+  closeModal(); toast(`${rows.length} service(s) exporté(s) pour ${sumRows.length} agent(s)${rows.excluded? ` — ${rows.excluded} à contrôler non inclus` : ''}`, !!rows.excluded);
 }
 
 // ── EXPORT EXCEL ─────────────────────────────────────────────
@@ -2260,7 +2314,8 @@ function renderPlanning(el){
       ${renderStatusLegendItem('#2563eb','Publié')}
       ${renderStatusLegendItem('#16a34a','Validé par l’agent')}
       ${renderStatusLegendItem('#d97706','Effectué')}
-      ${renderStatusLegendItem('#15803d','Contrôlé')}
+      ${renderStatusLegendItem('#7c3aed','À contrôler (horaires modifiés)')}
+      ${renderStatusLegendItem('#ef4444','Congé / indisponible')}
     </div>
     <div class="calendar-scroll" id="calendar-scroll">
       ${PLAN_FILTER.view==='agent' ? renderAgentCalendar(days, today, canManage, activeView) : renderSiteCalendar(activeSites, days, today, canManage)}
@@ -2361,7 +2416,7 @@ function renderAgentCalendar(days, today, canManage, activeView){
       ${agents.length? agents.map(a=>{
         const isSecondary = PLAN_FILTER.scope==='site' && PLAN_FILTER.site && a.primarySite!==PLAN_FILTER.site;
         return `
-        <div class="cell row-label">${esc(displayNomPrenom(a))}${isSecondary? ' <span class="badge badge-grey" style="font-weight:400;">secondaire</span>' : ''}</div>
+        <div class="cell row-label">${esc(displayNomPrenom(a))}${isSecondary? ' <span class="badge badge-grey" style="font-weight:400;">secondaire</span>' : ''}${a.available===false? ' <span class="badge badge-red" style="font-weight:600;">indisponible</span>' : ''}</div>
         ${days.map(d=>renderAgentPlanningCell(a,d,today,canManage)).join('')}
         ${showWeekCol? `<div class="cell total-cell">${fmtAgentHours(agentHoursInRange(a.id, days), a.weekly)}</div>` : ''}
         <div class="cell total-cell">${fmtAgentHours(agentHoursInRange(a.id, monthDays), agentMonthlyTarget(a))}</div>
@@ -2384,7 +2439,7 @@ function renderAgentPlanningCell(agent, date, today, canManage){
   }
   const dropAttrs = canManage && !SELECT_MODE? `ondragover="handleCellDragOver(event)" ondragleave="handleCellDragLeave(event)" ondrop="handleCellDrop(event,{agent:'${jsStr(agent.id)}',date:'${date}'})"` : '';
   const abs = agentAbsenceOn(agent.id, date);
-  const absTag = abs? `<div class="abs-tag ${abs.status==='Acceptée'?'':'pending'}" title="${esc(abs.kind||'Absence')} — ${esc(abs.status)}">${abs.status==='Acceptée'?'🏖':'⏳'} ${esc(abs.kind||'Absence')}${abs.status==='Acceptée'?'':' (demande)'}</div>` : '';
+  const absTag = abs? `<div class="abs-tag ${abs.status==='Acceptée'?'':'pending'}" title="${esc(absenceKindLabel(abs.kind))} — ${esc(abs.status)}">${abs.status==='Acceptée'?'⛔':'⏳'} ${esc(absenceKindLabel(abs.kind))}${abs.status==='Acceptée'?'':' (demande)'}</div>` : '';
   const absCls = abs? (abs.status==='Acceptée'?'is-absent':'is-absence-pending') : '';
   return `<div class="cell shift-cell ${date===today?'is-today':''} ${holidayName(date)?'is-holiday':''} ${absCls}" ${dropAttrs}>${absTag}${chips}${addBtn}</div>`;
 }
@@ -2410,7 +2465,7 @@ function openShiftModal(id, prefill){
       <div class="fg full"><div class="flabel">Description</div><textarea class="ftxt" id="sh-description" rows="2" placeholder="Notes libres sur ce service (optionnel)">${s?esc(s.description||''):''}</textarea></div>
       ${s? `<div class="fg full"><div class="flabel">Motif de la modification (optionnel)</div><input class="finp" id="sh-reason" placeholder="Ex. remplacement, correction d’horaire…"></div>` : ''}
     </div>
-    ${s? `<div class="hint">Statut actuel : ${esc(s.status)}<br>${esc(shiftStatusDetail(s))}</div>` : ''}
+    ${s? `<div class="hint">Statut actuel : ${esc(shiftStateLabel(s))}<br>${esc(shiftStatusDetail(s))}</div>` : ''}
   `;
   const actions = `
     ${s&&canManage? `<button class="btn btn-danger btn-sm" onclick="deleteShiftAction('${s.id}','${s.version}')">🗑 Supprimer</button>` : ''}
@@ -2572,7 +2627,7 @@ function renderHeures(el){
   const shifts = STATE.shifts;
   const toValidate = shifts.filter(s=> (!isAgent || s.agent===myId) && ['Publiée','Vue'].includes(s.status));
   const toDeclare = shifts.filter(s=> (!isAgent || s.agent===myId) && s.status==='Validée' && _shiftEndPassed(s));
-  const toControl = shifts.filter(s=> s.status==='Effectuée');
+  const toControl = shifts.filter(s=> shiftEffectiveState(s)==='acontroler');
   const absences = (STATE.absences||[]).slice().sort((a,b)=> b.from.localeCompare(a.from));
   const pendingAbsences = absences.filter(a=>a.status==='Demandée');
 
@@ -2584,10 +2639,11 @@ function renderHeures(el){
     ${toValidate.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">À valider par l’agent (${toValidate.length})</div>
       ${toValidate.map(s=>renderHeureRow(s,'accept')).join('')}</div>` : ''}
 
-    ${toDeclare.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">Heures à déclarer (${toDeclare.length})</div>
+    ${toDeclare.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:4px;">Services terminés — modifier mes horaires si besoin (${toDeclare.length})</div>
+      <div class="hint" style="margin-bottom:8px;">Sans action de votre part, le service reste « Effectué » avec les horaires prévus. Ouvrez-le seulement si vos horaires réels étaient différents.</div>
       ${toDeclare.map(s=>renderHeureRow(s,'declare')).join('')}</div>` : ''}
 
-    ${canManage? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">Écarts à contrôler — heures déclarées (${toControl.length})</div>
+    ${canManage? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">Écarts à contrôler — horaires modifiés par l’agent (${toControl.length})</div>
       ${toControl.length? toControl.map(s=>renderHeureRow(s,'check')).join('') : '<div class="hint">Rien à contrôler.</div>'}</div>` : ''}
 
     ${canManage && pendingAbsences.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">Demandes de congé en attente (${pendingAbsences.length})</div>
@@ -2599,15 +2655,14 @@ function renderHeures(el){
     </div>
   `;
 }
-function _shiftEndPassed(s){
-  try{ const end=new Date(s.date+'T'+s.end+':00Z').getTime(); return end<=Date.now(); }catch(e){ return true; }
-}
+// Fin de service dépassée (heure de Genève ; un service de nuit finit le lendemain).
+function _shiftEndPassed(s){ return shiftEnded(s); }
 function renderHeureRow(s, kind){
   return `<div class="shift-row" onclick="${kind==='accept'?`openAcceptModal('${s.id}')`:kind==='declare'?`openDeclareModal('${s.id}')`:`openControlModal('${s.id}')`}">
     <span class="shift-time">${esc(fmtDate(s.date))} · ${s.start}–${s.end}</span>
     <span class="shift-site">${esc(siteLabel(s.site))} · ${esc(s.post)}</span>
     <span class="shift-agent">${esc(agentLabel(s.agent))}</span>
-    <span class="badge ${statusBadgeClass(s.status)}">${esc(s.status)}</span>
+    <span class="badge ${STATE_BADGES[shiftEffectiveState(s)]}">${esc(shiftStateLabel(s))}</span>
   </div>`;
 }
 function openAcceptModal(id){
@@ -2622,7 +2677,7 @@ function openDeclareModal(id){
     <div class="fgrid">
       <div class="fg"><div class="flabel">Début réel</div><input class="finp" type="time" id="dc-start" value="${s.start}"></div>
       <div class="fg"><div class="flabel">Fin réelle</div><input class="finp" type="time" id="dc-end" value="${s.end}"></div>
-      <div class="fg full"><div class="flabel">Motif si horaire modifié</div><input class="finp" id="dc-reason" placeholder="Conforme au planning si inchangé"></div>
+      <div class="fg full"><div class="flabel">Motif si horaire modifié</div><input class="finp" id="dc-reason" placeholder="Laissez vide si les horaires sont inchangés"></div>
     </div>`, `<button class="btn btn-ghost" onclick="closeModal()">Fermer</button><button class="btn btn-primary" onclick="declareShift('${s.id}')">Déclarer</button>`);
 }
 async function declareShift(id){
