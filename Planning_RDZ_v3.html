@@ -140,20 +140,35 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .cs-day:hover{background:#e2e8f0;}
 .cs-day.cs-selected{background:var(--red);color:#fff;font-weight:700;}
 .cs-day.cs-empty{cursor:default;background:transparent;}
+.calendar .cell.shift-cell.is-holiday{background:#fff8e8;}
+.calendar .cell.day-header.is-holiday{color:#b45309;background:#fef3c7;}
+.hol-tag{display:inline-block;font-size:9px;font-weight:600;background:#fde68a;color:#92400e;border-radius:4px;padding:0 5px;margin-top:2px;}
+.calendar .cell.shift-cell.is-absent{background:repeating-linear-gradient(45deg,#f3f4f6,#f3f4f6 6px,#e9eaee 6px,#e9eaee 12px);}
+.calendar .cell.shift-cell.is-absence-pending{background:repeating-linear-gradient(45deg,#fffbeb,#fffbeb 6px,#fef3c7 6px,#fef3c7 12px);}
+.abs-tag{font-size:9.5px;font-weight:600;color:#4b5563;margin-bottom:3px;}
+.abs-tag.pending{color:#92400e;}
+.slot-missing{border:1.5px dashed #c0272d;color:#c0272d;border-radius:6px;padding:2px 5px;font-size:10px;margin-bottom:3px;cursor:pointer;background:#fff;}
+.slot-missing:hover{background:#fdecec;}
+.cov-chips{display:flex;flex-wrap:wrap;gap:8px;margin:-4px 0 10px;font-size:11px;}
+.cov-chip{padding:3px 9px;border-radius:12px;cursor:pointer;font-weight:600;border:1px solid transparent;}
+.cov-green{background:#dcfce7;color:#166534;border-color:#bbf7d0;}
+.cov-amber{background:#fef3c7;color:#92400e;border-color:#fde68a;}
+.cov-red{background:#fee2e2;color:#991b1b;border-color:#fecaca;}
+.nav-badge{background:#c0272d;color:#fff;border-radius:10px;font-size:10px;padding:1px 7px;margin-left:8px;font-weight:700;}
+.msg-badge{background:#c0272d;color:#fff;border-radius:10px;font-size:10px;padding:1px 6px;margin-left:6px;font-weight:700;}
+.msg-list-item.active .msg-badge{background:#fff;color:#c0272d;}
+.alert-group{border:1px solid var(--border);border-radius:10px;margin-bottom:8px;background:#fff;}
+.alert-group summary{cursor:pointer;padding:9px 12px;font-weight:600;font-size:13px;display:flex;align-items:center;gap:8px;}
+.alert-dot{width:9px;height:9px;border-radius:50%;display:inline-block;}
+.alert-dot.red{background:#dc2626;} .alert-dot.amber{background:#d97706;} .alert-dot.blue{background:#2563eb;}
+.alert-list{margin:0;padding:0 12px 10px 30px;font-size:12.5px;color:var(--text2);}
+.alert-list li{padding:3px 0;cursor:pointer;} .alert-list li:hover{color:var(--red);text-decoration:underline;}
+
 .msg-layout{display:flex;gap:0;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#fff;height:70vh;}
 .msg-list{width:220px;border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;background:#fbfaf9;}
 .msg-list-item{padding:10px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0eeeb;}
 .msg-list-item:hover{background:#f3f1ee;}
 .msg-list-item.active{background:var(--red);color:#fff;font-weight:600;}
-.msg-list-item{display:flex;align-items:center;gap:8px;}
-.msg-dot{width:9px;height:9px;border-radius:50%;background:var(--red);flex:none;margin-left:auto;}
-.msg-list-sec{padding:12px 14px 4px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3,#9ca3af);}
-.msg-list-item.msg-new{color:var(--red);font-weight:600;}
-.msg-list-item .msg-count{font-size:10.5px;color:var(--text3,#9ca3af);margin-left:auto;}
-.msg-list-item.active .msg-count{color:rgba(255,255,255,.8);}
-.msg-list-item .msg-count + .msg-dot{margin-left:6px;}
-.msg-thread-head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);}
-.msg-sender{font-size:10.5px;font-weight:700;color:var(--red);margin-bottom:2px;}
 .msg-thread{flex:1;display:flex;flex-direction:column;min-width:0;}
 .msg-scroll{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:8px;}
 .msg-bubble{max-width:70%;padding:8px 12px;border-radius:12px;font-size:13px;line-height:1.4;word-wrap:break-word;}
@@ -183,17 +198,6 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .shift-chip .sc-agent{font-weight:600;}
 .shift-chip .sc-desc{opacity:.8;font-size:9.5px;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
 .shift-chip.status-publiee{background:#2563eb;color:#fff;}
-/* Pilote planning agent : service refusé par l'agent */
-.shift-chip.refused{box-shadow:inset 0 0 0 2px #dc2626;background:#fef2f2!important;color:#991b1b!important;}
-.shift-chip .sc-refused{font-weight:700;font-size:9.5px;letter-spacing:.02em;}
-.row-sub{font-size:10.5px;font-weight:400;color:var(--text3,#9ca3af);margin-top:3px;line-height:1.35;}
-.row-sub b{color:var(--text2,#4b5563);font-weight:600;}
-.shift-chip .sc-real{font-size:9px;opacity:.85;}
-.refusal-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid #f0eeeb;font-size:12.5px;flex-wrap:wrap;}
-.refusal-row:first-of-type{border-top:none;}
-.refusal-row .rr-main{flex:1;min-width:220px;}
-.refusal-row .rr-reason{color:#991b1b;margin-top:2px;}
-.refusal-row .rr-meta{color:#9ca3af;font-size:11.5px;}
 .shift-chip.status-validee{background:#16a34a;color:#fff;}
 .shift-chip.status-effectuee{background:#d97706;color:#fff;}
 .shift-chip.status-controlee{background:#15803d;color:#fff;}
@@ -489,7 +493,7 @@ function applySession(session){
 }
 
 function doLogout(){
-  stopMessagePolling();
+  stopMessagePolling(); stopUnreadPolling();
   const s = getSession();
   localStorage.removeItem(SK);
   currentToken=null; currentSession=null; STATE=null; ACTOR=null;
@@ -708,16 +712,12 @@ async function apiGet(){
       planningViews: (viewRows||[]).map(mapView),
       events: []
     };
-    // Pilote planning agent : services refusés par les agents (non bloquant)
-    state.refusals = (member.role==='direction'||member.role==='planning')
-      ? await rpc('rdz_planning_pilot_admin_refusals', {}).then(r=>Array.isArray(r)?r:[]).catch(()=>[])
-      : [];
-    // Horaires initiaux des services dont les heures validées ont remplacé le planning
-    state.plannedTimes = {};
-    if(member.role==='direction'||member.role==='planning'){
-      const pt = await restSelect('rdz_planning_shift_planned_times','select=shift_id,planned_start,planned_end').catch(()=>[]);
-      (pt||[]).forEach(r=>{ state.plannedTimes[String(r.shift_id)] = { start:r.planned_start, end:r.planned_end }; });
-    }
+
+    // Modèles de semaine : chargés à part et de façon non bloquante — si la table
+    // n'existe pas encore (SQL pas exécuté) ou n'est pas lisible, le reste de
+    // l'appli fonctionne normalement, simplement sans couverture.
+    try{ state.templates = (await restSelect('rdz_planning_templates','select=*')).map(mapTemplate); }
+    catch(e){ state.templates = []; }
 
     ACTOR = { role: member.role, agent: member.agent_id||'', sites: member.sites||[], email: currentSession.email, name: currentSession.email, owner: member.role==='direction', simulation:'' };
     RH_CONFIGURED = (member.role==='direction'||member.role==='planning');
@@ -733,6 +733,7 @@ async function apiGet(){
     STATE = state;
     setSyncState('ok', 'Sync '+new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'}));
     renderNav(); renderCurrentPanel();
+    if(!MSG_UNREAD_TIMER) startUnreadPolling();
     return true;
   }catch(e){
     setSyncState('error','Hors ligne');
@@ -790,8 +791,6 @@ async function apiAction(action, params){
       case 'absence': await rpc('rdz_planning_request_absence', { p_agent: params.agent||null, p_kind: params.kind||'unavailable', p_from: params.from, p_to: params.to, p_reason: params.reason||'' }); break;
       case 'editAbsence': await rpc('rdz_planning_edit_absence', { p_id: params.id, p_kind: params.kind||null, p_from: params.from, p_to: params.to, p_reason: params.reason||'' }); break;
       case 'deleteAbsence': await rpc('rdz_planning_delete_absence', { p_id: params.id, p_confirm: !!params.confirm }); break;
-      case 'rejectHours': await rpc('rdz_planning_pilot_admin_reject_hours', { p_shift_id: params.id, p_note: params.note||'' }); break;
-      case 'dismissRefusal': await rpc('rdz_planning_pilot_admin_dismiss_refusal', { p_shift_id: params.id }); break;
       case 'approveAbsence': await rpc('rdz_planning_approve_absence', { p_id: params.id, p_accept: !!params.accept }); break;
 
       case 'saveLeaveAccount': await rpc('rdz_planning_save_leave_account', { p_agent: params.agent, p_year: params.year, p_opening: params.opening, p_method: params.method }); break;
@@ -833,7 +832,7 @@ function renderNav(){
   const nav = document.getElementById('sidebar-nav');
   const isManager = ACTOR?.role==='direction'||ACTOR?.role==='planning';
   const visible = TABS.filter(t => isManager ? true : ['overview','planning','heures','messages'].includes(t.id));
-  nav.innerHTML = visible.map(t=>`<button class="snav-btn ${UI.tab===t.id?'active':''}" onclick="switchTab('${t.id}')">${t.label}</button>`).join('');
+  nav.innerHTML = visible.map(t=>`<button class="snav-btn ${UI.tab===t.id?'active':''}" onclick="switchTab('${t.id}')">${t.label}${t.id==='messages' && MSG_UNREAD.total>0? `<span class="nav-badge">${MSG_UNREAD.total}</span>` : ''}</button>`).join('');
 }
 function switchTab(id){ stopMessagePolling(); UI.tab = id; renderNav(); renderCurrentPanel(); closeSidebar(); }
 function toggleSidebar(){ document.getElementById('sidebar')?.classList.toggle('open'); }
@@ -870,6 +869,84 @@ function modalVal(id){ const el=document.getElementById(id); return el? el.value
 document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
 
 // ── VUE D'ENSEMBLE ──────────────────────────────────────────
+
+// ── ALERTES DE PLANIFICATION ────────────────────────────────
+// Les règles (repos, seuils, qualifications…) ne bloquent plus : elles préviennent.
+// Ce panneau les rassemble pour qu'aucune alerte ne se perde dans un message
+// qui disparaît. Horizon : 14 jours (heures : semaine en cours et suivante).
+function computePlanningAlerts(){
+  const today = todayISO(), horizon = addDays(today,14), r1 = x=>Math.round(x*10)/10;
+  const rules = STATE.rules || { rest:11, weekly:50 };
+  const byDate = (a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start);
+  const upcoming = STATE.shifts.filter(x=>x.date>=today && x.date<=horizon);
+  const groups = [];
+  const push = (level,title,items)=>{ if(items.length) groups.push({level,title:`${title} (${items.length})`,items}); };
+
+  push('red','Services à affecter',
+    upcoming.filter(x=>!x.agent).sort(byDate).map(x=>({text:`${fmtDate(x.date)} · ${siteLabel(x.site)} / ${x.post} · ${x.start}–${x.end}`,date:x.date})));
+
+  push('amber','Brouillons non publiés',
+    upcoming.filter(x=>x.status==='Planifiée' && x.agent).sort(byDate).map(x=>({text:`${fmtDate(x.date)} · ${agentLabel(x.agent)} · ${siteLabel(x.site)} / ${x.post}`,date:x.date,agent:x.agent})));
+
+  const soon = addDays(today,3);
+  push('amber','Services publiés non validés (dans les 3 jours)',
+    STATE.shifts.filter(x=>['Publiée','Vue'].includes(x.status) && x.agent && x.date>=today && x.date<=soon).sort(byDate)
+      .map(x=>({text:`${fmtDate(x.date)} · ${agentLabel(x.agent)} · ${siteLabel(x.site)} / ${x.post}`,date:x.date,agent:x.agent})));
+
+  const hours = [];
+  const w0 = mondayOf(today);
+  [w0, addDays(w0,7)].forEach(ws=>{
+    const days = Array.from({length:7},(_,i)=>addDays(ws,i));
+    STATE.agents.filter(a=>!a.deletedAt).forEach(a=>{
+      const h = agentHoursInRange(a.id, days);
+      if(h<=0) return;
+      if(h > rules.weekly) hours.push({red:true,text:`${agentLabel(a.id)} · semaine du ${fmtDate(ws)} : ${r1(h)}h (seuil ${rules.weekly}h)`,date:ws,agent:a.id});
+      else if(a.weekly>0 && h > a.weekly+0.05) hours.push({red:false,text:`${agentLabel(a.id)} · semaine du ${fmtDate(ws)} : ${r1(h)}h (objectif ${r1(a.weekly)}h)`,date:ws,agent:a.id});
+    });
+  });
+  push(hours.some(x=>x.red)?'red':'amber','Heures au-dessus du seuil ou de l’objectif', hours);
+
+  const rest = [];
+  STATE.agents.filter(a=>!a.deletedAt).forEach(a=>{
+    const list = STATE.shifts.filter(x=>x.agent===a.id && x.date>=addDays(today,-1) && x.date<=horizon)
+      .map(x=>({x,span:absSpan(x.date,x.start,x.end)})).sort((p,q)=>p.span.s-q.span.s);
+    for(let i=1;i<list.length;i++){
+      const gap = list[i].span.s - list[i-1].span.e;
+      if(gap < rules.rest*60){
+        const p=list[i-1].x, c=list[i].x;
+        rest.push({text: gap<0
+          ? `${agentLabel(a.id)} · chevauchement entre le ${fmtDate(p.date)} (${p.start}–${p.end}) et le ${fmtDate(c.date)} (${c.start}–${c.end})`
+          : `${agentLabel(a.id)} · repos de ${Math.floor(gap/60)}h${String(gap%60).padStart(2,'0')} (min. ${rules.rest}h) entre le ${fmtDate(p.date)} (fin ${p.end}) et le ${fmtDate(c.date)} (début ${c.start})`,
+          date:c.date, agent:a.id});
+      }
+    }
+  });
+  push('red','Repos insuffisant entre deux services', rest);
+
+  push('red','Services pendant une absence acceptée',
+    upcoming.filter(x=>x.agent && (agentAbsenceOn(x.agent,x.date)||{}).status==='Acceptée').sort(byDate)
+      .map(x=>({text:`${fmtDate(x.date)} · ${agentLabel(x.agent)} · ${siteLabel(x.site)} / ${x.post}`,date:x.date,agent:x.agent})));
+  return groups;
+}
+function openAlertTarget(date, agentId){
+  PLAN_FILTER.mode='week'; PLAN_FILTER.anchor=mondayOf(date); PLAN_FILTER.scope='all'; PLAN_FILTER.site=''; PLAN_FILTER.viewId='';
+  PLAN_FILTER.view = agentId? 'agent' : 'site';
+  switchTab('planning');
+}
+function renderPlanningAlertsCard(){
+  const groups = computePlanningAlerts();
+  const body = groups.length? groups.map(g=>`
+    <details class="alert-group" ${g.level==='red'?'open':''}>
+      <summary><span class="alert-dot ${g.level}"></span>${esc(g.title)}</summary>
+      <ul class="alert-list">
+        ${g.items.slice(0,12).map(it=>`<li onclick="openAlertTarget('${it.date}','${jsStr(it.agent||'')}')">${esc(it.text)}</li>`).join('')}
+        ${g.items.length>12? `<li style="cursor:default;color:var(--text3);text-decoration:none;">… et ${g.items.length-12} autre(s)</li>` : ''}
+      </ul>
+    </details>`).join('')
+    : `<div style="font-size:13px;color:#166534;padding:4px 0;">✓ Rien à signaler sur les 14 prochains jours.</div>`;
+  return `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:10px;">Alertes de planification <span style="font-weight:400;color:var(--text3);font-size:12px;">· 14 prochains jours · cliquez une ligne pour ouvrir le planning</span></div>${body}</div>`;
+}
+
 function renderOverview(el){
   const today = todayISO();
   const shifts = STATE.shifts;
@@ -888,8 +965,6 @@ function renderOverview(el){
     {label:'Écarts à contrôler', val:toControl, sub:'Heures déclarées, en attente de contrôle RDZ', cls:'orange', tab:'heures'},
     {label:'Demandes de congé', val:pendingAbsences, sub:'En attente de décision', cls:'blue', tab:'heures'}
   ];
-  const refusedCount = (STATE.refusals||[]).length;
-  if(refusedCount) kpis.splice(3, 0, {label:'Services refusés', val:refusedCount, sub:'Refusés par l’agent, à réorganiser', cls:'red', tab:'heures'});
   el.innerHTML = `
     <div class="ph"><div><div class="ph-title">Vue d’ensemble</div><div class="ph-sub">${esc(fmtDate(today))}</div></div></div>
     <div class="kpi-grid">${kpis.map(k=>`
@@ -899,6 +974,7 @@ function renderOverview(el){
         <div class="kpi-sub">${esc(k.sub)}</div>
       </div>`).join('')}
     </div>
+    ${isStaffRole()? renderPlanningAlertsCard() : ''}
     <div class="card">
       <div style="font-weight:700;margin-bottom:8px;">À propos de la carte « Écarts à contrôler »</div>
       <div style="font-size:12.5px;color:var(--text2);line-height:1.6;">
@@ -1253,6 +1329,37 @@ let SELECT_MODE = false;
 let SELECTED_SHIFTS = new Set();
 let PENDING_ACTION = null;
 const WEEKDAY_SHORT = ['lun.','mar.','mer.','jeu.','ven.','sam.','dim.'];
+
+// ── JOURS FÉRIÉS (Genève) ────────────────────────────────────
+// Liste confirmée : 1er et 2 janvier, Vendredi saint, Lundi de Pâques,
+// Ascension, Lundi de Pentecôte, 1er août, Jeûne genevois, 25 et 26 décembre.
+// (Le 1er mai et le 15 mai ne sont PAS fériés.) Calculé pour n'importe quelle année.
+const HOLIDAY_CACHE = {};
+function easterSunday(y){
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3);
+  const h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+  const month=Math.floor((h+l-7*m+114)/31), day=((h+l-7*m+114)%31)+1;
+  return `${y}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
+function genevaHolidays(y){
+  if(HOLIDAY_CACHE[y]) return HOLIDAY_CACHE[y];
+  const easter = easterSunday(y), h = {};
+  h[`${y}-01-01`]='Nouvel An'; h[`${y}-01-02`]='2 janvier';
+  h[addDays(easter,-2)]='Vendredi saint'; h[addDays(easter,1)]='Lundi de Pâques';
+  h[addDays(easter,39)]='Ascension'; h[addDays(easter,50)]='Lundi de Pentecôte';
+  h[`${y}-08-01`]='Fête nationale';
+  const sep1 = new Date(Date.UTC(y,8,1,12));
+  const firstSunday = 1 + ((7 - sep1.getUTCDay()) % 7);          // jour du mois du 1er dimanche de septembre
+  h[`${y}-09-${String(firstSunday+4).padStart(2,'0')}`] = 'Jeûne genevois'; // le jeudi suivant
+  h[`${y}-12-25`]='Noël'; h[`${y}-12-26`]='26 décembre';
+  return (HOLIDAY_CACHE[y]=h);
+}
+function holidayName(dateStr){ return genevaHolidays(Number(String(dateStr).slice(0,4)))[dateStr] || ''; }
+// Absence d'un agent un jour donné : acceptée en priorité, sinon demande en attente.
+function agentAbsenceOn(agentId, date){
+  const list = (STATE.absences||[]).filter(a=>a.agent===agentId && a.from<=date && a.to>=date);
+  return list.find(a=>a.status==='Acceptée') || list.find(a=>a.status==='Demandée') || null;
+}
 // Full weekday + day + full month name for the planning calendar's day headers
 // (e.g. "lundi 21 septembre"), always computed in UTC to match how `days` (an
 // array of YYYY-MM-DD strings) is built, regardless of the viewer's local timezone.
@@ -1260,7 +1367,8 @@ function dayHeaderLabel(d){
   const date = new Date(d+'T12:00:00Z');
   const weekday = date.toLocaleDateString('fr-CH', { weekday:'long', timeZone:'UTC' });
   const dayMonth = date.toLocaleDateString('fr-CH', { day:'numeric', month:'long', timeZone:'UTC' });
-  return `${weekday}<br>${dayMonth}`;
+  const hn = holidayName(d);
+  return `${weekday}<br>${dayMonth}${hn? `<br><span class="hol-tag">${esc(hn)}</span>` : ''}`;
 }
 function mondayOf(dateStr){
   const d = new Date(dateStr+'T12:00:00Z');
@@ -1357,7 +1465,6 @@ function shiftStatusDetail(s){
 // second line shows the agent's name. context 'agent': the row already identifies
 // the agent, so the chip shows the site + post instead — repeating the agent's own
 // name on every one of their chips is redundant.
-function refusalFor(shiftId){ return ((STATE&&STATE.refusals)||[]).find(r=>String(r.shift_id)===String(shiftId)) || null; }
 function renderShiftChip(s, canManage, context){
   const desc = s.description? esc(s.description) : '';
   const secondLine = context==='agent'
@@ -1365,17 +1472,14 @@ function renderShiftChip(s, canManage, context){
     : (s.agent? esc(agentLabel(s.agent)) : 'À affecter');
   const breakLine = s.breakMinutes? `<div class="sc-desc">Pause ${breakLabel(s.breakMinutes)}${s.breakPaid?'':' (non payée)'}</div>` : '';
   const isSelected = SELECT_MODE && SELECTED_SHIFTS.has(s.id);
-  const refusal = refusalFor(s.id);
-  const planned = (STATE&&STATE.plannedTimes||{})[String(s.id)] || null;
   const checkbox = (SELECT_MODE && canManage)? `<input type="checkbox" class="chip-check" ${isSelected?'checked':''} onclick="event.stopPropagation();toggleShiftSelection('${s.id}')">` : '';
   return `
-    <div class="shift-chip status-${STATUS_CLASS[s.status]||'planifiee'} ${!s.agent?'no-agent':''} ${isSelected?'chip-selected':''} ${refusal?'refused':''}" draggable="${canManage && !SELECT_MODE?'true':'false'}"
-      title="${esc(refusal? 'REFUSÉ par l’agent : '+refusal.reason+'\n\n' : '')}${esc(planned? 'Heures réelles validées (prévu initialement '+planned.start+'–'+planned.end+')\n\n' : '')}${esc(shiftTooltip(s))}"
+    <div class="shift-chip status-${STATUS_CLASS[s.status]||'planifiee'} ${!s.agent?'no-agent':''} ${isSelected?'chip-selected':''}" draggable="${canManage && !SELECT_MODE?'true':'false'}"
+      title="${esc(shiftTooltip(s))}"
       ondragstart="handleChipDragStart(event,'${s.id}')"
       onclick="event.stopPropagation();openShiftModal('${s.id}')">
       ${checkbox}
-      ${refusal? '<div class="sc-refused">⛔ REFUSÉ</div>' : ''}
-      <div class="sc-time">${s.start}–${s.end}${planned? ' <span class="sc-real" title="Heures réelles validées">✓ réel</span>' : ''}</div>
+      <div class="sc-time">${s.start}–${s.end}</div>
       <div class="sc-agent">${secondLine}</div>
       ${breakLine}
       ${desc? `<div class="sc-desc">${desc}</div>` : ''}
@@ -1591,6 +1695,356 @@ async function publishVisibleDrafts(){
   const ok = await apiAction('publish', { ids });
   if(ok) toast(ids.length>1? `${ids.length} services publiés` : 'Service publié');
 }
+
+// ── MODÈLES DE SEMAINE & COUVERTURE ─────────────────────────
+// Un modèle = la liste des créneaux attendus par site (poste, jour de semaine,
+// horaires, pause). Il sert à (1) générer une semaine d'un clic et (2) mesurer
+// la couverture : créneaux avec agent / sans agent / manquants, et heures
+// planifiées vs heures à couvrir.
+let COV_CACHE = {};
+const WD_SHORT = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
+function mapTemplate(row){
+  return { id:row.id, site:row.site_id, post:row.post_name, weekday:row.weekday,
+    start:(row.start_time||'').slice(0,5), end:(row.end_time||'').slice(0,5),
+    breakMinutes:row.break_minutes||0, breakPaid:!!row.break_paid };
+}
+function siteTemplates(siteId){ return (STATE.templates||[]).filter(t=>t.site===siteId); }
+function weekdayNum(dateStr){ return ((new Date(dateStr+'T12:00:00Z').getUTCDay()+6)%7)+1; } // 1 = lundi
+function hhmmToMin(t){ const [h,m]=String(t).split(':').map(Number); return h*60+(m||0); }
+// Plage absolue en minutes (heure murale traitée comme UTC, comme partout ailleurs
+// ici) — un service de nuit (fin <= début) se termine le lendemain.
+function absSpan(dateStr, start, end){
+  const [y,mo,d] = dateStr.split('-').map(Number);
+  const base = Date.UTC(y,mo-1,d)/60000;
+  const s0 = base + hhmmToMin(start);
+  let e0 = base + hhmmToMin(end);
+  if(e0 <= s0) e0 += 1440;
+  return { s:s0, e:e0 };
+}
+function slotHours(t){ return shiftDurationHours({start:t.start,end:t.end,breakMinutes:t.breakMinutes,breakPaid:t.breakPaid}); }
+function computeSiteCoverage(siteId, days){
+  const tpls = siteTemplates(siteId), daySet = new Set(days);
+  const shifts = STATE.shifts.filter(x=>x.site===siteId && daySet.has(x.date));
+  const used = new Set(), slots = [], missing = {};
+  let expected = 0;
+  days.forEach(d=>{
+    const wd = weekdayNum(d);
+    tpls.filter(t=>t.weekday===wd).forEach(t=>{
+      const ts = absSpan(d, t.start, t.end);
+      expected += slotHours(t);
+      const cands = shifts.filter(x=>!used.has(x.id) && x.post===t.post && x.date===d && (()=>{ const ss=absSpan(x.date,x.start,x.end); return ss.s<ts.e && ts.s<ss.e; })());
+      cands.sort((a,b)=>(b.agent?1:0)-(a.agent?1:0));
+      const m = cands[0];
+      if(m){ used.add(m.id); slots.push({date:d,post:t.post,start:t.start,end:t.end,status:m.agent?'ok':'unassigned',shiftId:m.id}); }
+      else{
+        const slot = {date:d,post:t.post,start:t.start,end:t.end,breakMinutes:t.breakMinutes,breakPaid:t.breakPaid,status:'missing'};
+        slots.push(slot); (missing[t.post+'|'+d] ||= []).push(slot);
+      }
+    });
+  });
+  const planned = shifts.filter(x=>x.agent).reduce((a,x)=>a+shiftDurationHours(x),0);
+  return { total:slots.length, ok:slots.filter(x=>x.status==='ok').length,
+    unassigned:slots.filter(x=>x.status==='unassigned').length,
+    missingCount:slots.filter(x=>x.status==='missing').length,
+    expected, planned, slots, missing };
+}
+function renderMissingSlotPills(row, date){
+  if(date < todayISO()) return '';
+  const list = COV_CACHE[row.siteId] && COV_CACHE[row.siteId].missing[row.post+'|'+date];
+  if(!list) return '';
+  return list.map(sl=>`<div class="slot-missing" title="Créneau du modèle sans service — cliquer pour le créer" onclick="openShiftModal(null,{site:'${jsStr(row.siteId)}',post:'${jsStr(row.post)}',date:'${date}',start:'${sl.start}',end:'${sl.end}',breakMinutes:${sl.breakMinutes||0},breakPaid:${!!sl.breakPaid}})">+ manquant ${sl.start}–${sl.end}</div>`).join('');
+}
+function renderCoverageChips(activeSites){
+  const chips = activeSites.filter(si=>COV_CACHE[si.id]).map(si=>{
+    const c = COV_CACHE[si.id];
+    const cls = (!c.missingCount && !c.unassigned)? 'cov-green' : (c.total && c.ok/c.total>=0.7 ? 'cov-amber' : 'cov-red');
+    const r = x=>Math.round(x*10)/10;
+    return `<span class="cov-chip ${cls}" onclick="planFocusSite('${jsStr(si.id)}')" title="Couverture du modèle : ${c.ok}/${c.total} créneaux avec agent">${esc(si.name)} · ${r(c.planned)}h / ${r(c.expected)}h${c.unassigned?` · ${c.unassigned} sans agent`:''}${c.missingCount?` · ${c.missingCount} manquant${c.missingCount>1?'s':''}`:''}</span>`;
+  });
+  return chips.length? `<div class="cov-chips"><span style="color:var(--text3);align-self:center;">Couverture :</span>${chips.join('')}</div>` : '';
+}
+function planFocusSite(siteId){ PLAN_FILTER.scope='site'; PLAN_FILTER.site=siteId; renderCurrentPanel(); }
+async function reloadTemplates(){
+  try{ STATE.templates = (await restSelect('rdz_planning_templates','select=*')).map(mapTemplate); }catch(e){ STATE.templates = []; }
+  renderCurrentPanel();
+}
+function templateError(e){
+  const m = String(e && e.message || e);
+  toast(/does not exist|schema cache|relation/i.test(m)? 'Table des modèles absente : exécutez d’abord modeles_semaine.sql dans Supabase.' : m, true);
+}
+function openTemplateModal(siteId){
+  const sites = sortSitesByName(STATE.sites.filter(x=>!x.archived && !x.temporary));
+  if(!siteId) siteId = (PLAN_FILTER.scope==='site' && PLAN_FILTER.site) || (sites[0] && sites[0].id);
+  const site = siteById(siteId);
+  if(!site){ toast('Aucun site disponible.', true); return; }
+  const tpls = siteTemplates(siteId).slice().sort((a,b)=>a.weekday-b.weekday||a.start.localeCompare(b.start)||a.post.localeCompare(b.post));
+  const body = `
+    <div class="fg full"><div class="flabel">Site</div>
+      <select class="fsel" id="tp-site" onchange="openTemplateModal(this.value)">${sites.map(x=>`<option value="${x.id}" ${x.id===siteId?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
+    <div class="flabel" style="margin-top:12px;">Créneaux du modèle (${tpls.length})</div>
+    <div style="max-height:190px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:4px 10px;margin-bottom:10px;">
+      ${tpls.length? tpls.map(t=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12.5px;border-bottom:1px solid #f3f1ee;">
+        <span><strong>${WD_SHORT[t.weekday-1]}</strong> · ${esc(t.post)} · ${t.start}–${t.end}${t.breakMinutes?` · pause ${breakLabel(t.breakMinutes)}${t.breakPaid?'':' (non payée)'}`:''}</span>
+        <button class="btn btn-ghost btn-sm" onclick="deleteTemplateSlot('${t.id}','${siteId}')">✕</button></div>`).join('') : '<div class="hint" style="padding:8px 0;">Aucun créneau pour l’instant. Ajoutez-en ci-dessous, ou enregistrez la semaine affichée comme modèle.</div>'}
+    </div>
+    <div class="flabel">Ajouter des créneaux</div>
+    <div class="fgrid">
+      <div class="fg"><div class="flabel">Poste</div><select class="fsel" id="tp-post">${(site.posts||[]).map(p=>`<option value="${esc(p.name)}">${esc(p.name)}</option>`).join('')}</select></div>
+      <div class="fg"><div class="flabel">Jours</div><div style="display:flex;gap:6px;flex-wrap:wrap;">${WD_SHORT.map((w,i)=>`<label class="checkline"><input type="checkbox" name="tp-day" value="${i+1}" ${i<5?'checked':''}> ${w}</label>`).join('')}</div></div>
+      <div class="fg"><div class="flabel">Début</div><input class="finp" type="time" id="tp-start" value="07:00"></div>
+      <div class="fg"><div class="flabel">Fin</div><input class="finp" type="time" id="tp-end" value="15:00"></div>
+      <div class="fg"><div class="flabel">Pause</div><select class="fsel" id="tp-break">${BREAK_OPTIONS.map(o=>`<option value="${o.min}">${o.label}</option>`).join('')}</select></div>
+      <div class="fg"><div class="flabel">Pause payée</div><select class="fsel" id="tp-break-paid"><option value="1">Oui</option><option value="0">Non</option></select></div>
+    </div>
+    <button class="btn btn-ghost btn-sm" onclick="addTemplateSlots('${siteId}')">+ Ajouter ces créneaux</button>
+    <div class="hint" style="margin-top:12px;">« Enregistrer la semaine affichée » remplace le modèle de ce site par les services de la semaine à l’écran (passez en vue Semaine d’abord). « Générer » crée en brouillon, sans agent, les créneaux du modèle qui n’ont pas encore de service sur la période affichée.</div>
+  `;
+  openModal('template-modal', 'Modèle de semaine — '+site.name, body, `
+    <button class="btn btn-ghost btn-sm" onclick="saveWeekAsTemplate('${siteId}')">💾 Enregistrer la semaine affichée</button>
+    <button class="btn btn-ghost btn-sm" onclick="clearTemplate('${siteId}')">Vider le modèle</button>
+    <button class="btn btn-primary" onclick="generateFromTemplate('${siteId}')">⚡ Générer la période affichée</button>`);
+}
+async function addTemplateSlots(siteId){
+  const post = modalVal('tp-post'), start = modalVal('tp-start'), end = modalVal('tp-end');
+  const days = Array.from(document.querySelectorAll('input[name="tp-day"]:checked')).map(x=>Number(x.value));
+  if(!post || !start || !end || !days.length){ modalError('Choisissez un poste, des horaires et au moins un jour.'); return; }
+  const rows = days.map(w=>({ site_id:siteId, post_name:post, weekday:w, start_time:start, end_time:end, break_minutes:Number(modalVal('tp-break'))||0, break_paid:modalVal('tp-break-paid')==='1' }));
+  try{ await restInsert('rdz_planning_templates', rows); await reloadTemplates(); openTemplateModal(siteId); }
+  catch(e){ templateError(e); }
+}
+async function deleteTemplateSlot(id, siteId){
+  try{ await restDelete('rdz_planning_templates','id=eq.'+id); await reloadTemplates(); openTemplateModal(siteId); }
+  catch(e){ templateError(e); }
+}
+async function clearTemplate(siteId){
+  if(!siteTemplates(siteId).length) return;
+  if(!confirm('Vider tout le modèle de ce site ?')) return;
+  try{ await restDelete('rdz_planning_templates','site_id=eq.'+siteId); await reloadTemplates(); openTemplateModal(siteId); }
+  catch(e){ templateError(e); }
+}
+async function saveWeekAsTemplate(siteId){
+  if(PLAN_FILTER.mode!=='week'){ modalError('Passez en vue Semaine (et placez-vous sur la bonne semaine) avant d’enregistrer un modèle.'); return; }
+  const days = planDays(), daySet = new Set(days);
+  const uniq = {};
+  STATE.shifts.filter(x=>x.site===siteId && daySet.has(x.date)).forEach(x=>{
+    const wd = weekdayNum(x.date), key = `${x.post}|${wd}|${x.start}|${x.end}`;
+    if(!uniq[key]) uniq[key] = { site_id:siteId, post_name:x.post, weekday:wd, start_time:x.start, end_time:x.end, break_minutes:x.breakMinutes||0, break_paid:!!x.breakPaid };
+  });
+  const rows = Object.values(uniq);
+  if(!rows.length){ modalError('Aucun service sur ce site dans la semaine affichée.'); return; }
+  if(siteTemplates(siteId).length && !confirm(`Remplacer le modèle actuel de ce site par ces ${rows.length} créneaux ?`)) return;
+  try{
+    await restDelete('rdz_planning_templates','site_id=eq.'+siteId);
+    await restInsert('rdz_planning_templates', rows);
+    await reloadTemplates(); openTemplateModal(siteId); toast(`Modèle enregistré (${rows.length} créneaux)`);
+  }catch(e){ templateError(e); }
+}
+async function generateFromTemplate(siteId){
+  const days = planDays();
+  const cov = computeSiteCoverage(siteId, days);
+  const todo = cov.slots.filter(x=>x.status==='missing');
+  if(!todo.length){ modalError('Rien à générer : tous les créneaux du modèle ont déjà un service sur la période affichée.'); return; }
+  if(!confirm(`Créer ${todo.length} service(s) en brouillon (sans agent) sur la période affichée ?`)) return;
+  setSyncState('saving','Création des services…');
+  let ok=0, fail=0, lastErr='';
+  for(const sl of todo){
+    try{
+      await rpc('rdz_planning_shift_upsert', { p_id:null, p_version:null, p_site_id:siteId, p_post_name:sl.post, p_date:sl.date, p_start:sl.start, p_end:sl.end,
+        p_agent_id:null, p_description:'', p_reason:null, p_break_minutes:sl.breakMinutes||0, p_break_paid:!!sl.breakPaid });
+      ok++;
+    }catch(e){ fail++; lastErr = e.message||''; }
+  }
+  closeModal();
+  await apiGet();
+  toast(fail? `${ok} créés, ${fail} échec(s) — ${lastErr}` : `${ok} service(s) créé(s) en brouillon`, fail>0);
+}
+
+
+// ── EXPORT CALENDRIER (.ics) ────────────────────────────────
+// Fichier à importer dans Google Agenda / Apple Calendrier / Outlook. C'est une
+// copie à l'instant T (pas un abonnement en direct) : à retélécharger après un
+// changement. Les brouillons ne sont jamais inclus.
+const ICS_TZ = ['BEGIN:VTIMEZONE','TZID:Europe/Zurich',
+  'BEGIN:DAYLIGHT','TZOFFSETFROM:+0100','TZOFFSETTO:+0200','TZNAME:CEST','DTSTART:19700329T020000','RRULE:FREQ=YEARLY;BYMONTH=3;BYDAY=-1SU','END:DAYLIGHT',
+  'BEGIN:STANDARD','TZOFFSETFROM:+0200','TZOFFSETTO:+0100','TZNAME:CET','DTSTART:19701025T030000','RRULE:FREQ=YEARLY;BYMONTH=10;BYDAY=-1SU','END:STANDARD',
+  'END:VTIMEZONE'];
+function icsEscape(t){ return String(t==null?'':t).replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\r?\n/g,'\\n'); }
+function icsFold(line){ const out=[]; let l=line; while(l.length>73){ out.push(l.slice(0,73)); l=' '+l.slice(73); } out.push(l); return out.join('\r\n'); }
+function buildIcs(shifts, calName){
+  const stamp = new Date().toISOString().replace(/[-:]/g,'').replace(/\.\d{3}/,'');
+  const L = ['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//RDZ Security Management//Planning//FR','CALSCALE:GREGORIAN','METHOD:PUBLISH',
+    'X-WR-CALNAME:'+icsEscape(calName),'X-WR-TIMEZONE:Europe/Zurich', ...ICS_TZ];
+  shifts.slice().sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start)).forEach(x=>{
+    const endDate = x.end<=x.start? addDays(x.date,1) : x.date;
+    const desc = [`Poste : ${x.post}`, x.breakMinutes? `Pause : ${breakLabel(x.breakMinutes)}${x.breakPaid?' (payée)':' (non payée)'}` : '', x.description||''].filter(Boolean).join('\n');
+    L.push('BEGIN:VEVENT','UID:'+x.id+'@rdz-planning','DTSTAMP:'+stamp,
+      `DTSTART;TZID=Europe/Zurich:${x.date.replace(/-/g,'')}T${x.start.replace(':','')}00`,
+      `DTEND;TZID=Europe/Zurich:${endDate.replace(/-/g,'')}T${x.end.replace(':','')}00`,
+      'SUMMARY:'+icsEscape(`RDZ · ${siteLabel(x.site)} / ${x.post}`),'LOCATION:'+icsEscape(siteLabel(x.site)),'DESCRIPTION:'+icsEscape(desc),'END:VEVENT');
+  });
+  L.push('END:VCALENDAR');
+  return L.map(icsFold).join('\r\n')+'\r\n';
+}
+function downloadTextFile(filename, mime, text){
+  const blob = new Blob([text], {type:mime+';charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename; document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(url); a.remove(); }, 500);
+}
+function generateIcsExport(){
+  if(modalVal('ex-type')!=='agent'){ modalError('Le calendrier (.ics) s’exporte pour un agent : choisissez « Un agent ».'); return; }
+  const agentId = modalVal('ex-target'), anchor = modalVal('ex-anchor');
+  if(!agentId || !anchor){ modalError('Choisissez un agent et une date de référence.'); return; }
+  const daySet = new Set(periodDays(modalVal('ex-period'), anchor));
+  const list = STATE.shifts.filter(x=>x.agent===agentId && daySet.has(x.date) && x.status!=='Planifiée');
+  if(!list.length){ modalError('Aucun service publié pour cet agent sur cette période (les brouillons ne sont pas exportés).'); return; }
+  const name = displayNomPrenom(agentById(agentId));
+  downloadTextFile(`Planning_${name.replace(/\s+/g,'_')}_${anchor}.ics`, 'text/calendar', buildIcs(list, 'Planning RDZ — '+name));
+  closeModal(); toast(`${list.length} service(s) exporté(s) en .ics`);
+}
+function exportMyIcs(){
+  if(!ACTOR.agent){ toast('Aucun agent associé à votre compte.', true); return; }
+  const from = addDays(todayISO(), -7);
+  const list = STATE.shifts.filter(x=>x.agent===ACTOR.agent && x.date>=from && x.status!=='Planifiée');
+  if(!list.length){ toast('Aucun service publié à exporter pour l’instant.', true); return; }
+  downloadTextFile('Mon_planning_RDZ.ics','text/calendar', buildIcs(list, 'Mon planning RDZ'));
+  toast('Fichier téléchargé : ouvrez-le pour l’ajouter à votre calendrier. Retéléchargez-le après chaque changement.');
+}
+
+// ── IMPRESSION / PDF DU PLANNING D'UN SITE ──────────────────
+function buildSiteWeekPrintHtml(siteId, anchor, includeDrafts){
+  const site = siteById(siteId); if(!site) return '';
+  const monday = mondayOf(anchor), days = Array.from({length:7},(_,i)=>addDays(monday,i)), daySet = new Set(days);
+  const shifts = STATE.shifts.filter(x=>x.site===siteId && daySet.has(x.date) && (includeDrafts || x.status!=='Planifiée'));
+  const posts = (site.posts||[]).map(p=>p.name);
+  shifts.forEach(x=>{ if(!posts.includes(x.post)) posts.push(x.post); });
+  const cell = (post,d)=>{
+    const list = shifts.filter(x=>x.post===post && x.date===d).sort((a,b)=>a.start.localeCompare(b.start));
+    return list.map(x=>`<div class="sh"><b>${x.start}–${x.end}</b> ${x.agent? esc(agentLabel(x.agent)) : '<i>À affecter</i>'}${x.breakMinutes? `<span class="pa"> · pause ${breakLabel(x.breakMinutes)}${x.breakPaid?'':' non payée'}</span>`:''}${includeDrafts && x.status==='Planifiée'? ' <span class="pa">(brouillon)</span>':''}</div>`).join('');
+  };
+  const head = days.map(d=>{ const hn=holidayName(d); const dt=new Date(d+'T12:00:00Z');
+    return `<th>${esc(dt.toLocaleDateString('fr-CH',{weekday:'short',timeZone:'UTC'}))} ${String(dt.getUTCDate()).padStart(2,'0')}.${String(dt.getUTCMonth()+1).padStart(2,'0')}${hn?`<br><span class="pa">${esc(hn)}</span>`:''}</th>`; }).join('');
+  const rows = posts.map(p=>`<tr><th class="pl">${esc(p)}</th>${days.map(d=>`<td>${cell(p,d)}</td>`).join('')}</tr>`).join('');
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Planning ${esc(site.name)}</title><style>
+    @page{size:A4 landscape;margin:10mm;} *{box-sizing:border-box;} body{font-family:Arial,Helvetica,sans-serif;font-size:10.5px;color:#1a1917;margin:0;}
+    h1{font-size:16px;margin:0 0 2px;} .sub{color:#666;margin-bottom:8px;} table{border-collapse:collapse;width:100%;table-layout:fixed;}
+    th,td{border:1px solid #bbb;padding:4px 5px;vertical-align:top;} thead th{background:#2d2d2d;color:#fff;font-size:10px;} th.pl{background:#f2f0ed;width:12%;text-align:left;}
+    .sh{margin-bottom:3px;} .pa{color:#777;font-size:9px;} .foot{margin-top:8px;color:#888;font-size:9px;}
+  </style></head><body>
+    <h1>Planning — ${esc(site.name)}</h1>
+    <div class="sub">Semaine du ${fmtDate(days[0])} au ${fmtDate(days[6])}</div>
+    <table><thead><tr><th class="pl" style="background:#2d2d2d;color:#fff;">Poste</th>${head}</tr></thead><tbody>${rows}</tbody></table>
+    <div class="foot">RDZ Security Management — édité le ${fmtDate(todayISO())}</div>
+  </body></html>`;
+}
+function printHtmlDocument(html){
+  const iframe = document.createElement('iframe');
+  iframe.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(iframe);
+  const doc = iframe.contentWindow.document; doc.open(); doc.write(html); doc.close();
+  setTimeout(()=>{ try{ iframe.contentWindow.focus(); iframe.contentWindow.print(); }catch(e){} setTimeout(()=>iframe.remove(), 3000); }, 350);
+}
+function openPrintModal(){
+  const sites = sortSitesByName(STATE.sites.filter(x=>!x.archived));
+  const pre = (PLAN_FILTER.scope==='site' && PLAN_FILTER.site) || (sites[0] && sites[0].id);
+  openModal('print-modal','Imprimer / PDF — planning d’un site', `
+    <div class="fgrid">
+      <div class="fg full"><div class="flabel">Site</div><select class="fsel" id="pr-site">${sites.map(x=>`<option value="${x.id}" ${x.id===pre?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>
+      <div class="fg"><div class="flabel">Semaine contenant le</div><input class="finp" type="date" id="pr-date" value="${PLAN_FILTER.anchor||todayISO()}"></div>
+      <div class="fg"><div class="flabel">&nbsp;</div><label class="checkline"><input type="checkbox" id="pr-drafts"> Inclure les brouillons</label></div>
+    </div>
+    <div class="hint">Dans la fenêtre d’impression, choisissez « Enregistrer au format PDF » comme imprimante pour obtenir un PDF. Format A4 paysage.</div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="printSiteWeek()">🖨 Imprimer / PDF</button>`);
+}
+function printSiteWeek(){
+  const siteId = modalVal('pr-site'), date = modalVal('pr-date');
+  if(!siteId || !date){ modalError('Choisissez un site et une date.'); return; }
+  const html = buildSiteWeekPrintHtml(siteId, date, document.getElementById('pr-drafts').checked);
+  closeModal(); printHtmlDocument(html);
+}
+
+// ── EXPORT POUR LA PAIE ─────────────────────────────────────
+// Heures par agent et par mois, ventilées nuit / dimanche / jours fériés (Genève).
+// Les trois ventilations sont indépendantes et PEUVENT SE CHEVAUCHER (une heure de
+// nuit un dimanche férié compte dans les trois) : c'est à la paie de les combiner.
+// La pause non payée est déduite proportionnellement (on ne connaît pas son heure).
+function classifyMinutes(startAbs, endAbs, ns, ne){
+  let night=0, sunday=0, holiday=0; const cache = {};
+  for(let t=startAbs; t<endAbs; t++){
+    const dayIdx = Math.floor(t/1440), mod = t - dayIdx*1440;
+    let dc = cache[dayIdx];
+    if(!dc){ const dd = new Date(dayIdx*86400000); dc = cache[dayIdx] = { sun: dd.getUTCDay()===0, hol: !!holidayName(dd.toISOString().slice(0,10)) }; }
+    if(ns>ne ? (mod>=ns || mod<ne) : (mod>=ns && mod<ne)) night++;
+    if(dc.sun) sunday++; if(dc.hol) holiday++;
+  }
+  return { night, sunday, holiday };
+}
+function computePayrollRows(month, base, ns, ne){
+  const rows = [];
+  STATE.shifts.filter(x=>x.agent && x.date.startsWith(month)).forEach(x=>{
+    if(base==='planned_pub' && x.status==='Planifiée') return;
+    if(base==='real' && !(x.status==='Contrôlée' && x.actualStart && x.actualEnd)) return;
+    const st = base==='real'? x.actualStart : x.start, en = base==='real'? x.actualEnd : x.end;
+    const sp = absSpan(x.date, st, en), span = sp.e - sp.s;
+    const unpaid = x.breakPaid? 0 : (x.breakMinutes||0);
+    const paidMin = Math.max(span-unpaid,0), ratio = span>0? paidMin/span : 0;
+    const c = classifyMinutes(sp.s, sp.e, ns, ne);
+    rows.push({ shift:x, start:st, end:en, unpaid, paid:paidMin/60, night:c.night*ratio/60, sunday:c.sunday*ratio/60, holiday:c.holiday*ratio/60 });
+  });
+  return rows;
+}
+function openPayrollExportModal(){
+  openModal('payroll-modal','Export des heures pour la paie', `
+    <div class="fgrid">
+      <div class="fg"><div class="flabel">Mois *</div><input class="finp" type="month" id="px-month" value="${todayISO().slice(0,7)}"></div>
+      <div class="fg"><div class="flabel">Base de calcul</div><select class="fsel" id="px-base">
+        <option value="planned_pub">Prévu — services publiés ou au-delà</option>
+        <option value="planned_all">Prévu — tous, brouillons inclus</option>
+        <option value="real">Réel — services contrôlés (heures réelles)</option></select></div>
+      <div class="fg"><div class="flabel">Début des heures de nuit</div><input class="finp" type="time" id="px-ns" value="23:00"></div>
+      <div class="fg"><div class="flabel">Fin des heures de nuit</div><input class="finp" type="time" id="px-ne" value="06:00"></div>
+    </div>
+    <div class="hint">⚠ Les heures de nuit sont paramétrables : vérifiez la plage exacte dans la CCT / vos règles de paie avant d’utiliser le fichier. Nuit, dimanche et jours fériés sont comptés séparément et peuvent se chevaucher. Un service est rattaché au mois de sa date de début. La pause non payée est déduite (proportionnellement entre les catégories).</div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="generatePayrollExport()">💶 Générer le fichier Excel</button>`);
+}
+function generatePayrollExport(){
+  const month = modalVal('px-month'), base = modalVal('px-base');
+  if(!/^\d{4}-\d{2}$/.test(month)){ modalError('Choisissez un mois.'); return; }
+  if(typeof XLSX==='undefined'){ modalError('La bibliothèque Excel n’a pas pu se charger (vérifiez la connexion internet puis réessayez).'); return; }
+  const nsT = modalVal('px-ns'), neT = modalVal('px-ne');
+  const rows = computePayrollRows(month, base, hhmmToMin(nsT), hhmmToMin(neT));
+  if(!rows.length){ modalError('Aucun service pour ce mois avec cette base de calcul.'); return; }
+  const r2 = x=>Math.round(x*100)/100;
+  const per = {};
+  rows.forEach(w=>{ const a = per[w.shift.agent] ||= { n:0, paid:0, night:0, sunday:0, holiday:0 }; a.n++; a.paid+=w.paid; a.night+=w.night; a.sunday+=w.sunday; a.holiday+=w.holiday; });
+  const baseLabel = { planned_pub:'Prévu (publiés ou au-delà)', planned_all:'Prévu (brouillons inclus)', real:'Réel (contrôlés)' }[base];
+  const agentsSorted = sortAgentsByNom(Object.keys(per).map(id=>agentById(id)).filter(Boolean));
+  const tot = { n:0, paid:0, night:0, sunday:0, holiday:0 };
+  const sumRows = agentsSorted.map(a=>{
+    const v = per[a.id], np = getNomPrenom(a), contract = (Number.isFinite(a.monthly) && a.monthly>0)? a.monthly : null;
+    ['n','paid','night','sunday','holiday'].forEach(k=>tot[k]+=v[k]);
+    return [np.nom, np.prenom, contract, v.n, r2(v.paid), r2(v.night), r2(v.sunday), r2(v.holiday), contract!=null? r2(v.paid-contract) : ''];
+  });
+  const sheet1 = [
+    ['RDZ Security Management — Heures pour la paie'], [`Mois : ${month} · Base : ${baseLabel} · Nuit : ${nsT}–${neT} · Jours fériés : Genève`], [],
+    ['Nom','Prénom','Contrat (h/mois)','Nb services','Heures payées','dont nuit','dont dimanche','dont jours fériés','Écart vs contrat'],
+    ...sumRows,
+    ['TOTAL','','',tot.n,r2(tot.paid),r2(tot.night),r2(tot.sunday),r2(tot.holiday),'']
+  ];
+  const detail = [['Date','Jour','Nom','Prénom','Site','Poste','Début','Fin','Pause (min)','Pause payée','Statut','Heures payées','Nuit','Dimanche','Jour férié'],
+    ...rows.sort((a,b)=>a.shift.date.localeCompare(b.shift.date)||a.start.localeCompare(b.start)).map(w=>{
+      const a = agentById(w.shift.agent), np = a? getNomPrenom(a) : {nom:'?',prenom:''};
+      return [fmtDate(w.shift.date), weekdayFullName(w.shift.date), np.nom, np.prenom, siteLabel(w.shift.site), w.shift.post, w.start, w.end,
+        w.shift.breakMinutes||0, w.shift.breakMinutes? (w.shift.breakPaid?'Oui':'Non') : '—', w.shift.status, r2(w.paid), r2(w.night), r2(w.sunday), r2(w.holiday)];
+    })];
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet(sheet1); ws1['!cols'] = [{wch:20},{wch:16},{wch:15},{wch:11},{wch:13},{wch:10},{wch:13},{wch:16},{wch:15}];
+  const ws2 = XLSX.utils.aoa_to_sheet(detail); ws2['!cols'] = [{wch:11},{wch:11},{wch:18},{wch:14},{wch:16},{wch:18},{wch:7},{wch:7},{wch:11},{wch:11},{wch:11},{wch:13},{wch:8},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Synthèse'); XLSX.utils.book_append_sheet(wb, ws2, 'Détail');
+  XLSX.writeFile(wb, `Paie_Heures_${month}.xlsx`);
+  closeModal(); toast(`${rows.length} service(s) exporté(s) pour ${sumRows.length} agent(s)`);
+}
+
 // ── EXPORT EXCEL ─────────────────────────────────────────────
 // Full schedule export for one agent (every site) or one site (every agent),
 // over an arbitrary day/week/month — independent of whatever PLAN_FILTER
@@ -1647,7 +2101,7 @@ function openExportModal(){
     </div>
     <div class="hint">Semaine = du lundi au dimanche contenant la date choisie. Mois = le mois complet de cette date.</div>
   `;
-  const actions = `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="generateExcelExport()">📊 Générer le fichier Excel</button>`;
+  const actions = `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-ghost" onclick="generateIcsExport()">📅 Calendrier (.ics)</button><button class="btn btn-primary" onclick="generateExcelExport()">📊 Générer le fichier Excel</button>`;
   openModal('export-modal', 'Exporter la planification', body, actions);
 }
 function generateExcelExport(){
@@ -1731,11 +2185,16 @@ function renderPlanning(el){
   if(PLAN_FILTER.scope==='site'){ activeSites = PLAN_FILTER.site ? allSites.filter(s=>s.id===PLAN_FILTER.site) : allSites; }
   else if(PLAN_FILTER.scope==='view'){ activeSites = activeView ? allSites.filter(s=>(activeView.siteIds||[]).includes(s.id)) : []; }
   else { activeSites = allSites; }
+  COV_CACHE = {};
+  if(canManage) activeSites.forEach(si=>{ if(siteTemplates(si.id).length) COV_CACHE[si.id] = computeSiteCoverage(si.id, days); });
 
   el.innerHTML = `
     <div class="ph">
       <div><div class="ph-title">Planning</div><div class="ph-sub">${esc(planLabel())}</div></div>
-      <div class="ph-right">${canManage? `<button class="btn btn-ghost btn-sm" onclick="openExportModal()">📊 Exporter Excel</button> <button class="btn btn-primary btn-sm" onclick="openShiftModal(null, (PLAN_FILTER.scope==='site' && PLAN_FILTER.site) ? {site:PLAN_FILTER.site} : null)">+ Nouveau service</button>` : ''}</div>
+      <div class="ph-right" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">${canManage? `<button class="btn btn-ghost btn-sm" onclick="openExportModal()">📊 Exporter Excel</button>
+        ${['direction','planning'].includes(ACTOR.role)? `<button class="btn btn-ghost btn-sm" onclick="openPayrollExportModal()">💶 Export paie</button><button class="btn btn-ghost btn-sm" onclick="openTemplateModal()">🧩 Modèle de semaine</button>` : ''}
+        <button class="btn btn-ghost btn-sm" onclick="openPrintModal()">🖨 Imprimer</button>
+        <button class="btn btn-primary btn-sm" onclick="openShiftModal(null, (PLAN_FILTER.scope==='site' && PLAN_FILTER.site) ? {site:PLAN_FILTER.site} : null)">+ Nouveau service</button>` : (ACTOR.agent? `<button class="btn btn-ghost btn-sm" onclick="exportMyIcs()">📅 Ajouter à mon calendrier</button>` : '')}</div>
     </div>
     <div class="plan-toolbar">
       ${(()=>{
@@ -1768,6 +2227,7 @@ function renderPlanning(el){
       ${canManage && SELECT_MODE? renderSelectModeBar() : ''}
       <label class="checkline"><input type="checkbox" ${PLAN_FILTER.onlyActive?'checked':''} onchange="PLAN_FILTER.onlyActive=this.checked;renderCurrentPanel()"> Uniquement ${PLAN_FILTER.view==='agent'?'les agents':'les postes'} avec service</label>
     </div>
+    ${canManage? renderCoverageChips(activeSites) : ''}
     <div class="plan-legend" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:11px;color:var(--text2);margin:-6px 0 10px;">
       ${renderStatusLegendItem('#eef1f5','Brouillon (non publié)')}
       ${renderStatusLegendItem('#2563eb','Publié')}
@@ -1788,7 +2248,7 @@ function renderSiteCalendar(activeSites, days, today, canManage){
   return `
     <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr));">
       <div class="cell corner">Postes / Services</div>
-      ${days.map(d=>`<div class="cell day-header ${d===today?'is-today':''}">${dayHeaderLabel(d)}</div>`).join('')}
+      ${days.map(d=>`<div class="cell day-header ${d===today?'is-today':''} ${holidayName(d)?'is-holiday':''}">${dayHeaderLabel(d)}</div>`).join('')}
       ${rows.length? rows.map(r=>`
         <div class="cell row-label">${esc(r.siteName)}<br><span style="color:var(--text3);font-weight:400;">${esc(r.post)}</span></div>
         ${days.map(d=>renderPlanningCell(r,d,today,canManage)).join('')}
@@ -1799,6 +2259,7 @@ function renderSiteCalendar(activeSites, days, today, canManage){
 function renderPlanningCell(row, date, today, canManage){
   const shifts = STATE.shifts.filter(s=>s.site===row.siteId && s.post===row.post && s.date===date).sort((a,b)=>a.start.localeCompare(b.start));
   const chips = shifts.map(s=>renderShiftChip(s, canManage)).join('');
+  const missingPills = (canManage && !SELECT_MODE)? renderMissingSlotPills(row, date) : '';
   let addBtn = '';
   if(canManage && !SELECT_MODE){
     addBtn = `<div class="cell-add" onclick="openShiftModal(null,{site:'${jsStr(row.siteId)}',post:'${jsStr(row.post)}',date:'${date}'})" title="Ajouter un service">+</div>`;
@@ -1806,7 +2267,7 @@ function renderPlanningCell(row, date, today, canManage){
     addBtn = `<div class="cell-add cell-target" onclick="applySelectionToTarget({site:'${jsStr(row.siteId)}',post:'${jsStr(row.post)}',date:'${date}'})" title="${PENDING_ACTION==='copy'?'Coller ici':'Transférer ici'}">${PENDING_ACTION==='copy'?'📋':'↔'}</div>`;
   }
   const dropAttrs = canManage && !SELECT_MODE? `ondragover="handleCellDragOver(event)" ondragleave="handleCellDragLeave(event)" ondrop="handleCellDrop(event,{site:'${jsStr(row.siteId)}',post:'${jsStr(row.post)}',date:'${date}'})"` : '';
-  return `<div class="cell shift-cell ${date===today?'is-today':''}" ${dropAttrs}>${chips}${addBtn}</div>`;
+  return `<div class="cell shift-cell ${date===today?'is-today':''} ${holidayName(date)?'is-holiday':''}" ${dropAttrs}>${chips}${missingPills}${addBtn}</div>`;
 }
 function agentHasShiftInRange(agent, days){ return STATE.shifts.some(s=>s.agent===agent.id && days.includes(s.date)); }
 // Hours actually counted toward the agent's total: the shift's clock span,
@@ -1867,43 +2328,19 @@ function renderAgentCalendar(days, today, canManage, activeView){
   return `
     <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr)) repeat(${extraCols}, 108px);">
       <div class="cell corner">Agents</div>
-      ${days.map(d=>`<div class="cell day-header ${d===today?'is-today':''}">${dayHeaderLabel(d)}</div>`).join('')}
+      ${days.map(d=>`<div class="cell day-header ${d===today?'is-today':''} ${holidayName(d)?'is-holiday':''}">${dayHeaderLabel(d)}</div>`).join('')}
       ${showWeekCol? `<div class="cell corner" style="justify-content:center;text-align:center;">Total<br>semaine</div>` : ''}
       <div class="cell corner" style="justify-content:center;text-align:center;">Total<br>mois</div>
       ${agents.length? agents.map(a=>{
         const isSecondary = PLAN_FILTER.scope==='site' && PLAN_FILTER.site && a.primarySite!==PLAN_FILTER.site;
         return `
-        <div class="cell row-label">${esc(displayNomPrenom(a))}${isSecondary? ' <span class="badge badge-grey" style="font-weight:400;">secondaire</span>' : ''}${renderAgentMonthSub(a, days)}</div>
+        <div class="cell row-label">${esc(displayNomPrenom(a))}${isSecondary? ' <span class="badge badge-grey" style="font-weight:400;">secondaire</span>' : ''}</div>
         ${days.map(d=>renderAgentPlanningCell(a,d,today,canManage)).join('')}
         ${showWeekCol? `<div class="cell total-cell">${fmtAgentHours(agentHoursInRange(a.id, days), a.weekly)}</div>` : ''}
         <div class="cell total-cell">${fmtAgentHours(agentHoursInRange(a.id, monthDays), agentMonthlyTarget(a))}</div>
       `;}).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun agent${emptyReason}${PLAN_FILTER.onlyActive?' avec service sur cette période':''}.</div>`}
     </div>
   `;
-}
-// Cumul mensuel : heures validées (contrôlées, donc réelles), en attente de
-// contrôle (déclarées) et planifiées, pauses non payées déduites.
-function _shiftPaidMin(s, useActual){
-  const a = useActual && s.actualStart && s.actualEnd;
-  return _spanMin(a? s.actualStart : s.start, a? s.actualEnd : s.end) - ((s.breakMinutes && !s.breakPaid)? s.breakMinutes : 0);
-}
-function agentMonthStats(agentId, ym){
-  const list = (STATE.shifts||[]).filter(s=>s.agent===agentId && String(s.date).slice(0,7)===ym);
-  const sum = (arr, act)=> arr.reduce((n,s)=>n+Math.max(0,_shiftPaidMin(s,act)),0);
-  return {
-    validated: sum(list.filter(s=>s.status==='Contrôlée'), true),
-    pending:   sum(list.filter(s=>s.status==='Effectuée'), true),
-    planned:   sum(list, false)
-  };
-}
-function renderAgentMonthSub(a, days){
-  // Complète la colonne "total mois" : part déjà validée / encore à contrôler
-  if(!days || !days.length) return '';
-  const ym = String(days[Math.floor(days.length/2)]).slice(0,7);
-  const st = agentMonthStats(a.id, ym);
-  if(!st.validated && !st.pending) return '';
-  const month = new Date(ym+'-15T12:00:00').toLocaleDateString('fr-CH',{month:'short'}).replace('.','');
-  return `<div class="row-sub">${esc(month)} : <b>${fmtHours(st.validated)}</b> validées${st.pending? ' · '+fmtHours(st.pending)+' à contrôler' : ''}</div>`;
 }
 function renderAgentPlanningCell(agent, date, today, canManage){
   const shifts = STATE.shifts.filter(s=>s.agent===agent.id && s.date===date).sort((a,b)=>a.start.localeCompare(b.start));
@@ -1919,7 +2356,10 @@ function renderAgentPlanningCell(agent, date, today, canManage){
     addBtn = `<div class="cell-add cell-target" onclick="applySelectionToTarget({agent:'${jsStr(agent.id)}',date:'${date}'})" title="${PENDING_ACTION==='copy'?'Coller ici':'Transférer ici'}">${PENDING_ACTION==='copy'?'📋':'↔'}</div>`;
   }
   const dropAttrs = canManage && !SELECT_MODE? `ondragover="handleCellDragOver(event)" ondragleave="handleCellDragLeave(event)" ondrop="handleCellDrop(event,{agent:'${jsStr(agent.id)}',date:'${date}'})"` : '';
-  return `<div class="cell shift-cell ${date===today?'is-today':''}" ${dropAttrs}>${chips}${addBtn}</div>`;
+  const abs = agentAbsenceOn(agent.id, date);
+  const absTag = abs? `<div class="abs-tag ${abs.status==='Acceptée'?'':'pending'}" title="${esc(abs.kind||'Absence')} — ${esc(abs.status)}">${abs.status==='Acceptée'?'🏖':'⏳'} ${esc(abs.kind||'Absence')}${abs.status==='Acceptée'?'':' (demande)'}</div>` : '';
+  const absCls = abs? (abs.status==='Acceptée'?'is-absent':'is-absence-pending') : '';
+  return `<div class="cell shift-cell ${date===today?'is-today':''} ${holidayName(date)?'is-holiday':''} ${absCls}" ${dropAttrs}>${absTag}${chips}${addBtn}</div>`;
 }
 
 function openShiftModal(id, prefill){
@@ -1936,10 +2376,10 @@ function openShiftModal(id, prefill){
       <div class="fg full"><div class="flabel">Poste *</div><div id="sh-post-wrap">${renderPostSelect(site, s?s.post:(prefill?.post||''))}</div></div>
       <div class="fg"><div class="flabel">Date *</div><input class="finp" type="date" id="sh-date" value="${s?s.date:(prefill?.date||todayISO())}"></div>
       <div class="fg"><div class="flabel">Agent</div><select class="fsel" id="sh-agent"><option value="">— À affecter —</option>${agents.map(a=>`<option value="${a.id}" ${preAgent===a.id?'selected':''}>${esc(displayNomPrenom(a))}</option>`).join('')}</select></div>
-      <div class="fg"><div class="flabel">Début *</div><input class="finp" type="time" id="sh-start" value="${s?s.start:'07:00'}"></div>
-      <div class="fg"><div class="flabel">Fin *</div><input class="finp" type="time" id="sh-end" value="${s?s.end:'15:00'}"></div>
-      <div class="fg"><div class="flabel">Pause</div><select class="fsel" id="sh-break">${BREAK_OPTIONS.map(o=>`<option value="${o.min}" ${(s?(s.breakMinutes||0):0)===o.min?'selected':''}>${o.label}</option>`).join('')}</select></div>
-      <div class="fg"><div class="flabel">Pause payée</div><select class="fsel" id="sh-break-paid"><option value="1" ${!s||s.breakPaid?'selected':''}>Oui</option><option value="0" ${s&&!s.breakPaid?'selected':''}>Non</option></select></div>
+      <div class="fg"><div class="flabel">Début *</div><input class="finp" type="time" id="sh-start" value="${s?s.start:(prefill?.start||'07:00')}"></div>
+      <div class="fg"><div class="flabel">Fin *</div><input class="finp" type="time" id="sh-end" value="${s?s.end:(prefill?.end||'15:00')}"></div>
+      <div class="fg"><div class="flabel">Pause</div><select class="fsel" id="sh-break">${BREAK_OPTIONS.map(o=>`<option value="${o.min}" ${(s?(s.breakMinutes||0):(prefill?.breakMinutes||0))===o.min?'selected':''}>${o.label}</option>`).join('')}</select></div>
+      <div class="fg"><div class="flabel">Pause payée</div><select class="fsel" id="sh-break-paid"><option value="1" ${s? (s.breakPaid?'selected':'') : (prefill && prefill.breakPaid===false?'':'selected')}>Oui</option><option value="0" ${s? (!s.breakPaid?'selected':'') : (prefill && prefill.breakPaid===false?'selected':'')}>Non</option></select></div>
       <div class="fg full"><div class="flabel">Description</div><textarea class="ftxt" id="sh-description" rows="2" placeholder="Notes libres sur ce service (optionnel)">${s?esc(s.description||''):''}</textarea></div>
       ${s? `<div class="fg full"><div class="flabel">Motif de la modification (optionnel)</div><input class="finp" id="sh-reason" placeholder="Ex. remplacement, correction d’horaire…"></div>` : ''}
     </div>
@@ -2114,18 +2554,13 @@ function renderHeures(el){
       <div class="ph-right"><button class="btn btn-primary btn-sm" onclick="openAbsenceModal()">+ Demande de congé / indisponibilité</button></div>
     </div>
 
-    ${canManage && (STATE.refusals||[]).length? `<div class="card" style="margin-bottom:14px;border:1.5px solid #fecaca;"><div style="font-weight:700;margin-bottom:8px;color:#b91c1c;">⛔ Services refusés par l’agent (${STATE.refusals.length})</div>
-      ${STATE.refusals.map(renderRefusalRow).join('')}
-      <div class="hint" style="margin-top:8px;">Modifier ou réaffecter le service annule le refus. « Marquer traité » le renvoie à l’agent pour validation.</div></div>` : ''}
-
-${toValidate.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">À valider par l’agent (${toValidate.length})</div>
+    ${toValidate.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">À valider par l’agent (${toValidate.length})</div>
       ${toValidate.map(s=>renderHeureRow(s,'accept')).join('')}</div>` : ''}
 
     ${toDeclare.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">Heures à déclarer (${toDeclare.length})</div>
       ${toDeclare.map(s=>renderHeureRow(s,'declare')).join('')}</div>` : ''}
 
-    ${canManage? `<div class="card" style="margin-bottom:14px;"><div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap;"><div style="font-weight:700;">Écarts à contrôler — heures déclarées (${toControl.length})</div>
-      ${toControl.filter(x=>!_hoursChanged(x)).length? `<button class="btn btn-sm btn-primary" onclick="validateConformHours()">Valider tous les conformes (${toControl.filter(x=>!_hoursChanged(x)).length})</button>` : ''}</div>
+    ${canManage? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">Écarts à contrôler — heures déclarées (${toControl.length})</div>
       ${toControl.length? toControl.map(s=>renderHeureRow(s,'check')).join('') : '<div class="hint">Rien à contrôler.</div>'}</div>` : ''}
 
     ${canManage && pendingAbsences.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">Demandes de congé en attente (${pendingAbsences.length})</div>
@@ -2140,34 +2575,9 @@ ${toValidate.length? `<div class="card" style="margin-bottom:14px;"><div style="
 function _shiftEndPassed(s){
   try{ const end=new Date(s.date+'T'+s.end+':00Z').getTime(); return end<=Date.now(); }catch(e){ return true; }
 }
-function renderRefusalRow(r){
-  const when = r.refused_at? new Date(r.refused_at).toLocaleString('fr-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
-  return `<div class="refusal-row">
-    <div class="rr-main">
-      <div><b>${esc(fmtDate(String(r.date).slice(0,10)))} · ${esc(r.start_time||'')}–${esc(r.end_time||'')}</b> · ${esc(r.site_name||'')}${r.post_name?' / '+esc(r.post_name):''} · ${esc(r.agent_name||'')}</div>
-      <div class="rr-reason">Motif : « ${esc(r.reason||'')} »</div>
-      <div class="rr-meta">Refusé le ${esc(when)}</div>
-    </div>
-    <button class="btn btn-sm btn-ghost" onclick="openShiftModal('${jsStr(String(r.shift_id))}')">Ouvrir le service</button>
-    <button class="btn btn-sm btn-primary" onclick="dismissRefusal('${jsStr(String(r.shift_id))}')">Marquer traité</button>
-  </div>`;
-}
-async function dismissRefusal(id){
-  if(!confirm('Marquer ce refus comme traité ? Le service sera de nouveau proposé à l’agent pour validation.')) return;
-  const ok = await apiAction('dismissRefusal', { id });
-  if(ok) toast('Refus marqué comme traité');
-}
-function _spanMin(a,b){ if(!a||!b) return 0; const [ah,am]=a.split(':').map(Number),[bh,bm]=b.split(':').map(Number); let d=(bh*60+bm)-(ah*60+am); if(d<=0) d+=1440; return d; }
-function _fmtDiff(m){ const n=m<0; m=Math.abs(m); const h=Math.floor(m/60), r=m%60; return (n?'−':'+')+(h? h+'h'+(r?String(r).padStart(2,'0'):'') : r+' min'); }
-const PILOT_AUTO_REASON = 'Heures pré-remplies automatiquement à la fin du service';
-function _hoursChanged(s){ return !!s.actualStart && (s.actualStart!==s.start || s.actualEnd!==s.end); }
 function renderHeureRow(s, kind){
-  const declared = kind==='check' && s.actualStart
-    ? `<span class="shift-site" style="flex:none;">Déclaré <b>${esc(s.actualStart)}–${esc(s.actualEnd||'—')}</b>${_hoursChanged(s)? ' <span class="badge badge-orange">Modifié '+_fmtDiff(_spanMin(s.actualStart,s.actualEnd)-_spanMin(s.start,s.end))+'</span>' : (s.reason===PILOT_AUTO_REASON? ' <span class="badge" title="Pré-rempli à la fin du service, pas encore confirmé par l’agent">Auto</span>' : ' <span class="badge badge-green">Conforme</span>')}</span>`
-    : '';
   return `<div class="shift-row" onclick="${kind==='accept'?`openAcceptModal('${s.id}')`:kind==='declare'?`openDeclareModal('${s.id}')`:`openControlModal('${s.id}')`}">
     <span class="shift-time">${esc(fmtDate(s.date))} · ${s.start}–${s.end}</span>
-    ${declared}
     <span class="shift-site">${esc(siteLabel(s.site))} · ${esc(s.post)}</span>
     <span class="shift-agent">${esc(agentLabel(s.agent))}</span>
     <span class="badge ${statusBadgeClass(s.status)}">${esc(s.status)}</span>
@@ -2194,47 +2604,12 @@ async function declareShift(id){
 }
 function openControlModal(id){
   const s = STATE.shifts.find(x=>x.id===id);
-  const changed = _hoursChanged(s);
-  const diff = s.actualStart? _spanMin(s.actualStart,s.actualEnd)-_spanMin(s.start,s.end) : 0;
-  openModal('control-modal','Contrôler les heures', `
+  openModal('control-modal','Contrôler le service', `
     <div>${esc(fmtDate(s.date))} · ${esc(siteLabel(s.site))} / ${esc(s.post)} · ${esc(agentLabel(s.agent))}</div>
-    <div class="fgrid" style="margin-top:10px;">
-      <div class="fg"><div class="flabel">Prévu</div><div><b>${s.start} – ${s.end}</b></div></div>
-      <div class="fg"><div class="flabel">Déclaré par l’agent</div><div><b>${s.actualStart||'—'} – ${s.actualEnd||'—'}</b> ${changed? '<span class="badge badge-orange">'+_fmtDiff(diff)+'</span>' : '<span class="badge badge-green">Conforme</span>'}</div></div>
-      ${s.reason? `<div class="fg full"><div class="flabel">Motif de l’agent</div><div>« ${esc(s.reason)} »</div></div>` : ''}
-      <div class="fg"><div class="flabel">Début retenu</div><input class="finp" type="time" id="ct-start" value="${s.actualStart||s.start}"></div>
-      <div class="fg"><div class="flabel">Fin retenue</div><input class="finp" type="time" id="ct-end" value="${s.actualEnd||s.end}"></div>
-      <div class="fg full"><div class="flabel">Motif en cas de refus (envoyé à l’agent)</div><input class="finp" id="ct-note" placeholder="Ex. heure de sortie non conforme au badge"></div>
-    </div>
-    <div class="hint">« Valider » enregistre les heures retenues (tu peux les corriger ci-dessus). « Refuser » renvoie le service à l’agent pour qu’il redéclare.</div>
-  `, `<button class="btn btn-ghost" onclick="closeModal()">Fermer</button><button class="btn btn-danger" onclick="rejectHours('${s.id}')">Refuser</button><button class="btn btn-primary" onclick="controlShift('${s.id}')">Valider les heures</button>`);
+    <div class="hint">Prévu ${s.start}–${s.end} · Réel ${s.actualStart||'—'}–${s.actualEnd||'—'}${s.reason?' · '+esc(s.reason):''}</div>
+  `, `<button class="btn btn-ghost" onclick="closeModal()">Fermer</button><button class="btn btn-primary" onclick="controlShift('${s.id}')">Marquer contrôlé</button>`);
 }
-async function controlShift(id){
-  const s = STATE.shifts.find(x=>x.id===id);
-  const start = modalVal('ct-start'), end = modalVal('ct-end');
-  if(s && start && end && s.status==='Effectuée' && (start!==(s.actualStart||'') || end!==(s.actualEnd||''))){
-    try{ await rpc('rdz_planning_pilot_admin_set_actual', { p_shift_id:id, p_start:start, p_end:end }); }
-    catch(e){ toast(e.message||'Correction impossible', true); return; }
-  }
-  const ok=await apiAction('check',{id}); if(ok){closeModal();toast('Heures validées');}
-}
-async function validateConformHours(){
-  const list = STATE.shifts.filter(x=>x.status==='Effectuée' && !_hoursChanged(x));
-  if(!list.length) return;
-  if(!confirm('Valider '+list.length+' service(s) dont les heures sont conformes au planning ?')) return;
-  setSyncState('saving','Validation…');
-  let ok=0, ko=0;
-  for(const x of list){ try{ await rpc('rdz_planning_check_shift', { p_id:x.id }); ok++; }catch(e){ ko++; } }
-  await apiGet(); renderCurrentPanel();
-  setSyncState('ok','Enregistré');
-  toast(ok+' service(s) validé(s)'+(ko? ' · '+ko+' en erreur' : ''), !!ko);
-}
-async function rejectHours(id){
-  const note = (modalVal('ct-note')||'').trim();
-  if(note.length<3){ toast('Indique le motif du refus pour l’agent', true); document.getElementById('ct-note')?.focus(); return; }
-  const ok = await apiAction('rejectHours', { id, note });
-  if(ok){ closeModal(); toast('Déclaration refusée, renvoyée à l’agent'); }
-}
+async function controlShift(id){ const ok=await apiAction('check',{id}); if(ok){closeModal();toast('Heures contrôlées');} }
 
 // ── ABSENCES ────────────────────────────────────────────────
 function renderAbsenceRow(a, forApproval){
@@ -2290,6 +2665,49 @@ async function saveAbsenceForm(id){
 }
 
 // ── RÉGLAGES ────────────────────────────────────────────────
+
+// ── MESSAGES NON LUS ────────────────────────────────────────
+// Suivi côté navigateur (localStorage) : pour chaque fil, la date du dernier
+// message vu. Interrogé toutes les 30 s, même hors de l'onglet Messages, pour
+// afficher un badge. (Propre à chaque navigateur : un message lu sur le
+// téléphone peut rester « non lu » sur l'ordinateur.)
+let MSG_UNREAD = { total:0, byThread:{} };
+let MSG_UNREAD_TIMER = null;
+function msgSeenKey(t){ return 'rdz_msg_seen:'+((ACTOR && ACTOR.email)||'')+':'+t; }
+function msgSeenGet(t){ try{ return localStorage.getItem(msgSeenKey(t))||''; }catch(e){ return ''; } }
+function msgSeenSet(t,iso){ try{ localStorage.setItem(msgSeenKey(t), iso); }catch(e){} }
+async function refreshUnread(){
+  if(!ACTOR || !currentSession) return;
+  const since = new Date(Date.now()-30*86400000).toISOString();
+  let rows;
+  try{ rows = await restSelect('rdz_planning_messages','select=agent_id,from_agent,created_at&created_at=gte.'+encodeURIComponent(since)+'&order=created_at.desc&limit=1000'); }
+  catch(e){ return; }
+  const staff = isStaffRole(), by = {};
+  (rows||[]).forEach(r=>{
+    let key = null;
+    if(staff){ if(r.from_agent && r.agent_id) key = r.agent_id; }
+    else { if(r.agent_id===null) key = 'broadcast'; else if(!r.from_agent) key = 'mine'; }
+    if(key && r.created_at > msgSeenGet(key)) by[key] = (by[key]||0)+1;
+  });
+  MSG_UNREAD = { total:Object.values(by).reduce((a,b)=>a+b,0), byThread:by };
+  renderNav();
+  if(UI.tab==='messages'){ const l = document.getElementById('msg-list'); if(l) l.innerHTML = staff? msgStaffListHtml() : msgAgentListHtml(); }
+}
+function startUnreadPolling(){ stopUnreadPolling(); refreshUnread(); MSG_UNREAD_TIMER = setInterval(refreshUnread, 30000); }
+function stopUnreadPolling(){ if(MSG_UNREAD_TIMER){ clearInterval(MSG_UNREAD_TIMER); MSG_UNREAD_TIMER=null; } MSG_UNREAD = { total:0, byThread:{} }; }
+function msgStaffListHtml(){
+  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
+  const un = a=>MSG_UNREAD.byThread[a.id]||0;
+  const ordered = agents.slice().sort((a,b)=>(un(b)>0)-(un(a)>0)); // non lus d'abord, ordre alphabétique conservé
+  return `<div class="msg-list-item ${MSG_THREAD===null?'active':''}" onclick="selectMsgThread(null)">📢 Canal groupé</div>`
+    + ordered.map(a=>`<div class="msg-list-item ${MSG_THREAD===a.id?'active':''}" onclick="selectMsgThread('${jsStr(a.id)}')">${esc(displayNomPrenom(a))}${un(a)? `<span class="msg-badge">${un(a)}</span>` : ''}</div>`).join('');
+}
+function msgAgentListHtml(){
+  const b = MSG_UNREAD.byThread;
+  return `<div class="msg-list-item ${MSG_AGENT_TAB==='broadcast'?'active':''}" onclick="selectMsgAgentTab('broadcast')">📢 Annonces${b.broadcast? `<span class="msg-badge">${b.broadcast}</span>`:''}</div>
+    <div class="msg-list-item ${MSG_AGENT_TAB==='mine'?'active':''}" onclick="selectMsgAgentTab('mine')">💬 Mes messages${b.mine? `<span class="msg-badge">${b.mine}</span>`:''}</div>`;
+}
+
 // ── MESSAGERIE ──────────────────────────────────────────────
 // Deux vues distinctes: staff (direction/planning/site) a une liste de fils
 // (canal groupé + un par agent) ; un agent voit deux onglets fixes (annonces
@@ -2318,54 +2736,15 @@ async function renderMessages(el){
   else await renderMessagesAgent(el);
   startMessagePolling();
 }
-// Non-lus côté direction : dernier message envoyé par chaque agent, comparé à
-// la dernière ouverture de son fil sur ce poste (localStorage).
-let MSG_LATEST = {};
-function msgSeenKey(id){ return 'rdz_msg_seen_'+(id||'all'); }
-function msgUnread(id){ const l=MSG_LATEST[id]; if(!l) return false; const seen=localStorage.getItem(msgSeenKey(id)); return !seen || new Date(l) > new Date(seen); }
-function markMsgSeen(id){ try{ localStorage.setItem(msgSeenKey(id), new Date().toISOString()); }catch(e){} }
-async function loadMsgLatest(){
-  try{
-    const r = await restSelect('rdz_planning_messages','select=agent_id,created_at&from_agent=is.true&order=created_at.desc&limit=500');
-    MSG_LATEST = {}; (r||[]).forEach(x=>{ if(x.agent_id && !MSG_LATEST[x.agent_id]) MSG_LATEST[x.agent_id]=x.created_at; });
-  }catch(e){}
-}
-// Groupes de discussion (MSG_THREAD = 'g:<id>')
-let MSG_GROUPS = [];
-function isGroupThread(t){ return typeof t==='string' && t.startsWith('g:'); }
-function groupOf(t){ return isGroupThread(t)? MSG_GROUPS.find(g=>'g:'+g.id===t) || null : null; }
-function groupUnread(g){ if(!g.last_agent_at) return false; const seen=localStorage.getItem(msgSeenKey('g:'+g.id)); return !seen || new Date(g.last_agent_at) > new Date(seen); }
-async function loadMsgGroups(){
-  try{ const r = await rpc('rdz_planning_group_list', {}); MSG_GROUPS = Array.isArray(r)? r : []; }catch(e){ MSG_GROUPS = []; }
-}
 async function renderMessagesStaff(el){
-  await Promise.all([loadMsgLatest(), loadMsgGroups()]);
-  if(isGroupThread(MSG_THREAD) && !groupOf(MSG_THREAD)) MSG_THREAD = null;   // groupe archivé
-  if(MSG_THREAD) markMsgSeen(MSG_THREAD);
-  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt))
-    .map((a,i)=>({a,i}))
-    .sort((x,y)=>{ const ux=msgUnread(x.a.id), uy=msgUnread(y.a.id); if(ux!==uy) return ux? -1 : 1;
-      const lx=MSG_LATEST[x.a.id]||'', ly=MSG_LATEST[y.a.id]||''; if(lx!==ly) return lx>ly? -1 : 1; return x.i-y.i; })
-    .map(x=>x.a);
-  const groups = [...MSG_GROUPS].sort((x,y)=>{ const ux=groupUnread(x), uy=groupUnread(y); if(ux!==uy) return ux? -1:1; return String(y.last_at||y.created_at).localeCompare(String(x.last_at||x.created_at)); });
-  const g = groupOf(MSG_THREAD);
-  const memberNames = g? (g.member_ids||[]).map(id=>{ const a=STATE.agents.find(x=>String(x.id)===String(id)); return a? displayNomPrenom(a) : '—'; }) : [];
+  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
   el.innerHTML = `
     <div class="msg-layout">
-      <div class="msg-list">
-        <div class="msg-list-item ${MSG_THREAD===null?'active':''}" onclick="selectMsgThread(null)">📢 Canal groupé</div>
-        <div class="msg-list-sec">Groupes</div>
-        <div class="msg-list-item msg-new" onclick="openGroupModal(null)">＋ Nouveau groupe</div>
-        ${groups.map(gr=>`<div class="msg-list-item ${MSG_THREAD==='g:'+gr.id?'active':''}" onclick="selectMsgThread('g:${jsStr(gr.id)}')"><span>👥 ${esc(gr.name)}</span><span class="msg-count">${(gr.member_ids||[]).length}</span>${MSG_THREAD!=='g:'+gr.id && groupUnread(gr)? '<span class="msg-dot" title="Nouveau message"></span>' : ''}</div>`).join('')}
-        <div class="msg-list-sec">Agents</div>
-        ${agents.map(a=>`<div class="msg-list-item ${MSG_THREAD===a.id?'active':''}" onclick="selectMsgThread('${jsStr(a.id)}')"><span>${esc(displayNomPrenom(a))}</span>${MSG_THREAD!==a.id && msgUnread(a.id)? '<span class="msg-dot" title="Nouveau message"></span>' : ''}</div>`).join('')}
-      </div>
+      <div class="msg-list" id="msg-list">${msgStaffListHtml()}</div>
       <div class="msg-thread">
-        ${g? `<div class="msg-thread-head"><div style="min-width:0;"><div style="font-weight:700;">👥 ${esc(g.name)}</div><div class="hint" style="margin:2px 0 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(memberNames.join(', '))}</div></div>
-            <div style="display:flex;gap:6px;flex:none;"><button class="btn btn-sm btn-ghost" onclick="openGroupModal('${jsStr(g.id)}')">Modifier</button><button class="btn btn-sm btn-danger" onclick="archiveGroup('${jsStr(g.id)}')">Archiver</button></div></div>` : ''}
         <div class="msg-scroll" id="msg-scroll"><div class="empty">Chargement…</div></div>
         <div class="msg-compose">
-          <textarea id="msg-input" class="ftxt" rows="2" placeholder="${MSG_THREAD===null?'Écrire une annonce à tous les agents…':g?'Écrire au groupe…':'Écrire un message…'}"></textarea>
+          <textarea id="msg-input" class="ftxt" rows="2" placeholder="${MSG_THREAD===null?'Écrire une annonce à tous les agents…':'Écrire un message…'}"></textarea>
           <button class="btn btn-primary" onclick="sendMessageForm()">Envoyer</button>
         </div>
       </div>
@@ -2378,88 +2757,38 @@ function selectMsgThread(agentId){
   const panel = document.getElementById('panel-messages');
   if(panel) renderMessagesStaff(panel);
 }
-function renderGroupBubble(row){
-  const when = new Date(row.created_at).toLocaleString('fr-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
-  const mine = !row.from_agent;
-  return `<div class="msg-bubble ${mine?'mine':'theirs'}">${mine? '' : `<div class="msg-sender">${esc(row.sender_name||'Agent')}</div>`}<div class="msg-body">${esc(row.body).replace(/\n/g,'<br>')}</div><div class="msg-meta">${mine? esc(row.sender_name||'Direction')+' · ' : ''}${when}</div></div>`;
-}
 async function refreshMessageThread(){
   const scroll = document.getElementById('msg-scroll');
   if(!scroll) return;
-  const isGroup = isGroupThread(MSG_THREAD);
+  const filter = MSG_THREAD? `agent_id=eq.${MSG_THREAD}&order=created_at.asc&limit=500` : `agent_id=is.null&order=created_at.asc&limit=500`;
   let rows;
-  try{
-    rows = isGroup
-      ? await rpc('rdz_planning_group_messages', { p_id: MSG_THREAD.slice(2) })
-      : await restSelect('rdz_planning_messages', MSG_THREAD? `agent_id=eq.${MSG_THREAD}&order=created_at.asc&limit=500` : `agent_id=is.null&order=created_at.asc&limit=500`);
-  }catch(e){ return; }
-  rows = Array.isArray(rows)? rows : [];
+  try{ rows = await restSelect('rdz_planning_messages', filter); }catch(e){ return; }
   const wasNearBottom = scroll.scrollTop + scroll.clientHeight >= scroll.scrollHeight - 40;
   const firstLoad = scroll.dataset.loaded !== 'yes';
-  scroll.innerHTML = rows.length? rows.map(r=> isGroup? renderGroupBubble(r) : renderMessageBubble(r, !r.from_agent)).join('') : `<div class="empty">Aucun message pour l’instant.</div>`;
+  scroll.innerHTML = rows.length? rows.map(r=>renderMessageBubble(r, !r.from_agent)).join('') : `<div class="empty">Aucun message pour l’instant.</div>`;
   scroll.dataset.loaded = 'yes';
   if(wasNearBottom || firstLoad) scroll.scrollTop = scroll.scrollHeight;
-  if(MSG_THREAD) markMsgSeen(MSG_THREAD);
+  markThreadSeen(MSG_THREAD || 'broadcast', rows);
+}
+function markThreadSeen(key, rows){
+  if(!rows || !rows.length) return;
+  const max = rows.reduce((m,r)=>r.created_at>m? r.created_at : m, '');
+  if(max > msgSeenGet(key)){ msgSeenSet(key, max); refreshUnread(); }
 }
 async function sendMessageForm(){
   const input = document.getElementById('msg-input');
   const body = input.value.trim();
   if(!body) return;
   try{
-    if(isGroupThread(MSG_THREAD)) await rpc('rdz_planning_group_send', { p_id: MSG_THREAD.slice(2), p_body: body });
-    else await rpc('rdz_planning_send_message', { p_agent_id: MSG_THREAD, p_body: body });
+    await rpc('rdz_planning_send_message', { p_agent_id: MSG_THREAD, p_body: body });
     input.value = '';
     await refreshMessageThread();
   }catch(e){ toast(e.message||'Envoi impossible', true); }
 }
-// Création / modification d'un groupe
-function openGroupModal(groupId){
-  const g = groupId? MSG_GROUPS.find(x=>String(x.id)===String(groupId)) : null;
-  const selected = new Set((g&&g.member_ids||[]).map(String));
-  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
-  openModal('group-modal', g? 'Modifier le groupe' : 'Nouveau groupe', `
-    <div class="fg"><div class="flabel">Nom du groupe</div><input class="finp" id="grp-name" maxlength="80" placeholder="Ex. Équipe REGM, Nuits week-end…" value="${esc(g? g.name : '')}"></div>
-    <div class="fg" style="margin-top:12px;"><div class="flabel">Agents (<span id="grp-count">${selected.size}</span> sélectionné${selected.size>1?'s':''})</div>
-      <input class="finp" id="grp-search" placeholder="Rechercher un agent…" oninput="filterGroupAgents(this.value)" style="margin-bottom:8px;">
-      <div id="grp-agents" style="max-height:280px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:6px 10px;">
-        ${agents.map(a=>`<label class="checkline grp-agent" data-name="${esc(displayNomPrenom(a).toLowerCase())}" style="display:block;padding:4px 0;"><input type="checkbox" name="grp-agent" value="${esc(a.id)}" ${selected.has(String(a.id))?'checked':''} onchange="updateGroupCount()"> ${esc(displayNomPrenom(a))}</label>`).join('')}
-      </div>
-    </div>
-    <div class="hint">Tous les membres voient les messages du groupe et peuvent répondre. Pour l’instant, seuls les agents du pilote planning le voient dans leur application.</div>
-  `, `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveGroup(${g? `'${jsStr(g.id)}'` : 'null'})">${g? 'Enregistrer' : 'Créer le groupe'}</button>`);
-  setTimeout(()=>document.getElementById('grp-name')?.focus(), 50);
-}
-function filterGroupAgents(q){
-  q=(q||'').trim().toLowerCase();
-  document.querySelectorAll('#grp-agents .grp-agent').forEach(l=>{ l.style.display = !q || l.dataset.name.includes(q) ? 'block' : 'none'; });
-}
-function updateGroupCount(){
-  const n=document.querySelectorAll('input[name="grp-agent"]:checked').length;
-  const el=document.getElementById('grp-count'); if(el) el.textContent=n;
-}
-async function saveGroup(groupId){
-  const name = (modalVal('grp-name')||'').trim();
-  const ids = Array.from(document.querySelectorAll('input[name="grp-agent"]:checked')).map(x=>x.value);
-  if(!name){ modalError('Donne un nom au groupe.'); return; }
-  if(!ids.length){ modalError('Choisis au moins un agent.'); return; }
-  try{
-    const id = await rpc('rdz_planning_group_save', { p_id: groupId, p_name: name, p_agent_ids: ids });
-    closeModal(); toast(groupId? 'Groupe mis à jour' : 'Groupe créé');
-    selectMsgThread('g:'+(id||groupId));
-  }catch(e){ modalError(e.message||'Enregistrement impossible'); }
-}
-async function archiveGroup(groupId){
-  if(!confirm('Archiver ce groupe ? Il disparaîtra de la messagerie de ses membres.')) return;
-  try{ await rpc('rdz_planning_group_archive', { p_id: groupId }); toast('Groupe archivé'); selectMsgThread(null); }
-  catch(e){ toast(e.message||'Archivage impossible', true); }
-}
 async function renderMessagesAgent(el){
   el.innerHTML = `
     <div class="msg-layout">
-      <div class="msg-list">
-        <div class="msg-list-item ${MSG_AGENT_TAB==='broadcast'?'active':''}" onclick="selectMsgAgentTab('broadcast')">📢 Annonces</div>
-        <div class="msg-list-item ${MSG_AGENT_TAB==='mine'?'active':''}" onclick="selectMsgAgentTab('mine')">💬 Mes messages</div>
-      </div>
+      <div class="msg-list" id="msg-list">${msgAgentListHtml()}</div>
       <div class="msg-thread">
         <div class="msg-scroll" id="msg-scroll"><div class="empty">Chargement…</div></div>
         ${MSG_AGENT_TAB==='mine'? `<div class="msg-compose"><textarea id="msg-input" class="ftxt" rows="2" placeholder="Écrire à la direction…"></textarea><button class="btn btn-primary" onclick="sendMessageFormAgent()">Envoyer</button></div>` : ''}
@@ -2484,6 +2813,7 @@ async function refreshMessageThreadAgent(){
   scroll.innerHTML = rows.length? rows.map(r=>renderMessageBubble(r, !!r.from_agent)).join('') : `<div class="empty">Aucun message pour l’instant.</div>`;
   scroll.dataset.loaded = 'yes';
   if(wasNearBottom || firstLoad) scroll.scrollTop = scroll.scrollHeight;
+  markThreadSeen(MSG_AGENT_TAB==='broadcast'? 'broadcast' : 'mine', rows);
 }
 async function sendMessageFormAgent(){
   const input = document.getElementById('msg-input');
