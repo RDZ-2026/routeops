@@ -342,7 +342,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px;}
       <!-- FACTURES -->
       <section class="panel" id="p-factures">
         <div class="ph"><div><div class="ph-title">Factures</div><div class="ph-sub" id="fac-sub"></div></div>
-          <div class="ph-right w-only"><button class="btn btn-ghost" onclick="openNewDoc('facture',{legacy:true})">Reprendre une facture Bexio</button><button class="btn btn-primary" onclick="openNewDoc('facture')">Nouvelle facture</button></div></div>
+          <div class="ph-right w-only"><label class="btn btn-ghost" style="cursor:pointer" title="Sélectionnez les PDF : le numéro de facture doit figurer dans le nom du fichier">Joindre des PDF Bexio<input type="file" accept="application/pdf" multiple style="display:none" onchange="attachBexioPdfs([...this.files]);this.value=''"></label><button class="btn btn-ghost" onclick="openNewDoc('facture',{legacy:true})">Reprendre une facture Bexio</button><button class="btn btn-primary" onclick="openNewDoc('facture')">Nouvelle facture</button></div></div>
         <div class="sbar">
           <input class="inp" id="fac-q" placeholder="Rechercher un numéro, un client…" oninput="renderFactures()">
           <select class="sel" id="fac-f" onchange="renderFactures()">
@@ -1691,8 +1691,8 @@ function renderDocModal() {
     <div class="fg c6"><label class="flabel" for="d-titre">Objet</label><input class="finp" id="d-titre" ${dis} value="${esc(d.titre || '')}" placeholder="Ex. Mise à disposition d'un agent à la villa Barton" oninput="editDoc.titre=this.value"></div>
     <div class="fg c3"><label class="flabel" for="d-date">Date</label><input class="finp" type="date" id="d-date" ${dis} value="${d.date_doc || ''}" onchange="onDocDate(this.value)"></div>
     ${isA ? '' : `<div class="fg c3"><label class="flabel" for="d-ech">${isF ? 'Payable jusqu’au' : 'Valable jusqu’au'}</label><input class="finp" type="date" id="d-ech" ${dis} value="${d.date_echeance || ''}" onchange="editDoc.date_echeance=this.value"></div>`}
-    <div class="fg c3"><label class="flabel" for="d-p1">Prestations du</label><input class="finp" type="date" id="d-p1" ${dis} value="${d.periode_debut || ''}" onchange="editDoc.periode_debut=this.value||null"></div>
-    <div class="fg c3"><label class="flabel" for="d-p2">au</label><input class="finp" type="date" id="d-p2" ${dis} value="${d.periode_fin || ''}" onchange="editDoc.periode_fin=this.value||null"></div>
+    <div class="fg c3"><label class="flabel" for="d-p1">Prestations du</label><input class="finp" type="date" id="d-p1" ${dis} value="${d.periode_debut || ''}" onchange="editDoc.periode_debut=this.value||null;updateNumPreview()"></div>
+    <div class="fg c3"><label class="flabel" for="d-p2">au</label><input class="finp" type="date" id="d-p2" ${dis} value="${d.periode_fin || ''}" onchange="editDoc.periode_fin=this.value||null;updateNumPreview()"></div>
     <div class="fg c4"><label class="flabel" for="d-tva">TVA par défaut des nouvelles lignes</label><select class="fsel" id="d-tva" ${dis} onchange="editDoc.tva_code=this.value;editDoc.tva_rate=num(tvaCode(this.value).rate)">${codeOptions(d.tva_code)}</select></div>
     <div class="fg c4"><label class="flabel" for="d-site">Site ou mandat</label><input class="finp" id="d-site" list="d-site-list" ${canWrite() && d.statut === 'brouillon' ? '' : 'disabled'} value="${esc(d.site || '')}" placeholder="Ex. IHEID, Port Blanc" oninput="editDoc.site=this.value"><datalist id="d-site-list">${sitesKnown().map(s => `<option value="${esc(s)}">`).join('')}</datalist></div>`;
   if (d._legacy && ed) {
@@ -1702,6 +1702,7 @@ function renderDocModal() {
     h += `<div class="fg c4"><span class="flabel">Référence de paiement</span><input class="finp mono" readonly value="${esc(groupRef(d.reference || '—'))}"></div>`;
   }
   h += `</div>`;
+  if (ed && !d._legacy && d.kind !== 'devis') h += `<div class="fhint" id="d-numprev" style="margin-top:8px"></div>`;
   h += `<table class="lines"><thead><tr><th style="width:34px">Pos.</th><th>Description</th><th style="width:84px">Quantité</th><th style="width:92px">Unité</th><th style="width:100px">Prix unitaire</th><th style="width:118px">TVA</th><th style="width:100px;text-align:right">Total HT</th>${ed ? '<th style="width:32px"></th>' : ''}</tr></thead><tbody id="d-lines"></tbody></table>`;
   if (ed) {
     h += `<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="addDocLine()">Ajouter une ligne</button></div>`;
@@ -1723,7 +1724,29 @@ function renderDocModal() {
   if (d.statut !== 'brouillon') h += `<div class="fhint" style="margin-top:12px">${d.pdf_path ? `PDF archivé à l'émission · empreinte SHA-256 ${esc((d.pdf_sha256 || '').slice(0, 16))}…` : (d.legacy ? 'PDF Bexio non joint' : '<span style="color:var(--orange)">PDF non archivé</span>')} · <button class="btn-link" onclick="showHistory('${d.id}')">Voir l'historique</button></div>`;
   if (d.source_devis_id) { const s = db.fac_documents.find(x => x.id === d.source_devis_id); if (s) h += `<div class="fhint" style="margin-top:6px">Issue du devis ${esc(s.numero || '')}</div>`; }
   $('doc-body').innerHTML = h;
-  renderDocLines(); updateDocTotals(); renderDocFoot();
+  renderDocLines(); updateDocTotals(); renderDocFoot(); updateNumPreview();
+}
+// Numéro prévu : séquence + année et mois des prestations (fin de période, sinon début, sinon date)
+function updateNumPreview() {
+  const el = $('d-numprev'); if (!el || !editDoc) return;
+  const ref = editDoc.periode_fin || editDoc.periode_debut || editDoc.date_doc; if (!ref) { el.textContent = ''; return; }
+  const seq = counterFor(editDoc.kind, +editDoc.date_doc.slice(0, 4)) + 1;
+  el.innerHTML = `Numéro prévu à l'émission : <b class="mono">${editDoc.kind === 'avoir' ? 'NC' : ''}${seq}${ref.slice(0, 4)}${ref.slice(5, 7)}</b> (mois des prestations : ${MONTHS_LONG[+ref.slice(5, 7) - 1]} ${ref.slice(0, 4)}${editDoc.periode_fin || editDoc.periode_debut ? '' : ', faute de période saisie'})`;
+}
+async function attachBexioPdfs(files) {
+  if (!files || !files.length) return;
+  if (!navigator.onLine) { toast('Connexion requise', 'err'); return; }
+  let ok = 0; const skipped = [];
+  for (const f of files) {
+    const m = f.name.match(/(\d{7,})/);
+    const d = m && factures().find(x => x.numero === m[1]);
+    if (!d) { skipped.push(`${f.name} (facture inconnue)`); continue; }
+    if (d.pdf_path) { skipped.push(`${f.name} (déjà archivé)`); continue; }
+    try { await storeArchive(d, f); ok++; } catch (e) { skipped.push(`${f.name} (${e.message})`); }
+  }
+  renderAll();
+  toast(`${ok} PDF archivé${ok > 1 ? 's' : ''}${skipped.length ? `, ${skipped.length} ignoré${skipped.length > 1 ? 's' : ''}` : ''}`);
+  if (skipped.length) genModal('PDF non archivés', `${skipped.length} fichier(s)`, `<div class="pay-list">${skipped.map(s => `<div><span>${esc(s)}</span></div>`).join('')}</div>`);
 }
 function paymentsCard(d) {
   const allocs = allocsForDoc(d.id).sort((a, b) => a.pay_date.localeCompare(b.pay_date));
@@ -1773,6 +1796,7 @@ function onDocClient(id) {
 function onDocDate(v) {
   const old = editDoc.date_doc; editDoc.date_doc = v;
   if (old && editDoc.date_echeance && v) { editDoc.date_echeance = addDays(v, daysBetween(old, editDoc.date_echeance)); if ($('d-ech')) $('d-ech').value = editDoc.date_echeance; }
+  updateNumPreview();
 }
 function fmtHourLabel(t) { const [h, m] = t.split(':'); return `${+h}H${m !== '00' ? m : ''}`; }
 function addAgentLine() {
@@ -1789,7 +1813,7 @@ function addAgentLine() {
   if (!editDoc.periode_debut || date < editDoc.periode_debut) { editDoc.periode_debut = date; $('d-p1').value = date; }
   if (!editDoc.periode_fin || date > editDoc.periode_fin) { editDoc.periode_fin = date; $('d-p2').value = date; }
   $('h-date').value = addDays(date, 1);
-  renderDocLines(); updateDocTotals();
+  renderDocLines(); updateDocTotals(); updateNumPreview();
 }
 function canCancelInvoice(d) { return d.kind === 'facture' && d.statut === 'emise' && !d.sent_at && !allocsForDoc(d.id).length && !avoirsFor(d).length; }
 function renderDocFoot() {
