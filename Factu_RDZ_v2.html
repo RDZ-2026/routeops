@@ -1730,8 +1730,8 @@ function renderDocModal() {
 function updateNumPreview() {
   const el = $('d-numprev'); if (!el || !editDoc) return;
   const ref = editDoc.periode_fin || editDoc.periode_debut || editDoc.date_doc; if (!ref) { el.textContent = ''; return; }
-  const seq = counterFor(editDoc.kind, +editDoc.date_doc.slice(0, 4)) + 1;
-  el.innerHTML = `Numéro prévu à l'émission : <b class="mono">${editDoc.kind === 'avoir' ? 'NC' : ''}${seq}${ref.slice(0, 4)}${ref.slice(5, 7)}</b> (mois des prestations : ${MONTHS_LONG[+ref.slice(5, 7) - 1]} ${ref.slice(0, 4)}${editDoc.periode_fin || editDoc.periode_debut ? '' : ', faute de période saisie'})`;
+  const seq = counterFor(editDoc.kind, +ref.slice(0, 4)) + 1;
+  el.innerHTML = `Numéro prévu à l'émission : <b class="mono">${editDoc.kind === 'avoir' ? 'NC' : ''}${seq < 10 ? '0' : ''}${seq}${ref.slice(0, 4)}${ref.slice(5, 7)}</b> (mois des prestations : ${MONTHS_LONG[+ref.slice(5, 7) - 1]} ${ref.slice(0, 4)}${editDoc.periode_fin || editDoc.periode_debut ? '' : ', faute de période saisie'})`;
 }
 async function attachBexioPdfs(files) {
   if (!files || !files.length) return;
