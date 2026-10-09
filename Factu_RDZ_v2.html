@@ -1752,7 +1752,7 @@ function paymentsCard(d) {
   const allocs = allocsForDoc(d.id).sort((a, b) => a.pay_date.localeCompare(b.pay_date));
   const avs = avoirsFor(d);
   const rows = allocs.map(a => { const t = a.tx_id ? db.fac_bank_tx.find(x => x.id === a.tx_id) : null;
-      const label = a.mode === 'hors_banque' ? `Paiement hors banque${a.note ? ' — ' + esc(a.note) : ''}` : `${esc(t ? t.counterparty || 'Virement' : 'Virement')} <span class="sub">(${a.mode === 'auto' ? 'référence QR reconnue' : 'associé manuellement'})</span>`;
+      const label = a.mode === 'reprise' ? 'Encaissement enregistré dans Bexio (en attente du relevé)' : a.mode === 'hors_banque' ? `Paiement hors banque${a.note ? ' — ' + esc(a.note) : ''}` : `${esc(t ? t.counterparty || 'Virement' : 'Virement')} <span class="sub">(${a.mode === 'auto' ? 'référence QR reconnue' : 'associé manuellement'})</span>`;
       return `<div><span>${fmtDate(a.pay_date)} · ${num(a.amount) < 0 ? 'Remboursement · ' : ''}${label}</span><span><span class="mono">${fmtAmt(a.amount)}</span>${canWrite() ? ` <button class="btn-link" style="margin-left:8px" onclick="detachAlloc('${a.id}')">Détacher</button>` : ''}</span></div>`; })
     .concat(avs.map(a => `<div><span>${fmtDate(a.date_doc)} · Note de crédit ${esc(a.numero)}</span><span><button class="btn-link mono" onclick="openDoc('${a.id}')">${fmtAmt(a.total_ttc)}</button></span></div>`));
   const rem = docRemaining(d);
@@ -2312,6 +2312,13 @@ function certainMatch(tx) {
 }
 function autoAllocate(tx) {
   if (txOpen(tx) <= 0.009) return false;
+  // Encaissement déjà enregistré dans Bexio : le relevé le confirme et le rattache au mouvement bancaire
+  const ref = compactRef(tx.reference);
+  if (tx.amount > 0 && ref) {
+    const d = factures().find(x => x.reference && compactRef(x.reference) === ref);
+    const rep = d && allocsForDoc(d.id).find(a => a.mode === 'reprise' && !a.tx_id && Math.abs(num(a.amount) - txOpen(tx)) < 0.01);
+    if (rep) { saveRow('fac_allocations', { ...rep, tx_id: tx.id, mode: 'auto', pay_date: tx.booking_date, note: 'Encaissement Bexio confirmé par le relevé' }); return true; }
+  }
   const m = certainMatch(tx); if (!m) return false;
   let amount = txOpen(tx) * Math.sign(tx.amount);
   if (m.achat_id) { const a = db.fac_achats.find(x => x.id === m.achat_id); amount = Math.min(txOpen(tx), round2(num(a.montant_ttc) - achatPaidAmount(a))); if (amount <= 0) return false; }
