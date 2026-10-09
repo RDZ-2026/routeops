@@ -1366,22 +1366,23 @@ function txAllocated(t) { return round2(allocsForTx(t.id).reduce((s, a) => s + M
 function txOpen(t) { return round2(Math.abs(num(t.amount)) - txAllocated(t)); }
 function avoirsFor(d) { return db.fac_documents.filter(x => x.kind === 'avoir' && x.ref_document_id === d.id && x.statut === 'emise' && !x.deleted_at); }
 function docCredited(d) { return round2(avoirsFor(d).reduce((s, a) => s + num(a.total_ttc), 0)); }
-function docPaid(d) { return round2(allocsForDoc(d.id).reduce((s, a) => s + num(a.amount), 0)); }
-function docLastPaymentDate(d) { return allocsForDoc(d.id).filter(a => num(a.amount) > 0).map(a => a.pay_date).sort().pop() || null; }
-function docRemaining(d) { return round2(num(d.total_ttc) - docCredited(d) - docPaid(d)); }
+function docPaid(d) { return round2(allocsForDoc(d.id).filter(a => a.mode !== 'perte').reduce((s, a) => s + num(a.amount), 0)); }
+function docWrittenOff(d) { return round2(allocsForDoc(d.id).filter(a => a.mode === 'perte').reduce((s, a) => s + num(a.amount), 0)); }
+function docLastPaymentDate(d) { return allocsForDoc(d.id).filter(a => num(a.amount) > 0 && a.mode !== 'perte').map(a => a.pay_date).sort().pop() || null; }
+function docRemaining(d) { return round2(num(d.total_ttc) - docCredited(d) - docPaid(d) - docWrittenOff(d)); }
 // État calculé d'une facture : brouillon | annulee | creditee | payee | trop | partielle | retard | attente
 function invoiceState(d, today = todayISO()) {
   if (d.statut === 'brouillon') return 'brouillon';
   if (d.statut === 'annulee') return 'annulee';
   const rem = docRemaining(d);
   if (rem < -0.009) return 'trop';
-  if (rem <= 0.009) return docPaid(d) > 0.009 ? 'payee' : 'creditee';
+  if (rem <= 0.009) return docWrittenOff(d) > 0.009 ? 'perte' : docPaid(d) > 0.009 ? 'payee' : 'creditee';
   if (d.date_echeance && d.date_echeance < today) return 'retard';
   return docPaid(d) > 0 || docCredited(d) > 0 ? 'partielle' : 'attente';
 }
 const INV_BADGE = {
   brouillon: ['Brouillon', 'b-gray'], attente: ['En attente', 'b-blue'], partielle: ['Partiellement réglée', 'b-yellow'],
-  retard: ['En retard', 'b-red'], payee: ['Payée', 'b-green'], creditee: ['Créditée', 'b-gray'], trop: ['Trop-perçu à rembourser', 'b-orange'], annulee: ['Annulée', 'b-gray'],
+  retard: ['En retard', 'b-red'], payee: ['Payée', 'b-green'], creditee: ['Créditée', 'b-gray'], perte: ['Passée en perte', 'b-gray'], trop: ['Trop-perçu à rembourser', 'b-orange'], annulee: ['Annulée', 'b-gray'],
 };
 const DEV_BADGE = {
   brouillon: ['Brouillon', 'b-gray'], emise: ['Envoyé', 'b-blue'], accepte: ['Accepté', 'b-green'],
@@ -1752,11 +1753,11 @@ function paymentsCard(d) {
   const allocs = allocsForDoc(d.id).sort((a, b) => a.pay_date.localeCompare(b.pay_date));
   const avs = avoirsFor(d);
   const rows = allocs.map(a => { const t = a.tx_id ? db.fac_bank_tx.find(x => x.id === a.tx_id) : null;
-      const label = a.mode === 'reprise' ? 'Encaissement enregistré dans Bexio (en attente du relevé)' : a.mode === 'hors_banque' ? `Paiement hors banque${a.note ? ' — ' + esc(a.note) : ''}` : `${esc(t ? t.counterparty || 'Virement' : 'Virement')} <span class="sub">(${a.mode === 'auto' ? 'référence QR reconnue' : 'associé manuellement'})</span>`;
+      const label = a.mode === 'perte' ? `<b>Passée en perte</b>${a.note ? ' — ' + esc(a.note) : ''}` : a.mode === 'reprise' ? 'Encaissement enregistré dans Bexio (en attente du relevé)' : a.mode === 'hors_banque' ? `Paiement hors banque${a.note ? ' — ' + esc(a.note) : ''}` : `${esc(t ? t.counterparty || 'Virement' : 'Virement')} <span class="sub">(${a.mode === 'auto' ? 'référence QR reconnue' : 'associé manuellement'})</span>`;
       return `<div><span>${fmtDate(a.pay_date)} · ${num(a.amount) < 0 ? 'Remboursement · ' : ''}${label}</span><span><span class="mono">${fmtAmt(a.amount)}</span>${canWrite() ? ` <button class="btn-link" style="margin-left:8px" onclick="detachAlloc('${a.id}')">Détacher</button>` : ''}</span></div>`; })
     .concat(avs.map(a => `<div><span>${fmtDate(a.date_doc)} · Note de crédit ${esc(a.numero)}</span><span><button class="btn-link mono" onclick="openDoc('${a.id}')">${fmtAmt(a.total_ttc)}</button></span></div>`));
   const rem = docRemaining(d);
-  return `<div class="card" style="margin:16px 0 0;box-shadow:none"><div class="card-head"><div class="card-title">Règlements</div><div class="card-note">Payé ${chf(docPaid(d))}${docCredited(d) ? ` · crédité ${chf(docCredited(d))}` : ''} · reste ${chf(rem)}</div></div>
+  return `<div class="card" style="margin:16px 0 0;box-shadow:none"><div class="card-head"><div class="card-title">Règlements</div><div class="card-note">Payé ${chf(docPaid(d))}${docCredited(d) ? ` · crédité ${chf(docCredited(d))}` : ''}${docWrittenOff(d) ? ` · perte ${chf(docWrittenOff(d))}` : ''} · reste ${chf(rem)}</div></div>
     <div class="pay-list">${rows.join('') || '<div><span class="sub">Aucun paiement reçu pour l’instant.</span></div>'}</div>
     ${rem < -0.009 ? `<div class="lock-note" style="margin:10px 0 0">Trop-perçu de ${chf(-rem)} : remboursez le client puis associez le débit à cette facture dans Banque, ou vérifiez qu'un paiement n'a pas été associé par erreur.</div>` : ''}</div>`;
 }
@@ -1832,14 +1833,14 @@ function renderDocFoot() {
     if (w && d.kind === 'devis' && ['emise', 'accepte', 'refuse'].includes(d.statut)) f += `<button class="btn btn-danger" onclick="setDevisStatus('annulee')">Annuler le devis</button>`;
     f += `<span class="spacer"></span>`;
     if (w && d.kind !== 'avoir') f += `<button class="btn btn-ghost" onclick="duplicateDoc()">Dupliquer</button>`;
-    if (w && isF && d.statut === 'emise' && docRemaining(d) > 0.009) f += `<button class="btn btn-ghost" onclick="openCreditNote()">Établir une note de crédit</button><button class="btn btn-ghost" onclick="manualPayment()">Paiement hors banque</button>`;
+    if (w && isF && d.statut === 'emise' && docRemaining(d) > 0.009) f += `<button class="btn btn-ghost" onclick="openCreditNote()">Établir une note de crédit</button><button class="btn btn-ghost" onclick="manualPayment()">Paiement hors banque</button><button class="btn btn-ghost" onclick="writeOff()">Passer en perte</button>`;
     if (w && d.kind === 'devis' && d.statut === 'emise') f += `<button class="btn btn-ghost" onclick="setDevisStatus('refuse')">Refusé</button><button class="btn btn-ghost" onclick="setDevisStatus('accepte')">Accepté</button>`;
     if (w && d.kind === 'devis' && ['emise', 'accepte'].includes(d.statut)) f += `<button class="btn btn-dark" onclick="devisToInvoice()">Transformer en facture</button>`;
     if (w && d.legacy && !d.pdf_path) f += `<label class="btn btn-ghost" style="cursor:pointer">Joindre le PDF Bexio<input type="file" accept="application/pdf" style="display:none" onchange="attachLegacyPdf(this.files[0])"></label>`;
     if (w && !d.legacy && !d.pdf_path) f += `<button class="btn btn-ghost" onclick="archiveDocPdf(editDoc.id).then(()=>openDoc(editDoc.id))">Archiver le PDF</button>`;
     if (w && d._notesDirty) f += `<button class="btn btn-ghost" onclick="saveNotesOnly()">Enregistrer les notes</button>`;
     f += `<button class="btn btn-ghost" onclick="downloadDocPdf()">Télécharger le PDF</button>`;
-    if (w && d.statut !== 'annulee') f += `<button class="btn btn-primary" onclick="sendDoc()">Envoyer par e-mail</button>`;
+    if (w && d.statut !== 'annulee' && !(d.kind === 'facture' && invoiceState(d) === 'perte')) f += `<button class="btn btn-primary" onclick="sendDoc()">Envoyer par e-mail</button>`;
   }
   $('doc-foot').innerHTML = f;
 }
@@ -2022,6 +2023,23 @@ function manualPayment() {
     <div class="fg c12"><label class="flabel" for="g-note">Justification (obligatoire)</label><input class="finp" id="g-note" placeholder="Ex. compensation avec la facture fournisseur n° 123"></div></div>
     <div class="fhint" style="margin-top:8px">Ne saisissez pas ici un virement arrivé sur le compte PostFinance : il sera rapproché à l'import du relevé.</div>`,
     `<button class="btn btn-ghost" onclick="closeModal('m-gen')">Annuler</button><button class="btn btn-primary" onclick="confirmManualPayment()">Enregistrer</button>`);
+}
+function writeOff() {
+  const d = db.fac_documents.find(x => x.id === editDoc.id);
+  genModal('Passer en perte', `Facture ${d.numero} · reste dû ${chf(docRemaining(d))}`, `<div class="fgrid">
+    <div class="fg c6"><label class="flabel" for="g-amt">Montant perdu TTC</label><input class="finp mono" id="g-amt" value="${docRemaining(d).toFixed(2)}"></div>
+    <div class="fg c6"><label class="flabel" for="g-date">Date de comptabilisation</label><input class="finp" type="date" id="g-date" value="${todayISO()}"></div>
+    <div class="fg c12"><label class="flabel" for="g-note">Motif (obligatoire)</label><input class="finp" id="g-note" value="Faillite du débiteur"></div></div>
+    <div class="fhint" style="margin-top:8px">La facture reste dans le chiffre d'affaires ; la perte apparaît dans les exports et la TVA correspondante est proposée en correction dans le récapitulatif TVA. Si un dividende de faillite est versé plus tard, détachez la perte et ressaisissez-la pour le solde.</div>`,
+    `<button class="btn btn-ghost" onclick="closeModal('m-gen')">Annuler</button><button class="btn btn-danger" onclick="confirmWriteOff()">Passer en perte</button>`);
+}
+function confirmWriteOff() {
+  const d = db.fac_documents.find(x => x.id === editDoc.id);
+  const amt = round2(num($('g-amt').value)), note = $('g-note').value.trim();
+  if (amt <= 0 || amt > docRemaining(d) + 0.009) { toast(`Montant entre 0 et ${chf(docRemaining(d))}`, 'err'); return; }
+  if (!note) { toast('Indiquez le motif', 'err'); return; }
+  saveRow('fac_allocations', { id: uuid(), tx_id: null, document_id: d.id, achat_id: null, amount: amt, pay_date: $('g-date').value || todayISO(), mode: 'perte', note, created_by: userEmail() });
+  closeModal('m-gen'); openDoc(d.id); renderAll(); toast('Facture passée en perte');
 }
 function confirmManualPayment() {
   const d = db.fac_documents.find(x => x.id === editDoc.id);
@@ -2524,7 +2542,8 @@ function renderAnalyses() {
   const avgDelay = delays.length ? Math.round(delays.reduce((a, b) => a + b, 0) / delays.length) : null;
   const evo = caPrev > 0 ? Math.round((ca / caPrev - 1) * 100) : null;
   const nAv = caDocs(d => d.kind === 'avoir' && d.date_doc.startsWith(y)).length;
-  $('an-kpis').innerHTML = `<div class="kpi"><div class="kpi-label">CA HT net ${y}</div><div class="kpi-val">${chf0(ca)}</div><div class="kpi-sub">${inYear.length} factures${nAv ? `, ${nAv} note${nAv > 1 ? 's' : ''} de crédit` : ''}${evo != null ? ` · ${evo >= 0 ? '+' : ''}${evo} % vs ${prev}` : ''}</div></div>
+  const lossY = round2(db.fac_allocations.filter(a => a.mode === 'perte' && String(a.pay_date).startsWith(y)).reduce((s, a) => s + num(a.amount), 0));
+  $('an-kpis').innerHTML = `<div class="kpi"><div class="kpi-label">CA HT net ${y}</div><div class="kpi-val">${chf0(ca)}</div><div class="kpi-sub">${inYear.length} factures${nAv ? `, ${nAv} note${nAv > 1 ? 's' : ''} de crédit` : ''}${evo != null ? ` · ${evo >= 0 ? '+' : ''}${evo} % vs ${prev}` : ''}${lossY ? ` · pertes ${fmtAmt(lossY, 0)} TTC` : ''}</div></div>
     <div class="kpi"><div class="kpi-label">Encaissé / décaissé ${y}</div><div class="kpi-val">${chf0(credits - debits)}</div><div class="kpi-sub">+${fmtAmt(credits, 0)} / −${fmtAmt(debits, 0)} selon la banque</div></div>
     <div class="kpi"><div class="kpi-label">Délai moyen de paiement</div><div class="kpi-val">${avgDelay != null ? avgDelay + ' j' : '—'}</div><div class="kpi-sub">${delays.length ? `Sur ${delays.length} facture${delays.length > 1 ? 's' : ''} payée${delays.length > 1 ? 's' : ''} en ${y}` : 'Pas encore de facture payée'}</div></div>`;
   const months = Array.from({ length: 12 }, (_, i) => pad2(i + 1));
@@ -2579,11 +2598,11 @@ function exportVentes() {
   const r = exRange();
   const list = live('fac_documents').filter(d => (d.kind === 'facture' || d.kind === 'avoir') && d.statut !== 'brouillon' && inRange(d.date_doc, r)).sort((a, b) => a.date_doc.localeCompare(b.date_doc) || (a.kind > b.kind ? 1 : -1) || (a.seq || 0) - (b.seq || 0));
   const codes = codesUsed(list);
-  const rows = [['Type', 'Numéro', 'Facture d’origine', 'Date', 'Période du', 'Période au', 'Échéance', 'Client', 'Site', 'Objet', ...codes.flatMap(c => [`Base ${c.code}`, `TVA ${c.code}`]), 'Total HT', 'Total TVA', 'Total TTC', 'Statut', 'Montant encaissé', 'Date du dernier paiement', 'Référence QR', 'Transmise le', 'Motif d’annulation', 'PDF archivé (SHA-256)']];
+  const rows = [['Type', 'Numéro', 'Facture d’origine', 'Date', 'Période du', 'Période au', 'Échéance', 'Client', 'Site', 'Objet', ...codes.flatMap(c => [`Base ${c.code}`, `TVA ${c.code}`]), 'Total HT', 'Total TVA', 'Total TTC', 'Statut', 'Montant encaissé', 'Perte sur débiteur', 'Date du dernier paiement', 'Référence QR', 'Transmise le', 'Motif d’annulation', 'PDF archivé (SHA-256)']];
   list.forEach(d => { const s = d.kind === 'avoir' ? -1 : 1; const t = docTotals(d); const ref = d.kind === 'avoir' ? db.fac_documents.find(x => x.id === d.ref_document_id) : null;
     rows.push([d.kind === 'avoir' ? 'Note de crédit' : 'Facture', d.numero, ref ? ref.numero : '', fmtDate(d.date_doc), d.periode_debut ? fmtDate(d.periode_debut) : '', d.periode_fin ? fmtDate(d.periode_fin) : '', d.kind === 'avoir' ? '' : fmtDate(d.date_echeance), docClientName(d), d.site || '', d.titre || '',
       ...codes.flatMap(c => { const b = t.breakdown.find(x => x.code === c.code); return [s * (b ? b.base : 0), s * (b ? b.tva : 0)]; }),
-      s * t.ht, s * t.tva, s * t.ttc, d.kind === 'avoir' ? 'Émise' : INV_BADGE[invoiceState(d)][0], d.kind === 'avoir' ? 0 : docPaid(d), d.kind === 'avoir' ? '' : (docLastPaymentDate(d) ? fmtDate(docLastPaymentDate(d)) : ''),
+      s * t.ht, s * t.tva, s * t.ttc, d.kind === 'avoir' ? 'Émise' : INV_BADGE[invoiceState(d)][0], d.kind === 'avoir' ? 0 : docPaid(d), d.kind === 'avoir' ? 0 : docWrittenOff(d), d.kind === 'avoir' ? '' : (docLastPaymentDate(d) ? fmtDate(docLastPaymentDate(d)) : ''),
       d.reference || '', d.sent_at ? fmtDate(d.sent_at) : '', d.cancelled_reason || '', d.pdf_sha256 || '']); });
   download(exportName('ventes'), csv(rows), 'text/csv;charset=utf-8'); toast(`${list.length} document(s) exporté(s)`);
 }
@@ -2644,13 +2663,16 @@ function renderExport() {
   const codes = {};
   docs.forEach(d => { const s = d.kind === 'avoir' ? -1 : 1; docTotals(d).breakdown.forEach(b => { const c = codes[b.code] = codes[b.code] || { base: 0, tva: 0, abase: 0, atva: 0 }; c.base += s * b.base; c.tva += s * b.tva; }); });
   ach.forEach(a => { const k = a.tva_code || codeForRate(a.tva_rate); const c = codes[k] = codes[k] || { base: 0, tva: 0, abase: 0, atva: 0 }; c.abase += num(a.montant_ht); c.atva += num(a.montant_tva); });
+  const loss = { ttc: 0, tva: 0 };
+  db.fac_allocations.filter(a => a.mode === 'perte' && inRange(a.pay_date, r)).forEach(a => { const d = db.fac_documents.find(x => x.id === a.document_id); if (!d || !num(d.total_ttc)) return; loss.ttc = round2(loss.ttc + num(a.amount)); loss.tva = round2(loss.tva + num(a.amount) * num(d.total_tva) / num(d.total_ttc)); });
   const keys = tvaCodes.map(c => c.code).filter(k => codes[k]);
   if (!keys.length) { $('ex-tva').innerHTML = '<div class="empty">Aucune facture ni achat sur cette période.</div>'; return; }
   const sum = f => keys.reduce((s, k) => s + codes[k][f], 0);
   $('ex-tva').innerHTML = `<div class="tbl-wrap" style="box-shadow:none"><table class="tbl"><thead><tr><th>Traitement TVA</th><th class="num">Ventes HT (net des NC)</th><th class="num">TVA facturée</th><th class="num">Achats HT</th><th class="num">TVA sur achats</th></tr></thead>
     <tbody>${keys.map(k => `<tr><td>${esc(tvaCode(k).label)}</td><td class="num">${fmtAmt(codes[k].base)}</td><td class="num">${fmtAmt(codes[k].tva)}</td><td class="num">${fmtAmt(codes[k].abase)}</td><td class="num">${fmtAmt(codes[k].atva)}</td></tr>`).join('')}</tbody>
     <tfoot><tr><td>Total</td><td class="num">${fmtAmt(sum('base'))}</td><td class="num">${fmtAmt(sum('tva'))}</td><td class="num">${fmtAmt(sum('abase'))}</td><td class="num">${fmtAmt(sum('atva'))}</td></tr></tfoot></table></div>
-    <div class="fhint" style="margin-top:8px">Solde indicatif en méthode effective (contre-prestations convenues) : ${chf(sum('tva') - sum('atva'))}. Les catégories TVA et la méthode de décompte sont à valider avec la fiduciaire.</div>`;
+    ${loss.ttc ? `<div class="info-note" style="margin-top:10px">Pertes sur débiteurs comptabilisées sur la période : ${chf(loss.ttc)} TTC, dont TVA ${chf(loss.tva)} à porter en diminution de la TVA due (art. 41 LTVA, à confirmer par la fiduciaire).</div>` : ''}
+    <div class="fhint" style="margin-top:8px">Solde indicatif en méthode effective (contre-prestations convenues) : ${chf(sum('tva') - sum('atva') - loss.tva)}${loss.tva ? ', après correction des pertes' : ''}. Les catégories TVA et la méthode de décompte sont à valider avec la fiduciaire.</div>`;
 }
 
 // ════════════════════════════════════════
