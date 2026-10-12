@@ -419,7 +419,15 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px;}
           </div>
         </div>
         <div class="card">
-          <div class="card-head"><div class="card-title">Fichiers</div></div>
+          <div class="card-head"><div><div class="card-title">Envoi mensuel à la fiduciaire</div><div class="card-note">Factures par numéro croissant, encaissements et achats en Excel, avec tous les PDF</div></div></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button class="btn btn-primary" id="btn-package" onclick="exportPackageFiduciaire()">Paquet mensuel (Excel + PDF)</button>
+            <button class="btn btn-ghost" onclick="exportExcelFiduciaire()">Excel seul</button>
+          </div>
+          <p class="fhint" style="margin-top:10px">Le ZIP contient le classeur Excel (onglets Factures, Encaissements, Achats), les PDF archivés des factures et notes de crédit numérotés dans l'ordre, et les pièces des achats. Un fichier « À lire » signale ce qui manque.</p>
+        </div>
+        <div class="card">
+          <div class="card-head"><div class="card-title">Autres formats</div></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-dark" onclick="exportVentes()">Ventes (factures)</button>
             <button class="btn btn-dark" onclick="exportAchats()">Achats</button>
@@ -2596,7 +2604,7 @@ function exportName(kind) { const [a, b] = exRange(); return `RDZ_${kind}_${a}_$
 function codesUsed(docs) { const s = new Set(); docs.forEach(d => docTotals(d).breakdown.forEach(b => s.add(b.code))); return tvaCodes.filter(c => s.has(c.code)); }
 function exportVentes() {
   const r = exRange();
-  const list = live('fac_documents').filter(d => (d.kind === 'facture' || d.kind === 'avoir') && d.statut !== 'brouillon' && inRange(d.date_doc, r)).sort((a, b) => a.date_doc.localeCompare(b.date_doc) || (a.kind > b.kind ? 1 : -1) || (a.seq || 0) - (b.seq || 0));
+  const list = salesDocsInRange(r);
   const codes = codesUsed(list);
   const rows = [['Type', 'Numéro', 'Facture d’origine', 'Date', 'Période du', 'Période au', 'Échéance', 'Client', 'Site', 'Objet', ...codes.flatMap(c => [`Base ${c.code}`, `TVA ${c.code}`]), 'Total HT', 'Total TVA', 'Total TTC', 'Statut', 'Montant encaissé', 'Perte sur débiteur', 'Date du dernier paiement', 'Référence QR', 'Transmise le', 'Motif d’annulation', 'PDF archivé (SHA-256)']];
   list.forEach(d => { const s = d.kind === 'avoir' ? -1 : 1; const t = docTotals(d); const ref = d.kind === 'avoir' ? db.fac_documents.find(x => x.id === d.ref_document_id) : null;
@@ -2752,6 +2760,151 @@ async function removeMember(email) {
   if (!confirm(`Retirer l'accès de ${email} ?`)) return;
   try { await sb(`fac_members?email=eq.${encodeURIComponent(email)}`, { method: 'DELETE' }); members = await sb('fac_members?select=*&order=email.asc'); persist(); renderSettings(); toast('Accès retiré'); }
   catch (e) { toast(e.message, 'err'); }
+}
+
+// ════════════════════════════════════════
+//  ZIP (méthode « stored ») et XLSX sans dépendance externe
+// ════════════════════════════════════════
+const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(bytes) { let c = 0xFFFFFFFF; for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+async function toBytes(data) {
+  if (data instanceof Uint8Array) return data;
+  if (data instanceof Blob) return new Uint8Array(await data.arrayBuffer());
+  return new TextEncoder().encode(String(data));
+}
+async function buildZip(files) {
+  const enc = new TextEncoder(); const parts = []; const central = []; let offset = 0;
+  const now = new Date();
+  const dosTime = (now.getHours() << 11) | (now.getMinutes() << 5) | (now.getSeconds() >> 1);
+  const dosDate = ((now.getFullYear() - 1980) << 9) | ((now.getMonth() + 1) << 5) | now.getDate();
+  for (const f of files) {
+    const name = enc.encode(f.name); const data = await toBytes(f.data); const crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+    h.setUint16(10, dosTime, true); h.setUint16(12, dosDate, true); h.setUint32(14, crc, true);
+    h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true); h.setUint16(28, 0, true);
+    parts.push(new Uint8Array(h.buffer), name, data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+    c.setUint16(12, dosTime, true); c.setUint16(14, dosDate, true); c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true);
+    c.setUint16(28, name.length, true); c.setUint32(42, offset, true);
+    central.push(new Uint8Array(c.buffer), name);
+    offset += 30 + name.length + data.length;
+  }
+  const cdSize = central.reduce((s, p) => s + p.length, 0);
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true);
+  e.setUint32(12, cdSize, true); e.setUint32(16, offset, true);
+  return new Blob([...parts, ...central, new Uint8Array(e.buffer)], { type: 'application/zip' });
+}
+function xmlEsc(s) { return String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, ''); }
+function colName(i) { let s = ''; i++; while (i) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; }
+function excelDate(iso) { const [y, m, d] = iso.slice(0, 10).split('-').map(Number); return (Date.UTC(y, m - 1, d) - Date.UTC(1899, 11, 30)) / 86400000; }
+// sheets : [{ name, columns: [{ title, type: 'text'|'num'|'date', width }], rows: [[...]] }]
+async function buildXlsx(sheets) {
+  const sheetXml = sh => {
+    const cols = `<cols>${sh.columns.map((c, i) => `<col min="${i + 1}" max="${i + 1}" width="${c.width || 14}" customWidth="1"/>`).join('')}</cols>`;
+    const head = `<row r="1">${sh.columns.map((c, i) => `<c r="${colName(i)}1" t="inlineStr" s="1"><is><t>${xmlEsc(c.title)}</t></is></c>`).join('')}</row>`;
+    const body = sh.rows.map((r, ri) => `<row r="${ri + 2}">${r.map((v, ci) => {
+      const ref = `${colName(ci)}${ri + 2}`, type = sh.columns[ci].type;
+      if (v === null || v === undefined || v === '') return '';
+      if (type === 'num') return `<c r="${ref}" s="2"><v>${round2(num(v))}</v></c>`;
+      if (type === 'date') return `<c r="${ref}" s="3"><v>${excelDate(v)}</v></c>`;
+      return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`;
+    }).join('')}</row>`).join('');
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>${cols}<sheetData>${head}${body}</sheetData></worksheet>`;
+  };
+  const files = [
+    { name: '[Content_Types].xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>` },
+    { name: '_rels/.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+    { name: 'xl/workbook.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((s, i) => `<sheet name="${xmlEsc(s.name.slice(0, 31))}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>` },
+    { name: 'xl/_rels/workbook.xml.rels', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>` },
+    { name: 'xl/styles.xml', data: `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0.00"/><numFmt numFmtId="165" formatCode="dd.mm.yyyy"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEDEDED"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>` },
+    ...sheets.map((s, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: sheetXml(s) })),
+  ];
+  const zip = await buildZip(files);
+  return new Blob([zip], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+}
+
+// ════════════════════════════════════════
+//  PAQUET MENSUEL POUR LA FIDUCIAIRE
+// ════════════════════════════════════════
+// Tri par numéro croissant : année du numéro, puis séquence ; les notes de crédit après les factures
+function numSortKey(d) { const n = String(d.numero || '').replace(/^NC/, ''); return [d.kind === 'avoir' ? 1 : 0, +n.slice(-6, -2) || 0, d.seq || +n.slice(0, -6) || 0]; }
+function byNumero(a, b) { const x = numSortKey(a), y = numSortKey(b); return x[0] - y[0] || x[1] - y[1] || x[2] - y[2]; }
+function salesDocsInRange(r) { return live('fac_documents').filter(d => (d.kind === 'facture' || d.kind === 'avoir') && d.statut !== 'brouillon' && inRange(d.date_doc, r)).sort(byNumero); }
+function fiduciarySheets(r) {
+  const docs = salesDocsInRange(r);
+  const codes = codesUsed(docs);
+  const facCols = [{ title: 'Type', width: 14 }, { title: 'N° facture', width: 13 }, { title: 'Facture d’origine', width: 13 }, { title: 'Date', type: 'date', width: 11 }, { title: 'Échéance', type: 'date', width: 11 },
+    { title: 'Client', width: 34 }, { title: 'Objet', width: 40 }, { title: 'Période du', type: 'date', width: 11 }, { title: 'Période au', type: 'date', width: 11 }, { title: 'Site', width: 14 },
+    ...codes.flatMap(c => [{ title: `Base ${num(c.rate) ? c.rate + ' %' : c.code}`, type: 'num' }, { title: `TVA ${num(c.rate) ? c.rate + ' %' : c.code}`, type: 'num' }]),
+    { title: 'Total HT', type: 'num' }, { title: 'TVA', type: 'num' }, { title: 'Total TTC', type: 'num' }, { title: 'Statut au jour de l’export', width: 22 }, { title: 'Encaissé', type: 'num' }, { title: 'Perte', type: 'num' },
+    { title: 'Reste dû', type: 'num' }, { title: 'Référence QR', width: 30 }, { title: 'Motif d’annulation', width: 24 }];
+  const facRows = docs.map(d => { const s = d.kind === 'avoir' ? -1 : 1; const t = docTotals(d); const ref = d.kind === 'avoir' ? db.fac_documents.find(x => x.id === d.ref_document_id) : null; const ann = d.statut === 'annulee';
+    return [d.kind === 'avoir' ? 'Note de crédit' : ann ? 'Facture annulée' : 'Facture', d.numero, ref ? ref.numero : '', d.date_doc, d.kind === 'avoir' ? '' : d.date_echeance, docClientName(d), d.titre || '',
+      d.periode_debut || '', d.periode_fin || '', d.site || '',
+      ...codes.flatMap(c => { const b = t.breakdown.find(x => x.code === c.code); return [ann ? 0 : s * (b ? b.base : 0), ann ? 0 : s * (b ? b.tva : 0)]; }),
+      ann ? 0 : s * t.ht, ann ? 0 : s * t.tva, ann ? 0 : s * t.ttc, d.kind === 'avoir' ? 'Émise' : INV_BADGE[invoiceState(d)][0],
+      d.kind === 'avoir' ? '' : docPaid(d), d.kind === 'avoir' ? '' : docWrittenOff(d), d.kind === 'avoir' || ann ? '' : Math.max(0, docRemaining(d)), d.reference || '', d.cancelled_reason || '']; });
+  // Encaissements de la période : ventilations bancaires et hors banque, plus les crédits non rapprochés
+  const encRows = [];
+  db.fac_allocations.filter(a => a.document_id && a.mode !== 'perte' && inRange(a.pay_date, r)).sort((a, b) => a.pay_date.localeCompare(b.pay_date)).forEach(a => {
+    const d = db.fac_documents.find(x => x.id === a.document_id); const t = a.tx_id ? db.fac_bank_tx.find(x => x.id === a.tx_id) : null;
+    encRows.push([a.pay_date, num(a.amount), d ? d.numero : '', d ? docClientName(d) : '', d ? num(d.total_ttc) : '', d ? round2(num(d.total_ttc) - num(a.amount)) : '', t ? t.counterparty || '' : '',
+      { auto: 'Banque — référence QR', manuel: 'Banque — associé manuellement', hors_banque: 'Hors banque', reprise: 'Encaissement Bexio' }[a.mode] || a.mode, t ? t.reference || '' : '', a.note || '']); });
+  db.fac_bank_tx.filter(t => t.amount > 0 && inRange(t.booking_date, r) && txOpen(t) > 0.009 && t.category !== INTERNAL_CATEGORY).forEach(t => encRows.push([t.booking_date, txOpen(t), '', '', '', '', t.counterparty || '', 'NON RAPPROCHÉ' + (t.category ? ' — ' + t.category : ''), t.reference || '', t.remittance || t.info || '']));
+  encRows.sort((a, b) => a[0].localeCompare(b[0]));
+  db.fac_allocations.filter(a => a.mode === 'perte' && inRange(a.pay_date, r)).forEach(a => { const d = db.fac_documents.find(x => x.id === a.document_id);
+    encRows.push([a.pay_date, num(a.amount), d ? d.numero : '', d ? docClientName(d) : '', d ? num(d.total_ttc) : '', '', '', 'PERTE SUR DÉBITEUR', '', a.note || '']); });
+  const encCols = [{ title: 'Date', type: 'date', width: 11 }, { title: 'Montant', type: 'num' }, { title: 'N° facture', width: 13 }, { title: 'Client', width: 34 }, { title: 'Montant de la facture', type: 'num', width: 16 },
+    { title: 'Écart facture − encaissement', type: 'num', width: 16 }, { title: 'Payeur (relevé)', width: 30 }, { title: 'Origine', width: 26 }, { title: 'Référence', width: 30 }, { title: 'Note', width: 34 }];
+  const ach = live('fac_achats').filter(a => inRange(a.date_facture, r)).sort((a, b) => a.date_facture.localeCompare(b.date_facture));
+  const achCols = [{ title: 'Date', type: 'date', width: 11 }, { title: 'Fournisseur', width: 30 }, { title: 'N° facture', width: 14 }, { title: 'Catégorie', width: 22 }, { title: 'Site', width: 14 }, { title: 'Code TVA', width: 9 },
+    { title: 'HT', type: 'num' }, { title: 'TVA', type: 'num' }, { title: 'TTC', type: 'num' }, { title: 'Échéance', type: 'date', width: 11 }, { title: 'Statut', width: 12 }, { title: 'Payé le', type: 'date', width: 11 }, { title: 'Pièce', width: 30 }];
+  const achRows = ach.map(a => [a.date_facture, a.fournisseur, a.numero_facture || '', a.categorie || '', a.site || '', a.tva_code || codeForRate(a.tva_rate), num(a.montant_ht), num(a.montant_tva), num(a.montant_ttc),
+    a.date_echeance || '', ACH_BADGE[achatState(a)][0], achatPaidDate(a) || '', a.piece_path ? achatPieceName(a) : 'MANQUANTE']);
+  return { docs, ach, sheets: [{ name: 'Factures', columns: facCols, rows: facRows }, { name: 'Encaissements', columns: encCols, rows: encRows }, { name: 'Achats', columns: achCols, rows: achRows }] };
+}
+function achatPieceName(a) { const ext = (String(a.piece_path).match(/\.[a-z0-9]+$/i) || ['.pdf'])[0]; return `${a.date_facture}_${safeFile(a.fournisseur)}${a.numero_facture ? '_' + safeFile(a.numero_facture) : ''}${ext}`; }
+function periodLabel(r) { return r[0].slice(0, 7) === r[1].slice(0, 7) ? r[0].slice(0, 7) : `${r[0]}_${r[1]}`; }
+async function exportExcelFiduciaire() {
+  const r = exRange(); const { docs, sheets } = fiduciarySheets(r);
+  download(`RDZ_fiduciaire_${periodLabel(r)}.xlsx`, await buildXlsx(sheets), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  toast(`Excel : ${docs.length} document(s), ${sheets[1].rows.length} encaissement(s), ${sheets[2].rows.length} achat(s)`);
+}
+async function fetchStored(path) {
+  await ensureToken();
+  const res = await fetch(`${SB_URL}/storage/v1/object/authenticated/${STORAGE_BUCKET}/${path}`, { headers: { apikey: SB_KEY, Authorization: `Bearer ${session.access_token}` } });
+  if (!res.ok) throw new Error('Fichier introuvable : ' + path);
+  return res.blob();
+}
+async function exportPackageFiduciaire() {
+  if (!navigator.onLine) { toast('Connexion requise pour réunir les PDF archivés', 'err'); return; }
+  const r = exRange(); const label = periodLabel(r);
+  const { docs, ach, sheets } = fiduciarySheets(r);
+  if (!docs.length && !ach.length) { toast('Aucune facture ni achat sur cette période', 'err'); return; }
+  const btn = $('btn-package'); btn.disabled = true;
+  const files = [], issues = [];
+  try {
+    files.push({ name: `RDZ_fiduciaire_${label}.xlsx`, data: await buildXlsx(sheets) });
+    for (let i = 0; i < docs.length; i++) {
+      const d = docs[i]; btn.textContent = `PDF ${i + 1}/${docs.length}…`;
+      let blob = null;
+      if (d.pdf_path) { try { blob = await fetchArchivedPdf(d); } catch (e) { issues.push(`${d.numero} : ${e.message}`); } }
+      if (!blob) { blob = buildPdf([d]).output('blob'); if (!d.pdf_path) issues.push(`${d.numero} : PDF non archivé, régénéré à partir des données`); }
+      files.push({ name: `factures/${String(i + 1).padStart(3, '0')}_${docFileName(d)}`, data: blob });
+    }
+    for (let i = 0; i < ach.length; i++) {
+      const a = ach[i]; if (!a.piece_path) { issues.push(`Achat ${a.fournisseur} du ${fmtDate(a.date_facture)} : pièce manquante`); continue; }
+      btn.textContent = `Pièces ${i + 1}/${ach.length}…`;
+      try { files.push({ name: `achats/${achatPieceName(a)}`, data: await fetchStored(a.piece_path) }); } catch (e) { issues.push(e.message); }
+    }
+    if (issues.length) files.push({ name: 'A_LIRE_points_a_verifier.txt', data: issues.join('\r\n') });
+    download(`RDZ_fiduciaire_${label}.zip`, await buildZip(files), 'application/zip');
+    toast(`Paquet prêt : ${docs.length} facture(s), ${ach.filter(a => a.piece_path).length} pièce(s) d'achat${issues.length ? ` · ${issues.length} point(s) à vérifier` : ''}`, issues.length ? 'err' : 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+  btn.disabled = false; btn.textContent = 'Paquet mensuel (Excel + PDF)';
 }
 
 // ════════════════════════════════════════
