@@ -151,6 +151,20 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.5}
 .wl-av{width:46px;height:46px;border-radius:50%;background:var(--anthracite);color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:16px}
 .wl-name{font-weight:700;font-size:16px;line-height:1.25}
 .wl-meta{font-size:14px;color:var(--text2)}
+.wl-av.out{background:#f2f3f5;color:var(--text2);border:1.5px solid var(--border2)}
+.wl-note{font-size:15px;color:var(--text);margin-top:3px;white-space:pre-line}
+/* Agent picker */
+.pick-search{margin-bottom:10px}
+.pick-list{max-height:min(52vh,420px);overflow-y:auto;border:1px solid var(--border);border-radius:10px}
+.pick-row{display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);cursor:pointer}
+.pick-row:last-child{border-bottom:none}
+.pick-row:hover{background:#f7f8f9}
+.pick-row input{width:18px;height:18px;accent-color:var(--accent);flex-shrink:0}
+.pick-row.done{opacity:.5;cursor:default}
+.pick-name{font-weight:600;font-size:14.5px;line-height:1.25}
+.pick-meta{font-size:12.5px;color:var(--text2)}
+.pick-empty{padding:24px;text-align:center;color:var(--text3);font-size:14px}
+.modal.wide{max-width:520px}
 
 /* Missions current */
 .missions{display:flex;flex-direction:column}
@@ -642,6 +656,7 @@ function emptyContent(){
     infos: [],
     birthdays: [],
     welcome: [],
+    farewell: [],
     missions_current: [],
     missions_upcoming: [],
     safety: { title: '', body: '' },
@@ -657,6 +672,7 @@ function normalize(c){
     infos: Array.isArray(c.infos) ? c.infos : [],
     birthdays: Array.isArray(c.birthdays) ? c.birthdays : [],
     welcome: Array.isArray(c.welcome) ? c.welcome : [],
+    farewell: Array.isArray(c.farewell) ? c.farewell : [],
     missions_current: Array.isArray(c.missions_current) ? c.missions_current : [],
     missions_upcoming: Array.isArray(c.missions_upcoming) ? c.missions_upcoming : [],
     safety: { ...e.safety, ...(c.safety || {}) },
@@ -797,6 +813,17 @@ function renderIssue(animate){
     h += `</div></section>`;
   }
 
+  // Farewell
+  const fw = c.farewell.filter(w => (w.name || '').trim());
+  if (fw.length){
+    h += `<section class="sec"><h2 class="sec-title"><span class="ico">🤝</span>Merci et bonne route</h2>
+      <p class="sec-intro">${fw.length > 1 ? 'Ils quittent' : 'Un collègue quitte'} l'équipe RDZ. Merci pour le travail accompli ensemble.</p><div class="welcome">`;
+    fw.forEach(w => {
+      h += `<div class="wl"><div class="wl-av out">${esc(initials(w.name))}</div><div><div class="wl-name">${esc(w.name)}</div>${w.role ? `<div class="wl-meta">${esc(w.role)}</div>` : ''}${w.note ? `<div class="wl-note">${esc(w.note)}</div>` : ''}</div></div>`;
+    });
+    h += `</div></section>`;
+  }
+
   // Missions current
   const cur = c.missions_current.filter(x => (x.name || '').trim());
   if (cur.length){
@@ -871,6 +898,11 @@ const LIST_SCHEMAS = {
     { k: 'role', l: 'Fonction' },
     { k: 'site', l: 'Site / affectation' }
   ], blank: () => ({ name: '', role: 'Agent de sécurité', site: '' }) },
+  farewell: { label: 'Départ', fields: [
+    { k: 'name', l: 'Nom affiché' },
+    { k: 'role', l: 'Fonction' },
+    { k: 'note', l: 'Petit mot (facultatif)', type: 'textarea' }
+  ], blank: () => ({ name: '', role: 'Agent de sécurité', note: '' }) },
   missions_current: { label: 'Mission', fields: [
     { k: 'name', l: 'Nom de la mission' },
     { k: 'type', l: 'Type', type: 'select', opts: Object.fromEntries(Object.entries(MISSION_TYPES).map(([k, v]) => [k, v.label])) },
@@ -905,7 +937,7 @@ function listHTML(key, items){
       <button class="mini del" title="Supprimer" aria-label="Supprimer" data-del="${key}.${i}">✕</button></div>
       ${s.row ? `<div class="row2">${fields.join('')}</div>` : fields.join('')}</div>`;
   });
-  h += `<button class="ed-add" data-add="${key}">+ Ajouter ${s.label.toLowerCase() === 'info' ? 'une info' : s.label === 'Anniversaire' ? 'un anniversaire' : s.label === 'Nouvel agent' ? 'un nouvel agent' : 'une mission'}</button>`;
+  h += `<button class="ed-add" data-add="${key}">+ Ajouter ${s.label.toLowerCase() === 'info' ? 'une info' : s.label === 'Anniversaire' ? 'un anniversaire' : s.label === 'Nouvel agent' ? 'un nouvel agent' : s.label === 'Départ' ? 'un départ' : 'une mission'}</button>`;
   return h;
 }
 function group(title, count, inner, open){
@@ -940,7 +972,12 @@ function renderEditor(){
     `<p class="ed-hint">Seuls le prénom et le jour sont publiés — jamais l'année ni l'âge.</p>
      <div class="ed-tools"><button class="btn btn-ghost btn-sm" id="imp-rh">Importer depuis RH</button></div>` + listHTML('birthdays', c.birthdays), isOpen('bdays', false)).replace('<details', '<details data-k="bdays"');
 
-  h += group('👋 Bienvenue', c.welcome.length, listHTML('welcome', c.welcome), isOpen('welcome', false)).replace('<details', '<details data-k="welcome"');
+  h += group('👋 Bienvenue', c.welcome.length,
+    `<div class="ed-tools"><button class="btn btn-ghost btn-sm" data-pick="welcome">Choisir dans RH</button></div>` + listHTML('welcome', c.welcome), isOpen('welcome', false)).replace('<details', '<details data-k="welcome"');
+
+  h += group('🤝 Départs', c.farewell.length,
+    `<p class="ed-hint warn">La lettre est publique : ne mentionnez jamais le motif d'un départ. Retirez simplement la personne si le départ s'est mal passé.</p>
+     <div class="ed-tools"><button class="btn btn-ghost btn-sm" data-pick="farewell">Choisir parmi les agents partis</button></div>` + listHTML('farewell', c.farewell), isOpen('farewell', false)).replace('<details', '<details data-k="farewell"');
 
   h += group('🛡️ Missions en cours', c.missions_current.length,
     `<p class="ed-hint warn">Vérifiez la confidentialité avant publication (protection rapprochée, clients sensibles) : renommez ou retirez ce qui ne doit pas circuler.</p>
@@ -1006,6 +1043,7 @@ function onEditorClick(e){
   if (t.id === 'ed-delete'){ deleteIssue(); return; }
   if (t.id === 'imp-rh'){ importRH(); return; }
   if (t.id === 'imp-crm'){ importCRM(); return; }
+  if (t.dataset.pick){ openAgentPicker(t.dataset.pick); return; }
   if (t.dataset.add){
     const key = t.dataset.add;
     mutate(c => c[key].push(LIST_SCHEMAS[key].blank()), { rerenderEditor: true });
@@ -1134,6 +1172,71 @@ function displayName(prenom, nom){
   const p = String(prenom || '').trim();
   const n = String(nom || '').trim();
   return n ? `${p} ${n.charAt(0).toUpperCase()}.`.trim() : p;
+}
+// Agent picker: choose arrivals (active agents) or departures (agents marked "parti") from RH
+function fmtDate(d){
+  if (!d) return '';
+  const [y, m, dd] = String(d).slice(0, 10).split('-').map(Number);
+  return `${dd} ${MONTHS_SHORT[m - 1]} ${y}`;
+}
+async function openAgentPicker(kind){
+  if (!navigator.onLine){ toast('La liste RH n\'est pas disponible hors ligne. Ajoutez la personne à la main.'); return; }
+  const isOut = kind === 'farewell';
+  $('modal-root').innerHTML = `<div class="modal-bg" id="mbg"><div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="mt">
+    <h3 id="mt">${isOut ? 'Agents partis' : 'Choisir les nouveaux agents'}</h3>
+    <p>${isOut ? 'Agents marqués « Parti » dans RH, les plus récents en premier.' : 'Agents actifs dans RH, les dernières embauches en premier.'}</p>
+    <input class="inp pick-search" id="pick-q" type="search" placeholder="Rechercher un nom" aria-label="Rechercher un agent">
+    <div class="pick-list" id="pick-list"><div class="pick-empty"><div class="spinner"></div>Chargement de la liste RH…</div></div>
+    <div class="modal-actions"><button class="btn btn-ghost" id="m-cancel">Annuler</button><button class="btn btn-primary" id="m-ok" disabled>Ajouter</button></div>
+  </div></div>`;
+  $('m-cancel').onclick = closeModal;
+  $('mbg').onclick = e => { if (e.target.id === 'mbg') closeModal(); };
+  let agents = [];
+  try {
+    const rows = await sb(`rh_agents?select=id,prenom,nom,fonction,statut,date_embauche,date_depart&statut=eq.${isOut ? 'parti' : 'actif'}`) || [];
+    const dateKey = isOut ? 'date_depart' : 'date_embauche';
+    agents = rows.sort((a, b) => String(b[dateKey] || '').localeCompare(String(a[dateKey] || '')) || String(a.nom || '').localeCompare(String(b.nom || '')));
+  } catch(e){
+    console.error('openAgentPicker', e);
+    if (!$('pick-list')) return;
+    $('pick-list').innerHTML = `<div class="pick-empty">Liste RH indisponible : ${esc(e.message)}</div>`;
+    return;
+  }
+  if (!$('pick-list')) return; // modal closed meanwhile
+  const c = normalize(issues[currentId].content);
+  const already = new Set(c[kind].map(x => (x.name || '').trim().toLowerCase()));
+  const fullName = a => `${a.prenom || ''} ${a.nom || ''}`.trim();
+  const draw = () => {
+    const q = $('pick-q').value.trim().toLowerCase();
+    const list = agents.filter(a => !q || fullName(a).toLowerCase().includes(q));
+    if (!list.length){ $('pick-list').innerHTML = `<div class="pick-empty">${agents.length ? 'Aucun agent ne correspond.' : (isOut ? 'Aucun agent marqué « Parti » dans RH.' : 'Aucun agent actif dans RH.')}</div>`; return; }
+    $('pick-list').innerHTML = list.map(a => {
+      const done = already.has(fullName(a).toLowerCase());
+      const d = isOut ? a.date_depart : a.date_embauche;
+      const meta = [a.fonction, d ? (isOut ? 'parti le ' : 'arrivé le ') + fmtDate(d) : ''].filter(Boolean).map(esc).join(' — ');
+      return `<label class="pick-row${done ? ' done' : ''}"><input type="checkbox" value="${esc(a.id)}"${done ? ' checked disabled' : ''}>
+        <span><span class="pick-name">${esc(fullName(a))}</span>${done ? ' <span class="pick-meta">· déjà dans la lettre</span>' : ''}<br><span class="pick-meta">${meta}</span></span></label>`;
+    }).join('');
+  };
+  const selected = new Set();
+  draw();
+  $('pick-q').addEventListener('input', () => { draw(); selected.forEach(id => { const cb = $('pick-list').querySelector(`input[value="${CSS.escape(id)}"]`); if (cb) cb.checked = true; }); });
+  $('pick-list').addEventListener('change', e => {
+    if (e.target.type !== 'checkbox') return;
+    if (e.target.checked) selected.add(e.target.value); else selected.delete(e.target.value);
+    $('m-ok').disabled = !selected.size;
+    $('m-ok').textContent = selected.size ? `Ajouter (${selected.size})` : 'Ajouter';
+  });
+  $('m-ok').onclick = () => {
+    const picked = agents.filter(a => selected.has(String(a.id)));
+    const items = picked.map(a => isOut
+      ? { name: fullName(a), role: a.fonction || 'Agent de sécurité', note: '' }
+      : { name: fullName(a), role: a.fonction || 'Agent de sécurité', site: '' });
+    mutate(cc => cc[kind].push(...items), { rerenderEditor: true });
+    closeModal();
+    toast(`${items.length} ${isOut ? 'départ(s)' : 'arrivée(s)'} ajouté(s). Complétez si besoin.`);
+  };
+  setTimeout(() => $('pick-q').focus(), 30);
 }
 async function importRH(){
   if (!navigator.onLine){ toast('Import impossible hors ligne.'); return; }
