@@ -764,7 +764,7 @@ function renderIssue(animate){
     </div>
     <div class="mast-hero">
       <div class="mast-kicker">Les nouvelles de</div>
-      <div class="mast-month">${brushSVG(animate)}<h1>${esc(capitalize(MONTHS[m - 1]))}<span class="mast-year">${y}</span></h1></div>
+      <div class="mast-month"><h1>${esc(capitalize(MONTHS[m - 1]))}<span class="mast-year">${y}</span></h1></div>
       ${c.headline ? `<p class="mast-headline">${esc(c.headline)}</p>` : ''}
       ${row.status === 'draft' ? '<span class="draft-flag">Brouillon — non visible par les agents</span>' : ''}
     </div>
