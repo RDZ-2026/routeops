@@ -1069,7 +1069,7 @@ const PORTAL_URL = 'https://rdz-2026.github.io/routeops/RDZ_index.html';
 const TABLES = ['fac_clients', 'fac_documents', 'fac_achats', 'fac_bank_statements', 'fac_bank_tx', 'fac_bank_rules', 'fac_allocations'];
 const COLUMNS = {
   fac_clients: ['id','nom','nom_court','complement','rue','numero_rue','npa','ville','pays','email','contact','delai_pmt','tva_rate','crm_client_id','notes','created_at','deleted_at'],
-  fac_documents: ['id','kind','numero','seq','client_id','client_snapshot','titre','date_doc','date_echeance','periode_debut','periode_fin','site','lignes','tva_rate','tva_code','total_ht','total_tva','total_ttc','total_breakdown','statut','reference','source_devis_id','ref_document_id','intro','conclusion','notes_internes','sent_at','emitted_at','cancelled_reason','legacy','pdf_path','pdf_sha256','created_by','created_at','deleted_at'],
+  fac_documents: ['id','kind','numero','seq','client_id','client_snapshot','titre','date_doc','date_echeance','periode_debut','periode_fin','site','lignes','tva_rate','tva_code','total_ht','total_tva','total_ttc','total_breakdown','statut','reference','source_devis_id','ref_document_id','intro','conclusion','notes_internes','sent_at','emitted_at','cancelled_reason','legacy','pdf_path','pdf_sha256','version','revised_at','revision_reason','pdf_history','created_by','created_at','deleted_at'],
   fac_achats: ['id','fournisseur','numero_facture','date_facture','date_echeance','categorie','site','montant_ht','tva_rate','tva_code','montant_tva','montant_ttc','reference_paiement','piece_path','piece_name','notes','created_by','created_at','deleted_at'],
   fac_bank_statements: ['id','camt_type','iban','from_date','to_date','opening','closing','closing_date','filename','imported_by','imported_at'],
   fac_bank_tx: ['id','statement_id','iban','booking_date','value_date','amount','currency','counterparty','counterparty_iban','reference','ref_type','remittance','info','category','note','created_at'],
@@ -1775,7 +1775,7 @@ function openDoc(id) {
   editLegacy = { numero: '', reference: '' };
   renderDocModal(); openModal('m-doc');
 }
-function docEditable() { return canWrite() && editDoc.statut === 'brouillon'; }
+function docEditable() { return canWrite() && (editDoc.statut === 'brouillon' || !!editDoc._revise); }
 function clientOptions(sel) {
   const list = live('fac_clients').sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
   return `<option value="">Choisir un client…</option>` + list.map(c => `<option value="${c.id}" ${c.id === sel ? 'selected' : ''}>${esc(c.nom)}</option>`).join('');
@@ -1795,7 +1795,10 @@ function renderDocModal() {
   const dis = ed ? '' : 'disabled';
   const c = d.statut === 'brouillon' ? clientById(d.client_id) : (d.client_snapshot || clientById(d.client_id));
   let h = '';
-  if (!ed && d.statut !== 'brouillon') h += `<div class="lock-note">Document émis : son contenu est figé. ${isF ? 'Une correction se fait par une note de crédit.' : ''}</div>`;
+  if (d._revise) {
+    const declared = d.kind !== 'devis' && quarterDeclared(d.date_doc);
+    h += `<div class="info-note"><b>Modification de ${KIND_LABEL[d.kind].toLowerCase()} ${esc(d.numero)}</b> (version ${d.version || 1} → ${(d.version || 1) + 1}). Le numéro, la date et la référence QR restent identiques ; la version actuelle et son PDF sont conservés dans l'historique.${d.sent_at ? ` <b>Déjà transmise le ${fmtDate(d.sent_at)}</b> : renvoyez la nouvelle version au client.` : ''}${declared ? ' <b>Trimestre déclaré à la TVA</b> : seuls les textes peuvent être corrigés ; pour les montants, établissez une note de crédit.' : ''}</div>`;
+  } else if (!ed && d.statut !== 'brouillon') h += `<div class="lock-note">Document émis. ${canWrite() && canRevise(d) ? 'Utilisez « Modifier » pour le corriger : chaque version est conservée.' : ''}</div>`;
   if (d.statut === 'annulee') h += `<div class="lock-note" style="background:#f1f1f3;color:#374151">Annulé — motif : ${esc(d.cancelled_reason || '')}</div>`;
   if (d._legacy && ed) h += `<div class="info-note">Saisissez une facture déjà émise dans Bexio avec son numéro et sa référence QR : elle sera suivie ici et rapprochée automatiquement à l'import du relevé.</div>`;
   if (isA && ref) h += `<div class="info-note">Note de crédit sur la facture <b>${esc(ref.numero)}</b> du ${fmtDate(ref.date_doc)} (${chf(ref.total_ttc)}, déjà crédité : ${chf(docCredited(ref))}). Indiquez uniquement les montants à créditer, en positif.</div>`;
@@ -1805,12 +1808,12 @@ function renderDocModal() {
         : `<input class="finp" readonly value="${esc(c ? c.nom : '—')}">`}</div>
       <div class="fhint" id="d-client-addr">${c ? esc([c.complement, [c.rue, c.numero_rue].filter(Boolean).join(' '), [c.npa, c.ville].filter(Boolean).join(' ')].filter(Boolean).join(', ')) : ''}</div></div>
     <div class="fg c6"><label class="flabel" for="d-titre">Objet</label><input class="finp" id="d-titre" ${dis} value="${esc(d.titre || '')}" placeholder="Ex. Mise à disposition d'un agent à la villa Barton" oninput="editDoc.titre=this.value"></div>
-    <div class="fg c3"><label class="flabel" for="d-date">Date</label><input class="finp" type="date" id="d-date" ${dis} value="${d.date_doc || ''}" onchange="onDocDate(this.value)"></div>
+    <div class="fg c3"><label class="flabel" for="d-date">Date</label><input class="finp" type="date" id="d-date" ${d._revise ? 'disabled title="La date d’un document émis ne change pas"' : dis} value="${d.date_doc || ''}" onchange="onDocDate(this.value)"></div>
     ${isA ? '' : `<div class="fg c3"><label class="flabel" for="d-ech">${isF ? 'Payable jusqu’au' : 'Valable jusqu’au'}</label><input class="finp" type="date" id="d-ech" ${dis} value="${d.date_echeance || ''}" onchange="editDoc.date_echeance=this.value"></div>`}
     <div class="fg c3"><label class="flabel" for="d-p1">Prestations du</label><input class="finp" type="date" id="d-p1" ${dis} value="${d.periode_debut || ''}" onchange="editDoc.periode_debut=this.value||null;updateNumPreview()"></div>
     <div class="fg c3"><label class="flabel" for="d-p2">au</label><input class="finp" type="date" id="d-p2" ${dis} value="${d.periode_fin || ''}" onchange="editDoc.periode_fin=this.value||null;updateNumPreview()"></div>
     <div class="fg c4"><label class="flabel" for="d-tva">TVA par défaut des nouvelles lignes</label><select class="fsel" id="d-tva" ${dis} onchange="editDoc.tva_code=this.value;editDoc.tva_rate=num(tvaCode(this.value).rate)">${codeOptions(d.tva_code)}</select></div>
-    <div class="fg c4"><label class="flabel" for="d-site">Site ou mandat</label><input class="finp" id="d-site" list="d-site-list" ${canWrite() && d.statut === 'brouillon' ? '' : 'disabled'} value="${esc(d.site || '')}" placeholder="Ex. IHEID, Port Blanc" oninput="editDoc.site=this.value"><datalist id="d-site-list">${sitesKnown().map(s => `<option value="${esc(s)}">`).join('')}</datalist></div>`;
+    <div class="fg c4"><label class="flabel" for="d-site">Site ou mandat</label><input class="finp" id="d-site" list="d-site-list" ${docEditable() ? '' : 'disabled'} value="${esc(d.site || '')}" placeholder="Ex. IHEID, Port Blanc" oninput="editDoc.site=this.value"><datalist id="d-site-list">${sitesKnown().map(s => `<option value="${esc(s)}">`).join('')}</datalist></div>`;
   if (d._legacy && ed) {
     h += `<div class="fg c4"><label class="flabel" for="d-lnum">Numéro Bexio</label><input class="finp mono" id="d-lnum" value="${esc(editLegacy.numero)}" placeholder="349202610" oninput="editLegacy.numero=this.value"></div>
       <div class="fg c8"><label class="flabel" for="d-lref">Référence de la QR-facture</label><input class="finp mono" id="d-lref" value="${esc(editLegacy.reference)}" placeholder="RF39 0000 0000 0000 0000 0121 3" oninput="editLegacy.reference=this.value"></div>`;
@@ -1837,6 +1840,7 @@ function renderDocModal() {
     <div class="fg c6"><label class="flabel" for="d-concl">Texte de fin (imprimé)</label><textarea class="ftxt" id="d-concl" ${ed ? '' : 'readonly'} oninput="editDoc.conclusion=this.value">${esc(d.conclusion ?? '')}</textarea></div>
     <div class="fg c6"><label class="flabel" for="d-notes">Notes internes (non imprimées)</label><textarea class="ftxt" id="d-notes" ${canWrite() ? '' : 'readonly'} oninput="editDoc.notes_internes=this.value;editDoc._notesDirty=true;renderDocFoot()">${esc(d.notes_internes || '')}</textarea></div></div>`;
   if (isF && d.statut !== 'brouillon') h += paymentsCard(d);
+  if (d.statut !== 'brouillon' && (d.version || 1) > 1) h += `<div class="fhint" style="margin-top:12px">Version ${d.version}, modifiée le ${fmtDateTime(d.revised_at)} — motif : ${esc(d.revision_reason || '')}${(d.pdf_history || []).length ? ' · versions précédentes : ' + d.pdf_history.map((v, i) => `<button class="btn-link" onclick="downloadOldVersion('${d.id}',${i})">v${v.version}</button>`).join(' ') : ''}</div>`;
   if (d.statut !== 'brouillon') h += `<div class="fhint" style="margin-top:12px">${d.pdf_path ? `PDF archivé à l'émission · empreinte SHA-256 ${esc((d.pdf_sha256 || '').slice(0, 16))}…` : (d.legacy ? 'PDF Bexio non joint' : '<span style="color:var(--orange)">PDF non archivé</span>')} · <button class="btn-link" onclick="showHistory('${d.id}')">Voir l'historique</button></div>`;
   if (d.source_devis_id) { const s = db.fac_documents.find(x => x.id === d.source_devis_id); if (s) h += `<div class="fhint" style="margin-top:6px">Issue du devis ${esc(s.numero || '')}</div>`; }
   $('doc-body').innerHTML = h;
@@ -1890,7 +1894,7 @@ function renderDocLines() {
 }
 function updateDocTotals() {
   editDoc.lignes.forEach((l, i) => { const el = $('lt-' + i); if (el) el.textContent = fmtAmt(lineTotal(l)); });
-  const t = editDoc.statut === 'brouillon' ? computeTotals(editDoc.lignes, editDoc.tva_code) : docTotals(editDoc);
+  const t = editDoc.statut === 'brouillon' || editDoc._revise ? computeTotals(editDoc.lignes, editDoc.tva_code) : docTotals(editDoc);
   $('d-totals').innerHTML = `<div><span>Total HT</span><span>${fmtAmt(t.ht)}</span></div>` +
     t.breakdown.map(b => b.rate > 0 ? `<div><span>TVA ${b.rate.toFixed(2)} % sur ${fmtAmt(b.base)}</span><span>${fmtAmt(b.tva)}</span></div>` : `<div><span>${esc(shortCode(b.code))} : ${fmtAmt(b.base)}</span><span>0.00</span></div>`).join('') +
     `<div class="grand"><span>${editDoc.kind === 'avoir' ? 'Montant crédité TTC' : 'Montant TTC'}</span><span>${fmtAmt(t.ttc)} CHF</span></div>`;
@@ -1943,7 +1947,11 @@ function renderDocFoot() {
       f += d._legacy ? `<button class="btn btn-primary" onclick="registerLegacy()">Enregistrer la facture reprise</button>`
         : `<button class="btn btn-primary" onclick="issueDoc()" ${navigator.onLine ? '' : 'disabled title="Connexion requise pour attribuer le numéro"'}>Émettre ${d.kind === 'facture' ? 'la facture' : d.kind === 'devis' ? 'le devis' : 'la note de crédit'}</button>`;
     }
+  } else if (d._revise) {
+    f += `<button class="btn btn-ghost" onclick="openDoc(editDoc.id)">Abandonner la modification</button><span class="spacer"></span><button class="btn btn-ghost" onclick="previewDoc()">Aperçu PDF</button>`;
+    f += `<button class="btn btn-primary" onclick="reviseDoc()" ${navigator.onLine ? '' : 'disabled title="Connexion requise"'}>Enregistrer la modification</button>`;
   } else {
+    if (w && canRevise(d)) f += `<button class="btn btn-ghost" onclick="startRevise()">Modifier</button>`;
     if (w && canCancelInvoice(d)) f += `<button class="btn btn-danger" onclick="cancelInvoice()" title="Possible tant que la facture n'est ni transmise ni payée">Annuler la facture</button>`;
     if (w && d.kind === 'devis' && ['emise', 'accepte', 'refuse'].includes(d.statut)) f += `<button class="btn btn-danger" onclick="setDevisStatus('annulee')">Annuler le devis</button>`;
     f += `<span class="spacer"></span>`;
@@ -1959,11 +1967,61 @@ function renderDocFoot() {
   }
   $('doc-foot').innerHTML = f;
 }
+function quarterDeclared(iso) { if (!iso) return false; const k = `${iso.slice(0, 4)}-T${Math.ceil(+iso.slice(5, 7) / 3)}`; return !!(settings.tva_declared || {})[k]; }
+function canRevise(d) {
+  if (!d || d.statut === 'brouillon' || d.statut === 'annulee') return false;
+  if (d.kind === 'devis') return d.statut !== 'facture';
+  if (d.kind === 'facture') return invoiceState(d) !== 'perte';
+  return true;
+}
+function startRevise() {
+  const d = db.fac_documents.find(x => x.id === editDoc.id);
+  editDoc = JSON.parse(JSON.stringify(d)); editDoc._revise = true;
+  editDoc.tva_code = docDefaultCode(editDoc);
+  editDoc.lignes.forEach(l => { if (!l.id) l.id = uuid(); if (!l.tva_code) l.tva_code = editDoc.tva_code; });
+  renderDocModal();
+}
+function reviseDoc() {
+  if (!validateDoc(true)) return;
+  const d = db.fac_documents.find(x => x.id === editDoc.id);
+  const paid = d.kind === 'facture' ? docPaid(d) : 0;
+  const t = computeTotals(editDoc.lignes, editDoc.tva_code);
+  const warn = [];
+  if (d.sent_at) warn.push(`Ce document a été transmis le ${fmtDate(d.sent_at)} : le client détient l'ancienne version. Pensez à lui envoyer la nouvelle.`);
+  if (paid > 0 && t.ttc + 0.009 < paid) warn.push(`Le nouveau montant (${chf(t.ttc)}) est inférieur aux paiements reçus (${chf(paid)}) : un trop-perçu apparaîtra.`);
+  if (d.kind !== 'devis' && Math.abs(t.ttc - num(d.total_ttc)) > 0.009) warn.push('Le montant change : la fiduciaire verra la différence dans le prochain export.');
+  genModal(`Modifier ${KIND_LABEL[d.kind].toLowerCase()} ${d.numero}`, `Version ${(d.version || 1) + 1} · ${chf(d.total_ttc)} → ${chf(t.ttc)}`,
+    `${warn.length ? `<div class="lock-note">${warn.map(esc).join('<br>')}</div>` : ''}<div class="fg"><label class="flabel" for="g-reason">Motif de la modification (obligatoire, conservé dans l'historique)</label><input class="finp" id="g-reason" placeholder="Ex. erreur d'heures sur la ligne 2, adresse du client corrigée"></div>`,
+    `<button class="btn btn-ghost" onclick="closeModal('m-gen')">Retour</button><button class="btn btn-primary" onclick="confirmRevise()">Enregistrer la version ${(d.version || 1) + 1}</button>`);
+  setTimeout(() => $('g-reason').focus(), 50);
+}
+async function confirmRevise() {
+  const reason = $('g-reason').value.trim(); if (!reason) { toast('Indiquez le motif', 'err'); return; }
+  const r = docRowFromEdit();
+  const changes = { titre: r.titre, client_id: r.client_id, date_echeance: r.date_echeance || '', periode_debut: r.periode_debut || '', periode_fin: r.periode_fin || '', site: r.site || '', conclusion: r.conclusion ?? '', lignes: r.lignes, tva_code: r.tva_code };
+  try {
+    const res = await rpc('fac_revise_document', { p_id: r.id, p_reason: reason, p_changes: changes });
+    const doc = Array.isArray(res) ? res[0] : res;
+    upsertLocal('fac_documents', doc); persist(); closeModal('m-gen');
+    await archiveDocPdf(doc.id);
+    openDoc(doc.id); renderAll();
+    toast(`Version ${doc.version} enregistrée${doc.sent_at ? ' — renvoyez-la au client' : ''}`);
+  } catch (e) { toast(e.message, 'err'); }
+}
+async function downloadOldVersion(id, i) {
+  const d = db.fac_documents.find(x => x.id === id); const v = (d.pdf_history || [])[i]; if (!v) return;
+  if (!navigator.onLine) { toast('Connexion requise', 'err'); return; }
+  try {
+    const blob = await fetchStored(v.path); const sha = await sha256Hex(blob);
+    if (v.sha256 && sha !== v.sha256) { toast("L'empreinte du PDF archivé ne correspond pas : fichier altéré", 'err'); return; }
+    download(docFileName(d).replace('.pdf', `_v${v.version}.pdf`), blob, 'application/pdf');
+  } catch (e) { toast(e.message, 'err'); }
+}
 function docRowFromEdit() {
-  const r = { ...editDoc }; delete r._new; delete r._legacy; delete r._notesDirty;
+  const r = { ...editDoc }; delete r._new; delete r._legacy; delete r._notesDirty; delete r._revise;
   r.lignes = r.lignes.map(l => ({ id: l.id, desc: l.desc || '', qty: num(l.qty), unit: l.unit || '', pu: num(l.pu), tva_code: l.tva_code || r.tva_code }));
   r.tva_rate = num(tvaCode(r.tva_code).rate);
-  if (r.statut === 'brouillon') { const t = computeTotals(r.lignes, r.tva_code); r.total_ht = t.ht; r.total_tva = t.tva; r.total_ttc = t.ttc; r.total_breakdown = t.breakdown; }
+  if (r.statut === 'brouillon' || editDoc._revise) { const t = computeTotals(r.lignes, r.tva_code); r.total_ht = t.ht; r.total_tva = t.tva; r.total_ttc = t.ttc; r.total_breakdown = t.breakdown; }
   if (!r.client_id) r.client_id = null;
   r.site = (r.site || '').trim() || null;
   return r;
@@ -2173,7 +2231,9 @@ function detachAlloc(id) {
 }
 function previewDoc() {
   if (!editDoc.client_id) { toast('Choisissez un client pour l’aperçu', 'err'); return; }
-  const pdf = buildPdf([docRowFromEdit()]);
+  const row = docRowFromEdit();
+  if (editDoc._revise) { row.version = (row.version || 1) + 1; row.revised_at = new Date().toISOString(); }
+  const pdf = buildPdf([row]);
   window.open(URL.createObjectURL(pdf.output('blob')), '_blank');
 }
 function docFileName(d) {
@@ -2216,7 +2276,8 @@ async function showHistory(id) {
     const rows = await sb(`fac_audit?row_id=in.(${ids.map(encodeURIComponent).join(',')})&order=at.asc&limit=500`);
     const desc = r => {
       if (r.tbl === 'fac_allocations') return r.op === 'DELETE' ? `Paiement détaché (${fmtAmt(r.old_data?.amount)})` : r.op === 'INSERT' ? `Paiement associé (${fmtAmt(r.new_data?.amount)}, ${r.new_data?.mode})` : 'Paiement modifié';
-      if (r.op === 'INSERT') return 'Création du brouillon';
+      if (r.op === 'INSERT') return r.new_data && r.new_data.legacy ? 'Reprise depuis Bexio' : 'Création du brouillon';
+      if (r.new_data && r.new_data.version) return `Modification → version ${r.new_data.version} : ${r.new_data.revision_reason || ''}`;
       const keys = Object.keys(r.new_data || {}).filter(k => !['client_snapshot', 'total_breakdown', 'total_ht', 'total_tva', 'seq', 'emitted_at', 'reference', 'pdf_sha256', 'tva_rate'].includes(k));
       if (r.new_data && r.new_data.statut === 'emise') return `Émission, numéro ${r.new_data.numero || ''}`;
       return 'Modification : ' + (keys.map(k => AUDIT_FIELDS[k] || k).join(', ') || 'totaux');
@@ -3512,6 +3573,7 @@ function renderDocument(pdf, d) {
   y += 8.5;
   const titleLines = pdf.splitTextToSize(d.titre || '', R - L);
   titleLines.forEach(t => { pdf.text(t, L, y); y += 5; });
+  if ((d.version || 1) > 1 && d.statut !== 'brouillon') { pdf.setFont('helvetica', 'italic'); pdf.setFontSize(8); pdf.text(`version ${d.version} du ${fmtDate(d.revised_at)} — remplace la version précédente`, L, y - 1); y += 3.5; pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); }
   y -= 1.5; pdf.line(L, y, R, y); y += 4.5;
   pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9);
   pdf.text('date:', L, y); pdf.text(fmtDate(d.date_doc), 66, y);
