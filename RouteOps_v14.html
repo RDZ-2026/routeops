@@ -405,6 +405,14 @@ input,select,textarea{background:#fff;border-color:#dbe2ea;border-radius:8px;col
 .ckp-item .n{font-family:var(--mono);font-size:11px;color:var(--text3);text-align:center}
 .ckp-item input{padding:5px 8px;font-size:12.5px}
 .ckp-head{font-size:11px;font-weight:600;color:var(--text3);border-bottom:2px solid var(--border)}
+.ck-addbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.ck-addbar select{width:auto;min-width:240px;flex:1;max-width:420px;padding:6px 9px;font-size:12.5px}
+.fc-item.fc-edit{display:block;border-left-color:var(--amber);background:#fffdf7}
+.fc-edit-grid{display:grid;grid-template-columns:108px minmax(0,2fr) minmax(0,3fr) 96px;gap:6px;align-items:center}
+.fc-edit-grid input{padding:6px 8px;font-size:12.5px}
+.fc-edit-note{font-size:11.5px;color:var(--text3);margin-top:5px;font-family:var(--mono)}
+.fc-editbar{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:12.5px;color:#78350f;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+@media(max-width:700px){.fc-edit-grid{grid-template-columns:1fr 1fr}.fc-edit-grid .w{grid-column:1/3}}
 @media(max-width:700px){.ckp-item{grid-template-columns:24px 1fr 1fr}.ckp-item .h{grid-column:1/4}.ckp-head{display:none}}
 </style>
 
@@ -4527,10 +4535,12 @@ function ckTplDiff(c){
   (tpl.items||[]).forEach(ti=>{ const ci=c.items.find(x=>x.id===ti.id); if(ci&&(ci.label!==ti.label||(ci.hint||'')!==(ti.hint||'')||(ci.time||'')!==(ti.time||''))) n++; });
   return n;
 }
-function ckRefreshFromTpl(){
+function ckRefreshFromTpl(revert){
   const o=CK_UI.open; if(!o) return;
   const c=ckGetCheck(ckCheckId(o.tplId,o.date)); const tpl=ckGetTpl(o.tplId);
   if(!c||!tpl||c.status==='closed') return;
+  if(revert&&!confirm('Annuler les modifications de cette fiche et reprendre la liste du modèle ?\n\nLes tâches déjà renseignées sont conservées.')) return;
+  c.customized=false;
   const old=new Map(c.items.map(i=>[i.id,i]));
   const next=(tpl.items||[]).map(ti=>{
     const prev=old.get(ti.id);
@@ -4553,7 +4563,7 @@ function initFiches(){
 }
 function ckSetDate(d){
   if(!d) return;
-  CK_UI.date=d; CK_UI.flagged={};
+  CK_UI.date=d; CK_UI.flagged={}; CK_UI.edit=false;
   if(CK_UI.open) CK_UI.open={tplId:CK_UI.open.tplId,date:d};
   const inp=document.getElementById('fc-date'); if(inp) inp.value=d;
   ckRenderDay(); ckRenderSheet();
@@ -4590,11 +4600,12 @@ function ckOpen(tplId){
     _edToast(`La fiche « ${tpl.name} » n'a encore aucune tâche. Ajoutez-les dans Paramètres › Fiches de contrôle.`);
     ckGoParams(); return;
   }
+  if(!(CK_UI.open&&CK_UI.open.tplId===tplId&&CK_UI.open.date===date)) CK_UI.edit=false;
   CK_UI.open={tplId,date}; CK_UI.flagged={};
   ckRenderDay(); ckRenderSheet();
   const el=document.getElementById('fc-sheet'); if(el) el.scrollIntoView({behavior:'smooth',block:'start'});
 }
-function ckCloseView(){ CK_UI.open=null; CK_UI.flagged={}; ckRenderDay(); ckRenderSheet(); }
+function ckCloseView(){ if(CK_UI.edit) ckCleanEmpty(); CK_UI.open=null; CK_UI.flagged={}; CK_UI.edit=false; ckRenderDay(); ckRenderSheet(); }
 function ckGoParams(){
   const tab=[...document.querySelectorAll('.ntab')].find(b=>(b.getAttribute('onclick')||'').includes("'params'"));
   go('params',tab); showParamTab('fiches');
@@ -4609,7 +4620,8 @@ function ckRenderSheet(){
   if(!c){ box.innerHTML=''; CK_UI.open=null; return; }
   const closed=c.status==='closed';
   const saved=!!ckGetCheck(c.id);
-  const diff=saved&&!closed?ckTplDiff(c):0;
+  const editing=!!CK_UI.edit&&!closed;
+  const diff=saved&&!closed&&!c.customized&&!editing?ckTplDiff(c):0;
   const tpl=ckGetTpl(c.tplId);
   const applies=tpl?ckAppliesOn(tpl,c.date):true;
   box.innerHTML=`<div class="card" id="fc-card">
@@ -4620,6 +4632,7 @@ function ckRenderSheet(){
       </div>
       <div class="fc-sheet-actions no-print">
         <span id="fc-status-badge"></span>
+        ${closed?'':(CK_UI.edit?`<button class="btn btn-green btn-sm" onclick="ckEndEdit()">✓ Terminer la modification</button>`:`<button class="btn btn-outline btn-sm" onclick="ckStartEdit()">✏️ Modifier la fiche</button>`)}
         <button class="btn btn-outline btn-sm" onclick="ckPrint()">⎙ Imprimer</button>
         ${closed?`<button class="btn btn-amber btn-sm" onclick="ckReopen()">↺ Rouvrir</button>`:`<button class="btn btn-primary btn-sm" onclick="ckCloseSheet()">✓ Clôturer la fiche</button>`}
         <button class="btn btn-ghost btn-sm" onclick="ckCloseView()" title="Fermer">✕</button>
@@ -4627,6 +4640,9 @@ function ckRenderSheet(){
     </div>
     ${!applies?`<div class="fc-info">ℹ︎ Cette fiche est prévue ${esc((CK_DAYS_LABEL[tpl.days]||'').toLowerCase())} — vous pouvez quand même la remplir pour ce jour.</div>`:''}
     ${diff?`<div class="fc-info">La liste des tâches a été modifiée dans les paramètres depuis l'ouverture de cette fiche. <button class="btn btn-outline btn-sm" onclick="ckRefreshFromTpl()">Mettre à jour la liste</button> <span style="color:var(--text3)">Les réponses déjà données sont conservées.</span></div>`:''}
+    ${editing?`<div class="fc-editbar"><span style="flex:1;min-width:220px">✏️ <b>Mode modification</b> — modifiez les textes, l'ordre, ajoutez ou retirez des tâches. Les changements valent <b>pour cette fiche du ${esc(_frDate(c.date))}</b>.</span>
+        <button class="btn btn-outline btn-sm" onclick="ckApplyToTpl()" title="Les prochaines fiches utiliseront cette liste">⤴ Enregistrer aussi comme modèle</button></div>`:''}
+    ${!editing&&c.customized&&!closed?`<div class="fc-info">✏️ Cette fiche a été modifiée pour ce jour uniquement. <button class="btn btn-outline btn-sm" onclick="ckApplyToTpl()">⤴ Appliquer au modèle</button> <button class="btn btn-ghost btn-sm" onclick="ckRefreshFromTpl(true)">↺ Revenir au modèle</button></div>`:''}
     ${closed?`<div class="fc-info">🔒 Clôturée le ${esc(_frDate(ckLocalDate(new Date(c.closedAt))))} à ${esc(ckFmtTime(c.closedAt))} par ${esc(c.closedBy||'—')}. Rouvrez-la pour la modifier.</div>`:''}
     <div id="fc-errors"></div>
     <div class="fc-meta-grid">
@@ -4636,10 +4652,15 @@ function ckRenderSheet(){
         <input type="text" id="fc-obs" value="${esc(c.observations||'')}" placeholder="Remarque sur l'ensemble du service (facultatif)" ${closed?'readonly':''} oninput="ckSetField('observations',this.value)"></div>
     </div>
     <div class="fc-progress"><div id="fc-progress-bar" style="flex:1"></div><span class="fc-progress-txt" id="fc-progress-txt"></span></div>
-    <div class="fc-list" id="fc-list">${c.items.map(it=>ckItemHtml(c,it)).join('')}</div>
+    <div class="fc-list" id="fc-list">${c.items.map(it=>editing?ckEditItemHtml(c,it):ckItemHtml(c,it)).join('')}</div>
+    ${editing?`<div class="ck-addbar no-print">
+      <select id="fc-add-mission">${ckMissionOptions()}</select>
+      <button class="btn btn-primary btn-sm" onclick="ckEditAddMission()">+ Ajouter la mission</button>
+      <button class="btn btn-green btn-sm" onclick="ckEditAddFree()">+ Tâche libre</button>
+    </div>`:''}
     <div class="fc-foot no-print">
       <span style="font-size:12px;color:var(--text3)" id="fc-sync-info"></span>
-      ${closed?'':`<button class="btn btn-primary" onclick="ckCloseSheet()">✓ Clôturer la fiche</button>`}
+      ${closed?'':(editing?`<button class="btn btn-green" onclick="ckEndEdit()">✓ Terminer la modification</button>`:`<button class="btn btn-primary" onclick="ckCloseSheet()">✓ Clôturer la fiche</button>`)}
     </div>
   </div>`;
   ckRenderSheetHeader(c);
@@ -4667,6 +4688,139 @@ function ckItemHtml(c,it){
     <div class="fc-choice">${opt('done')}${opt('not_done')}${opt('na')}</div>
     ${stamp}${cmt}
   </div>`;
+}
+
+// ── Editing the content of a filled sheet (this day only, optionally saved as template) ──
+function ckMissionOptions(){
+  const bySite=new Map();
+  (S.missions||[]).forEach(m=>{
+    const site=m.siteId?getSite(m.siteId):null;
+    if(m.code==='PAUSE'||/^pause\b/i.test(m.name||'')) return;
+    const k=site?site.name:'Sans site';
+    if(!bySite.has(k)) bySite.set(k,[]);
+    bySite.get(k).push(m);
+  });
+  const groups=[...bySite.entries()].sort((a,b)=>a[0].localeCompare(b[0],'fr'));
+  return '<option value="">— Choisir une mission RouteOps —</option>'+groups.map(([k,ms])=>
+    `<optgroup label="${esc(k)}">${ms.sort((a,b)=>String(a.name).localeCompare(String(b.name),'fr')).map(m=>`<option value="${esc(m.id)}">${esc(m.name)}${m.desc?' — '+esc(m.desc):''}</option>`).join('')}</optgroup>`
+  ).join('');
+}
+function ckItemFromMission(mId){
+  const m=getMission(mId); if(!m) return null;
+  const site=m.siteId?getSite(m.siteId):null;
+  return {id:uid(),label:m.name,hint:m.desc||'',time:'',siteCode:site?site.code:''};
+}
+function ckItemAddMission(tplId){
+  const t=ckGetTpl(tplId); if(!t) return;
+  const sel=document.getElementById('ckp-add-'+tplId);
+  const it=sel&&sel.value?ckItemFromMission(sel.value):null;
+  if(!it){ _edToast('Choisissez d\'abord une mission dans la liste.'); return; }
+  (t.items=t.items||[]).push(it);
+  ckTplTouched(t,true);
+}
+function ckEditCheck(){
+  const o=CK_UI.open; if(!o) return null;
+  const c=ckEnsureCheck(o.tplId,o.date);
+  return c&&c.status!=='closed'?c:null;
+}
+function ckEditItemHtml(c,it){
+  const iid=esc(it.id);
+  const idx=c.items.indexOf(it);
+  const chip=it.siteCode?`<span class="site-chip" style="background:${esc(ckSiteColor(it.siteCode))}">${esc(it.siteCode)}</span> `:'';
+  const done=it.status?`<div class="fc-edit-note">${chip}Déjà renseignée : ${esc(CK_STATUS[it.status]?.label||'')} à ${esc(ckFmtStamp(it.at,c.date))}${it.comment?' — « '+esc(it.comment)+' »':''}</div>`:(chip?`<div class="fc-edit-note">${chip}</div>`:'');
+  return `<div class="fc-item fc-edit" id="fci-${iid}">
+    <div class="fc-edit-grid">
+      <input type="time" value="${esc(it.time||'')}" title="Heure prévue" onchange="ckEditItem('${iid}','time',this.value)">
+      <input type="text" value="${esc(it.label||'')}" placeholder="Intitulé de la tâche" oninput="ckEditItem('${iid}','label',this.value)">
+      <input class="w" type="text" value="${esc(it.hint||'')}" placeholder="Consigne, lieu, précision…" oninput="ckEditItem('${iid}','hint',this.value)">
+      <span style="display:flex;gap:2px;justify-content:flex-end">
+        <button class="btn btn-ghost btn-icon" title="Monter" onclick="ckEditMove('${iid}',-1)" ${idx===0?'disabled':''}>↑</button>
+        <button class="btn btn-ghost btn-icon" title="Descendre" onclick="ckEditMove('${iid}',1)" ${idx===c.items.length-1?'disabled':''}>↓</button>
+        <button class="btn btn-ghost btn-icon" title="Retirer de la fiche" onclick="ckEditRemove('${iid}')">✕</button>
+      </span>
+    </div>${done}
+  </div>`;
+}
+function ckStartEdit(){
+  const c=ckEditCheck(); if(!c) return;
+  CK_UI.edit=true; CK_UI.flagged={};
+  const e=document.getElementById('fc-errors'); if(e) e.innerHTML='';
+  ckRenderSheet();
+}
+function ckCleanEmpty(){
+  const o=CK_UI.open; if(!o) return;
+  const c=ckGetCheck(ckCheckId(o.tplId,o.date)); if(!c) return;
+  const before=c.items.length;
+  c.items=c.items.filter(i=>String(i.label||'').trim()||i.status);
+  if(c.items.length!==before) ckSave('ck',c.id);
+}
+function ckEndEdit(){
+  ckCleanEmpty();
+  clearTimeout(_ckCmtTimer); _persistLocal(); ckSchedulePush();
+  CK_UI.edit=false;
+  ckRenderSheet(); ckRenderDay(); ckRenderHistory();
+}
+function ckEditTouched(c,what,render){
+  c.customized=true; c.updatedAt=ckNowIso();
+  if(what) (c.log=c.log||[]).push({a:'edit',what,at:c.updatedAt,by:ckUser()});
+  if(render){ ckSave('ck',c.id); ckRenderSheet(); ckRenderDay(); ckRenderHistory(); }
+  else{
+    ckMarkDirty('ck',c.id,true);
+    clearTimeout(_ckCmtTimer);
+    _ckCmtTimer=setTimeout(()=>{ _persistLocal(); ckSchedulePush(); ckRenderSyncInfo(); },600);
+  }
+}
+function ckEditItem(itemId,field,val){
+  const c=ckEditCheck(); if(!c) return;
+  const it=c.items.find(i=>i.id===itemId); if(!it) return;
+  it[field]=val;
+  ckEditTouched(c,null,false);
+}
+function ckEditMove(itemId,dir){
+  const c=ckEditCheck(); if(!c) return;
+  const i=c.items.findIndex(x=>x.id===itemId), j=i+dir;
+  if(i<0||j<0||j>=c.items.length) return;
+  [c.items[i],c.items[j]]=[c.items[j],c.items[i]];
+  ckEditTouched(c,'move',true);
+}
+function ckEditRemove(itemId){
+  const c=ckEditCheck(); if(!c) return;
+  const it=c.items.find(x=>x.id===itemId); if(!it) return;
+  const msg=it.status
+    ?`La tâche « ${it.label} » est déjà renseignée (${CK_STATUS[it.status]?.label}). La retirer quand même de la fiche ?`
+    :`Retirer la tâche « ${it.label||'sans titre'} » de la fiche ?`;
+  if((it.label||it.status)&&!confirm(msg)) return;
+  c.items=c.items.filter(x=>x.id!==itemId);
+  ckEditTouched(c,'remove:'+(it.label||''),true);
+}
+function _ckEditAdd(item){
+  const c=ckEditCheck(); if(!c) return;
+  c.items.push({...item,status:null,at:null,by:'',comment:'',log:[]});
+  ckEditTouched(c,'add:'+(item.label||''),true);
+  const el=document.getElementById('fci-'+item.id);
+  if(el){ el.scrollIntoView({behavior:'smooth',block:'center'}); const inp=el.querySelector('input[type=text]'); if(inp&&!item.label) inp.focus(); }
+}
+function ckEditAddMission(){
+  const sel=document.getElementById('fc-add-mission');
+  const it=sel&&sel.value?ckItemFromMission(sel.value):null;
+  if(!it){ _edToast('Choisissez d\'abord une mission dans la liste.'); return; }
+  _ckEditAdd(it);
+}
+function ckEditAddFree(){ _ckEditAdd({id:uid(),label:'',hint:'',time:'',siteCode:''}); }
+function ckApplyToTpl(){
+  const o=CK_UI.open; if(!o) return;
+  const c=ckGetCheck(ckCheckId(o.tplId,o.date)); const t=ckGetTpl(o.tplId);
+  if(!c||!t) return;
+  const items=c.items.filter(i=>String(i.label||'').trim());
+  if(!items.length){ _edToast('La fiche ne contient aucune tâche.'); return; }
+  if(!confirm(`Remplacer la liste du modèle « ${t.name} » par cette liste de ${items.length} tâche${items.length>1?'s':''} ?\n\nToutes les prochaines fiches l'utiliseront. Les fiches déjà clôturées ne changent pas.`)) return;
+  t.items=items.map(i=>({id:i.id,label:i.label,hint:i.hint||'',time:i.time||'',siteCode:i.siteCode||''}));
+  ckTplTouched(t,false);
+  c.customized=false; c.updatedAt=ckNowIso();
+  (c.log=c.log||[]).push({a:'apply-template',at:c.updatedAt,by:ckUser()});
+  ckSave('ck',c.id);
+  ckRenderSheet(); ckRenderDay();
+  _edToast(`Modèle « ${t.name} » mis à jour.`);
 }
 function ckSiteColor(code){ const s=(S.sites||[]).find(x=>x.code===code); return s?s.color:'#64748b'; }
 function ckRenderSheetHeader(c){
@@ -4732,6 +4886,7 @@ function ckSetField(field,val){
 }
 function ckCloseSheet(){
   const o=CK_UI.open; if(!o) return;
+  if(CK_UI.edit) ckEndEdit();
   const c=ckGetCheck(ckCheckId(o.tplId,o.date));
   const errBox=document.getElementById('fc-errors');
   if(!c){ if(errBox) errBox.innerHTML='<div class="fc-alert">Aucune tâche n\'a encore été renseignée.</div>'; return; }
@@ -4799,6 +4954,7 @@ function ckRenderHistory(){
       </tr>`;}).join('')}</tbody></table></div>`;
 }
 function ckOpenFromHistory(tplId,date){
+  CK_UI.edit=false;
   CK_UI.date=date; const inp=document.getElementById('fc-date'); if(inp) inp.value=date;
   CK_UI.open={tplId,date}; CK_UI.flagged={};
   ckRenderDay(); ckRenderSheet();
@@ -4883,7 +5039,11 @@ function ckRenderParams(){
           <button class="btn btn-ghost btn-icon" title="Supprimer la tâche" onclick="ckItemRemove('${tid}','${iid}')">✕</button>
         </span></div>`;}).join('')}
       ${items.length?'':'<div style="font-size:12.5px;color:var(--text3);padding:8px 0">Aucune tâche. Liez une feuille de route puis « Importer », ou ajoutez les tâches une par une.</div>'}
-      <div style="margin-top:8px"><button class="btn btn-green btn-sm" onclick="ckItemAdd('${tid}')">+ Ajouter une tâche</button></div>
+      <div class="ck-addbar">
+        <select id="ckp-add-${tid}">${ckMissionOptions()}</select>
+        <button class="btn btn-primary btn-sm" onclick="ckItemAddMission('${tid}')">+ Ajouter la mission</button>
+        <button class="btn btn-green btn-sm" onclick="ckItemAdd('${tid}')">+ Tâche libre</button>
+      </div>
     </div>`;
   }).join('');
 }
