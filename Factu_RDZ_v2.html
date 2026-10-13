@@ -2037,7 +2037,11 @@ function validateDoc(forIssue) {
     if (lines.some(l => !l.desc.trim())) { toast('Chaque ligne doit avoir une description', 'err'); return false; }
     if (d.kind !== 'devis' && computeTotals(d.lignes, d.tva_code).ttc <= 0) { toast('Le montant doit être positif', 'err'); return false; }
     if (!d.titre || !d.titre.trim()) { toast("Indiquez l'objet du document", 'err'); return false; }
-    if (d.kind === 'facture' && !d.periode_debut && !d._legacy) { toast('Indiquez la période des prestations (mention obligatoire, art. 26 LTVA)', 'err'); return false; }
+    if (d.kind === 'facture' && !d.periode_debut && !d._legacy) {
+      toast('Indiquez la période des prestations en haut du formulaire (mention obligatoire, art. 26 LTVA)', 'err');
+      const f = $('d-p1'); if (f) { f.scrollIntoView({ behavior: 'smooth', block: 'center' }); f.focus(); f.style.borderColor = 'var(--red)'; f.style.boxShadow = '0 0 0 3px rgba(192,39,45,.15)'; }
+      return false;
+    }
   }
   return true;
 }
