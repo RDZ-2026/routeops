@@ -136,13 +136,14 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.5}
 .info p{font-size:15.5px;color:var(--text2);margin-top:4px;white-space:pre-line}
 
 /* Birthdays */
-.bdays{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:12px}
+.bdays{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px}
 .bday{border:1.5px solid var(--border);border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:14px;background:var(--paper)}
 .bday-day{font-family:var(--mono);font-size:30px;line-height:1;font-weight:500;color:var(--accent);min-width:40px;text-align:center}
 .bday-day small{display:block;font-family:var(--font);font-size:11.5px;color:var(--text3);font-weight:500;margin-top:5px}
 .bday-name{font-weight:700;font-size:15.5px;line-height:1.25}
 .bday.today{border-color:var(--accent);background:var(--accent-soft)}
-.bday.today .bday-name::after{content:"C'est aujourd'hui !";display:block;font-size:12.5px;font-weight:600;color:var(--accent);margin-top:3px}
+.bday-date{font-size:13.5px;color:var(--text2);margin-top:2px}
+.bday-today{font-size:12.5px;font-weight:700;color:var(--accent);margin-top:2px}
 
 /* Welcome */
 .welcome{display:flex;flex-direction:column;gap:10px}
@@ -288,7 +289,7 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.5}
   .sec{padding:24px 20px}
   .foot{padding:20px}
   .edito-body p{font-size:16.5px}
-  .bdays{grid-template-columns:1fr 1fr}
+  .bdays{grid-template-columns:1fr}
   .bday{padding:12px;gap:10px}
   .bday-day{font-size:26px;min-width:32px}
   .tl-item{grid-template-columns:58px 1fr;gap:12px}
@@ -387,6 +388,8 @@ const DEFAULT_CONTACT = { phone: '+41 22 552 26 99', email: '', note: 'Une quest
 const MONTHS = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
 const MONTHS_SHORT = ['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
 const WEEKDAYS = ['dim.','lun.','mar.','mer.','jeu.','ven.','sam.'];
+const WEEKDAYS_LONG = ['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'];
+const MONTH_OPTS = Object.fromEntries(MONTHS.map((n, i) => [String(i + 1), n.charAt(0).toUpperCase() + n.slice(1)]));
 const MISSION_TYPES = {
   rondes: { label: 'Rondes', ico: '🚗' },
   surveillance: { label: 'Surveillance', ico: '🛡️' },
@@ -670,7 +673,7 @@ function normalize(c){
     headline: c.headline || '',
     edito: { ...e.edito, ...(c.edito || {}) },
     infos: Array.isArray(c.infos) ? c.infos : [],
-    birthdays: Array.isArray(c.birthdays) ? c.birthdays : [],
+    birthdays: Array.isArray(c.birthdays) ? c.birthdays.map(b => ({ ...b, month: b.month || (currentId ? String(Number(currentId.split('-')[1])) : '') })) : [],
     welcome: Array.isArray(c.welcome) ? c.welcome : [],
     farewell: Array.isArray(c.farewell) ? c.farewell : [],
     missions_current: Array.isArray(c.missions_current) ? c.missions_current : [],
@@ -787,17 +790,27 @@ function renderIssue(animate){
     h += `</div></section>`;
   }
 
-  // Birthdays
-  const bdays = c.birthdays.filter(b => (b.name || '').trim()).slice().sort((a, b) => (Number(a.day) || 99) - (Number(b.day) || 99));
+  // Birthdays — sorted chronologically starting from the issue month
+  const bdMonth = b => { const n = Number(b.month); return n >= 1 && n <= 12 ? n : m; };
+  const bdOrder = b => ((bdMonth(b) - m + 12) % 12) * 100 + (Number(b.day) || 99);
+  const bdays = c.birthdays.filter(b => (b.name || '').trim()).slice().sort((a, b) => bdOrder(a) - bdOrder(b));
   if (bdays.length){
+    const months = [...new Set(bdays.map(bdMonth))];
+    const names = months.map(n => MONTHS[n - 1]);
+    const when = 'en ' + (names.length > 1 ? names.slice(0, -1).join(', ') + ' et ' + names[names.length - 1] : names[0]);
     h += `<section class="sec"><h2 class="sec-title"><span class="ico">🎂</span>Joyeux anniversaire</h2>
-      <p class="sec-intro">${bdays.length > 1 ? bdays.length + ' anniversaires' : 'Un anniversaire'} à souhaiter en ${MONTHS[m - 1]}.</p><div class="bdays">`;
+      <p class="sec-intro">${bdays.length > 1 ? bdays.length + ' anniversaires' : 'Un anniversaire'} à souhaiter ${when}.</p><div class="bdays">`;
     bdays.forEach(b => {
       const d = Number(b.day);
+      const bm = bdMonth(b);
       const valid = d >= 1 && d <= 31;
-      const wd = valid ? WEEKDAYS[new Date(y, m - 1, d).getDay()] : '';
-      const isToday = isThisMonth && valid && today.getDate() === d;
-      h += `<div class="bday${isToday ? ' today' : ''}"><div class="bday-day">${valid ? d : '–'}${wd ? `<small>${wd}</small>` : ''}</div><div class="bday-name">${esc(b.name)}</div></div>`;
+      const by = bm < m ? y + 1 : y; // birthday year relative to this issue
+      const wd = valid ? WEEKDAYS_LONG[new Date(by, bm - 1, d).getDay()] : '';
+      const isToday = valid && today.getDate() === d && today.getMonth() + 1 === bm;
+      h += `<div class="bday${isToday ? ' today' : ''}">
+        <div class="bday-day">${valid ? d : '–'}<small>${MONTHS_SHORT[bm - 1]}</small></div>
+        <div><div class="bday-name">${esc(b.name)}</div>${valid ? `<div class="bday-date">${wd} ${d} ${MONTHS[bm - 1]}</div>` : ''}${isToday ? '<div class="bday-today">C\'est aujourd\'hui !</div>' : ''}</div>
+      </div>`;
     });
     h += `</div></section>`;
   }
@@ -890,9 +903,10 @@ const LIST_SCHEMAS = {
     { k: 'body', l: 'Texte', type: 'textarea' }
   ], blank: () => ({ tag: 'info', title: '', body: '' }) },
   birthdays: { label: 'Anniversaire', fields: [
-    { k: 'name', l: 'Prénom et initiale' },
-    { k: 'day', l: 'Jour', type: 'number', min: 1, max: 31 }
-  ], row: true, blank: () => ({ name: '', day: '' }) },
+    { k: 'name', l: 'Prénom et nom' },
+    { k: 'day', l: 'Jour', type: 'number', min: 1, max: 31 },
+    { k: 'month', l: 'Mois', type: 'select', opts: MONTH_OPTS }
+  ], blank: () => ({ name: '', day: '', month: String(Number(currentId.split('-')[1])) }) },
   welcome: { label: 'Nouvel agent', fields: [
     { k: 'name', l: 'Nom affiché' },
     { k: 'role', l: 'Fonction' },
@@ -922,7 +936,7 @@ function fieldHTML(path, f, val){
   const id = 'f-' + path.replace(/[^a-z0-9]/gi, '-');
   let input;
   if (f.type === 'textarea') input = `<textarea class="inp" id="${id}" data-path="${path}">${esc(val)}</textarea>`;
-  else if (f.type === 'select') input = `<select class="inp" id="${id}" data-path="${path}">${Object.entries(f.opts).map(([k, l]) => `<option value="${k}"${k === val ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  else if (f.type === 'select') input = `<select class="inp" id="${id}" data-path="${path}">${Object.entries(f.opts).map(([k, l]) => `<option value="${k}"${k === String(val) ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
   else input = `<input class="inp" id="${id}" data-path="${path}" type="${f.type || 'text'}"${f.min ? ` min="${f.min}"` : ''}${f.max ? ` max="${f.max}"` : ''} value="${esc(val)}">`;
   return `<div class="field"><label for="${id}">${esc(f.l)}</label>${input}</div>`;
 }
@@ -969,7 +983,7 @@ function renderEditor(){
   h += group('📌 À retenir', c.infos.length, `<p class="ed-hint">« Important » ressort en rouge. Utilisez-le pour ce qui change le travail des agents.</p>` + listHTML('infos', c.infos), isOpen('infos', false)).replace('<details', '<details data-k="infos"');
 
   h += group('🎂 Anniversaires', c.birthdays.length,
-    `<p class="ed-hint">Seuls le prénom et le jour sont publiés — jamais l'année ni l'âge.</p>
+    `<p class="ed-hint">Nom, prénom et date d'anniversaire (jour et mois) sont publiés — jamais l'année de naissance ni l'âge.</p>
      <div class="ed-tools"><button class="btn btn-ghost btn-sm" id="imp-rh">Importer depuis RH</button></div>` + listHTML('birthdays', c.birthdays), isOpen('bdays', false)).replace('<details', '<details data-k="bdays"');
 
   h += group('👋 Bienvenue', c.welcome.length,
@@ -1041,7 +1055,7 @@ function onEditorClick(e){
   if (t.id === 'ed-publish'){ setStatus('published'); return; }
   if (t.id === 'ed-unpublish'){ setStatus('draft'); return; }
   if (t.id === 'ed-delete'){ deleteIssue(); return; }
-  if (t.id === 'imp-rh'){ importRH(); return; }
+  if (t.id === 'imp-rh'){ openBirthdayImport(); return; }
   if (t.id === 'imp-crm'){ importCRM(); return; }
   if (t.dataset.pick){ openAgentPicker(t.dataset.pick); return; }
   if (t.dataset.add){
@@ -1168,11 +1182,6 @@ function closeModal(){ $('modal-root').innerHTML = ''; }
 // ════════════════════════════════════════════════════════
 //  IMPORTS (RH / CRM) — editors only
 // ════════════════════════════════════════════════════════
-function displayName(prenom, nom){
-  const p = String(prenom || '').trim();
-  const n = String(nom || '').trim();
-  return n ? `${p} ${n.charAt(0).toUpperCase()}.`.trim() : p;
-}
 // Agent picker: choose arrivals (active agents) or departures (agents marked "parti") from RH
 function fmtDate(d){
   if (!d) return '';
@@ -1238,31 +1247,41 @@ async function openAgentPicker(kind){
   };
   setTimeout(() => $('pick-q').focus(), 30);
 }
-async function importRH(){
+// Birthday import: ask which month, then pull active agents born that month from RH
+function openBirthdayImport(){
   if (!navigator.onLine){ toast('Import impossible hors ligne.'); return; }
+  const issueMonth = Number(currentId.split('-')[1]);
+  $('modal-root').innerHTML = `<div class="modal-bg" id="mbg"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mt">
+    <h3 id="mt">Importer les anniversaires</h3>
+    <p>Choisissez le mois : tous les agents actifs nés ce mois-là seront ajoutés, avec leur nom, prénom et date d'anniversaire.</p>
+    <div class="field"><label for="bd-month">Mois des anniversaires</label>
+      <select class="inp" id="bd-month">${MONTHS.map((n, i) => `<option value="${i + 1}"${i + 1 === issueMonth ? ' selected' : ''}>${capitalize(n)}</option>`).join('')}</select></div>
+    <div class="modal-actions"><button class="btn btn-ghost" id="m-cancel">Annuler</button><button class="btn btn-primary" id="m-ok">Importer</button></div>
+  </div></div>`;
+  $('m-cancel').onclick = closeModal;
+  $('mbg').onclick = e => { if (e.target.id === 'mbg') closeModal(); };
+  $('m-ok').onclick = () => { const mo = Number($('bd-month').value); closeModal(); importBirthdays(mo); };
+  setTimeout(() => $('bd-month').focus(), 30);
+}
+async function importBirthdays(month){
   try {
     setSync('pending', 'Import RH…');
-    const agents = await sb('rh_agents?select=prenom,nom,dob,date_embauche,statut,fonction&statut=eq.actif') || [];
-    const [y, m] = currentId.split('-').map(Number);
-    const bdays = agents
-      .filter(a => a.dob && Number(String(a.dob).slice(5, 7)) === m)
-      .map(a => ({ name: displayName(a.prenom, a.nom), day: Number(String(a.dob).slice(8, 10)) }))
+    const agents = await sb('rh_agents?select=prenom,nom,dob,statut&statut=eq.actif') || [];
+    const found = agents
+      .filter(a => a.dob && Number(String(a.dob).slice(5, 7)) === month)
+      .map(a => ({ name: `${a.prenom || ''} ${a.nom || ''}`.trim(), day: Number(String(a.dob).slice(8, 10)), month: String(month) }))
       .sort((a, b) => a.day - b.day);
-    const from = shiftMonth(currentId, -1) + '-01';
-    const to = shiftMonth(currentId, 1) + '-01';
-    const arrivals = agents
-      .filter(a => a.date_embauche && a.date_embauche >= from && a.date_embauche < to)
-      .map(a => ({ name: `${a.prenom || ''} ${a.nom || ''}`.trim(), role: a.fonction || 'Agent de sécurité', site: '' }));
     const c = normalize(issues[currentId].content);
-    const existingB = new Set(c.birthdays.map(b => (b.name || '').toLowerCase()));
-    const existingW = new Set(c.welcome.map(w => (w.name || '').toLowerCase()));
-    const newB = bdays.filter(b => !existingB.has(b.name.toLowerCase()));
-    const newW = arrivals.filter(w => !existingW.has(w.name.toLowerCase()));
-    mutate(cc => { cc.birthdays.push(...newB); cc.welcome.push(...newW); }, { rerenderEditor: true });
+    const existing = new Set(c.birthdays.map(b => (b.name || '').trim().toLowerCase()));
+    const added = found.filter(b => !existing.has(b.name.toLowerCase()));
+    if (added.length) mutate(cc => { cc.birthdays.push(...added); }, { rerenderEditor: true });
     setSync('ok', 'À jour');
-    toast(`${newB.length} anniversaire(s) et ${newW.length} arrivée(s) ajoutés depuis RH.`, 3600);
+    const label = MONTHS[month - 1];
+    if (!found.length) toast(`Aucun agent actif né en ${label} dans RH.`, 3600);
+    else if (!added.length) toast(`Les anniversaires de ${label} sont déjà dans la lettre.`, 3600);
+    else toast(`${added.length} anniversaire(s) de ${label} ajouté(s).`, 3600);
   } catch(e){
-    console.error('importRH', e);
+    console.error('importBirthdays', e);
     setSync('error', 'Import RH échoué');
     toast('Import RH impossible : ' + e.message, 4200);
   }
