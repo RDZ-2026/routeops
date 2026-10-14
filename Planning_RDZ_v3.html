@@ -1,4 +1,4 @@
-<!-- RDZ · Planning_RDZ · v4 · 2026-10-14 · + notifications et validation/refus des demandes de matériel agents (stock RDZ_Agent) -->
+<!-- RDZ · Planning_RDZ · v5 · 2026-10-14 · base v4 + titulaire par créneau, marqueurs ⚠/⛔ sur les services, filtres rapides, compteur d’heures, heures facturables, indisponibilités habituelles, relance des non validés -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -141,6 +141,17 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .cs-day:hover{background:#e2e8f0;}
 .cs-day.cs-selected{background:var(--red);color:#fff;font-weight:700;}
 .cs-day.cs-empty{cursor:default;background:transparent;}
+.sg-box{border-radius:8px;padding:8px 10px;font-size:12.5px;border:1px solid var(--border);}
+.sg-box.ok{background:#f0fdf4;border-color:#bbf7d0;} .sg-box.warn{background:#fffbeb;border-color:#fde68a;}
+.sg-box.bad{background:#fef2f2;border-color:#fecaca;} .sg-box.neutral{background:#f8f8f6;color:var(--text2);}
+.sg-tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px;}
+.sg-tag{font-size:10.5px;border-radius:9px;padding:1px 7px;}
+.sg-tag.good{background:#dcfce7;color:#166534;} .sg-tag.warn{background:#fef3c7;color:#92400e;} .sg-tag.hard{background:#fee2e2;color:#991b1b;}
+.sg-row{border:1px solid var(--border);border-radius:8px;padding:7px 10px;margin-bottom:6px;cursor:pointer;background:#fff;}
+.sg-row:hover{border-color:var(--red);background:#fffafa;} .sg-row.blocked{opacity:.7;cursor:default;} .sg-row.blocked:hover{border-color:var(--border);background:#fff;}
+.sg-name{font-weight:600;font-size:13px;} .sg-hours{font-family:'DM Mono',monospace;font-size:11px;color:var(--text2);margin-left:8px;}
+.rp-row{border:1px solid var(--border);border-radius:8px;padding:8px 10px;margin-bottom:6px;} .rp-what{font-size:12.5px;margin-bottom:5px;}
+
 .calendar .cell.shift-cell.is-holiday{background:#fff8e8;}
 .calendar .cell.day-header.is-holiday{color:#b45309;background:#fef3c7;}
 .hol-tag{display:inline-block;font-size:9px;font-weight:600;background:#fde68a;color:#92400e;border-radius:4px;padding:0 5px;margin-top:2px;}
@@ -204,6 +215,9 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .shift-chip.status-controlee{background:#d97706;color:#fff;}
 .shift-chip.status-acontroler{background:#7c3aed;color:#fff;}
 .badge-purple{background:#ede9fe;color:#6d28d9;}
+.chip-flag{margin-left:5px;font-size:10px;background:#fff;border-radius:4px;padding:0 3px;cursor:help;line-height:1.3;}
+.calendar .cell.shift-cell.is-usually-off{background:#fff7ed;}
+.avail-tag{font-size:9px;color:#9a3412;font-weight:600;margin-bottom:3px;}
 .abs-pill{display:inline-block;background:#fff;color:#b91c1c;font-weight:700;font-size:9.5px;border-radius:4px;padding:0 5px;margin-top:3px;}
 /* "À affecter" (no agent yet) needs to jump out regardless of status, so it's
    declared after the status-* rules to win the cascade when both apply. */
@@ -751,6 +765,9 @@ async function apiGet(){
     // l'appli fonctionne normalement, simplement sans couverture.
     try{ state.templates = (await restSelect('rdz_planning_templates','select=*')).map(mapTemplate); }
     catch(e){ state.templates = []; }
+    // Jours habituels d'indisponibilité déclarés par les agents (même principe non bloquant).
+    try{ state.availability = (await restSelect('rdz_planning_availability','select=*')).map(mapAvailability); }
+    catch(e){ state.availability = []; }
 
     ACTOR = { role: member.role, agent: member.agent_id||'', sites: member.sites||[], email: currentSession.email, name: currentSession.email, owner: member.role==='direction', simulation:'' };
     RH_CONFIGURED = (member.role==='direction'||member.role==='planning');
@@ -914,18 +931,19 @@ function computePlanningAlerts(){
   const byDate = (a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start);
   const upcoming = STATE.shifts.filter(x=>x.date>=today && x.date<=horizon);
   const groups = [];
-  const push = (level,title,items)=>{ if(items.length) groups.push({level,title:`${title} (${items.length})`,items}); };
+  const push = (level,title,items,action)=>{ if(items.length) groups.push({level,title:`${title} (${items.length})`,items,action}); };
 
   push('red','Services à affecter',
-    upcoming.filter(x=>!x.agent).sort(byDate).map(x=>({text:`${fmtDate(x.date)} · ${siteLabel(x.site)} / ${x.post} · ${x.start}–${x.end}`,date:x.date})));
+    upcoming.filter(x=>!x.agent).sort(byDate).map(x=>({text:`${fmtDate(x.date)} · ${siteLabel(x.site)} / ${x.post} · ${x.start}–${x.end}`,date:x.date,shiftId:x.id})));
 
   push('amber','Brouillons non publiés',
     upcoming.filter(x=>x.status==='Planifiée' && x.agent).sort(byDate).map(x=>({text:`${fmtDate(x.date)} · ${agentLabel(x.agent)} · ${siteLabel(x.site)} / ${x.post}`,date:x.date,agent:x.agent})));
 
-  const soon = addDays(today,3);
-  push('amber','Services publiés non validés (dans les 3 jours)',
+  const soon = addDays(today,7);
+  push('amber','Services publiés non validés (7 prochains jours)',
     STATE.shifts.filter(x=>['Publiée','Vue'].includes(x.status) && x.agent && x.date>=today && x.date<=soon).sort(byDate)
-      .map(x=>({text:`${fmtDate(x.date)} · ${agentLabel(x.agent)} · ${siteLabel(x.site)} / ${x.post}`,date:x.date,agent:x.agent})));
+      .map(x=>({text:`${fmtDate(x.date)} · ${agentLabel(x.agent)} · ${siteLabel(x.site)} / ${x.post}`,date:x.date,agent:x.agent})),
+    { label:'📨 Relancer les agents', fn:'remindUnvalidated()' });
 
   const hours = [];
   const w0 = mondayOf(today);
@@ -963,7 +981,7 @@ function computePlanningAlerts(){
 
   push('red','Services pendant une absence acceptée',
     upcoming.filter(x=>x.agent && (agentAbsenceOn(x.agent,x.date)||{}).status==='Acceptée').sort(byDate)
-      .map(x=>({text:`${fmtDate(x.date)} · ${agentLabel(x.agent)} · ${siteLabel(x.site)} / ${x.post}`,date:x.date,agent:x.agent})));
+      .map(x=>({text:`${fmtDate(x.date)} · ${agentLabel(x.agent)} · ${siteLabel(x.site)} / ${x.post}`,date:x.date,agent:x.agent,replace:true})));
   return groups;
 }
 function openAlertTarget(date, agentId){
@@ -976,9 +994,9 @@ function renderPlanningAlertsCard(){
   const groups = computePlanningAlerts();
   const body = groups.length? groups.map(g=>`
     <details class="alert-group" ${g.level==='red'?'open':''}>
-      <summary><span class="alert-dot ${g.level}"></span>${esc(g.title)}</summary>
+      <summary><span class="alert-dot ${g.level}"></span>${esc(g.title)}${g.action? `<button class="btn btn-ghost btn-sm" style="margin-left:auto;" onclick="event.preventDefault();event.stopPropagation();${g.action.fn}">${g.action.label}</button>` : ''}</summary>
       <ul class="alert-list">
-        ${g.items.slice(0,12).map(it=>`<li onclick="openAlertTarget('${it.date}','${jsStr(it.agent||'')}')">${esc(it.text)}</li>`).join('')}
+        ${g.items.slice(0,12).map(it=>`<li onclick="${it.replace? `openReplaceModal('${jsStr(it.agent)}','${it.date}','${it.date}')` : it.shiftId? `openShiftFromAlert('${it.shiftId}','${it.date}')` : `openAlertTarget('${it.date}','${jsStr(it.agent||'')}')`}">${esc(it.text)}${it.replace? ' <span style="color:var(--red);font-weight:600;">— remplacer →</span>' : it.shiftId? ' <span style="color:var(--red);font-weight:600;">— affecter →</span>' : ''}</li>`).join('')}
         ${g.items.length>12? `<li style="cursor:default;color:var(--text3);text-decoration:none;">… et ${g.items.length-12} autre(s)</li>` : ''}
       </ul>
     </details>`).join('')
@@ -1013,7 +1031,7 @@ function renderOverview(el){
         <div class="kpi-sub">${esc(k.sub)}</div>
       </div>`).join('')}
     </div>
-    ${isStaffRole()? renderPlanningAlertsCard() : ''}
+    ${isStaffRole()? renderPlanningAlertsCard() + renderHoursBalanceCard() : ''}
     <div class="card">
       <div style="font-weight:700;margin-bottom:8px;">À propos de la carte « Écarts à contrôler »</div>
       <div style="font-size:12.5px;color:var(--text2);line-height:1.6;">
@@ -1080,6 +1098,7 @@ function renderAgentCard(a, canManage){
     <div class="ac-meta">${a.rhContract?.type? esc(a.rhContract.type)+' · ':''}${Number.isFinite(a.monthly)? a.monthly+'h/mois' : (a.weekly? a.weekly+'h/sem (manuel)':'Contrat à renseigner')}</div>
     <div class="ac-row"><span>Obj. semaine</span><strong>${obj.weekly? obj.weekly+'h':'—'}</strong></div>
     <div class="ac-row"><span>Obj. annuel</span><strong>${obj.annual? obj.annual+'h':'—'}</strong></div>
+    ${(()=>{ const b = canManage? agentHoursBalance(a) : null; return b? `<div class="ac-row" title="Heures faites − heures dues depuis le ${esc(fmtDate(b.since))} (${Math.round(b.done*10)/10}h faites / ${Math.round(b.due*10)/10}h dues)"><span>Compteur d’heures</span><strong style="color:${b.balance>=0?'#166534':'#b91c1c'};">${fmtBalance(b.balance)}</strong></div>` : ''; })()}
     ${canManage? `<div class="ac-sites" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;margin-top:8px;" onclick="event.stopPropagation()">
       ${siteChips}${additionalChips}
       <button class="btn btn-ghost btn-sm" style="padding:2px 8px;font-size:11px;" onclick="openAgentSitesModal('${a.id}')">🏷 Gérer les sites</button>
@@ -1355,7 +1374,7 @@ async function deleteSite(id){ if(!confirm('Supprimer ce site ?'))return; const 
 async function restoreSite(id){ const ok=await apiAction('restoreSite',{id}); if(ok){closeModal();toast('Site restauré');} }
 
 // ── PLANNING (grille site/poste × jours, ou grille agent × jours) ──
-let PLAN_FILTER = { mode:'week', anchor:'', site:'', scope:'all', viewId:'', view:'site', onlyActive:false };
+let PLAN_FILTER = { mode:'week', anchor:'', site:'', scope:'all', viewId:'', view:'site', onlyActive:false, q:'', team:'', freeOn:'' };
 // Réglage par défaut à la première ouverture du Planning : vue par agent, filtrée
 // sur le site IHEID. Appliqué une seule fois par session (ensuite ce que vous
 // choisissez est conservé) et seulement pour les profils qui gèrent le planning.
@@ -1564,6 +1583,8 @@ function renderShiftChip(s, canManage, context){
   const breakLine = s.breakMinutes? `<div class="sc-desc">Pause ${breakLabel(s.breakMinutes)}${s.breakPaid?'':' (non payée)'}</div>` : '';
   const isSelected = SELECT_MODE && SELECTED_SHIFTS.has(s.id);
   const chipAbs = s.agent? agentAbsenceOn(s.agent, s.date) : null;
+  const iss = shiftIssues(s);
+  const flag = iss? `<span class="chip-flag ${iss.hard.length?'hard':'warn'}" title="${esc([...iss.hard,...iss.warn].join('\n'))}">${iss.hard.length?'⛔':'⚠'}</span>` : '';
   const absPill = (chipAbs && chipAbs.status==='Acceptée')? `<div class="abs-pill">⛔ ${esc(absenceKindLabel(chipAbs.kind))}</div>` : '';
   const checkbox = (SELECT_MODE && canManage)? `<input type="checkbox" class="chip-check" ${isSelected?'checked':''} onclick="event.stopPropagation();toggleShiftSelection('${s.id}')">` : '';
   return `
@@ -1572,7 +1593,7 @@ function renderShiftChip(s, canManage, context){
       ondragstart="handleChipDragStart(event,'${s.id}')"
       onclick="event.stopPropagation();openShiftModal('${s.id}')">
       ${checkbox}
-      <div class="sc-time">${s.start}–${s.end}</div>
+      <div class="sc-time">${s.start}–${s.end}${flag}</div>
       <div class="sc-agent">${secondLine}</div>
       ${breakLine}
       ${absPill}
@@ -1800,8 +1821,9 @@ const WD_SHORT = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'];
 function mapTemplate(row){
   return { id:row.id, site:row.site_id, post:row.post_name, weekday:row.weekday,
     start:(row.start_time||'').slice(0,5), end:(row.end_time||'').slice(0,5),
-    breakMinutes:row.break_minutes||0, breakPaid:!!row.break_paid };
+    breakMinutes:row.break_minutes||0, breakPaid:!!row.break_paid, agent:row.default_agent_id||'' };
 }
+function mapAvailability(row){ return { id:row.id, agent:row.agent_id, weekday:row.weekday, note:row.note||'' }; }
 function siteTemplates(siteId){ return (STATE.templates||[]).filter(t=>t.site===siteId); }
 function weekdayNum(dateStr){ return ((new Date(dateStr+'T12:00:00Z').getUTCDay()+6)%7)+1; } // 1 = lundi
 function hhmmToMin(t){ const [h,m]=String(t).split(':').map(Number); return h*60+(m||0); }
@@ -1831,7 +1853,7 @@ function computeSiteCoverage(siteId, days){
       const m = cands[0];
       if(m){ used.add(m.id); slots.push({date:d,post:t.post,start:t.start,end:t.end,status:m.agent?'ok':'unassigned',shiftId:m.id}); }
       else{
-        const slot = {date:d,post:t.post,start:t.start,end:t.end,breakMinutes:t.breakMinutes,breakPaid:t.breakPaid,status:'missing'};
+        const slot = {date:d,post:t.post,start:t.start,end:t.end,breakMinutes:t.breakMinutes,breakPaid:t.breakPaid,agent:t.agent||'',status:'missing'};
         slots.push(slot); (missing[t.post+'|'+d] ||= []).push(slot);
       }
     });
@@ -1878,7 +1900,7 @@ function openTemplateModal(siteId){
     <div class="flabel" style="margin-top:12px;">Créneaux du modèle (${tpls.length})</div>
     <div style="max-height:190px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:4px 10px;margin-bottom:10px;">
       ${tpls.length? tpls.map(t=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12.5px;border-bottom:1px solid #f3f1ee;">
-        <span><strong>${WD_SHORT[t.weekday-1]}</strong> · ${esc(t.post)} · ${t.start}–${t.end}${t.breakMinutes?` · pause ${breakLabel(t.breakMinutes)}${t.breakPaid?'':' (non payée)'}`:''}</span>
+        <span><strong>${WD_SHORT[t.weekday-1]}</strong> · ${esc(t.post)} · ${t.start}–${t.end}${t.breakMinutes?` · pause ${breakLabel(t.breakMinutes)}${t.breakPaid?'':' (non payée)'}`:''}${t.agent? ` · <em style="color:var(--text2);">titulaire ${esc(agentLabel(t.agent))}</em>` : ''}</span>
         <button class="btn btn-ghost btn-sm" onclick="deleteTemplateSlot('${t.id}','${siteId}')">✕</button></div>`).join('') : '<div class="hint" style="padding:8px 0;">Aucun créneau pour l’instant. Ajoutez-en ci-dessous, ou enregistrez la semaine affichée comme modèle.</div>'}
     </div>
     <div class="flabel">Ajouter des créneaux</div>
@@ -1889,9 +1911,10 @@ function openTemplateModal(siteId){
       <div class="fg"><div class="flabel">Fin</div><input class="finp" type="time" id="tp-end" value="15:00"></div>
       <div class="fg"><div class="flabel">Pause</div><select class="fsel" id="tp-break">${BREAK_OPTIONS.map(o=>`<option value="${o.min}">${o.label}</option>`).join('')}</select></div>
       <div class="fg"><div class="flabel">Pause payée</div><select class="fsel" id="tp-break-paid"><option value="1">Oui</option><option value="0">Non</option></select></div>
+      <div class="fg full"><div class="flabel">Titulaire habituel (optionnel)</div><select class="fsel" id="tp-agent"><option value="">— Aucun —</option>${sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt)).map(a=>`<option value="${a.id}">${esc(displayNomPrenom(a))}</option>`).join('')}</select></div>
     </div>
     <button class="btn btn-ghost btn-sm" onclick="addTemplateSlots('${siteId}')">+ Ajouter ces créneaux</button>
-    <div class="hint" style="margin-top:12px;">« Enregistrer la semaine affichée » remplace le modèle de ce site par les services de la semaine à l’écran (passez en vue Semaine d’abord). « Générer » crée en brouillon, sans agent, les créneaux du modèle qui n’ont pas encore de service sur la période affichée.</div>
+    <div class="hint" style="margin-top:12px;">« Enregistrer la semaine affichée » remplace le modèle de ce site par les services de la semaine à l’écran (passez en vue Semaine d’abord). « Générer » crée en brouillon les créneaux du modèle qui n’ont pas encore de service sur la période affichée : le titulaire est placé d’office s’il est disponible (ni congé, ni chevauchement), sinon le service reste « À affecter ».</div>
   `;
   openModal('template-modal', 'Modèle de semaine — '+site.name, body, `
     <button class="btn btn-ghost btn-sm" onclick="saveWeekAsTemplate('${siteId}')">💾 Enregistrer la semaine affichée</button>
@@ -1902,9 +1925,21 @@ async function addTemplateSlots(siteId){
   const post = modalVal('tp-post'), start = modalVal('tp-start'), end = modalVal('tp-end');
   const days = Array.from(document.querySelectorAll('input[name="tp-day"]:checked')).map(x=>Number(x.value));
   if(!post || !start || !end || !days.length){ modalError('Choisissez un poste, des horaires et au moins un jour.'); return; }
-  const rows = days.map(w=>({ site_id:siteId, post_name:post, weekday:w, start_time:start, end_time:end, break_minutes:Number(modalVal('tp-break'))||0, break_paid:modalVal('tp-break-paid')==='1' }));
-  try{ await restInsert('rdz_planning_templates', rows); await reloadTemplates(); openTemplateModal(siteId); }
+  const titulaire = modalVal('tp-agent');
+  const rows = days.map(w=>{ const r = { site_id:siteId, post_name:post, weekday:w, start_time:start, end_time:end, break_minutes:Number(modalVal('tp-break'))||0, break_paid:modalVal('tp-break-paid')==='1' }; if(titulaire) r.default_agent_id = titulaire; return r; });
+  try{ await insertTemplates(rows); await reloadTemplates(); openTemplateModal(siteId); }
   catch(e){ templateError(e); }
+}
+// Insère les créneaux ; si la colonne « titulaire » n'existe pas encore en base
+// (SQL pas exécuté), on enregistre quand même le modèle, sans les titulaires.
+async function insertTemplates(rows){
+  try{ await restInsert('rdz_planning_templates', rows); }
+  catch(e){
+    if(/default_agent_id/i.test(String((e&&e.message)||e)) && rows.some(r=>'default_agent_id' in r)){
+      await restInsert('rdz_planning_templates', rows.map(r=>{ const c={...r}; delete c.default_agent_id; return c; }));
+      toast('Modèle enregistré SANS titulaires : exécutez planning_v4_ajouts.sql dans Supabase pour les activer.', true);
+    } else throw e;
+  }
 }
 async function deleteTemplateSlot(id, siteId){
   try{ await restDelete('rdz_planning_templates','id=eq.'+id); await reloadTemplates(); openTemplateModal(siteId); }
@@ -1923,13 +1958,14 @@ async function saveWeekAsTemplate(siteId){
   STATE.shifts.filter(x=>x.site===siteId && daySet.has(x.date)).forEach(x=>{
     const wd = weekdayNum(x.date), key = `${x.post}|${wd}|${x.start}|${x.end}`;
     if(!uniq[key]) uniq[key] = { site_id:siteId, post_name:x.post, weekday:wd, start_time:x.start, end_time:x.end, break_minutes:x.breakMinutes||0, break_paid:!!x.breakPaid };
+    if(x.agent && !uniq[key].default_agent_id) uniq[key].default_agent_id = x.agent;   // l'agent de la semaine devient titulaire du créneau
   });
   const rows = Object.values(uniq);
   if(!rows.length){ modalError('Aucun service sur ce site dans la semaine affichée.'); return; }
   if(siteTemplates(siteId).length && !confirm(`Remplacer le modèle actuel de ce site par ces ${rows.length} créneaux ?`)) return;
   try{
     await restDelete('rdz_planning_templates','site_id=eq.'+siteId);
-    await restInsert('rdz_planning_templates', rows);
+    await insertTemplates(rows);
     await reloadTemplates(); openTemplateModal(siteId); toast(`Modèle enregistré (${rows.length} créneaux)`);
   }catch(e){ templateError(e); }
 }
@@ -1938,21 +1974,33 @@ async function generateFromTemplate(siteId){
   const cov = computeSiteCoverage(siteId, days);
   const todo = cov.slots.filter(x=>x.status==='missing');
   if(!todo.length){ modalError('Rien à générer : tous les créneaux du modèle ont déjà un service sur la période affichée.'); return; }
-  if(!confirm(`Créer ${todo.length} service(s) en brouillon (sans agent) sur la période affichée ?`)) return;
+  const withTit = todo.filter(x=>x.agent).length;
+  if(!confirm(`Créer ${todo.length} service(s) en brouillon sur la période affichée${withTit? ` (dont ${withTit} avec titulaire, s’il est disponible)` : ' (sans agent)'} ?`)) return;
   setSyncState('saving','Création des services…');
-  let ok=0, fail=0, lastErr='';
+  let ok=0, placed=0, fail=0, lastErr=''; const skipped = [];
+  const virtual = [];
   for(const sl of todo){
+    let agentId = sl.agent || '';
+    if(agentId){
+      const a = agentById(agentId);
+      const c = a && evaluateCandidate(a, { site:siteId, post:sl.post, date:sl.date, start:sl.start, end:sl.end, breakMinutes:sl.breakMinutes||0, breakPaid:!!sl.breakPaid, excludeShiftId:null });
+      if(!c || c.state==='blocked'){ skipped.push(`${a? displayNomPrenom(a) : 'titulaire introuvable'} le ${fmtDate(sl.date)} (${c? c.hard[0] : '—'})`); agentId = ''; }
+    }
+    const call = ag=>rpc('rdz_planning_shift_upsert', { p_id:null, p_version:null, p_site_id:siteId, p_post_name:sl.post, p_date:sl.date, p_start:sl.start, p_end:sl.end,
+      p_agent_id:ag||null, p_description:'', p_reason:null, p_break_minutes:sl.breakMinutes||0, p_break_paid:!!sl.breakPaid });
     try{
-      await rpc('rdz_planning_shift_upsert', { p_id:null, p_version:null, p_site_id:siteId, p_post_name:sl.post, p_date:sl.date, p_start:sl.start, p_end:sl.end,
-        p_agent_id:null, p_description:'', p_reason:null, p_break_minutes:sl.breakMinutes||0, p_break_paid:!!sl.breakPaid });
-      ok++;
+      try{ await call(agentId); }
+      catch(e1){ if(!agentId) throw e1; await call(''); agentId = ''; skipped.push(`${agentLabel(sl.agent)} le ${fmtDate(sl.date)} (${(e1.message||'refusé').slice(0,60)})`); }
+      ok++; if(agentId) placed++;
+      // Les services créés dans ce lot comptent pour le titulaire suivant (heures, repos, chevauchement).
+      if(agentId){ const v = { id:'virtuel-'+ok, agent:agentId, site:siteId, post:sl.post, date:sl.date, start:sl.start, end:sl.end, status:'Planifiée', breakMinutes:sl.breakMinutes||0, breakPaid:!!sl.breakPaid }; STATE.shifts.push(v); virtual.push(v); }
     }catch(e){ fail++; lastErr = e.message||''; }
   }
+  virtual.forEach(v=>{ const k = STATE.shifts.indexOf(v); if(k>=0) STATE.shifts.splice(k,1); });
   closeModal();
   await apiGet();
-  toast(fail? `${ok} créés, ${fail} échec(s) — ${lastErr}` : `${ok} service(s) créé(s) en brouillon`, fail>0);
+  toast(fail? `${ok} créés, ${fail} échec(s) — ${lastErr}` : `${ok} service(s) créé(s) : ${placed} avec titulaire, ${ok-placed} à affecter${skipped.length? ' — titulaire non placé : '+skipped.slice(0,3).join(' ; ')+(skipped.length>3?' …':'') : ''}`, fail>0);
 }
-
 
 // ── EXPORT CALENDRIER (.ics) ────────────────────────────────
 // Fichier à importer dans Google Agenda / Apple Calendrier / Outlook. C'est une
@@ -2156,6 +2204,165 @@ function generatePayrollExport(){
   closeModal(); toast(`${rows.length} service(s) exporté(s) pour ${sumRows.length} agent(s)${rows.excluded? ` — ${rows.excluded} à contrôler non inclus` : ''}`, !!rows.excluded);
 }
 
+
+// ── COMPTEUR D'HEURES CUMULÉ (banque d'heures) ──────────────
+// Heures faites depuis le début de l'année moins heures dues au contrat.
+//  · fait  : services « Effectué » ou « à contrôler » jusqu'à aujourd'hui (heures déclarées si
+//            l'agent les a modifiées, sinon heures prévues), pause non payée déduite ;
+//  · dû    : contrat mensuel (ou annuel/12) × mois écoulés, au prorata du premier mois (date du
+//            premier service enregistré dans le Planning cette année) et du mois en cours.
+// ⚠ Fiable seulement si le Planning contient tous les services depuis l'entrée de l'agent.
+const HOURS_BALANCE_ALERT = 10;
+function agentHoursBalance(a){
+  const monthly = (Number.isFinite(a.monthly) && a.monthly>0) ? a.monthly : (a.annual>0 ? a.annual/12 : 0);
+  if(!monthly) return null;
+  const today = todayISO(), jan1 = today.slice(0,4)+'-01-01';
+  const mine = STATE.shifts.filter(x=>x.agent===a.id && x.date>=jan1 && x.date<=today);
+  if(!mine.length) return null;
+  let done = 0;
+  mine.forEach(x=>{
+    const st = shiftEffectiveState(x); if(st!=='effectuee' && st!=='acontroler') return;
+    const useA = x.actualStart && x.actualEnd;
+    done += shiftDurationHours({ start:useA?x.actualStart:x.start, end:useA?x.actualEnd:x.end, breakMinutes:x.breakMinutes, breakPaid:x.breakPaid });
+  });
+  const first = mine.map(x=>x.date).sort()[0];
+  const [fy,fm,fd] = first.split('-').map(Number), [ty,tm,td] = today.split('-').map(Number);
+  const dim = (y,m)=>new Date(Date.UTC(y,m,0)).getUTCDate();
+  const months = (fm===tm) ? (td-fd+1)/dim(ty,tm) : ((dim(fy,fm)-fd+1)/dim(fy,fm)) + (tm-fm-1) + td/dim(ty,tm);
+  const due = monthly*months;
+  return { done, due, balance:done-due, since:first };
+}
+function fmtBalance(h){ const r = Math.round(h*10)/10; return (r>0?'+':'')+r+'h'; }
+function renderHoursBalanceCard(){
+  const list = STATE.agents.filter(a=>!a.deletedAt).map(a=>({a, b:agentHoursBalance(a)})).filter(x=>x.b && Math.abs(x.b.balance)>=HOURS_BALANCE_ALERT)
+    .sort((p,q)=>Math.abs(q.b.balance)-Math.abs(p.b.balance));
+  const r = x=>Math.round(x*10)/10;
+  return `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:6px;">Compteurs d’heures <span style="font-weight:400;color:var(--text3);font-size:12px;">· écart de ${HOURS_BALANCE_ALERT}h ou plus entre heures faites et heures dues depuis janvier</span></div>
+    ${list.length? list.slice(0,8).map(x=>`<div class="shift-row" onclick="openAgentModal('${x.a.id}')"><span class="shift-agent" style="flex:1;">${esc(displayNomPrenom(x.a))}</span><span class="shift-site">${r(x.b.done)}h faites / ${r(x.b.due)}h dues</span><span class="badge ${x.b.balance>=0?'badge-green':'badge-red'}">${fmtBalance(x.b.balance)}</span></div>`).join('') + (list.length>8? `<div class="hint">… et ${list.length-8} autre(s)</div>` : '')
+      : '<div style="font-size:13px;color:#166534;padding:2px 0;">✓ Aucun écart notable.</div>'}
+    <div class="hint" style="margin-top:6px;">Calculé depuis le premier service de chaque agent enregistré dans le Planning cette année ; fiable seulement si l’historique est complet.</div></div>`;
+}
+
+// ── HEURES FACTURABLES PAR CLIENT / SITE ────────────────────
+// Règle RDZ : facturation sur les heures réelles de l'agent, avec un minimum de 3 h
+// facturables par déplacement (ici : par service). Les heures de nuit / dimanche / fériés
+// sont données en plus, pour les majorations éventuelles (mêmes fenêtres que l'export paie).
+function computeBillingRows(month, base, minH, ns, ne){
+  const rows = []; rows.excluded = 0;
+  STATE.shifts.filter(x=>x.agent && x.date.startsWith(month)).forEach(x=>{
+    if(base==='real'){
+      const es = shiftEffectiveState(x);
+      if(es==='acontroler'){ rows.excluded++; return; }
+      if(es!=='effectuee') return;
+    } else if(x.status==='Planifiée') return;
+    const useA = base==='real' && x.actualStart && x.actualEnd;
+    const st = useA? x.actualStart : x.start, en = useA? x.actualEnd : x.end;
+    const sp = absSpan(x.date, st, en), span = sp.e - sp.s;
+    const unpaid = x.breakPaid? 0 : (x.breakMinutes||0), paidMin = Math.max(span-unpaid,0), ratio = span>0? paidMin/span : 0;
+    const c = classifyMinutes(sp.s, sp.e, ns, ne), hours = paidMin/60;
+    rows.push({ shift:x, start:st, end:en, hours, billable: hours>0? Math.max(hours, minH||0) : 0, night:c.night*ratio/60, sunday:c.sunday*ratio/60, holiday:c.holiday*ratio/60 });
+  });
+  return rows;
+}
+function openBillingModal(){
+  openModal('billing-modal','Heures facturables par client / site', `
+    <div class="fgrid">
+      <div class="fg"><div class="flabel">Mois *</div><input class="finp" type="month" id="bl-month" value="${todayISO().slice(0,7)}"></div>
+      <div class="fg"><div class="flabel">Base de calcul</div><select class="fsel" id="bl-base">
+        <option value="real">Réel — services effectués (heures déclarées, sinon prévues)</option>
+        <option value="planned_pub">Prévu — services publiés ou au-delà</option></select></div>
+      <div class="fg"><div class="flabel">Minimum facturable par service (h)</div><input class="finp" type="number" id="bl-min" min="0" step="0.5" value="3"></div>
+      <div class="fg"><div class="flabel">Nuit : début → fin</div><div style="display:flex;gap:6px;"><input class="finp" type="time" id="bl-ns" value="23:00"><input class="finp" type="time" id="bl-ne" value="06:00"></div></div>
+    </div>
+    <div class="hint">Facturation sur les heures réelles de l’agent, minimum de 3 h par déplacement (modifiable ci-dessus, 0 pour le désactiver). Seuls les services avec agent sont comptés. Les services « à contrôler » (horaires modifiés, en violet) sont exclus tant qu’ils ne sont pas contrôlés. Nuit (23h→6h), dimanche (sam. 23h→lun. 6h) et jours fériés (veille 23h→lendemain 6h) sont indiqués à part, sur les heures effectuées.</div>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="generateBillingExport()">🧾 Générer le fichier Excel</button>`);
+}
+function generateBillingExport(){
+  const month = modalVal('bl-month'), base = modalVal('bl-base'), minH = Number(modalVal('bl-min'))||0;
+  if(!/^\d{4}-\d{2}$/.test(month)){ modalError('Choisissez un mois.'); return; }
+  if(typeof XLSX==='undefined'){ modalError('La bibliothèque Excel n’a pas pu se charger (vérifiez la connexion internet puis réessayez).'); return; }
+  const nsT = modalVal('bl-ns'), neT = modalVal('bl-ne');
+  const rows = computeBillingRows(month, base, minH, hhmmToMin(nsT), hhmmToMin(neT));
+  if(!rows.length){ modalError('Aucun service pour ce mois avec cette base de calcul.'); return; }
+  const r2 = x=>Math.round(x*100)/100, clientOf = sh=>{ const si = siteById(sh.site); return (si && si.client) || '(sans client)'; };
+  const groups = {};
+  rows.forEach(w=>{ const key = clientOf(w.shift)+'||'+siteLabel(w.shift.site); const g = groups[key] ||= { client:clientOf(w.shift), site:siteLabel(w.shift.site), n:0, h:0, b:0, night:0, sun:0, hol:0 };
+    g.n++; g.h+=w.hours; g.b+=w.billable; g.night+=w.night; g.sun+=w.sunday; g.hol+=w.holiday; });
+  const list = Object.values(groups).sort((a,b)=>a.client.localeCompare(b.client)||a.site.localeCompare(b.site));
+  const tot = list.reduce((t,g)=>({n:t.n+g.n,h:t.h+g.h,b:t.b+g.b,night:t.night+g.night,sun:t.sun+g.sun,hol:t.hol+g.hol}),{n:0,h:0,b:0,night:0,sun:0,hol:0});
+  const baseLabel = base==='real'? 'Réel (effectués)' : 'Prévu (publiés ou au-delà)';
+  const sheet1 = [
+    ['RDZ Security Management — Heures facturables'],
+    [`Mois : ${month} · Base : ${baseLabel} · Minimum facturable : ${minH} h par service${rows.excluded? ` · ⚠ ${rows.excluded} service(s) « à contrôler » NON inclus` : ''}`],
+    [`Nuit : ${nsT} → ${neT} · Dimanche : samedi ${nsT} → lundi ${neT} · Jour férié (Genève) : veille ${nsT} → lendemain ${neT} · les catégories peuvent se chevaucher`], [],
+    ['Client','Site','Services','Heures effectuées','Heures facturables','dont nuit','dont dimanche (sam. → lun.)','dont jours fériés (veille → lendemain)'],
+    ...list.map(g=>[g.client,g.site,g.n,r2(g.h),r2(g.b),r2(g.night),r2(g.sun),r2(g.hol)]),
+    ['TOTAL','',tot.n,r2(tot.h),r2(tot.b),r2(tot.night),r2(tot.sun),r2(tot.hol)]
+  ];
+  const detail = [['Date','Jour','Client','Site','Poste','Agent','Début','Fin','Pause (min)','Heures effectuées','Heures facturables','Nuit','Dimanche','Jour férié'],
+    ...rows.sort((a,b)=>a.shift.date.localeCompare(b.shift.date)||a.start.localeCompare(b.start)).map(w=>[
+      fmtDate(w.shift.date), weekdayFullName(w.shift.date), clientOf(w.shift), siteLabel(w.shift.site), w.shift.post, agentLabel(w.shift.agent),
+      w.start, w.end, w.shift.breakMinutes||0, r2(w.hours), r2(w.billable), r2(w.night), r2(w.sunday), r2(w.holiday)])];
+  const wb = XLSX.utils.book_new();
+  const ws1 = XLSX.utils.aoa_to_sheet(sheet1); ws1['!cols'] = [{wch:26},{wch:22},{wch:10},{wch:16},{wch:17},{wch:10},{wch:26},{wch:34}];
+  const ws2 = XLSX.utils.aoa_to_sheet(detail); ws2['!cols'] = [{wch:11},{wch:11},{wch:22},{wch:18},{wch:18},{wch:20},{wch:7},{wch:7},{wch:11},{wch:16},{wch:17},{wch:8},{wch:10},{wch:10}];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Synthèse'); XLSX.utils.book_append_sheet(wb, ws2, 'Détail');
+  XLSX.writeFile(wb, `Heures_facturables_${month}.xlsx`);
+  closeModal(); toast(`${rows.length} service(s) sur ${list.length} site(s)${rows.excluded? ` — ${rows.excluded} à contrôler non inclus` : ''}`, !!rows.excluded);
+}
+
+// ── RELANCE DES SERVICES NON VALIDÉS ────────────────────────
+function unvalidatedByAgent(days){
+  const today = todayISO(), end = addDays(today, days), by = {};
+  STATE.shifts.filter(x=>['Publiée','Vue'].includes(x.status) && x.agent && x.date>=today && x.date<=end)
+    .sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start)).forEach(x=>{ (by[x.agent] ||= []).push(x); });
+  return by;
+}
+async function remindUnvalidated(){
+  const by = unvalidatedByAgent(7), ids = Object.keys(by);
+  if(!ids.length){ toast('Aucun service publié en attente de validation.'); return; }
+  const total = ids.reduce((n,i)=>n+by[i].length,0);
+  if(!confirm(`Envoyer un rappel à ${ids.length} agent(s) pour ${total} service(s) non validé(s) sur les 7 prochains jours ?`)) return;
+  let ok = 0;
+  for(const id of ids){
+    try{ await rpc('rdz_planning_send_message', { p_agent_id:id, p_body:'Rappel : merci de valider vos prochains services dans l’application Planning (onglet « Heures & présences ») :\n'+by[id].map(x=>`• ${fmtDate(x.date)} · ${x.start}–${x.end} · ${siteLabel(x.site)} / ${x.post}`).join('\n') }); ok++; }catch(e){}
+  }
+  toast(`${ok}/${ids.length} rappel(s) envoyé(s)`, ok<ids.length);
+}
+
+// ── JOURS HABITUELS D'INDISPONIBILITÉ ───────────────────────
+const WD_FULL = ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'];
+function renderMyAvailabilityCard(){
+  const mine = new Set((STATE.availability||[]).filter(a=>a.agent===ACTOR.agent).map(a=>a.weekday));
+  return `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:4px;">Mes jours habituels d’indisponibilité</div>
+    <div class="hint" style="margin-bottom:8px;">Cochez les jours où vous ne pouvez habituellement pas travailler : la direction en tient compte pour vous planifier. Ce n’est pas un congé (pour une absence précise, utilisez « Demande de congé / indisponibilité »).</div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;">${WD_FULL.map((w,i)=>`<label class="checkline"><input type="checkbox" ${mine.has(i+1)?'checked':''} onchange="toggleMyAvailability(${i+1}, this.checked)"> ${w}</label>`).join('')}</div></div>`;
+}
+function renderAvailabilitySummaryCard(){
+  const by = {}; (STATE.availability||[]).forEach(a=>{ (by[a.agent] ||= []).push(a.weekday); });
+  const ids = Object.keys(by).filter(id=>agentById(id));
+  if(!ids.length) return '';
+  return `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:6px;">Indisponibilités habituelles déclarées par les agents</div>
+    ${ids.sort((p,q)=>displayNomPrenom(agentById(p)).localeCompare(displayNomPrenom(agentById(q)))).map(id=>`<div class="shift-row" style="cursor:default;"><span class="shift-agent" style="flex:1;">${esc(displayNomPrenom(agentById(id)))}</span><span class="shift-site">${by[id].sort().map(w=>WD_FULL[w-1].toLowerCase()).join(', ')}</span></div>`).join('')}
+    <div class="hint" style="margin-top:6px;">Signalé dans la grille (« habituellement indisponible ») et par un avertissement à l’affectation ; ne bloque jamais.</div></div>`;
+}
+async function reloadAvailability(){
+  try{ STATE.availability = (await restSelect('rdz_planning_availability','select=*')).map(mapAvailability); }catch(e){ STATE.availability = []; }
+  renderCurrentPanel();
+}
+async function toggleMyAvailability(wd, on){
+  if(!ACTOR.agent || ACTOR.simulation) return;
+  try{
+    if(on) await restInsert('rdz_planning_availability', [{ agent_id:ACTOR.agent, weekday:wd }]);
+    else await restDelete('rdz_planning_availability', 'agent_id=eq.'+ACTOR.agent+'&weekday=eq.'+wd);
+    await reloadAvailability();
+  }catch(e){
+    const m = String((e&&e.message)||e);
+    toast(/does not exist|schema cache|relation/i.test(m)? 'Fonction pas encore activée : planning_v4_ajouts.sql à exécuter dans Supabase.' : m, true);
+    await reloadAvailability();
+  }
+}
+
 // ── EXPORT EXCEL ─────────────────────────────────────────────
 // Full schedule export for one agent (every site) or one site (every agent),
 // over an arbitrary day/week/month — independent of whatever PLAN_FILTER
@@ -2285,6 +2492,7 @@ function bindCalendarFreeze(){
   apply();
 }
 function renderPlanning(el){
+  ISSUE_CACHE = {};
   applyPlanDefaults();
   planInitRange();
   const canManage = ['direction','planning','site'].includes(ACTOR.role);
@@ -2304,7 +2512,7 @@ function renderPlanning(el){
     <div class="ph">
       <div><div class="ph-title">Planning</div><div class="ph-sub">${esc(planLabel())}</div></div>
       <div class="ph-right" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end;">${canManage? `<button class="btn btn-ghost btn-sm" onclick="openExportModal()">📊 Exporter Excel</button>
-        ${['direction','planning'].includes(ACTOR.role)? `<button class="btn btn-ghost btn-sm" onclick="openPayrollExportModal()">💶 Export paie</button><button class="btn btn-ghost btn-sm" onclick="openTemplateModal()">🧩 Modèle de semaine</button>` : ''}
+        ${['direction','planning'].includes(ACTOR.role)? `<button class="btn btn-ghost btn-sm" onclick="openPayrollExportModal()">💶 Export paie</button><button class="btn btn-ghost btn-sm" onclick="openBillingModal()">🧾 Heures facturables</button><button class="btn btn-ghost btn-sm" onclick="openTemplateModal()">🧩 Modèle de semaine</button><button class="btn btn-ghost btn-sm" onclick="openReplaceModal()">🔁 Remplacements</button>` : ''}
         <button class="btn btn-ghost btn-sm" onclick="openPrintModal()">🖨 Imprimer</button>
         <button class="btn btn-primary btn-sm" onclick="openShiftModal(null, (PLAN_FILTER.scope==='site' && PLAN_FILTER.site) ? {site:PLAN_FILTER.site} : null)">+ Nouveau service</button>` : (ACTOR.agent? `<button class="btn btn-ghost btn-sm" onclick="exportMyIcs()">📅 Ajouter à mon calendrier</button>` : '')}</div>
     </div>
@@ -2338,6 +2546,9 @@ function renderPlanning(el){
       ${canManage? `<button class="btn btn-sm ${SELECT_MODE?'btn-primary':'btn-ghost'}" onclick="toggleSelectMode()">🖱 Sélectionner</button>` : ''}
       ${canManage && SELECT_MODE? renderSelectModeBar() : ''}
       <label class="checkline"><input type="checkbox" ${PLAN_FILTER.onlyActive?'checked':''} onchange="PLAN_FILTER.onlyActive=this.checked;renderCurrentPanel()"> Uniquement ${PLAN_FILTER.view==='agent'?'les agents':'les postes'} avec service</label>
+      <input type="search" id="plan-q" class="sel" style="min-width:150px;max-width:190px;" placeholder="🔎 ${PLAN_FILTER.view==='agent'?'Rechercher un agent':'Site ou poste'}" value="${esc(PLAN_FILTER.q||'')}" oninput="planSetQuery(this.value)">
+      ${(()=>{ const teams = [...new Set(STATE.agents.filter(a=>!a.deletedAt).map(a=>a.team).filter(t=>t && t!=='À définir'))].sort(); return (PLAN_FILTER.view==='agent' && teams.length)? `<select class="sel" onchange="planSetTeam(this.value)" title="Filtrer par équipe"><option value="">Toutes les équipes</option>${teams.map(t=>`<option value="${esc(t)}" ${PLAN_FILTER.team===t?'selected':''}>${esc(t)}</option>`).join('')}</select>` : ''; })()}
+      ${PLAN_FILTER.view==='agent'? `<label class="checkline" title="Agents disponibles ce jour-là (sans service ni congé)">Libres le <input type="date" class="sel" value="${PLAN_FILTER.freeOn||''}" onchange="planSetFreeOn(this.value)">${PLAN_FILTER.freeOn? ` <button class="btn btn-ghost btn-sm" onclick="planSetFreeOn('')">✕</button>` : ''}</label>` : ''}
     </div>
     ${canManage? renderCoverageChips(activeSites) : ''}
     <div class="plan-legend" style="display:flex;flex-wrap:wrap;gap:14px;align-items:center;font-size:11px;color:var(--text2);margin:-6px 0 10px;">
@@ -2355,8 +2566,16 @@ function renderPlanning(el){
   bindCalendarFreeze();
 }
 function rowHasShiftInRange(row, days){ return STATE.shifts.some(s=>s.site===row.siteId && s.post===row.post && days.includes(s.date)); }
+function normTxt(t){ return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(); }
+function planSetQuery(v){
+  PLAN_FILTER.q = v; renderCurrentPanel();
+  const el = document.getElementById('plan-q'); if(el){ el.focus(); const n = el.value.length; try{ el.setSelectionRange(n,n); }catch(e){} }
+}
+function planSetTeam(v){ PLAN_FILTER.team = v; renderCurrentPanel(); }
+function planSetFreeOn(v){ PLAN_FILTER.freeOn = v; renderCurrentPanel(); }
 function renderSiteCalendar(activeSites, days, today, canManage){
   let rows = planningRows(activeSites, days);
+  if(PLAN_FILTER.q) rows = rows.filter(r=>normTxt(r.siteName+' '+r.post).includes(normTxt(PLAN_FILTER.q)));
   if(PLAN_FILTER.onlyActive) rows = rows.filter(r=>rowHasShiftInRange(r, days));
   return `
     <div class="calendar" style="grid-template-columns:190px repeat(${days.length}, minmax(${PLAN_FILTER.mode==='month'?100:150}px,1fr));">
@@ -2431,6 +2650,14 @@ function renderAgentCalendar(days, today, canManage, activeView){
     agents = agents.filter(a=>agentIds.includes(a.id));
     emptyReason = ' dans cette vue';
   }
+  if(PLAN_FILTER.q) agents = agents.filter(a=>normTxt(displayNomPrenom(a)).includes(normTxt(PLAN_FILTER.q)));
+  if(PLAN_FILTER.team) agents = agents.filter(a=>a.team===PLAN_FILTER.team);
+  if(PLAN_FILTER.freeOn){   // « libres ce jour-là » : disponible, sans service, sans congé accepté, pas indisponible d'habitude
+    const d = PLAN_FILTER.freeOn;
+    agents = agents.filter(a=> a.available!==false && !STATE.shifts.some(x=>x.agent===a.id && x.date===d)
+      && (agentAbsenceOn(a.id,d)||{}).status!=='Acceptée' && !usuallyOff(a.id,d));
+    emptyReason = ' libre ce jour-là';
+  }
   if(PLAN_FILTER.onlyActive) agents = agents.filter(a=>agentHasShiftInRange(a, days));
   // Week total only makes sense as a distinct figure in week mode — in month
   // mode the displayed period already *is* the month, so showing both would
@@ -2472,8 +2699,199 @@ function renderAgentPlanningCell(agent, date, today, canManage){
   const abs = agentAbsenceOn(agent.id, date);
   const absTag = abs? `<div class="abs-tag ${abs.status==='Acceptée'?'':'pending'}" title="${esc(absenceKindLabel(abs.kind))} — ${esc(abs.status)}">${abs.status==='Acceptée'?'⛔':'⏳'} ${esc(absenceKindLabel(abs.kind))}${abs.status==='Acceptée'?'':' (demande)'}</div>` : '';
   const absCls = abs? (abs.status==='Acceptée'?'is-absent':'is-absence-pending') : '';
-  return `<div class="cell shift-cell ${date===today?'is-today':''} ${holidayName(date)?'is-holiday':''} ${absCls}" ${dropAttrs}>${absTag}${chips}${addBtn}</div>`;
+  const offTag = (!abs && usuallyOff(agent.id, date))? '<div class="avail-tag" title="Jour d’indisponibilité habituelle déclaré par l’agent">habituellement indisponible</div>' : '';
+  return `<div class="cell shift-cell ${date===today?'is-today':''} ${holidayName(date)?'is-holiday':''} ${absCls} ${offTag?'is-usually-off':''}" ${dropAttrs}>${absTag}${offTag}${chips}${addBtn}</div>`;
 }
+
+
+// ── AFFECTATION ASSISTÉE ────────────────────────────────────
+// Évalue chaque agent pour un service donné avec les mêmes règles que le serveur :
+//  ⛔ bloquant : agent marqué indisponible, congé/indisponibilité accepté ce jour-là,
+//     chevauchement avec un autre de ses services ;
+//  ⚠ à surveiller : repos < 11h, dépassement du seuil ou de l'objectif hebdomadaire,
+//     qualification ou formation du site manquante, demande de congé en attente.
+// Sert (1) au classement « Qui peut prendre ce service ? », (2) à l'aperçu en direct
+// dans la fiche service, (3) au remplacement groupé.
+let SHIFT_ASSIST_EXCLUDE = null, SHIFT_ASSIST_OPEN = false;
+// Marqueurs sur les puces du planning (services d'aujourd'hui et à venir) : ⛔ chevauchement,
+// agent indisponible ; ⚠ repos < 11h ou seuil hebdomadaire dépassé. Qualification/formation et
+// objectif hebdomadaire n'y figurent pas (trop de bruit) : ils restent dans l'aperçu et les
+// suggestions. L'absence acceptée a déjà sa propre pastille rouge.
+let ISSUE_CACHE = {};
+function usuallyOff(agentId, date){ const wd = weekdayNum(date); return (STATE.availability||[]).some(a=>a.agent===agentId && a.weekday===wd); }
+function shiftIssues(sh){
+  if(!sh.agent || sh.date < todayISO()) return null;
+  if(ISSUE_CACHE[sh.id] !== undefined) return ISSUE_CACHE[sh.id];
+  let res = null;
+  const a = agentById(sh.agent);
+  if(a){
+    const c = evaluateCandidate(a, { site:sh.site, post:sh.post, date:sh.date, start:sh.start, end:sh.end, breakMinutes:sh.breakMinutes||0, breakPaid:!!sh.breakPaid, excludeShiftId:sh.id });
+    const hard = c.hard.filter(h=>!/ ce jour-là$/.test(h));
+    const warn = c.warn.filter(w=>/^Repos|seuil hebdomadaire|habituellement/.test(w));
+    if(hard.length || warn.length) res = { hard, warn };
+  }
+  return (ISSUE_CACHE[sh.id] = res);
+}
+const r1h = x=>Math.round(x*10)/10;
+function evaluateCandidate(agent, ctx){
+  const rules = STATE.rules || { rest:11, weekly:50 };
+  const hard = [], warn = [], good = [];
+  const site = siteById(ctx.site);
+  // disponibilité
+  if(agent.available===false) hard.push('Marqué indisponible dans sa fiche');
+  const ab = agentAbsenceOn(agent.id, ctx.date);
+  if(ab){ if(ab.status==='Acceptée') hard.push(`${absenceKindLabel(ab.kind)} ce jour-là`); else warn.push('Demande de congé en attente ce jour-là'); }
+  if(usuallyOff(agent.id, ctx.date)) warn.push(`Indisponible habituellement le ${weekdayFullName(ctx.date).toLowerCase()}`);
+  // chevauchement / repos
+  const cspan = absSpan(ctx.date, ctx.start, ctx.end);
+  let minGap = Infinity, gapShift = null;
+  STATE.shifts.forEach(o=>{
+    if(o.agent!==agent.id || o.id===ctx.excludeShiftId) return;
+    if(Math.abs(Date.parse(o.date)-Date.parse(ctx.date)) > 2*86400000) return;
+    const os = absSpan(o.date,o.start,o.end);
+    if(cspan.s < os.e && os.s < cspan.e){ hard.push(`Chevauche son service du ${fmtDate(o.date)} (${o.start}–${o.end}, ${siteLabel(o.site)})`); return; }
+    const gap = os.e <= cspan.s ? cspan.s - os.e : os.s - cspan.e;
+    if(gap < minGap){ minGap = gap; gapShift = o; }
+  });
+  const restWarn = gapShift && minGap < rules.rest*60;
+  if(restWarn) warn.push(`Repos de ${Math.floor(minGap/60)}h${String(minGap%60).padStart(2,'0')} (min. ${rules.rest}h) avec son service du ${fmtDate(gapShift.date)}`);
+  // heures de la semaine
+  const daySet = new Set(Array.from({length:7},(_,i)=>addDays(mondayOf(ctx.date),i)));
+  const before = STATE.shifts.filter(o=>o.agent===agent.id && o.id!==ctx.excludeShiftId && daySet.has(o.date)).reduce((a,o)=>a+shiftDurationHours(o),0);
+  const after = before + shiftDurationHours(ctx);
+  const target = agent.weekly>0 ? agent.weekly : 0;
+  if(after > rules.weekly) warn.push(`Dépasse le seuil hebdomadaire (${r1h(after)}h > ${rules.weekly}h)`);
+  else if(target && after > target+0.05) warn.push(`Dépasse son objectif hebdomadaire (${r1h(after)}h > ${r1h(target)}h)`);
+  // site, qualification, formation
+  let siteBonus = 0;
+  if(ctx.site){
+    if(agent.primarySite===ctx.site){ good.push('Site principal'); siteBonus = 25; }
+    else if((agent.additionalSites||[]).includes(ctx.site)){ good.push('Site secondaire'); siteBonus = 12; }
+  }
+  let qualOk = false, formOk = false;
+  if(site){
+    const reqQual = site.temporary ? ((site.posts||[])[0]||{}).qualification : ((site.posts||[]).find(p=>p.name===ctx.post)||{}).qualification;
+    if(reqQual){ if((agent.qualifications||[]).includes(reqQual)){ good.push('Qualifié'); qualOk = true; } else warn.push(`Qualification « ${reqQual} » absente`); }
+    if(!site.temporary){ if((agent.sites||[]).includes(site.id)){ good.push('Formé sur le site'); formOk = true; } else warn.push('Formation du site non validée'); }
+  }
+  // score (plus haut = meilleur choix)
+  let score = 100 - hard.length*1000 - warn.length*20 + siteBonus + (qualOk?10:0) + (formOk?10:0);
+  if(restWarn) score -= 10;
+  if(after > rules.weekly) score -= 40;
+  if(target){ if(before >= target) score -= 15; else score += Math.min(20, (target-before)/target*20); }
+  return { agent, hard, warn, good, before, after, target, score, state: hard.length? 'blocked' : (warn.length? 'warn' : 'ok') };
+}
+function rankCandidates(ctx, opts){
+  const skip = (opts && opts.excludeAgents) || [];
+  const list = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt && !skip.includes(a.id))).map(a=>evaluateCandidate(a, ctx));
+  list.sort((x,y)=>((x.state==='blocked')-(y.state==='blocked')) || (y.score-x.score));
+  return list;
+}
+function fmtCandHours(c){ return `${r1h(c.before)}h → ${r1h(c.after)}h${c.target? ' / '+r1h(c.target)+'h' : ''}`; }
+function candTagsHtml(c){
+  return c.good.map(g=>`<span class="sg-tag good">${esc(g)}</span>`).join('')
+    + c.warn.map(w=>`<span class="sg-tag warn">⚠ ${esc(w)}</span>`).join('')
+    + c.hard.map(h=>`<span class="sg-tag hard">⛔ ${esc(h)}</span>`).join('');
+}
+function shiftFormContext(){
+  const date = modalVal('sh-date'), start = modalVal('sh-start'), end = modalVal('sh-end'), site = modalVal('sh-site');
+  if(!date || !start || !end || !site) return null;
+  return { site, post:modalVal('sh-post'), date, start, end, breakMinutes:Number(modalVal('sh-break'))||0, breakPaid:modalVal('sh-break-paid')==='1', excludeShiftId:SHIFT_ASSIST_EXCLUDE };
+}
+function refreshShiftAssist(){
+  const prev = document.getElementById('sh-preview'); if(!prev) return;
+  const ctx = shiftFormContext();
+  const agentId = modalVal('sh-agent');
+  if(!ctx) prev.innerHTML = '';
+  else if(!agentId) prev.innerHTML = `<div class="sg-box neutral">Aucun agent choisi : le service restera « À affecter ».</div>`;
+  else {
+    const a = agentById(agentId), c = a && evaluateCandidate(a, ctx);
+    prev.innerHTML = c? `<div class="sg-box ${c.state==='blocked'?'bad':c.state==='warn'?'warn':'ok'}"><b>${esc(displayNomPrenom(a))}</b> — semaine du ${fmtDate(mondayOf(ctx.date))} : ${fmtCandHours(c)}<div class="sg-tags">${candTagsHtml(c)||'<span class="sg-tag good">Aucun point à signaler</span>'}</div>${c.hard.length? '<div class="hint" style="margin-top:4px;">Le serveur refusera l’enregistrement tant qu’un point ⛔ subsiste.</div>' : ''}</div>` : '';
+  }
+  const box = document.getElementById('sh-suggest'); if(!box) return;
+  if(!SHIFT_ASSIST_OPEN || !ctx){ box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  const ranked = rankCandidates(ctx), avail = ranked.filter(c=>c.state!=='blocked'), blocked = ranked.filter(c=>c.state==='blocked');
+  const row = (c,can)=>`<div class="sg-row ${can?'':'blocked'}" ${can?`onclick="pickSuggestedAgent('${c.agent.id}')"`:''}><span class="sg-name">${esc(displayNomPrenom(c.agent))}</span><span class="sg-hours">${fmtCandHours(c)}</span><div class="sg-tags">${candTagsHtml(c)}</div></div>`;
+  box.innerHTML = `<div class="flabel">Agents classés pour ce service — cliquez pour affecter</div>`
+    + (avail.length? avail.slice(0,8).map(c=>row(c,true)).join('') : '<div class="hint">Aucun agent disponible sur ce créneau.</div>')
+    + (blocked.length? `<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:12px;color:var(--text2);">Non disponibles (${blocked.length})</summary><div style="margin-top:6px;">${blocked.map(c=>row(c,false)).join('')}</div></details>` : '');
+}
+function toggleShiftAssist(){ SHIFT_ASSIST_OPEN = !SHIFT_ASSIST_OPEN; refreshShiftAssist(); }
+function pickSuggestedAgent(id){ const sel = document.getElementById('sh-agent'); if(sel){ sel.value = id; refreshShiftAssist(); } }
+['change','input'].forEach(evt=>document.addEventListener(evt, e=>{
+  if(e.target && e.target.id && /^sh-(site|post|date|start|end|break|break-paid|agent)$/.test(e.target.id)) refreshShiftAssist();
+}));
+
+// ── REMPLACEMENT GROUPÉ ─────────────────────────────────────
+// Congé, maladie, indisponibilité : liste les services d'un agent sur une période,
+// propose pour chacun le meilleur remplaçant (ou « À affecter »), applique, et
+// prévient par message l'agent remplacé et chaque remplaçant — seulement pour les
+// services déjà publiés (jamais pour un brouillon, que l'agent ne doit pas voir),
+// et sans doubler l'e-mail que la republication envoie déjà.
+function openReplaceModal(agentId, from, to){
+  const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
+  from = from || todayISO(); to = to || addDays(from,6);
+  openModal('replace-modal','Remplacer un agent sur une période', `
+    <div class="fgrid">
+      <div class="fg full"><div class="flabel">Agent à remplacer</div><select class="fsel" id="rp-agent" onchange="renderReplaceList()"><option value="">— choisir —</option>${agents.map(a=>`<option value="${a.id}" ${a.id===agentId?'selected':''}>${esc(displayNomPrenom(a))}</option>`).join('')}</select></div>
+      <div class="fg"><div class="flabel">Du</div><input class="finp" type="date" id="rp-from" value="${from}" onchange="renderReplaceList()"></div>
+      <div class="fg"><div class="flabel">Au</div><input class="finp" type="date" id="rp-to" value="${to}" onchange="renderReplaceList()"></div>
+    </div>
+    <div id="rp-list" style="margin-top:10px;"></div>
+    <label class="checkline" style="margin-top:8px;"><input type="checkbox" id="rp-notify" checked> Prévenir par message l’agent remplacé et chaque remplaçant (services publiés)</label>`,
+    `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="applyReplace()">Appliquer</button>`);
+  renderReplaceList();
+}
+function renderReplaceList(){
+  const box = document.getElementById('rp-list'); if(!box) return;
+  const aid = modalVal('rp-agent'), from = modalVal('rp-from'), to = modalVal('rp-to');
+  if(!aid){ box.innerHTML = '<div class="hint">Choisissez l’agent absent.</div>'; return; }
+  const rows = STATE.shifts.filter(x=>x.agent===aid && x.date>=from && x.date<=to).sort((a,b)=>a.date.localeCompare(b.date)||a.start.localeCompare(b.start));
+  if(!rows.length){ box.innerHTML = '<div class="hint">Aucun service de cet agent sur cette période.</div>'; return; }
+  // Chaque proposition tient compte des précédentes du même lot (services « virtuels »
+  // ajoutés le temps du calcul) : sinon tout s'empilerait sur le même remplaçant.
+  const virtual = [];
+  let html = '';
+  try{
+  html = rows.map(x=>{
+    const ctx = { site:x.site, post:x.post, date:x.date, start:x.start, end:x.end, breakMinutes:x.breakMinutes||0, breakPaid:!!x.breakPaid, excludeShiftId:x.id };
+    const cands = rankCandidates(ctx,{excludeAgents:[aid]}).filter(c=>c.state!=='blocked').slice(0,6);
+    const best = cands.find(c=>c.state==='ok');
+    if(best){ const v = { ...x, id:x.id+'#virtuel', agent:best.agent.id }; STATE.shifts.push(v); virtual.push(v); }
+    return `<div class="rp-row"><div class="rp-what"><b>${esc(fmtDate(x.date))}</b> · ${x.start}–${x.end} · ${esc(siteLabel(x.site))} / ${esc(x.post)} <span class="badge ${STATE_BADGES[shiftEffectiveState(x)]}">${esc(shiftStateLabel(x))}</span></div>
+      <select class="fsel rp-sel" data-shift="${x.id}"><option value="">— À affecter —</option>${cands.map(c=>`<option value="${c.agent.id}" ${best&&best.agent.id===c.agent.id?'selected':''}>${esc(displayNomPrenom(c.agent))} · ${fmtCandHours(c)}${c.state==='warn'? ' ⚠ '+esc(c.warn[0]) : ''}</option>`).join('')}</select></div>`;
+  }).join('');
+  } finally { virtual.forEach(v=>{ const i = STATE.shifts.indexOf(v); if(i>=0) STATE.shifts.splice(i,1); }); }
+  box.innerHTML = html;
+}
+async function applyReplace(){
+  const aid = modalVal('rp-agent'), sels = Array.from(document.querySelectorAll('.rp-sel'));
+  if(!aid || !sels.length){ modalError('Rien à remplacer sur cette période.'); return; }
+  const notify = document.getElementById('rp-notify').checked;
+  const plan = sels.map(sel=>({ id:sel.dataset.shift, to:sel.value }));
+  closeModal();
+  let ok = 0, fail = 0; const done = [];
+  for(const p of plan){
+    const x = STATE.shifts.find(y=>y.id===p.id); if(!x) continue;
+    const values = { site:x.site, post:x.post, date:x.date, start:x.start, end:x.end, agent:p.to, description:x.description||'', breakMinutes:x.breakMinutes||0, breakPaid:!!x.breakPaid };
+    const res = await apiAction('edit', { id:x.id, version:x.version, reason:'Remplacement', values });
+    if(res){ ok++; done.push({ shift:x, to:p.to }); } else fail++;
+  }
+  if(notify && done.length) await notifyReplacements(aid, done);
+  toast(fail? `${ok} remplacé(s), ${fail} échec(s)` : `${ok} service(s) réattribué(s)`, fail>0);
+}
+async function notifyReplacements(oldAgentId, done){
+  const line = d=>`• ${fmtDate(d.shift.date)} · ${d.shift.start}–${d.shift.end} · ${siteLabel(d.shift.site)} / ${d.shift.post}`;
+  const send = async (agentId, body)=>{ try{ await rpc('rdz_planning_send_message', { p_agent_id:agentId, p_body:body.slice(0,3900) }); }catch(e){} };
+  const published = done.filter(d=>d.shift.status!=='Planifiée');                 // jamais de message pour un brouillon
+  if(published.length) await send(oldAgentId, 'Bonjour, les services suivants ont été réattribués :\n'+published.map(d=>line(d)+(d.to? ' → '+agentLabel(d.to) : ' → à réaffecter')).join('\n'));
+  const byNew = {};
+  published.filter(d=>d.to && !['Validée','Effectuée','Contrôlée'].includes(d.shift.status))  // les autres reçoivent déjà l'e-mail de republication
+    .forEach(d=>{ (byNew[d.to] ||= []).push(d); });
+  for(const [agentId, list] of Object.entries(byNew)) await send(agentId, 'Bonjour, vous avez été affecté(e) en remplacement sur :\n'+list.map(line).join('\n'));
+}
+function openShiftFromAlert(id, date){ openAlertTarget(date, ''); openShiftModal(id); }
 
 function openShiftModal(id, prefill){
   const s = id? STATE.shifts.find(x=>x.id===id) : null;
@@ -2496,6 +2914,9 @@ function openShiftModal(id, prefill){
       <div class="fg full"><div class="flabel">Description</div><textarea class="ftxt" id="sh-description" rows="2" placeholder="Notes libres sur ce service (optionnel)">${s?esc(s.description||''):''}</textarea></div>
       ${s? `<div class="fg full"><div class="flabel">Motif de la modification (optionnel)</div><input class="finp" id="sh-reason" placeholder="Ex. remplacement, correction d’horaire…"></div>` : ''}
     </div>
+    ${canManage? `<div id="sh-preview" style="margin-top:8px;"></div>
+      <div style="margin-top:6px;"><button type="button" class="btn btn-ghost btn-sm" onclick="toggleShiftAssist()">💡 Qui peut prendre ce service ?</button></div>
+      <div id="sh-suggest" style="display:none;margin-top:8px;"></div>` : ''}
     ${s? `<div class="hint">Statut actuel : ${esc(shiftStateLabel(s))}<br>${esc(shiftStatusDetail(s))}</div>` : ''}
   `;
   const actions = `
@@ -2506,6 +2927,9 @@ function openShiftModal(id, prefill){
     ${canManage? `<button class="btn btn-primary" onclick="saveShiftForm('${s?s.id+"|"+s.version:''}')">Enregistrer</button>` : ''}
   `;
   openModal('shift-modal', s? 'Service' : 'Nouveau service', body, actions);
+  SHIFT_ASSIST_EXCLUDE = s? s.id : null;
+  SHIFT_ASSIST_OPEN = !!(canManage && s && !s.agent);   // service sans agent : suggestions ouvertes d'emblée
+  refreshShiftAssist();
 }
 function renderPostSelect(site, current, idPrefix){
   idPrefix = idPrefix || 'sh';
@@ -2667,6 +3091,8 @@ function renderHeures(el){
       <div class="ph-right"><button class="btn btn-primary btn-sm" onclick="openAbsenceModal()">+ Demande de congé / indisponibilité</button></div>
     </div>
 
+    ${isAgent && ACTOR.agent && !ACTOR.simulation? renderMyAvailabilityCard() : ''}
+    ${canManage? renderAvailabilitySummaryCard() : ''}
     ${toValidate.length? `<div class="card" style="margin-bottom:14px;"><div style="font-weight:700;margin-bottom:8px;">À valider par l’agent (${toValidate.length})</div>
       ${toValidate.map(s=>renderHeureRow(s,'accept')).join('')}</div>` : ''}
 
