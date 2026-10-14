@@ -1,4 +1,4 @@
-<!-- RDZ · Planning_RDZ · v5 · 2026-10-14 · base v4 + titulaire par créneau, marqueurs ⚠/⛔ sur les services, filtres rapides, compteur d’heures, heures facturables, indisponibilités habituelles, relance des non validés -->
+<!-- RDZ · Planning_RDZ · v6 · 2026-10-14 · base v5 + statut « Sous-traitant » (agents hors base RH : planifiables, exclus de la paie et du compteur d’heures) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -472,6 +472,12 @@ function isDemoAgent(a){ return !a.rhAgentId && a.source!=='supabase-rh' && /^a[
 function isDemoShift(s){ return /^(s\d|open\d|past\d)/.test(s.id||''); }
 
 function agentById(id){ return (STATE?.agents||[]).find(a=>a.id===id); }
+// Sous-traitant : agent hors base RH que RDZ fait travailler sur un site (ex. HDLT). Il se planifie
+// comme les autres mais n'est pas dans la paie RDZ : exclu de l'export paie et du compteur d'heures,
+// inclus dans les heures facturables. Repéré par l'équipe « Sous-traitant » (aucune colonne en plus).
+const SUBCONTRACTOR_TEAM = 'Sous-traitant';
+function isSubcontractor(a){ return !!a && String(a.team||'').trim().toLowerCase()===SUBCONTRACTOR_TEAM.toLowerCase(); }
+function subBadge(a){ return isSubcontractor(a)? ' <span class="badge badge-blue" style="font-weight:600;" title="Sous-traitant : hors base RH, hors paie RDZ">sous-traitant</span>' : ''; }
 function siteById(id){ return (STATE?.sites||[]).find(s=>s.id===id); }
 function clientById(id){ return (STATE?.clients||[]).find(c=>c.id===id); }
 function agentLabel(id){ const a=agentById(id); return a? displayNomPrenom(a) : (id? 'Agent introuvable' : 'À affecter'); }
@@ -1094,7 +1100,7 @@ function renderAgentCard(a, canManage){
   const siteChips = a.primarySite? `<span class="badge badge-blue" title="Site principal">${esc(siteLabel(a.primarySite))}</span>` : `<span class="badge badge-grey">Aucun site</span>`;
   const additionalChips = (a.additionalSites||[]).map(id=>`<span class="badge badge-grey" title="Site secondaire">${esc(siteLabel(id))}</span>`).join('');
   return `<div class="agent-card" onclick="openAgentModal('${a.id}')">
-    <div class="ac-name">${esc(displayNomPrenom(a))} ${demo?'<span class="badge demo-badge">Démo</span>':''} ${a.deletedAt?'<span class="badge badge-red">Supprimé</span>':''}</div>
+    <div class="ac-name">${esc(displayNomPrenom(a))}${subBadge(a)} ${demo?'<span class="badge demo-badge">Démo</span>':''} ${a.deletedAt?'<span class="badge badge-red">Supprimé</span>':''}</div>
     <div class="ac-meta">${a.rhContract?.type? esc(a.rhContract.type)+' · ':''}${Number.isFinite(a.monthly)? a.monthly+'h/mois' : (a.weekly? a.weekly+'h/sem (manuel)':'Contrat à renseigner')}</div>
     <div class="ac-row"><span>Obj. semaine</span><strong>${obj.weekly? obj.weekly+'h':'—'}</strong></div>
     <div class="ac-row"><span>Obj. annuel</span><strong>${obj.annual? obj.annual+'h':'—'}</strong></div>
@@ -1185,6 +1191,9 @@ function openAgentModal(id){
       <div class="fg full"><div class="flabel">Contrat (synchronisé RH)</div>
         <div style="font-size:12.5px;color:var(--text2);">${esc(a.rhContract?.type||'—')} · ${a.monthly||0} h/mois · Objectif semaine ${obj.weekly}h · Objectif annuel ${obj.annual}h</div></div>
       ` : `
+      <div class="fg full"><div class="flabel">Statut</div>
+        <select class="fsel" id="af-status"><option value="emp" ${isSubcontractor(a)?'':'selected'}>Salarié RDZ</option><option value="st" ${isSubcontractor(a)?'selected':''}>Sous-traitant (hors base RH)</option></select>
+        <div class="hint">Un sous-traitant n’est pas dans la base RH : il se planifie normalement, mais il est exclu de l’export paie et du compteur d’heures. Ses heures restent dans les heures facturables. Ses objectifs d’heures sont facultatifs.</div></div>
       <div class="fg"><div class="flabel">Objectif hebdomadaire (h) *</div><input class="finp" type="number" id="af-weekly" value="${a?a.weekly:''}"></div>
       <div class="fg"><div class="flabel">Objectif annuel (h) *</div><input class="finp" type="number" id="af-annual" value="${a?a.annual:''}"></div>
       `}
@@ -1228,8 +1237,11 @@ async function saveAgentForm(id){
     const obj = computeObjectives(a);
     values.weekly = obj.weekly; values.annual = obj.annual; values.monthly = a.monthly;
   } else {
-    const weekly = Number(modalVal('af-weekly')), annual = Number(modalVal('af-annual'));
-    if(!(weekly>0 && weekly<=80) || !(annual>0)){ modalError('Renseignez des objectifs hebdomadaire/annuel valides.'); return; }
+    const wantST = modalVal('af-status')==='st';
+    if(wantST !== isSubcontractor(a)) values.team = wantST? SUBCONTRACTOR_TEAM : 'À définir';   // n'écrit l'équipe que si le statut change
+    let weekly = Number(modalVal('af-weekly')), annual = Number(modalVal('af-annual'));
+    if(wantST){ weekly = weekly||0; annual = annual||0; }                                        // objectifs facultatifs pour un sous-traitant
+    else if(!(weekly>0 && weekly<=80) || !(annual>0)){ modalError('Renseignez des objectifs hebdomadaire/annuel valides.'); return; }
     values.weekly = weekly; values.annual = annual;
   }
   const ok = await apiAction('saveAgent', { id: id||undefined, values });
@@ -2133,8 +2145,10 @@ function classifyMinutes(startAbs, endAbs, ns, ne){
   return { night, sunday, holiday };
 }
 function computePayrollRows(month, base, ns, ne){
-  const rows = []; rows.excluded = 0;
+  const rows = []; rows.excluded = 0; rows.subAgents = new Set();
   STATE.shifts.filter(x=>x.agent && x.date.startsWith(month)).forEach(x=>{
+    const who = agentById(x.agent);
+    if(isSubcontractor(who)){ rows.subAgents.add(who.id); return; }   // hors paie RDZ
     if(base==='planned_pub' && x.status==='Planifiée') return;
     if(base==='real'){
       const es = shiftEffectiveState(x);
@@ -2162,7 +2176,7 @@ function openPayrollExportModal(){
       <div class="fg"><div class="flabel">Début des heures de nuit</div><input class="finp" type="time" id="px-ns" value="23:00"></div>
       <div class="fg"><div class="flabel">Fin des heures de nuit</div><input class="finp" type="time" id="px-ne" value="06:00"></div>
     </div>
-    <div class="hint">Règles appliquées : <strong>nuit</strong> de la plage ci-dessus (23h → 6h) ; <strong>dimanche</strong> du samedi 23h au lundi 6h ; <strong>jour férié</strong> de la veille 23h au lendemain 6h (mêmes heures de début/fin que la nuit). Nuit, dimanche et jours fériés sont comptés séparément et peuvent se chevaucher. Un service est rattaché au mois de sa date de début. La pause non payée est déduite proportionnellement entre les catégories. Base « Réel » : les services « à contrôler » (horaires modifiés par l’agent, en violet) sont exclus tant qu’ils ne sont pas contrôlés.</div>`,
+    <div class="hint">Règles appliquées : <strong>nuit</strong> de la plage ci-dessus (23h → 6h) ; <strong>dimanche</strong> du samedi 23h au lundi 6h ; <strong>jour férié</strong> de la veille 23h au lendemain 6h (mêmes heures de début/fin que la nuit). Nuit, dimanche et jours fériés sont comptés séparément et peuvent se chevaucher. Un service est rattaché au mois de sa date de début. La pause non payée est déduite proportionnellement entre les catégories. Base « Réel » : les services « à contrôler » (horaires modifiés par l’agent, en violet) sont exclus tant qu’ils ne sont pas contrôlés. Les sous-traitants ne sont jamais inclus (ils ne sont pas dans la paie RDZ).</div>`,
     `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="generatePayrollExport()">💶 Générer le fichier Excel</button>`);
 }
 function generatePayrollExport(){
@@ -2184,7 +2198,7 @@ function generatePayrollExport(){
     return [np.nom, np.prenom, contract, v.n, r2(v.paid), r2(v.night), r2(v.sunday), r2(v.holiday), contract!=null? r2(v.paid-contract) : ''];
   });
   const sheet1 = [
-    ['RDZ Security Management — Heures pour la paie'], [`Mois : ${month} · Base : ${baseLabel}${rows.excluded? ` · ⚠ ${rows.excluded} service(s) « à contrôler » NON inclus` : ''}`],
+    ['RDZ Security Management — Heures pour la paie'], [`Mois : ${month} · Base : ${baseLabel}${rows.excluded? ` · ⚠ ${rows.excluded} service(s) « à contrôler » NON inclus` : ''}${rows.subAgents.size? ` · ${rows.subAgents.size} sous-traitant(s) exclu(s) de la paie` : ''}`],
     [`Nuit : ${nsT} → ${neT} · Dimanche : samedi ${nsT} → lundi ${neT} · Jour férié (Genève) : veille ${nsT} → lendemain ${neT} · les catégories peuvent se chevaucher`], [],
     ['Nom','Prénom','Contrat (h/mois)','Nb services','Heures payées','dont nuit','dont dimanche (sam. → lun.)','dont jours fériés (veille → lendemain)','Écart vs contrat'],
     ...sumRows,
@@ -2201,7 +2215,7 @@ function generatePayrollExport(){
   const ws2 = XLSX.utils.aoa_to_sheet(detail); ws2['!cols'] = [{wch:11},{wch:11},{wch:18},{wch:14},{wch:16},{wch:18},{wch:7},{wch:7},{wch:11},{wch:11},{wch:11},{wch:13},{wch:8},{wch:20},{wch:26}];
   XLSX.utils.book_append_sheet(wb, ws1, 'Synthèse'); XLSX.utils.book_append_sheet(wb, ws2, 'Détail');
   XLSX.writeFile(wb, `Paie_Heures_${month}.xlsx`);
-  closeModal(); toast(`${rows.length} service(s) exporté(s) pour ${sumRows.length} agent(s)${rows.excluded? ` — ${rows.excluded} à contrôler non inclus` : ''}`, !!rows.excluded);
+  closeModal(); toast(`${rows.length} service(s) exporté(s) pour ${sumRows.length} agent(s)${rows.excluded? ` — ${rows.excluded} à contrôler non inclus` : ''}${rows.subAgents.size? ` — ${rows.subAgents.size} sous-traitant(s) exclu(s)` : ''}`, !!rows.excluded);
 }
 
 
@@ -2214,6 +2228,7 @@ function generatePayrollExport(){
 // ⚠ Fiable seulement si le Planning contient tous les services depuis l'entrée de l'agent.
 const HOURS_BALANCE_ALERT = 10;
 function agentHoursBalance(a){
+  if(isSubcontractor(a)) return null;   // pas de contrat RDZ : pas de compteur
   const monthly = (Number.isFinite(a.monthly) && a.monthly>0) ? a.monthly : (a.annual>0 ? a.annual/12 : 0);
   if(!monthly) return null;
   const today = todayISO(), jan1 = today.slice(0,4)+'-01-01';
@@ -2274,7 +2289,7 @@ function openBillingModal(){
       <div class="fg"><div class="flabel">Minimum facturable par service (h)</div><input class="finp" type="number" id="bl-min" min="0" step="0.5" value="3"></div>
       <div class="fg"><div class="flabel">Nuit : début → fin</div><div style="display:flex;gap:6px;"><input class="finp" type="time" id="bl-ns" value="23:00"><input class="finp" type="time" id="bl-ne" value="06:00"></div></div>
     </div>
-    <div class="hint">Facturation sur les heures réelles de l’agent, minimum de 3 h par déplacement (modifiable ci-dessus, 0 pour le désactiver). Seuls les services avec agent sont comptés. Les services « à contrôler » (horaires modifiés, en violet) sont exclus tant qu’ils ne sont pas contrôlés. Nuit (23h→6h), dimanche (sam. 23h→lun. 6h) et jours fériés (veille 23h→lendemain 6h) sont indiqués à part, sur les heures effectuées.</div>`,
+    <div class="hint">Facturation sur les heures réelles de l’agent, minimum de 3 h par déplacement (modifiable ci-dessus, 0 pour le désactiver). Seuls les services avec agent sont comptés (sous-traitants compris : leurs heures sont facturables au client). Les services « à contrôler » (horaires modifiés, en violet) sont exclus tant qu’ils ne sont pas contrôlés. Nuit (23h→6h), dimanche (sam. 23h→lun. 6h) et jours fériés (veille 23h→lendemain 6h) sont indiqués à part, sur les heures effectuées.</div>`,
     `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="generateBillingExport()">🧾 Générer le fichier Excel</button>`);
 }
 function generateBillingExport(){
@@ -2299,13 +2314,13 @@ function generateBillingExport(){
     ...list.map(g=>[g.client,g.site,g.n,r2(g.h),r2(g.b),r2(g.night),r2(g.sun),r2(g.hol)]),
     ['TOTAL','',tot.n,r2(tot.h),r2(tot.b),r2(tot.night),r2(tot.sun),r2(tot.hol)]
   ];
-  const detail = [['Date','Jour','Client','Site','Poste','Agent','Début','Fin','Pause (min)','Heures effectuées','Heures facturables','Nuit','Dimanche','Jour férié'],
+  const detail = [['Date','Jour','Client','Site','Poste','Agent','Sous-traitant','Début','Fin','Pause (min)','Heures effectuées','Heures facturables','Nuit','Dimanche','Jour férié'],
     ...rows.sort((a,b)=>a.shift.date.localeCompare(b.shift.date)||a.start.localeCompare(b.start)).map(w=>[
-      fmtDate(w.shift.date), weekdayFullName(w.shift.date), clientOf(w.shift), siteLabel(w.shift.site), w.shift.post, agentLabel(w.shift.agent),
+      fmtDate(w.shift.date), weekdayFullName(w.shift.date), clientOf(w.shift), siteLabel(w.shift.site), w.shift.post, agentLabel(w.shift.agent), isSubcontractor(agentById(w.shift.agent))? 'Oui' : '—',
       w.start, w.end, w.shift.breakMinutes||0, r2(w.hours), r2(w.billable), r2(w.night), r2(w.sunday), r2(w.holiday)])];
   const wb = XLSX.utils.book_new();
   const ws1 = XLSX.utils.aoa_to_sheet(sheet1); ws1['!cols'] = [{wch:26},{wch:22},{wch:10},{wch:16},{wch:17},{wch:10},{wch:26},{wch:34}];
-  const ws2 = XLSX.utils.aoa_to_sheet(detail); ws2['!cols'] = [{wch:11},{wch:11},{wch:22},{wch:18},{wch:18},{wch:20},{wch:7},{wch:7},{wch:11},{wch:16},{wch:17},{wch:8},{wch:10},{wch:10}];
+  const ws2 = XLSX.utils.aoa_to_sheet(detail); ws2['!cols'] = [{wch:11},{wch:11},{wch:22},{wch:18},{wch:18},{wch:20},{wch:13},{wch:7},{wch:7},{wch:11},{wch:16},{wch:17},{wch:8},{wch:10},{wch:10}];
   XLSX.utils.book_append_sheet(wb, ws1, 'Synthèse'); XLSX.utils.book_append_sheet(wb, ws2, 'Détail');
   XLSX.writeFile(wb, `Heures_facturables_${month}.xlsx`);
   closeModal(); toast(`${rows.length} service(s) sur ${list.length} site(s)${rows.excluded? ` — ${rows.excluded} à contrôler non inclus` : ''}`, !!rows.excluded);
@@ -2674,7 +2689,7 @@ function renderAgentCalendar(days, today, canManage, activeView){
       ${agents.length? agents.map(a=>{
         const isSecondary = PLAN_FILTER.scope==='site' && PLAN_FILTER.site && a.primarySite!==PLAN_FILTER.site;
         return `
-        <div class="cell row-label">${esc(displayNomPrenom(a))}${isSecondary? ' <span class="badge badge-grey" style="font-weight:400;">secondaire</span>' : ''}${a.available===false? ' <span class="badge badge-red" style="font-weight:600;">indisponible</span>' : ''}</div>
+        <div class="cell row-label">${esc(displayNomPrenom(a))}${subBadge(a)}${isSecondary? ' <span class="badge badge-grey" style="font-weight:400;">secondaire</span>' : ''}${a.available===false? ' <span class="badge badge-red" style="font-weight:600;">indisponible</span>' : ''}</div>
         ${days.map(d=>renderAgentPlanningCell(a,d,today,canManage)).join('')}
         ${showWeekCol? `<div class="cell total-cell">${fmtAgentHours(agentHoursInRange(a.id, days), a.weekly)}</div>` : ''}
         <div class="cell total-cell">${fmtAgentHours(agentHoursInRange(a.id, monthDays), agentMonthlyTarget(a))}</div>
@@ -2812,7 +2827,7 @@ function refreshShiftAssist(){
   if(!SHIFT_ASSIST_OPEN || !ctx){ box.style.display = 'none'; return; }
   box.style.display = 'block';
   const ranked = rankCandidates(ctx), avail = ranked.filter(c=>c.state!=='blocked'), blocked = ranked.filter(c=>c.state==='blocked');
-  const row = (c,can)=>`<div class="sg-row ${can?'':'blocked'}" ${can?`onclick="pickSuggestedAgent('${c.agent.id}')"`:''}><span class="sg-name">${esc(displayNomPrenom(c.agent))}</span><span class="sg-hours">${fmtCandHours(c)}</span><div class="sg-tags">${candTagsHtml(c)}</div></div>`;
+  const row = (c,can)=>`<div class="sg-row ${can?'':'blocked'}" ${can?`onclick="pickSuggestedAgent('${c.agent.id}')"`:''}><span class="sg-name">${esc(displayNomPrenom(c.agent))}${isSubcontractor(c.agent)? ' <span class="sg-tag good">sous-traitant</span>' : ''}</span><span class="sg-hours">${fmtCandHours(c)}</span><div class="sg-tags">${candTagsHtml(c)}</div></div>`;
   box.innerHTML = `<div class="flabel">Agents classés pour ce service — cliquez pour affecter</div>`
     + (avail.length? avail.slice(0,8).map(c=>row(c,true)).join('') : '<div class="hint">Aucun agent disponible sur ce créneau.</div>')
     + (blocked.length? `<details style="margin-top:6px;"><summary style="cursor:pointer;font-size:12px;color:var(--text2);">Non disponibles (${blocked.length})</summary><div style="margin-top:6px;">${blocked.map(c=>row(c,false)).join('')}</div></details>` : '');
