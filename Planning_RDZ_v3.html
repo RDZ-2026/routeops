@@ -1,4 +1,4 @@
-<!-- RDZ · Planning_RDZ · v4 · 2026-10-14 · + notifications des demandes de matériel agents (lecture stock RDZ_Agent) -->
+<!-- RDZ · Planning_RDZ · v4 · 2026-10-14 · + notifications et validation/refus des demandes de matériel agents (stock RDZ_Agent) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -252,6 +252,13 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .eq-tag.low{background:#fef2f2;color:#b91c1c;}
 .eq-info{font-size:12px;color:var(--text2);background:var(--bg);border-radius:8px;padding:8px 10px;margin-bottom:10px;}
 .eq-empty{text-align:center;color:var(--text3);padding:22px 0;}
+.eq-actions{display:flex;gap:6px;margin-top:9px;flex-wrap:wrap;}
+.eq-actions .btn{padding:6px 12px;font-size:12px;}
+.btn-ok{background:var(--green);color:#fff;}
+.btn-ok:hover{background:#15803d;}
+.eq-refuse{margin-top:9px;display:flex;flex-direction:column;gap:6px;}
+.eq-refuse textarea{width:100%;border:1px solid var(--border2);border-radius:8px;padding:7px 9px;font-size:13px;resize:vertical;min-height:54px;}
+.eq-queue{font-size:12px;color:#92400e;background:var(--orange-l);border-radius:8px;padding:7px 10px;margin-bottom:10px;}
 
 .empty{text-align:center;padding:36px 16px;color:var(--text3);font-size:13px;}
 .demo-badge{background:#fef3c7;color:#92400e;}
@@ -2805,9 +2812,11 @@ function stopUnreadPolling(){ if(MSG_UNREAD_TIMER){ clearInterval(MSG_UNREAD_TIM
 // Les agents envoient leurs demandes de tenue / matériel depuis
 // planning-agent.html ; elles sont stockées dans le projet Supabase
 // RDZ_Agent (même source que stock-admin). On les interroge ici en lecture
-// seule toutes les 60 s (fetch natif, pas de websocket) pour prévenir la
-// direction / le planning. Le traitement (accepter / refuser) reste dans
-// stock-admin. Les ids déjà signalés sont mémorisés par utilisateur et par
+// toutes les 60 s (fetch natif, pas de websocket) pour prévenir la
+// direction / le planning, qui peut accepter ou refuser directement ici via
+// stock_demande_decider (même RPC que stock-admin : accepter = dotation +
+// stock décrémenté). Hors ligne, les décisions sont mises en file d'attente
+// (localStorage) et envoyées au retour de la connexion. Les ids déjà signalés sont mémorisés par utilisateur et par
 // navigateur, pour ne notifier que les nouvelles demandes.
 const STOCK_URL = 'https://pdewmubikmotqzbxmyeq.supabase.co';
 const STOCK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkZXdtdWJpa21vdHF6YnhteWVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMDU3MjgsImV4cCI6MjA5NDg4MTcyOH0.SRuhERPmB5_7a58nJ5oMg4a8mujnoLBv8dxkxvyNWao';
@@ -2816,6 +2825,11 @@ const EQ_POLL_MS = 60000;
 const BASE_TITLE = document.title;
 let EQ_REQ = { pending:[], newIds:new Set(), lastSync:null, offline:false, loaded:false };
 let EQ_REQ_TIMER = null;
+let EQ_REFUSE_ID = null;   // demande dont le champ « motif du refus » est ouvert
+let EQ_BUSY = new Set();   // ids en cours d'envoi
+let EQ_PUSHING = false;
+function eqQueueGet(){ try{ return JSON.parse(localStorage.getItem(eqKey('queue'))||'[]'); }catch(e){ return []; } }
+function eqQueueSet(q){ try{ localStorage.setItem(eqKey('queue'), JSON.stringify(q)); }catch(e){} }
 
 function canSeeEquip(){ return !!ACTOR && !ACTOR.simulation && (ACTOR.role==='direction' || ACTOR.role==='planning'); }
 function eqKey(k){ return 'rdz_eq_'+k+':'+((ACTOR && ACTOR.email)||''); }
@@ -2844,6 +2858,7 @@ async function fetchEquipRequests(){
 
 async function refreshEquipRequests(opts){
   if(!canSeeEquip()) return;
+  if(eqQueueGet().length && !EQ_PUSHING){ pushEquipDecisions(); return; }
   const manual = opts && opts.manual;
   let pending;
   try{ pending = await fetchEquipRequests(); EQ_REQ.offline = false; }
@@ -2852,6 +2867,8 @@ async function refreshEquipRequests(opts){
     if(manual) toast('Demandes de matériel indisponibles (hors ligne ?)', true);
     refreshEquipModal(); return;
   }
+  const queued = new Set(eqQueueGet().map(x=>String(x.id)));
+  pending = pending.filter(d=>!queued.has(String(d.id)));
   const seen = eqSeenGet();
   const firstRun = seen===null;
   const fresh = firstRun? [] : pending.filter(d=>!seen.has(String(d.id)));
@@ -2907,6 +2924,8 @@ function equipModalBody(){
   else if(Notification.permission==='denied') notifHtml = '<div class="eq-info">Les alertes système sont bloquées pour ce site. Autorisez les notifications dans les réglages du navigateur pour en recevoir.</div>';
   const sync = EQ_REQ.lastSync? 'Mis à jour à '+new Date(EQ_REQ.lastSync).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'}) : 'Jamais synchronisé';
   const state = `<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">${esc(sync)}${EQ_REQ.offline? ' · <span style="color:#b91c1c;font-weight:600">hors ligne</span>' : ''}</div>`;
+  const q = eqQueueGet();
+  const queueHtml = q.length? `<div class="eq-queue">⏳ ${q.length} décision${q.length>1?'s':''} en attente d’envoi (hors ligne) — envoi automatique au retour de la connexion.</div>` : '';
   const list = EQ_REQ.pending.length
     ? `<div class="eq-list">${EQ_REQ.pending.map(d=>{
         const isNew = EQ_REQ.newIds.has(String(d.id));
@@ -2918,21 +2937,109 @@ function equipModalBody(){
           ${d.categorie? `<div class="eq-meta">${esc(d.categorie)}</div>` : ''}
           ${d.motif? `<div class="eq-meta">Motif : ${esc(d.motif)}</div>` : ''}
           ${d.stock_agent_id? '' : '<div class="eq-meta" style="color:#b91c1c">⚠️ Agent absent de la configuration du stock</div>'}
+          ${equipActionsHtml(d, low)}
         </div>`; }).join('')}</div>`
     : '<div class="eq-empty">Aucune demande en attente.</div>';
-  return notifHtml + state + list;
+  return notifHtml + state + queueHtml + list;
 }
+function equipActionsHtml(d, low){
+  const id = jsStr(String(d.id));
+  if(EQ_BUSY.has(String(d.id))) return '<div class="eq-actions"><span class="eq-meta">Envoi en cours…</span></div>';
+  if(EQ_REFUSE_ID===String(d.id)){
+    return `<div class="eq-refuse">
+      <textarea id="eq-refuse-note" placeholder="Motif du refus (communiqué à l’agent)" maxlength="300"></textarea>
+      <div class="eq-actions" style="margin-top:0">
+        <button class="btn btn-primary" onclick="confirmRefuseEquip('${id}')">Confirmer le refus</button>
+        <button class="btn btn-ghost" onclick="cancelRefuseEquip()">Annuler</button>
+      </div></div>`;
+  }
+  const noAgent = !d.stock_agent_id;
+  const block = noAgent? ' disabled title="Ajoutez d’abord l’agent dans la configuration du stock"' : (low? ' title="Stock insuffisant"' : '');
+  return `<div class="eq-actions">
+    <button class="btn btn-ok" onclick="acceptEquip('${id}')"${block}>✅ Accepter</button>
+    <button class="btn btn-ghost" onclick="openRefuseEquip('${id}')">✖ Refuser</button>
+  </div>`;
+}
+function eqFind(id){ return EQ_REQ.pending.find(x=>String(x.id)===String(id)); }
+function acceptEquip(id){
+  const d = eqFind(id); if(!d) return;
+  const low = d.stock_dispo!=null && Number(d.stock_dispo) < Number(d.quantite||1);
+  let msg = `Accepter et attribuer ${eqLine(d)} à ${d.agent_nom||'l’agent'} ?\n\nLe stock sera décrémenté et la dotation de l’agent mise à jour.`;
+  if(low) msg += `\n\n⚠️ Stock affiché insuffisant (${d.stock_dispo} disponible${Number(d.stock_dispo)>1?'s':''}) : l’opération risque d’être refusée.`;
+  if(!navigator.onLine) msg += '\n\nVous êtes hors ligne : la décision sera envoyée au retour de la connexion.';
+  if(!confirm(msg)) return;
+  decideEquip(id, true, '');
+}
+function openRefuseEquip(id){ EQ_REFUSE_ID = String(id); refreshEquipModal(); setTimeout(()=>document.getElementById('eq-refuse-note')?.focus(), 30); }
+function cancelRefuseEquip(){ EQ_REFUSE_ID = null; refreshEquipModal(); }
+function confirmRefuseEquip(id){
+  const note = (document.getElementById('eq-refuse-note')?.value||'').trim();
+  if(!note){ toast('Indiquez un motif : il est communiqué à l’agent.', true); document.getElementById('eq-refuse-note')?.focus(); return; }
+  EQ_REFUSE_ID = null;
+  decideEquip(id, false, note);
+}
+// Décision optimiste : la demande quitte la liste tout de suite, la file
+// d'attente garantit l'envoi même hors ligne.
+function decideEquip(id, accept, note){
+  const q = eqQueueGet().filter(x=>String(x.id)!==String(id));
+  const d = eqFind(id);
+  q.push({ id:String(id), accept:!!accept, note:note||'', label: d? (d.agent_nom||'Agent')+' — '+eqLine(d) : '', at:new Date().toISOString() });
+  eqQueueSet(q);
+  EQ_REQ.pending = EQ_REQ.pending.filter(x=>String(x.id)!==String(id));
+  EQ_REQ.newIds.delete(String(id));
+  eqCacheSet(); renderEquipBadge(); refreshEquipModal();
+  pushEquipDecisions();
+}
+async function pushEquipDecisions(){
+  if(EQ_PUSHING || !canSeeEquip()) return;
+  let q = eqQueueGet(); if(!q.length) return;
+  EQ_PUSHING = true;
+  let sent = 0, networkDown = false;
+  for(const item of q.slice()){
+    EQ_BUSY.add(item.id);
+    try{
+      const r = await fetch(STOCK_URL+'/rest/v1/rpc/stock_demande_decider', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json', apikey:STOCK_KEY, Authorization:'Bearer '+STOCK_KEY },
+        body: JSON.stringify({ p_id:item.id, p_accept:item.accept, p_note:item.note, p_par:(ACTOR && ACTOR.email)||'Planning' })
+      });
+      if(!r.ok){
+        // Refus métier (stock insuffisant, déjà traitée…) : on abandonne cette décision et on prévient.
+        let m = 'Erreur '+r.status; try{ const j = await r.json(); m = j.message || j.hint || m; }catch(e){}
+        toast('❌ '+(item.label? item.label+' : ' : '')+m, true);
+      } else {
+        sent++;
+        toast(item.accept? '✅ Demande acceptée — dotation enregistrée' : 'Demande refusée');
+      }
+      q = eqQueueGet().filter(x=>x.id!==item.id); eqQueueSet(q);
+    }catch(e){
+      networkDown = true; // hors ligne : on garde le reste de la file
+    }finally{
+      EQ_BUSY.delete(item.id);
+    }
+    if(networkDown) break;
+  }
+  EQ_PUSHING = false;
+  if(networkDown){ EQ_REQ.offline = true; renderEquipBadge(); refreshEquipModal(); toast('Hors ligne : décision enregistrée, envoi au retour de la connexion'); return; }
+  await refreshEquipRequests();
+}
+
 function openEquipRequests(){
   if(!canSeeEquip()) return;
   closeSidebar();
   openModal('eq-modal', 'Demandes de matériel ('+EQ_REQ.pending.length+')', '<div id="eq-modal-body">'+equipModalBody()+'</div>',
     `<button class="btn btn-ghost" onclick="refreshEquipRequests({manual:true})">↻ Actualiser</button>
-     <a class="btn btn-primary" href="${STOCK_ADMIN_URL}" target="_blank" rel="noopener" style="text-decoration:none" onclick="markEquipSeen()">Traiter dans le stock ↗</a>`);
+     <a class="btn btn-primary" href="${STOCK_ADMIN_URL}" target="_blank" rel="noopener" style="text-decoration:none" onclick="markEquipSeen()">Ouvrir le stock ↗</a>`);
   markEquipSeen(true);
 }
 function refreshEquipModal(){
   const body = document.getElementById('eq-modal-body'); if(!body) return;
+  const ta = document.getElementById('eq-refuse-note');
+  const draft = ta? ta.value : null, hadFocus = ta && document.activeElement===ta;
+  if(EQ_REFUSE_ID && !eqFind(EQ_REFUSE_ID)) EQ_REFUSE_ID = null; // traitée ailleurs entre-temps
   body.innerHTML = equipModalBody();
+  const ta2 = document.getElementById('eq-refuse-note');
+  if(ta2 && draft!=null){ ta2.value = draft; if(hadFocus) ta2.focus(); }
   const t = document.querySelector('#eq-modal .modal-title'); if(t) t.textContent = 'Demandes de matériel ('+EQ_REQ.pending.length+')';
 }
 // Les tags « Nouveau » restent visibles dans la fenêtre ouverte, puis disparaissent.
@@ -2964,6 +3071,7 @@ function stopEquipPolling(){
   document.removeEventListener('visibilitychange', onEquipVisibility);
   window.removeEventListener('online', onEquipOnline);
   EQ_REQ = { pending:[], newIds:new Set(), lastSync:null, offline:false, loaded:false };
+  EQ_REFUSE_ID = null; EQ_BUSY = new Set(); EQ_PUSHING = false;
   renderEquipBadge();
 }
 
