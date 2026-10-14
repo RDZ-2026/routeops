@@ -1,3 +1,4 @@
+<!-- RDZ · Planning_RDZ · v4 · 2026-10-14 · + notifications des demandes de matériel agents (lecture stock RDZ_Agent) -->
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -230,6 +231,27 @@ td{padding:8px 10px;border-bottom:1px solid #f0eeeb;font-size:12.5px;vertical-al
 .toast{position:fixed;bottom:20px;right:20px;background:var(--anthracite);color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;box-shadow:var(--shadow-lg);z-index:900;display:none;}
 .toast.error{background:#b91c1c;}
 .toast.show{display:block;}
+/* ── Demandes de matériel (stock RDZ_Agent) ── */
+.eq-pill{display:flex;align-items:center;justify-content:space-between;gap:6px;text-align:left;}
+.eq-pill.has-new{background:rgba(192,39,45,.35)!important;border-color:rgba(255,255,255,.25)!important;}
+.eq-pill .nav-badge{margin-left:auto;}
+.sidebar-toggle .tg-badge{position:absolute;top:-5px;right:-5px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#c0272d;color:#fff;font-size:10.5px;font-weight:700;line-height:18px;border:2px solid #fff;display:none;}
+.sidebar-toggle .tg-badge.show{display:block;}
+.eq-list{display:flex;flex-direction:column;gap:8px;margin-top:4px;}
+.eq-item{border:1px solid var(--border);border-radius:10px;padding:10px 12px;background:#fff;}
+.eq-item.is-new{border-color:var(--red);box-shadow:0 0 0 3px rgba(192,39,45,.08);}
+.eq-top{display:flex;justify-content:space-between;gap:10px;align-items:baseline;}
+.eq-agent{font-weight:700;}
+.eq-date{font-family:'DM Mono',monospace;font-size:11.5px;color:var(--text3);white-space:nowrap;}
+.eq-art{margin-top:2px;}
+.eq-art b{font-family:'DM Mono',monospace;}
+.eq-meta{font-size:12px;color:var(--text2);margin-top:3px;}
+.eq-tag{display:inline-block;font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:9px;margin-left:6px;vertical-align:1px;}
+.eq-tag.new{background:var(--red);color:#fff;}
+.eq-tag.ok{background:var(--green-l);color:var(--green);}
+.eq-tag.low{background:#fef2f2;color:#b91c1c;}
+.eq-info{font-size:12px;color:var(--text2);background:var(--bg);border-radius:8px;padding:8px 10px;margin-bottom:10px;}
+.eq-empty{text-align:center;color:var(--text3);padding:22px 0;}
 
 .empty{text-align:center;padding:36px 16px;color:var(--text3);font-size:13px;}
 .demo-badge{background:#fef3c7;color:#92400e;}
@@ -330,7 +352,7 @@ a{color:var(--red)}
 </div>
 
 <!-- ═══════════ APP ═══════════ -->
-<button class="sidebar-toggle" id="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Ouvrir le menu">☰</button>
+<button class="sidebar-toggle" id="sidebar-toggle-btn" onclick="toggleSidebar()" aria-label="Ouvrir le menu">☰<span class="tg-badge" id="eq-toggle-badge"></span></button>
 <div id="app">
   <div class="sidebar" id="sidebar">
     <div class="sidebar-brand">
@@ -342,6 +364,7 @@ a{color:var(--red)}
     </div>
     <div class="sidebar-nav" id="sidebar-nav"></div>
     <div class="sidebar-foot">
+      <button class="user-pill eq-pill" id="eq-btn" onclick="openEquipRequests()" style="display:none" title="Demandes de tenue / matériel envoyées par les agents">📦 Demandes matériel<span class="nav-badge" id="eq-badge" style="display:none"></span></button>
       <div class="sync-pill"><span class="sync-dot" id="sync-dot"></span><span id="sync-label">—</span></div>
       <button class="user-pill" id="user-btn" onclick="toggleUserMenu()">☰ Mon compte</button>
     </div>
@@ -496,7 +519,7 @@ function applySession(session){
 }
 
 function doLogout(){
-  stopMessagePolling(); stopUnreadPolling(); PLAN_DEFAULTS_APPLIED = false;
+  stopMessagePolling(); stopUnreadPolling(); stopEquipPolling(); PLAN_DEFAULTS_APPLIED = false;
   const s = getSession();
   localStorage.removeItem(SK);
   currentToken=null; currentSession=null; STATE=null; ACTOR=null;
@@ -737,6 +760,7 @@ async function apiGet(){
     setSyncState('ok', 'Sync '+new Date().toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'}));
     renderNav(); renderCurrentPanel();
     if(!MSG_UNREAD_TIMER) startUnreadPolling();
+    if(!EQ_REQ_TIMER) startEquipPolling();
     return true;
   }catch(e){
     setSyncState('error','Hors ligne');
@@ -2777,6 +2801,172 @@ async function refreshUnread(){
 }
 function startUnreadPolling(){ stopUnreadPolling(); refreshUnread(); MSG_UNREAD_TIMER = setInterval(refreshUnread, 30000); }
 function stopUnreadPolling(){ if(MSG_UNREAD_TIMER){ clearInterval(MSG_UNREAD_TIMER); MSG_UNREAD_TIMER=null; } MSG_UNREAD = { total:0, byThread:{} }; }
+// ── DEMANDES DE MATÉRIEL (agents → stock-admin) ─────────────
+// Les agents envoient leurs demandes de tenue / matériel depuis
+// planning-agent.html ; elles sont stockées dans le projet Supabase
+// RDZ_Agent (même source que stock-admin). On les interroge ici en lecture
+// seule toutes les 60 s (fetch natif, pas de websocket) pour prévenir la
+// direction / le planning. Le traitement (accepter / refuser) reste dans
+// stock-admin. Les ids déjà signalés sont mémorisés par utilisateur et par
+// navigateur, pour ne notifier que les nouvelles demandes.
+const STOCK_URL = 'https://pdewmubikmotqzbxmyeq.supabase.co';
+const STOCK_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkZXdtdWJpa21vdHF6YnhteWVxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzkzMDU3MjgsImV4cCI6MjA5NDg4MTcyOH0.SRuhERPmB5_7a58nJ5oMg4a8mujnoLBv8dxkxvyNWao';
+const STOCK_ADMIN_URL = 'https://rdz-2026.github.io/RDZ_Agent/direction/stock-admin.html';
+const EQ_POLL_MS = 60000;
+const BASE_TITLE = document.title;
+let EQ_REQ = { pending:[], newIds:new Set(), lastSync:null, offline:false, loaded:false };
+let EQ_REQ_TIMER = null;
+
+function canSeeEquip(){ return !!ACTOR && !ACTOR.simulation && (ACTOR.role==='direction' || ACTOR.role==='planning'); }
+function eqKey(k){ return 'rdz_eq_'+k+':'+((ACTOR && ACTOR.email)||''); }
+function eqSeenGet(){ try{ const v = localStorage.getItem(eqKey('seen')); return v===null? null : new Set(JSON.parse(v)); }catch(e){ return new Set(); } }
+function eqSeenSet(ids){ try{ localStorage.setItem(eqKey('seen'), JSON.stringify([...ids])); }catch(e){} }
+function eqCacheSet(){ try{ localStorage.setItem(eqKey('cache'), JSON.stringify({ pending:EQ_REQ.pending, lastSync:EQ_REQ.lastSync })); }catch(e){} }
+function eqCacheLoad(){
+  try{
+    const c = JSON.parse(localStorage.getItem(eqKey('cache'))||'null');
+    if(c && Array.isArray(c.pending)){ EQ_REQ.pending = c.pending; EQ_REQ.lastSync = c.lastSync||null; }
+  }catch(e){}
+}
+
+async function fetchEquipRequests(){
+  const r = await fetch(STOCK_URL+'/rest/v1/rpc/stock_demandes_list', {
+    method:'POST',
+    headers:{ 'Content-Type':'application/json', apikey:STOCK_KEY, Authorization:'Bearer '+STOCK_KEY },
+    body: JSON.stringify({ p_days:60 })
+  });
+  if(!r.ok) throw new Error('stock_demandes_list '+r.status);
+  const rows = await r.json();
+  return (Array.isArray(rows)? rows : [])
+    .filter(d=>d && d.statut==='en_attente')
+    .sort((a,b)=>String(b.created_at||'').localeCompare(String(a.created_at||'')));
+}
+
+async function refreshEquipRequests(opts){
+  if(!canSeeEquip()) return;
+  const manual = opts && opts.manual;
+  let pending;
+  try{ pending = await fetchEquipRequests(); EQ_REQ.offline = false; }
+  catch(e){
+    EQ_REQ.offline = true; renderEquipBadge();
+    if(manual) toast('Demandes de matériel indisponibles (hors ligne ?)', true);
+    refreshEquipModal(); return;
+  }
+  const seen = eqSeenGet();
+  const firstRun = seen===null;
+  const fresh = firstRun? [] : pending.filter(d=>!seen.has(String(d.id)));
+  fresh.forEach(d=>EQ_REQ.newIds.add(String(d.id)));
+  // On ne garde comme « vus » que les ids encore en attente (le reste est traité).
+  eqSeenSet(new Set(pending.map(d=>String(d.id))));
+  const pendingIds = new Set(pending.map(d=>String(d.id)));
+  EQ_REQ.newIds.forEach(id=>{ if(!pendingIds.has(id)) EQ_REQ.newIds.delete(id); });
+  EQ_REQ.pending = pending; EQ_REQ.lastSync = new Date().toISOString(); EQ_REQ.loaded = true;
+  eqCacheSet();
+  renderEquipBadge(); refreshEquipModal();
+  if(fresh.length) notifyEquip(fresh);
+  else if(firstRun && pending.length) toast('📦 '+pending.length+' demande'+(pending.length>1?'s':'')+' de matériel en attente');
+}
+
+function eqLine(d){
+  return (d.quantite||1)+' × '+(d.article_nom||'Article')+(d.taille? ' ('+d.taille+')' : '');
+}
+function notifyEquip(list){
+  const n = list.length;
+  const title = n===1? 'Nouvelle demande de matériel' : n+' nouvelles demandes de matériel';
+  const body = n===1? (list[0].agent_nom||'Un agent')+' — '+eqLine(list[0])
+                    : list.slice(0,3).map(d=>(d.agent_nom||'Agent')+' : '+eqLine(d)).join('\n')+(n>3? '\n…' : '');
+  toast('📦 '+title+(n===1? ' — '+(list[0].agent_nom||'') : ''));
+  try{
+    if('Notification' in window && Notification.permission==='granted'){
+      const notif = new Notification(title, { body, tag:'rdz-eq-'+Date.now(), renotify:true });
+      notif.onclick = ()=>{ try{ window.focus(); }catch(e){} openEquipRequests(); notif.close(); };
+    }
+  }catch(e){ /* certains navigateurs mobiles refusent new Notification() hors service worker */ }
+}
+
+function renderEquipBadge(){
+  const btn = document.getElementById('eq-btn');
+  const badge = document.getElementById('eq-badge');
+  const tg = document.getElementById('eq-toggle-badge');
+  if(!btn) return;
+  if(!canSeeEquip()){ btn.style.display='none'; if(tg) tg.classList.remove('show'); document.title = BASE_TITLE; return; }
+  const n = EQ_REQ.pending.length, hasNew = EQ_REQ.newIds.size>0;
+  btn.style.display='flex';
+  btn.classList.toggle('has-new', hasNew);
+  btn.title = EQ_REQ.offline? 'Hors ligne — dernière liste connue' : 'Demandes de tenue / matériel envoyées par les agents';
+  if(badge){ badge.textContent = n; badge.style.display = n? 'inline-block' : 'none'; }
+  if(tg){ tg.textContent = n; tg.classList.toggle('show', n>0); }
+  document.title = (n? '('+n+') ' : '') + BASE_TITLE;
+}
+
+function equipModalBody(){
+  const fmtD = iso => { try{ return new Date(iso).toLocaleString('fr-CH',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}); }catch(e){ return ''; } };
+  let notifHtml = '';
+  if(!('Notification' in window)) notifHtml = '<div class="eq-info">Ce navigateur ne gère pas les notifications système : vous serez prévenu par le badge et un message dans l’application.</div>';
+  else if(Notification.permission==='default') notifHtml = '<div class="eq-info">Recevez une alerte système (même si l’onglet est en arrière-plan) à chaque nouvelle demande. <button class="btn btn-sm btn-primary" style="margin-left:6px" onclick="enableEquipNotifications()">Activer les alertes</button></div>';
+  else if(Notification.permission==='denied') notifHtml = '<div class="eq-info">Les alertes système sont bloquées pour ce site. Autorisez les notifications dans les réglages du navigateur pour en recevoir.</div>';
+  const sync = EQ_REQ.lastSync? 'Mis à jour à '+new Date(EQ_REQ.lastSync).toLocaleTimeString('fr-CH',{hour:'2-digit',minute:'2-digit'}) : 'Jamais synchronisé';
+  const state = `<div style="font-size:12px;color:var(--text3);margin-bottom:8px;">${esc(sync)}${EQ_REQ.offline? ' · <span style="color:#b91c1c;font-weight:600">hors ligne</span>' : ''}</div>`;
+  const list = EQ_REQ.pending.length
+    ? `<div class="eq-list">${EQ_REQ.pending.map(d=>{
+        const isNew = EQ_REQ.newIds.has(String(d.id));
+        const low = d.stock_dispo!=null && Number(d.stock_dispo) < Number(d.quantite||1);
+        const stock = d.stock_dispo==null? '' : `<span class="eq-tag ${low?'low':'ok'}">Stock : ${esc(d.stock_dispo)}</span>`;
+        return `<div class="eq-item ${isNew?'is-new':''}">
+          <div class="eq-top"><span class="eq-agent">${esc(d.agent_nom||'Agent')}${isNew?'<span class="eq-tag new">Nouveau</span>':''}</span><span class="eq-date">${esc(fmtD(d.created_at))}</span></div>
+          <div class="eq-art"><b>${esc(d.quantite||1)} ×</b> ${esc(d.article_nom||'Article')}${d.taille? ' · taille '+esc(d.taille) : ''}${stock}</div>
+          ${d.categorie? `<div class="eq-meta">${esc(d.categorie)}</div>` : ''}
+          ${d.motif? `<div class="eq-meta">Motif : ${esc(d.motif)}</div>` : ''}
+          ${d.stock_agent_id? '' : '<div class="eq-meta" style="color:#b91c1c">⚠️ Agent absent de la configuration du stock</div>'}
+        </div>`; }).join('')}</div>`
+    : '<div class="eq-empty">Aucune demande en attente.</div>';
+  return notifHtml + state + list;
+}
+function openEquipRequests(){
+  if(!canSeeEquip()) return;
+  closeSidebar();
+  openModal('eq-modal', 'Demandes de matériel ('+EQ_REQ.pending.length+')', '<div id="eq-modal-body">'+equipModalBody()+'</div>',
+    `<button class="btn btn-ghost" onclick="refreshEquipRequests({manual:true})">↻ Actualiser</button>
+     <a class="btn btn-primary" href="${STOCK_ADMIN_URL}" target="_blank" rel="noopener" style="text-decoration:none" onclick="markEquipSeen()">Traiter dans le stock ↗</a>`);
+  markEquipSeen(true);
+}
+function refreshEquipModal(){
+  const body = document.getElementById('eq-modal-body'); if(!body) return;
+  body.innerHTML = equipModalBody();
+  const t = document.querySelector('#eq-modal .modal-title'); if(t) t.textContent = 'Demandes de matériel ('+EQ_REQ.pending.length+')';
+}
+// Les tags « Nouveau » restent visibles dans la fenêtre ouverte, puis disparaissent.
+function markEquipSeen(keepModal){
+  if(keepModal){ setTimeout(()=>{ EQ_REQ.newIds.clear(); renderEquipBadge(); }, 0); return; }
+  EQ_REQ.newIds.clear(); renderEquipBadge();
+}
+async function enableEquipNotifications(){
+  try{
+    const res = await Notification.requestPermission();
+    if(res==='granted'){ toast('Alertes activées'); try{ new Notification('Alertes RDZ activées', { body:'Vous serez prévenu à chaque nouvelle demande de matériel.' }); }catch(e){} }
+    else toast('Alertes non autorisées', true);
+  }catch(e){ toast('Alertes indisponibles sur ce navigateur', true); }
+  refreshEquipModal();
+}
+function onEquipVisibility(){ if(document.visibilityState==='visible' && EQ_REQ_TIMER) refreshEquipRequests(); }
+function onEquipOnline(){ if(EQ_REQ_TIMER) refreshEquipRequests(); }
+function startEquipPolling(){
+  stopEquipPolling();
+  if(!canSeeEquip()){ renderEquipBadge(); return; }
+  eqCacheLoad(); renderEquipBadge();
+  refreshEquipRequests();
+  EQ_REQ_TIMER = setInterval(refreshEquipRequests, EQ_POLL_MS);
+  document.addEventListener('visibilitychange', onEquipVisibility);
+  window.addEventListener('online', onEquipOnline);
+}
+function stopEquipPolling(){
+  if(EQ_REQ_TIMER){ clearInterval(EQ_REQ_TIMER); EQ_REQ_TIMER=null; }
+  document.removeEventListener('visibilitychange', onEquipVisibility);
+  window.removeEventListener('online', onEquipOnline);
+  EQ_REQ = { pending:[], newIds:new Set(), lastSync:null, offline:false, loaded:false };
+  renderEquipBadge();
+}
+
 function msgStaffListHtml(){
   const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
   const un = a=>MSG_UNREAD.byThread[a.id]||0;
