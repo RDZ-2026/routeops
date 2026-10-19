@@ -614,6 +614,7 @@ input,select,textarea{background:#fff;border-color:#dbe2ea;border-radius:8px;col
         <select id="ed-format" onchange="setEditorFormat(this.value)">
           <option value="horaire">Missions horaires</option>
           <option value="checklist">Checklist à cocher</option>
+          <option value="mixte">Mixte : missions + checklist</option>
         </select>
       </label>
       <div style="width:1px;height:18px;background:var(--border)"></div>
@@ -1155,7 +1156,24 @@ function taskDesc(task,m){return (task&&task.overrideDesc!=null)?task.overrideDe
 //   {kind:'section', id, title, ponctuel?}  and  {kind:'check', id, label}
 // Items without mId are ignored by the timed-mission code (calcSheetTimes, Gantt, controls).
 // ═══════════════════════════════════════════════════
-function isChecklistSheet(sh){return !!(sh&&Array.isArray(sh.tasks)&&sh.tasks.some(t=>t&&(t.kind==='section'||t.kind==='check')));}
+// Formats: 'horaire' (missions only), 'checklist' (checklist only), 'mixte' (missions + checklist).
+// In a mixed sheet the timed missions come first in `tasks`, the checklist block after them.
+function _isCkItem(t){return !!(t&&(t.kind==='section'||t.kind==='check'));}
+function hasChecklist(sh){return !!(sh&&Array.isArray(sh.tasks)&&sh.tasks.some(_isCkItem));}
+function hasMissionTasks(sh){return !!(sh&&Array.isArray(sh.tasks)&&sh.tasks.some(t=>t&&!t.kind&&t.mId));}
+function isChecklistSheet(sh){return hasChecklist(sh)&&!hasMissionTasks(sh);}   // checklist only
+function isMixedSheet(sh){return hasChecklist(sh)&&hasMissionTasks(sh);}
+function sheetFormat(sh){return isChecklistSheet(sh)?'checklist':(isMixedSheet(sh)?'mixte':'horaire');}
+function missionCount(sh){return ((sh&&sh.tasks)||[]).filter(t=>t&&!t.kind).length;}
+// Keep missions first, checklist items after (stable)
+function _normalizeTaskOrder(sh){
+  if(!sh||!Array.isArray(sh.tasks)) return;
+  const mis=sh.tasks.filter(t=>!_isCkItem(t)),ck=sh.tasks.filter(_isCkItem);
+  sh.tasks=[...mis,...ck];
+}
+function _firstCkIdx(sh){const i=sh.tasks.findIndex(_isCkItem);return i<0?sh.tasks.length:i;}
+// Insert a timed mission before the checklist block
+function _insertMission(sh,task){sh.tasks.splice(_firstCkIdx(sh),0,task);}
 function checklistStats(sh){
   const t=(sh&&sh.tasks)||[];
   return {sections:t.filter(x=>x&&x.kind==='section').length,checks:t.filter(x=>x&&x.kind==='check').length};
@@ -1609,7 +1627,8 @@ function buildChecklistCard(sh){
 
 function buildSheetCard(sh){
   if(isChecklistSheet(sh)) return buildChecklistCard(sh);
-  const calc=calcSheetTimes(sh);
+  const calc=calcSheetTimes(sh).filter(r=>!r.kind);
+  const ckSt=checklistStats(sh);
   const hasAlert=calc.some(r=>r.alert);
   const totMin=calc.reduce((a,r)=>{const m=getMission(r.mId);if(!m)return a;const[h,mi]=(m.duree||'00:00').split(':').map(Number);return a+h*60+mi;},0);
   const endTime=calc.filter(r=>r.endTime).pop()?.endTime||'—';
@@ -1626,6 +1645,7 @@ function buildSheetCard(sh){
     </div>`;
   }).join('');
   const more=calc.length>6?`<div style="font-size:11px;color:var(--text3);padding:2px 0 0 45px">+${calc.length-6} autres missions</div>`:'';
+  const ckLine=ckSt.checks?`<div class="mission-line"><span class="ttime" style="color:var(--accent)">☑ ${ckSt.checks}</span><span>tâches à cocher (${ckSt.sections} section${ckSt.sections>1?'s':''})</span></div>`:'';
 
   const h=Math.floor(totMin/60),mn=totMin%60;
   const catLabels={'patrouille-semaine':'Patrouille·Sem','patrouille-we':'Patrouille·WE','mdp-semaine':'MDP·Sem','mdp-we':'MDP·WE','regm-semaine':'REGM·Sem','regm-we':'REGM·WE','regm-jour':'REGM·Jour','special':'Spécial'};
@@ -1638,7 +1658,7 @@ function buildSheetCard(sh){
       </div>
       ${hasAlert?'<span class="badge b-err">⚠ Fixe impossible</span>':'<span class="badge b-ok">OK</span>'}
     </div>
-    <div class="sc-body">${mLines}${more}</div>
+    <div class="sc-body">${mLines}${more}${ckLine}</div>
     <div class="sc-foot">
       <div style="flex:1;display:flex;gap:4px;flex-wrap:wrap">
         ${sites.map(sid=>{const s=getSite(sid);return s?`<span class="site-chip" style="background:${s.color}">${s.code}</span>`:''}).join('')}
@@ -2123,7 +2143,7 @@ function printJournee(onlySheets,dateOverride){
 
       <!-- Totaux -->
       <div class="totaux">
-        <div class="tot-item"><span class="tot-label">Missions</span><span class="tot-val">${calc.length}</span></div>
+        <div class="tot-item"><span class="tot-label">Missions</span><span class="tot-val">${missionCount(sh)}</span></div>
         <div class="tot-item"><span class="tot-label">Travail effectif</span><span class="tot-val">${h}h${String(mn).padStart(2,'0')}</span></div>
         <div class="tot-item"><span class="tot-label">Début service</span><span class="tot-val">${sh.startTime}</span></div>
         <div class="tot-item"><span class="tot-label">Fin de service</span><span class="tot-val" style="color:var(--orange,#ea580c)">${endService}</span></div>
@@ -2160,6 +2180,7 @@ function printJournee(onlySheets,dateOverride){
       </div>
     </div>
 
+    ${hasChecklist(sh)?renderChecklistPrint(sh,date):''}
     <!-- VERSO — Prise de matériel -->
     <div class="page-verso">
       <img src="${BACK_IMG}" style="width:210mm;height:297mm;object-fit:contain;display:block">
@@ -2228,6 +2249,7 @@ function printChecklistDraft(){
   _edReadForm();
   printJournee([sh],sh.isTemplate?'':(sh.date||''));
 }
+function printEditorSheet(){printChecklistDraft();}
 
 function previewAndPrint(id){
   const sh=S.sheets.find(s=>s.id===id);if(!sh)return;
@@ -2333,6 +2355,8 @@ function loadEditorFromSelect(){
 }
 
 function renderEditor(sh){
+  _normalizeTaskOrder(sh);
+  edFormat=sheetFormat(sh);
   document.getElementById('ed-title').value=sh.name||'';
   document.getElementById('ed-start').value=sh.startTime||'17:30';
   document.getElementById('ed-endservice').value=sh.endService||'';
@@ -2360,34 +2384,43 @@ function saveEditorMeta(){
 }
 
 // Show the controls of the sheet format (timed missions / checklist)
+let edFormat='horaire';   // format shown in the editor (kept while a mixed sheet is still empty)
 function _edShowFormat(fmt){
+  edFormat=fmt;
   const sel=document.getElementById('ed-format');if(sel) sel.value=fmt;
-  document.querySelectorAll('#page-editeur [data-mode]').forEach(el=>{el.style.display=(el.dataset.mode===fmt)?'':'none';});
-  const ck=fmt==='checklist';
-  document.getElementById('ed-missions-card').style.display=ck?'none':'';
-  document.getElementById('ed-legend').style.display=ck?'none':'flex';
-  document.getElementById('ed-checklist-card').style.display=ck?'':'none';
+  const showMis=fmt!=='checklist',showCk=fmt!=='horaire';
+  document.querySelectorAll('#page-editeur [data-mode]').forEach(el=>{
+    const m=el.dataset.mode;
+    el.style.display=((m==='horaire'&&showMis)||(m==='checklist'&&showCk))?'':'none';
+  });
+  document.getElementById('ed-missions-card').style.display=showMis?'':'none';
+  document.getElementById('ed-legend').style.display=showMis?'flex':'none';
+  document.getElementById('ed-checklist-card').style.display=showCk?'':'none';
+  document.getElementById('ed-checklist-card').style.marginTop=(fmt==='mixte')?'14px':'';
 }
 
+function _askChecklistContent(sh){
+  const prefill=confirm('Pré-remplir la checklist avec la checklist quotidienne AEROGEM (REGM Jour) ?\n\nOK : checklist AEROGEM complète\nAnnuler : checklist vide');
+  if(prefill) _edApplyAerogem(sh);
+  else sh.tasks.push({kind:'section',id:_ckId(),title:'Nouvelle section'},{kind:'check',id:_ckId(),label:''});
+}
 function setEditorFormat(fmt){
   const sh=getEdSheet();if(!sh)return;
-  const isCk=isChecklistSheet(sh);
-  if(fmt==='checklist'&&!isCk){
-    const n=(sh.tasks||[]).length;
-    if(n&&!confirm(`Cette feuille contient ${n} mission(s).\n\nLe format checklist les retire de la feuille ouverte dans l'éditeur (rien n'est enregistré tant que vous ne sauvegardez pas).\n\nContinuer ?`)){_edShowFormat('horaire');return;}
-    const prefill=confirm('Pré-remplir avec la checklist quotidienne AEROGEM (REGM Jour) ?\n\nOK : checklist AEROGEM complète\nAnnuler : checklist vide');
-    if(prefill){_edApplyAerogem(sh);}
-    else sh.tasks=[{kind:'section',id:_ckId(),title:'Nouvelle section'},{kind:'check',id:_ckId(),label:''}];
-  } else if(fmt==='horaire'&&isCk){
-    const n=checklistStats(sh).checks;
-    if(!confirm(`Revenir aux missions horaires retire les ${n} tâche(s) de la checklist de cette feuille.\n\nContinuer ?`)){_edShowFormat('checklist');return;}
-    sh.tasks=[];
-  }
+  const prev=edFormat;
+  if(fmt===prev) return;
+  const nMis=missionCount(sh),nCk=checklistStats(sh).checks;
+  // Leaving a part of the sheet removes its content: ask first
+  if(fmt==='checklist'&&nMis&&!confirm(`Le format « Checklist » retire les ${nMis} mission(s) horaire(s) de la feuille ouverte (rien n'est enregistré tant que vous ne sauvegardez pas).\n\nPour garder les missions, choisissez « Mixte ».\n\nContinuer ?`)){_edShowFormat(prev);return;}
+  if(fmt==='horaire'&&hasChecklist(sh)&&!confirm(`Le format « Missions horaires » retire les ${nCk} tâche(s) de la checklist.\n\nPour garder la checklist, choisissez « Mixte ».\n\nContinuer ?`)){_edShowFormat(prev);return;}
+  if(fmt==='checklist') sh.tasks=sh.tasks.filter(_isCkItem);
+  if(fmt==='horaire') sh.tasks=sh.tasks.filter(t=>!_isCkItem(t));
+  if(fmt!=='horaire'&&!hasChecklist(sh)) _askChecklistContent(sh);
+  _edShowFormat(fmt);
   renderEditorRows(sh.id);
 }
 
 function _edApplyAerogem(sh){
-  sh.tasks=buildAerogemTasks();
+  sh.tasks=[...sh.tasks.filter(t=>!_isCkItem(t)),...buildAerogemTasks()];
   if(!String(sh.observations||'').trim()){sh.observations=AEROGEM_RULE;document.getElementById('ed-observations').value=AEROGEM_RULE;}
   if(!String(sh.cat||'').startsWith('regm')){sh.cat='regm-jour';document.getElementById('ed-cat').value='regm-jour';}
 }
@@ -2429,8 +2462,10 @@ function renderChecklistEditor(){
   el.innerHTML=html||'<div class="ck-empty">Checklist vide. Ajoutez une section.</div>';
   const st=checklistStats(sh);
   document.getElementById('ck-total').textContent=`${st.sections} section${st.sections>1?'s':''} — ${st.checks} tâche${st.checks>1?'s':''} à cocher`;
-  document.getElementById('ed-summary').innerHTML='';
-  document.getElementById('ed-alert').style.display='none';
+  if(edFormat==='checklist'){
+    document.getElementById('ed-summary').innerHTML='';
+    document.getElementById('ed-alert').style.display='none';
+  }
   _edUpdateStatus();
 }
 function _ckFocus(i){setTimeout(()=>{const f=document.querySelector(`#ck-rows .ck-in[data-idx="${i}"]`);if(f)f.focus();},0);}
@@ -2457,8 +2492,9 @@ function addCkItem(secIdx){
 }
 function moveCkItem(i,dir){
   const sh=getEdSheet();if(!sh)return;const t=sh.tasks;const j=i+dir;
-  if(j<0||j>=t.length)return;
-  if(j===0&&t[0].kind==='section')return; // keep the first section on top
+  const first=_firstCkIdx(sh);
+  if(j<first||j>=t.length)return;
+  if(j===first&&t[first].kind==='section')return; // keep the first section on top of the checklist
   [t[i],t[j]]=[t[j],t[i]];
   renderChecklistEditor();
 }
@@ -2467,7 +2503,7 @@ function moveCkSection(i,dir){
   if(!t[i]||t[i].kind!=='section')return;
   const end=_ckSectionEnd(t,i);
   if(dir<0){
-    let p=i-1;while(p>=0&&t[p].kind!=='section')p--;
+    let p=i-1;while(p>=0&&t[p].kind!=='section'){if(!_isCkItem(t[p]))return;p--;}
     if(p<0)return;
     const blk=t.splice(i,end-i);t.splice(p,0,...blk);
   } else {
@@ -2480,12 +2516,12 @@ function moveCkSection(i,dir){
 function removeCkItem(i){
   const sh=getEdSheet();if(!sh)return;
   sh.tasks.splice(i,1);
-  if(!isChecklistSheet(sh)) sh.tasks.push({kind:'section',id:_ckId(),title:'Nouvelle section'});
+  if(!hasChecklist(sh)) sh.tasks.push({kind:'section',id:_ckId(),title:'Nouvelle section'});
   renderChecklistEditor();
 }
 function removeCkSection(i){
   const sh=getEdSheet();if(!sh)return;const t=sh.tasks;
-  if(checklistStats(sh).sections<=1){alert('Une checklist garde au moins une section. Pour revenir aux missions horaires, changez le format.');return;}
+  if(checklistStats(sh).sections<=1){alert('La checklist garde au moins une section. Pour la retirer, passez le format sur « Missions horaires ».');return;}
   const end=_ckSectionEnd(t,i);const n=t.slice(i+1,end).filter(x=>x.kind==='check').length;
   if(n&&!confirm(`Supprimer la section « ${t[i].title||'sans titre'} » et ses ${n} tâche(s) ?`))return;
   t.splice(i,end-i);
@@ -2495,8 +2531,11 @@ function removeCkSection(i){
 function renderEditorRows(shId){
   const sh=getEdSheet();
   if(!sh){document.getElementById('ed-rows').innerHTML='';return;}
-  if(isChecklistSheet(sh)){_edShowFormat('checklist');renderChecklistEditor();return;}
-  _edShowFormat('horaire');
+  if(isChecklistSheet(sh)&&edFormat!=='mixte') edFormat='checklist';
+  if(edFormat==='checklist'){_edShowFormat('checklist');renderChecklistEditor();return;}
+  _edShowFormat(edFormat);
+  if(edFormat==='mixte') renderChecklistEditor();
+  const nMis=missionCount(sh);
   const calc=calcSheetTimes(sh);
   let totMin=0,totTravel=0;
   const alerts=[];
@@ -2561,7 +2600,7 @@ function renderEditorRows(shId){
       <div class="ec" style="gap:3px;justify-content:flex-end;align-items:center">
         <input type="checkbox" class="task-copy-cb" data-idx="${i}" style="width:13px;height:13px;cursor:pointer;accent-color:var(--accent);flex-shrink:0" title="Sélectionner pour copier">
         ${i>0?`<button class="btn btn-ghost btn-icon btn-sm" onclick="moveRow('${shId}',${i},-1)">↑</button>`:'<span style="width:28px"></span>'}
-        ${i<sh.tasks.length-1?`<button class="btn btn-ghost btn-icon btn-sm" onclick="moveRow('${shId}',${i},1)">↓</button>`:'<span style="width:28px"></span>'}
+        ${i<nMis-1?`<button class="btn btn-ghost btn-icon btn-sm" onclick="moveRow('${shId}',${i},1)">↓</button>`:'<span style="width:28px"></span>'}
         ${isFixed?`<button class="btn btn-ghost btn-icon btn-sm" onclick="clearFixed('${shId}',${i})" title="Retirer fixe">🔓</button>`:''}
         <button class="btn btn-red btn-icon btn-sm" onclick="removeRow('${shId}',${i})">✕</button>
       </div>
@@ -2581,7 +2620,7 @@ function renderEditorRows(shId){
 
   // Stats
   const h=Math.floor(totMin/60),mn=totMin%60;
-  document.getElementById('ed-total').textContent=`${sh.tasks.length} mission${sh.tasks.length>1?'s':''} — ${h}h${String(mn).padStart(2,'0')} de travail`;
+  document.getElementById('ed-total').textContent=`${nMis} mission${nMis>1?'s':''} — ${h}h${String(mn).padStart(2,'0')} de travail`;
   document.getElementById('ed-travel-total').textContent=totTravel>0?`+ ${totTravel} min de déplacement`:'';
   const lastRow=calc.filter(r=>r.endTime).pop();
   const endMission=lastRow?.endTime||'—';
@@ -2608,7 +2647,7 @@ function recalcAll(){
 
 function moveRow(shId,i,dir){
   const sh=getEdSheet();
-  const ni=i+dir;if(ni<0||ni>=sh.tasks.length)return;
+  const ni=i+dir;if(ni<0||ni>=missionCount(sh))return;
   [sh.tasks[i],sh.tasks[ni]]=[sh.tasks[ni],sh.tasks[i]];
   renderEditorRows(shId);
 }
@@ -2705,7 +2744,7 @@ function confirmAddMission(){
   const ft=document.getElementById('em-fixed-time').value||null;
   const sh=getEdSheet();
   if(!sh||!mId){alert('Sélectionnez une mission');return;}
-  sh.tasks.push({mId,fixedStart:ft,note:''});
+  _insertMission(sh,{mId,fixedStart:ft,note:''});
   closeModal('modal-add-mission');
   renderEditorRows(sh.id);
 }
@@ -2714,7 +2753,7 @@ function addPauseToEditor(){
   const sh=getEdSheet();if(!sh)return;
   const pause=S.missions.find(m=>m.name.toLowerCase().includes('pause 60'))||S.missions.find(m=>m.type==='autre');
   if(!pause){alert('Aucune mission Pause dans le catalogue');return;}
-  sh.tasks.push({mId:pause.id,fixedStart:null,note:''});
+  _insertMission(sh,{mId:pause.id,fixedStart:null,note:''});
   renderEditorRows(sh.id);
 }
 
@@ -3166,7 +3205,7 @@ function buildModelsList(){
         <td><span class="${t.cat?.includes('we')?'tag-we':'tag-week'}">${catL[t.cat]||t.cat}</span></td>
         <td style="font-size:12px;color:var(--text2)">${{'lun-ven':'Lun→Ven','sam-dim':'Sam+Dim','lun-dim':'Tous','specifique':'Spéc.'}[t.days]||t.days}</td>
         <td style="font-family:var(--mono);font-size:12px">${t.startTime}</td>
-        <td style="font-family:var(--mono);font-size:12px">${isChecklistSheet(t)?'☑ '+checklistStats(t).checks+' tâches':t.tasks.length}</td>
+        <td style="font-family:var(--mono);font-size:12px">${isChecklistSheet(t)?'☑ '+checklistStats(t).checks+' tâches':missionCount(t)+(hasChecklist(t)?' + ☑ '+checklistStats(t).checks:'')}</td>
         <td style="display:flex;gap:3px;flex-wrap:wrap;padding:6px 11px">${sites.map(sid=>{const s=getSite(sid);return s?`<span class="site-chip" style="background:${s.color};font-size:10px">${s.code}</span>`:''}).join('')}</td>
         <td style="display:flex;gap:4px">
           <button class="btn btn-outline btn-sm tpl-edit-btn" data-id="${t.id}">✏️ Éditer</button>
@@ -4047,7 +4086,7 @@ function pasteTasksHere(){
   if(!_taskClipboard.length) return
   const sh = getEdSheet()
   if(!sh) return
-  _taskClipboard.forEach(task => sh.tasks.push({...task}))
+  _taskClipboard.forEach(task => _insertMission(sh,{...task}))
   renderEditorRows(sh.id)
   _showCopyToast(`${_taskClipboard.length} mission${_taskClipboard.length>1?'s':''} collée${_taskClipboard.length>1?'s':''}`)
 }
