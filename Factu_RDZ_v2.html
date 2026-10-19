@@ -506,7 +506,7 @@ body{background:var(--bg);font-size:13.5px;}
       <!-- FACTURES -->
       <section class="panel" id="p-factures">
         <div class="ph"><div><div class="ph-title">Factures</div><div class="ph-sub" id="fac-sub"></div></div>
-          <div class="ph-right w-only"><label class="btn btn-ghost" style="cursor:pointer" title="Sélectionnez les PDF : le numéro de facture doit figurer dans le nom du fichier">Joindre des PDF Bexio<input type="file" accept="application/pdf" multiple style="display:none" onchange="attachBexioPdfs([...this.files]);this.value=''"></label><button class="btn btn-ghost" onclick="openNewDoc('facture',{legacy:true})">Reprendre une facture Bexio</button><button class="btn btn-primary" onclick="openNewDoc('facture')">Nouvelle facture</button></div></div>
+          <div class="ph-right w-only"><label class="btn btn-ghost" style="cursor:pointer" title="Sélectionnez les PDF : le numéro de facture doit figurer dans le nom du fichier">Joindre des PDF Bexio<input type="file" accept="application/pdf" multiple style="display:none" onchange="attachBexioPdfs([...this.files]);this.value=''"></label><button class="btn btn-ghost" onclick="openBexioImport()">Importer des factures Bexio</button><button class="btn btn-primary" onclick="openNewDoc('facture')">Nouvelle facture</button></div></div>
         <div class="sbar">
           <input class="inp" id="fac-q" placeholder="Rechercher un numéro, un client…" oninput="renderFactures()">
           <select class="sel" id="fac-f" onchange="renderFactures()">
@@ -1821,7 +1821,7 @@ function renderDocModal() {
     h += `<div class="fg c4"><span class="flabel">Référence de paiement</span><input class="finp mono" readonly value="${esc(groupRef(d.reference || '—'))}"></div>`;
   }
   h += `</div>`;
-  if (ed && !d._legacy && d.kind !== 'devis') h += `<div class="fhint" id="d-numprev" style="margin-top:8px"></div>`;
+  if (ed && !d._legacy && !d._revise) h += `<div class="fgrid" style="margin-top:10px;align-items:end"><div class="fg c4"><label class="flabel" for="d-manualnum">N° ${d.kind === 'devis' ? 'du devis' : d.kind === 'avoir' ? 'de la note de crédit' : 'de facture'} (facultatif)</label><input class="finp mono" id="d-manualnum" value="${esc(d._manualNum || '')}" placeholder="Automatique" oninput="editDoc._manualNum=this.value.trim();updateNumPreview()"></div><div class="fg c8"><div class="fhint" id="d-numprev"></div></div></div>`;
   h += `<table class="lines"><thead><tr><th style="width:34px">Pos.</th><th>Description</th><th style="width:84px">Quantité</th><th style="width:92px">Unité</th><th style="width:100px">Prix unitaire</th><th style="width:118px">TVA</th><th style="width:100px;text-align:right">Total HT</th>${ed ? '<th style="width:32px"></th>' : ''}</tr></thead><tbody id="d-lines"></tbody></table>`;
   if (ed) {
     h += `<div style="margin-top:8px"><button class="btn btn-ghost btn-sm" onclick="addDocLine()">Ajouter une ligne</button></div>`;
@@ -1851,6 +1851,14 @@ function updateNumPreview() {
   const el = $('d-numprev'); if (!el || !editDoc) return;
   const ref = editDoc.periode_fin || editDoc.periode_debut || editDoc.date_doc; if (!ref) { el.textContent = ''; return; }
   const seq = counterFor(editDoc.kind, +ref.slice(0, 4)) + 1;
+  if (editDoc._manualNum) {
+    const m = editDoc._manualNum; const bad = !/^[A-Za-z0-9-]{1,30}$/.test(m);
+    const dup = live('fac_documents').some(x => x.kind === editDoc.kind && x.numero === m);
+    const core = m.replace(/^NC/, ''); const sq = /^\d{7,}$/.test(core) ? +core.slice(0, -6) : null, yr = core.slice(-6, -2);
+    const clash = sq && live('fac_documents').find(x => x.kind === editDoc.kind && x.seq === sq && x.statut !== 'brouillon' && String(x.numero).replace(/^NC/, '').slice(-6, -2) === yr);
+    el.innerHTML = bad ? '<span style="color:var(--red)">Lettres, chiffres et tirets uniquement</span>' : dup ? `<span style="color:var(--red)">Le numéro ${esc(m)} existe déjà</span>` : clash ? `<span style="color:var(--red)">La séquence ${sq} de ${yr} est déjà utilisée par ${esc(clash.numero)}</span>` : `Le numéro <b class="mono">${esc(m)}</b> sera utilisé à l'émission${sq ? ' ; le compteur automatique reprendra ensuite après ' + sq : ''}.`;
+    return;
+  }
   el.innerHTML = `Numéro prévu à l'émission : <b class="mono">${editDoc.kind === 'avoir' ? 'NC' : ''}${seq < 10 ? '0' : ''}${seq}${ref.slice(0, 4)}${ref.slice(5, 7)}</b> (mois des prestations : ${MONTHS_LONG[+ref.slice(5, 7) - 1]} ${ref.slice(0, 4)}${editDoc.periode_fin || editDoc.periode_debut ? '' : ', faute de période saisie'})`;
 }
 async function attachBexioPdfs(files) {
@@ -2018,7 +2026,7 @@ async function downloadOldVersion(id, i) {
   } catch (e) { toast(e.message, 'err'); }
 }
 function docRowFromEdit() {
-  const r = { ...editDoc }; delete r._new; delete r._legacy; delete r._notesDirty; delete r._revise;
+  const r = { ...editDoc }; delete r._new; delete r._legacy; delete r._notesDirty; delete r._revise; delete r._manualNum;
   r.lignes = r.lignes.map(l => ({ id: l.id, desc: l.desc || '', qty: num(l.qty), unit: l.unit || '', pu: num(l.pu), tva_code: l.tva_code || r.tva_code }));
   r.tva_rate = num(tvaCode(r.tva_code).rate);
   if (r.statut === 'brouillon' || editDoc._revise) { const t = computeTotals(r.lignes, r.tva_code); r.total_ht = t.ht; r.total_tva = t.tva; r.total_ttc = t.ttc; r.total_breakdown = t.breakdown; }
@@ -2066,13 +2074,14 @@ async function issueDoc() {
   if (editDoc.kind === 'facture' && c && !(c.rue && c.npa && c.ville)) {
     if (!confirm("L'adresse de ce client est incomplète (rue, NPA, ville) : la QR-facture sera émise sans la zone « Payable par ». Continuer ?")) return;
   }
+  if (editDoc._manualNum && /color:var\(--red\)/.test($('d-numprev').innerHTML)) { toast('Corrigez le numéro saisi', 'err'); return; }
   const label = { facture: 'la facture', devis: 'le devis', avoir: 'la note de crédit' }[editDoc.kind];
   if (!confirm(`Émettre ${label} ? Un numéro définitif sera attribué et le contenu ne sera plus modifiable.`)) return;
   const btns = $('doc-foot').querySelectorAll('button'); btns.forEach(b => b.disabled = true);
   try {
     const row = saveDraft(false); if (!row) return;
     await waitPushed('fac_documents', row.id);
-    const res = await rpc('fac_issue_document', { p_id: row.id });
+    const res = await rpc('fac_issue_document', editDoc._manualNum ? { p_id: row.id, p_numero: editDoc._manualNum } : { p_id: row.id });
     const issued = Array.isArray(res) ? res[0] : res;
     upsertLocal('fac_documents', issued);
     counters = await sb('fac_counters?select=*') || counters;
@@ -3383,6 +3392,274 @@ async function toggleDeclared(key) {
     await sb('fac_settings?on_conflict=id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' }, body: JSON.stringify([{ id: 1, data: next }]) });
     settings = next; persist(); renderPanel(currentPanel); toast(next.tva_declared[key] ? `${key.replace('-', ' ')} marqué déclaré` : 'Marquage annulé');
   } catch (e) { toast(e.message, 'err'); }
+}
+
+// ════════════════════════════════════════
+//  IMPORT DE FACTURES BEXIO (PDF)
+//  Lecture du texte avec pdf.js, découpage par QR-facture, contrôle des montants
+// ════════════════════════════════════════
+const PDFJS_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const PDFLIB_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js';
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) return resolve();
+    const s = document.createElement('script'); s.src = src; s.onload = resolve; s.onerror = () => reject(new Error('Chargement impossible : ' + src)); document.head.appendChild(s);
+  });
+}
+async function ensurePdfLibs() {
+  if (!window.pdfjsLib) await loadScript(PDFJS_URL);
+  window.pdfjsLib.GlobalWorkerOptions.workerSrc = PDFJS_WORKER;
+  if (!window.PDFLib) await loadScript(PDFLIB_URL);
+}
+// Reconstitue les lignes d'une page (ordre de lecture) ; « rightText » = colonne de droite (adresse du client)
+function pageLinesFromItems(items) {
+  const its = items.filter(i => i.str && i.str.trim()).map(i => ({ s: i.str, x: i.transform[4], y: i.transform[5], w: i.width || 0 }));
+  its.sort((a, b) => b.y - a.y || a.x - b.x);
+  const rows = [];
+  for (const it of its) {
+    const r = rows.find(r => Math.abs(r.y - it.y) < 2.5);
+    if (r) r.items.push(it); else rows.push({ y: it.y, items: [it] });
+  }
+  rows.sort((a, b) => b.y - a.y);
+  return rows.map(r => {
+    r.items.sort((a, b) => a.x - b.x);
+    let text = '', end = null, right = '', rEnd = null;
+    for (const it of r.items) {
+      const gap = end == null ? 0 : it.x - end;
+      text += end == null ? it.s : (gap > 4 ? '   ' : gap > 0.6 ? ' ' : '') + it.s;
+      end = it.x + it.w;
+      if (it.x > 280) { right += rEnd == null ? it.s : (it.x - rEnd > 0.6 ? ' ' : '') + it.s; rEnd = it.x + it.w; }
+    }
+    return { y: r.y, text: text.replace(/\s+$/, ''), right: right.trim(), minX: r.items[0].x };
+  });
+}
+async function extractPdfPages(file) {
+  const buf = new Uint8Array(await file.arrayBuffer());
+  const pdf = await window.pdfjsLib.getDocument({ data: buf.slice() }).promise;
+  const pages = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    pages.push(pageLinesFromItems(tc.items));
+  }
+  return { pages, bytes: buf };
+}
+const COUNTRY_CODES = { suisse: 'CH', schweiz: 'CH', switzerland: 'CH', france: 'FR', gibraltar: 'GI', monaco: 'MC', israel: 'IL', 'israël': 'IL', allemagne: 'DE', italie: 'IT', luxembourg: 'LU', 'royaume-uni': 'GB' };
+function parseClientBlock(lines) {
+  const L = lines.slice(); let pays = 'CH';
+  if (L.length && COUNTRY_CODES[norm(L[L.length - 1])]) pays = COUNTRY_CODES[norm(L.pop())];
+  const out = { pays, nom: '', complement: null, rue: null, numero_rue: null, npa: null, ville: null };
+  let iCity = -1;
+  for (let i = L.length - 1; i >= 0; i--) if (/^(?:[A-Z]{1,2}-)?\d{4,7}\s+\S/.test(L[i]) || /^[A-Z]{2}\d{1,2}\s?\d[A-Z]{2}\s+\S/.test(L[i]) || /\bTel Aviv\b/i.test(L[i])) { iCity = i; break; }
+  let rest = L;
+  if (iCity >= 0) {
+    const m = L[iCity].match(/^((?:[A-Z]{1,2}-)?\d{4,7}|[A-Z]{2}\d{1,2}\s?\d[A-Z]{2})\s+(.+)$/);
+    if (m) { out.npa = m[1]; out.ville = m[2]; } else out.ville = L[iCity];
+    rest = L.slice(0, iCity);
+    if (rest.length > 1 || (rest.length === 1 && /\d/.test(rest[0]))) {
+      const st = rest[rest.length - 1];
+      if (/\d/.test(st) || /\b(rue|route|chemin|avenue|quai|boulevard|place|strasse|street|st)\b/i.test(st)) {
+        const s1 = st.match(/^(.*?)[\s,]+(\d+\s?[a-zA-Z]?)$/), s2 = st.match(/^(\d+\s?[a-zA-Z]?)[\s,]+(.+)$/);
+        if (s1) { out.rue = s1[1]; out.numero_rue = s1[2].replace(/\s/g, ''); } else if (s2) { out.rue = s2[2]; out.numero_rue = s2[1].replace(/\s/g, ''); } else out.rue = st;
+        rest = rest.slice(0, -1);
+      }
+    }
+  }
+  const name = [], comp = [];
+  rest.forEach((l, i) => {
+    if (name.length && /,\s*c\/o$/i.test(name[name.length - 1])) { name[name.length - 1] = name[name.length - 1].replace(/,\s*c\/o$/i, ''); comp.push('c/o ' + l); return; }
+    const co = l.match(/^(.*?),\s*(c\/o\s.+)$/i); if (co && name.length) { name.push(co[1]); comp.push(co[2]); return; }
+    if (/^(c\/o|p\/a|p\.a|à l'att|att\.?)/i.test(l)) comp.push(l.replace(/^,\s*/, ''));
+    else if (!name.length || /^[a-zà-ÿ]/.test(l) || /\b(du|de|des|et|la|le)$/i.test(name[name.length - 1])) name.push(l);
+    else comp.push(l);
+  });
+  out.nom = name.join(' ').replace(/,\s*c\/o$/i, '').replace(/,\s*$/, '').trim();
+  if (comp.length) out.complement = comp.join(', ');
+  if (/^gibraltar$/i.test(out.ville || '') || /^[A-Z]{2}\d{1,2}\s?\d[A-Z]{2}$/.test(out.npa || '')) out.pays = 'GI';
+  if (/^monaco$/i.test(out.ville || '')) out.pays = 'MC';
+  if (/tel aviv/i.test(out.ville || '')) out.pays = 'IL';
+  return out;
+}
+const MONTH_IDX = { janvier: 1, january: 1, 'février': 2, fevrier: 2, february: 2, mars: 3, march: 3, avril: 4, april: 4, mai: 5, may: 5, juin: 6, june: 6, juillet: 7, july: 7, 'août': 8, aout: 8, august: 8, septembre: 9, september: 9, octobre: 10, october: 10, novembre: 11, november: 11, 'décembre': 12, decembre: 12, december: 12 };
+function amtB(s) { return round2(parseFloat(String(s).replace(/['\s]/g, ''))); }
+function parseBexioInvoices(pages) {
+  // Découpage : chaque facture se termine par sa page de QR-facture (« Récépissé »)
+  const segs = []; let cur = [];
+  pages.forEach((lines, n) => { cur.push(n); if (lines.some(l => /Récépissé/.test(l.text))) { segs.push(cur); cur = []; } });
+  const results = [];
+  for (const seg of segs) {
+    const content = seg.filter(n => !pages[n].some(l => /Récépissé/.test(l.text)));
+    const qr = pages[seg.find(n => pages[n].some(l => /Récépissé/.test(l.text)))];
+    const r = { pages: seg, errors: [] };
+    try {
+      const L = content.flatMap(n => pages[n].map(l => l.text));
+      const first = pages[content[0]];
+      const FACT = /^\s*facture\s+(\d{5,}|\S+)(?:\s+Page \d+ de \d+)?\s*$/i;
+      const kIdx = L.findIndex(l => FACT.test(l));
+      if (kIdx < 0) throw new Error('numéro de facture introuvable');
+      r.numero = L[kIdx].match(FACT)[1];
+      const kFirst = first.findIndex(l => FACT.test(l.text));
+      const clientLines = first.slice(0, kFirst).map(l => l.right).filter(Boolean);
+      r.client = parseClientBlock(clientLines);
+      r.clientLines = clientLines;
+      r.titre = (L.slice(kIdx + 1).find(l => l.trim()) || '').trim();
+      if (/^date:/.test(r.titre)) r.titre = '';
+      const dm = L.join('\n').match(/date:\s+(\d\d)\.(\d\d)\.(\d{4})/); r.date_doc = `${dm[3]}-${dm[2]}-${dm[1]}`;
+      const em = L.join('\n').match(/payable jusq'?u?'?au:\s+(\d\d)\.(\d\d)\.(\d{4})/i); r.date_echeance = em ? `${em[3]}-${em[2]}-${em[1]}` : r.date_doc;
+      const pm = L.join('\n').match(/période de prestation\s*:\s*([A-Za-zÀ-ÿ]+)\s+(\d{4})/i);
+      if (pm && MONTH_IDX[norm(pm[1])] || (pm && MONTH_IDX[pm[1].toLowerCase()])) { const mo = MONTH_IDX[pm[1].toLowerCase()] || MONTH_IDX[norm(pm[1])]; r.periode_debut = `${pm[2]}-${pad2(mo)}-01`; r.periode_fin = isoLocal(new Date(+pm[2], mo, 0)); }
+      const s = L.findIndex(l => /^\s*pos\.\s+description/.test(l)), e = L.findIndex(l => /^\s*total\s+-?[\d'.]+\s*$/.test(l));
+      if (s < 0 || e < 0) throw new Error('tableau des positions illisible');
+      const items = [];
+      for (const ln of L.slice(s + 1, e)) {
+        const st = ln.trim();
+        if (!st || /RDZ Security Management SA Quai|Titulaire du compte/.test(ln) || /^\s*pos\.\s+description/.test(ln) || FACT.test(st) || /^Page \d+ de \d+$/.test(st) || /^période de prestation/i.test(st) || /^date:/.test(st)) continue;
+        if (/^(RDZ Security Management SA|Quai du seujet 22|1201 Genève)$/.test(st) || clientLines.includes(st)) continue;
+        const m = ln.match(/^\s*(\d+)\s{2,}(.*?)\s{2,}(-?[\d'.]+)(?:\s+([A-Za-zé][^\d]*?))?\s{2,}(-?[\d'.]+)\s{2,}(-?[\d'.]+)\s*$/);
+        if (m) items.push({ desc: m[2].trim(), qty: amtB(m[3]), unit: (m[4] || '').trim(), pu: amtB(m[5]), tot: amtB(m[6]) });
+        else if (items.length) items[items.length - 1].desc += '\n' + st;
+        else r.errors.push('ligne non reconnue : ' + st);
+      }
+      r.items = items;
+      const txt = L.join('\n');
+      r.total_ht = amtB(txt.match(/^\s*total\s+(-?[\d'.]+)\s*$/m)[1]);
+      r.tv = [...txt.matchAll(/TVA en sus ([\d.]+)%\s+(-?[\d'.]+)/g)].map(x => [parseFloat(x[1]), amtB(x[2])]);
+      r.total_ttc = amtB(txt.match(/montant de la facture TTC\s+(-?[\d'.]+)/)[1]);
+      r.total_tva = round2(r.tv.reduce((a, t) => a + t[1], 0));
+      r.payments = [...txt.matchAll(/encaissement\s+(\d\d)\.(\d\d)\.(\d{4})\s+(-?[\d'.]+)/g)].map(x => ({ date: `${x[3]}-${x[2]}-${x[1]}`, amount: round2(-amtB(x[4])) }));
+      const qrText = qr.map(l => l.text).join('\n');
+      const ref = qrText.match(/(RF\d\d(?:\s?\d{1,4})+|\b\d{2}(?:\s\d{5}){5}\b)/); r.reference = ref ? ref[1].replace(/\s/g, '') : null;
+      // Contrôles arithmétiques
+      const sumLines = round2(items.reduce((a, x) => a + x.tot, 0));
+      if (Math.abs(sumLines - r.total_ht) > 0.011) r.errors.push(`somme des lignes ${fmtAmt(sumLines)} ≠ total ${fmtAmt(r.total_ht)}`);
+      items.forEach((x, i) => { if (Math.abs(round2(x.qty * x.pu) - x.tot) > 0.011) r.errors.push(`ligne ${i + 1} : quantité × prix ≠ montant`); });
+      if (Math.abs(r.total_ht + r.total_tva - r.total_ttc) > 0.011) r.errors.push('total HT + TVA ≠ TTC');
+      // Traitement TVA de chaque ligne
+      const t81 = round2(r.tv.filter(t => t[0] === 8.1).reduce((a, t) => a + t[1], 0));
+      let codes = items.map(() => 'N81');
+      if (r.tv.length && r.tv.every(t => t[0] === 0)) codes = items.map(() => 'HC');
+      else if (r.tv.some(t => t[0] === 0) && items.length <= 16) {
+        let best = null;
+        for (let mask = 1; mask < (1 << items.length); mask++) {
+          let base = 0; for (let i = 0; i < items.length; i++) if (mask & (1 << i)) base += items[i].tot;
+          const d = Math.abs(round2(round2(base) * 0.081) - t81);
+          const k = items.reduce((c, _, i) => c + (mask & (1 << i) ? 1 : 0), 0);
+          if (d <= 0.03 && (!best || k > best.k || (k === best.k && d < best.d))) best = { mask, d, k };
+        }
+        if (best) codes = items.map((_, i) => best.mask & (1 << i) ? 'N81' : 'HC'); else r.errors.push('répartition TVA 8.1 % / 0 % indéterminée');
+      } else if (r.tv.some(t => t[0] !== 8.1 && t[0] !== 0)) r.errors.push('taux de TVA non pris en charge');
+      r.lignes = items.map((x, i) => ({ id: uuid(), desc: x.desc, qty: x.qty, unit: x.unit, pu: x.pu, tva_code: codes[i] }));
+      const bhc = round2(items.filter((_, i) => codes[i] === 'HC').reduce((a, x) => a + x.tot, 0));
+      r.total_breakdown = [];
+      if (codes.includes('N81')) r.total_breakdown.push({ code: 'N81', rate: 8.1, base: round2(r.total_ht - bhc), tva: t81 });
+      if (bhc || !codes.includes('N81')) r.total_breakdown.push({ code: 'HC', rate: 0, base: bhc, tva: 0 });
+    } catch (e) { r.errors.push(e.message); }
+    results.push(r);
+  }
+  if (cur.length && cur.some(n => pages[n].length)) results.push({ pages: cur, errors: ['facture sans page de QR-facture (PDF incomplet ?)'] });
+  return results;
+}
+function matchClient(c) {
+  if (!c || !c.nom) return null;
+  const n = norm(c.nom).replace(/[^a-z0-9]/g, '');
+  const all = live('fac_clients');
+  return all.find(x => norm(x.nom).replace(/[^a-z0-9]/g, '') === n)
+    || all.find(x => { const k = norm(x.nom).replace(/[^a-z0-9]/g, ''); return k.length >= 8 && n.length >= 8 && (k.startsWith(n.slice(0, 20)) || n.startsWith(k.slice(0, 20))); }) || null;
+}
+let bexioBatch = [];
+async function openBexioImport() {
+  if (!canWrite()) return;
+  if (!navigator.onLine) { toast("Connexion requise pour l'import", 'err'); return; }
+  genModal('Importer des factures Bexio', 'PDF exportés de Bexio : une facture par fichier ou un PDF multiple',
+    `<label class="drop" id="bx-drop"><input type="file" id="bx-file" accept="application/pdf" multiple><b>Glissez ici les PDF Bexio</b><br><span class="sub">ou cliquez pour les choisir. Chaque facture est lue, contrôlée, puis ajoutée avec son PDF original.</span></label><div id="bx-result"></div>`,
+    `<button class="btn btn-ghost" onclick="closeModal('m-gen')">Fermer</button>`);
+  $('m-gen').querySelector('.modal').classList.add('wide');
+  const fi = $('bx-file'), drop = $('bx-drop');
+  fi.addEventListener('change', () => { if (fi.files.length) readBexioFiles([...fi.files]); });
+  ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => { const f = [...e.dataTransfer.files].filter(x => /\.pdf$/i.test(x.name)); if (f.length) readBexioFiles(f); });
+}
+async function readBexioFiles(files) {
+  $('bx-result').innerHTML = '<div class="empty-mini">Lecture des PDF…</div>';
+  try { await ensurePdfLibs(); } catch (e) { $('bx-result').innerHTML = `<div class="lock-note">${esc(e.message)}</div>`; return; }
+  bexioBatch = [];
+  for (const f of files) {
+    try {
+      const { pages, bytes } = await extractPdfPages(f);
+      parseBexioInvoices(pages).forEach(r => bexioBatch.push({ ...r, file: f.name, bytes }));
+    } catch (e) { bexioBatch.push({ file: f.name, errors: ['PDF illisible : ' + e.message], pages: [] }); }
+  }
+  const seen = new Set();
+  bexioBatch.forEach(r => {
+    if (!r.numero) return;
+    r.existing = factures().find(d => d.numero === r.numero) || null;
+    if (seen.has(r.numero)) r.errors.push('en double dans la sélection'); seen.add(r.numero);
+    const seq = r.numero.length > 6 ? +r.numero.slice(0, -6) : null, yr = r.numero.slice(-6, -2);
+    const clash = !r.existing && seq && factures().find(d => d.seq === seq && String(d.numero).slice(-6, -2) === yr && d.statut !== 'brouillon');
+    if (clash) r.errors.push(`le numéro ${seq} de ${yr} est déjà utilisé par la facture ${clash.numero}`);
+    if (!r.existing && r.reference && factures().some(d => compactRef(d.reference) === compactRef(r.reference))) r.errors.push('référence QR déjà utilisée par une autre facture');
+    r.match = matchClient(r.client);
+  });
+  renderBexioPreview();
+}
+function renderBexioPreview() {
+  const ok = bexioBatch.filter(r => r.numero && !r.existing && !r.errors.length);
+  const rows = bexioBatch.map((r, i) => {
+    const st = r.existing ? badge('Déjà présente', 'b-gray') : r.errors.length ? `${badge('À vérifier', 'b-red')}<div class="sub" style="white-space:normal">${esc(r.errors.join(' · '))}</div>` : badge('Prête', 'b-green');
+    const cl = r.client ? (r.match ? esc(r.match.nom) : `${esc(r.client.nom)} <span class="badge b-blue">nouveau client</span>`) : '—';
+    const pay = (r.payments || []).reduce((a, p) => a + p.amount, 0);
+    return `<tr><td>${r.numero && !r.existing && !r.errors.length ? `<input type="checkbox" class="bx-cb" data-i="${i}" checked aria-label="Importer">` : ''}</td><td class="mono">${esc(r.numero || '?')}</td><td>${r.date_doc ? fmtDate(r.date_doc) : ''}</td><td>${cl}</td><td>${esc(r.titre || '')}</td><td class="num">${r.total_ttc != null ? fmtAmt(r.total_ttc) : ''}</td><td class="num">${pay ? fmtAmt(pay) : ''}</td><td>${st}</td></tr>`;
+  }).join('');
+  $('bx-result').innerHTML = `<div class="fhint" style="margin:10px 0">${bexioBatch.length} facture(s) lue(s) : ${ok.length} prête(s) à importer${bexioBatch.filter(r => r.existing).length ? `, ${bexioBatch.filter(r => r.existing).length} déjà présente(s)` : ''}${bexioBatch.filter(r => !r.existing && r.errors.length).length ? `, ${bexioBatch.filter(r => !r.existing && r.errors.length).length} à vérifier` : ''}.</div>
+    <div class="tbl-wrap" style="max-height:48vh;overflow:auto;box-shadow:none"><table class="tbl"><thead><tr><th></th><th>N°</th><th>Date</th><th>Client</th><th>Objet</th><th class="num">TTC</th><th class="num">Encaissé</th><th>État</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  $('gen-foot').innerHTML = `<span class="sub" id="bx-progress"></span><span class="spacer"></span><button class="btn btn-ghost" onclick="closeModal('m-gen')">Fermer</button>${ok.length ? `<button class="btn btn-primary" id="bx-go" onclick="importBexioBatch()">Importer la sélection</button>` : ''}`;
+}
+async function splitPdf(bytes, pages) {
+  const src = await window.PDFLib.PDFDocument.load(bytes);
+  if (pages.length === src.getPageCount()) return new Blob([bytes], { type: 'application/pdf' });
+  const out = await window.PDFLib.PDFDocument.create();
+  (await out.copyPages(src, pages)).forEach(p => out.addPage(p));
+  return new Blob([await out.save()], { type: 'application/pdf' });
+}
+async function importBexioBatch() {
+  const picks = [...document.querySelectorAll('.bx-cb:checked')].map(c => bexioBatch[+c.dataset.i]);
+  if (!picks.length) { toast('Cochez au moins une facture', 'err'); return; }
+  const btn = $('bx-go'); btn.disabled = true;
+  let done = 0; const fails = [];
+  // 1. Clients manquants
+  const created = {};
+  for (const r of picks) {
+    if (r.match) continue;
+    const key = norm(r.client.nom);
+    if (!created[key]) { created[key] = saveRow('fac_clients', { id: uuid(), nom: r.client.nom, nom_court: null, complement: r.client.complement, rue: r.client.rue, numero_rue: r.client.numero_rue, npa: r.client.npa, ville: r.client.ville, pays: r.client.pays, notes: 'Créé par import Bexio' }); }
+    r.match = created[key];
+  }
+  try { await pushDirty(); } catch (_) {}
+  if (Object.values(created).some(c => queue['fac_clients|' + c.id])) { toast("Les nouveaux clients n'ont pas pu être enregistrés", 'err'); btn.disabled = false; return; }
+  // 2. Factures, encaissements et PDF
+  for (const r of picks) {
+    $('bx-progress').textContent = `Import ${done + fails.length + 1}/${picks.length}…`;
+    try {
+      const res = await rpc('fac_import_bexio', { p_doc: {
+        numero: r.numero, client_id: r.match.id, titre: r.titre, date_doc: r.date_doc, date_echeance: r.date_echeance,
+        periode_debut: r.periode_debut || null, periode_fin: r.periode_fin || null, lignes: r.lignes,
+        total_ht: r.total_ht, total_tva: r.total_tva, total_ttc: r.total_ttc, total_breakdown: r.total_breakdown, reference: r.reference,
+        site: r.match.nom_court || null, payments: r.payments || [] } });
+      const doc = Array.isArray(res) ? res[0] : res;
+      upsertLocal('fac_documents', doc);
+      try { await storeArchive(doc, await splitPdf(r.bytes, r.pages)); } catch (e) { fails.push(`${r.numero} : importée, mais PDF non archivé (${e.message})`); }
+      done++;
+    } catch (e) { fails.push(`${r.numero} : ${e.message}`); }
+  }
+  $('bx-progress').textContent = '';
+  await syncNow();
+  rematchAll();
+  renderAll();
+  closeModal('m-gen');
+  toast(`${done} facture${done > 1 ? 's' : ''} Bexio importée${done > 1 ? 's' : ''}${fails.length ? ` · ${fails.length} problème(s)` : ''}`, fails.length ? 'err' : 'ok');
+  if (fails.length) genModal('Points à vérifier', 'Import Bexio', `<div class="pay-list">${fails.map(f => `<div><span>${esc(f)}</span></div>`).join('')}</div>`);
 }
 
 // ════════════════════════════════════════
