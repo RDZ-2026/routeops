@@ -1103,7 +1103,7 @@ const DEFAULT_SETTINGS = {
   email_body_invoice: "Bonjour,\n\nVeuillez trouver ci-joint notre facture {numero} d'un montant de CHF {montant}, payable jusqu'au {echeance}.\n\nNous restons à votre disposition pour toute question.\n\nCordialement,\n{signature}\nRDZ Security Management SA",
   email_body_quote: "Bonjour,\n\nVeuillez trouver ci-joint notre devis {numero} d'un montant de CHF {montant}.\n\nNous restons à votre disposition pour toute question.\n\nCordialement,\n{signature}\nRDZ Security Management SA",
   categories_out: ['Salaires','Charges sociales','Sous-traitance','Véhicules','Carburant','Assurances','Loyer & charges','Matériel & équipement','Télécom & informatique','Honoraires (fiduciaire, avocats)','Impôts & TVA','Frais bancaires','Notes de frais','Transfert interne','Autres sorties'],
-  categories_in: ['Clients','Autres entrées','Transfert interne'],
+  categories_in: ['Clients','Clients – factures antérieures','Autres entrées','Transfert interne'],
   numbering: 'annuel',
 };
 const INTERNAL_CATEGORY = 'Transfert interne';
@@ -2585,7 +2585,7 @@ async function importCamtFiles(files) {
           .map(t => [compactRef(t.iban), t.booking_date, round2(t.amount), compactRef(t.reference), norm(t.counterparty)].join('|')));
         for (const tx of st.entries) {
           const sig = [compactRef(st.iban), tx.booking_date, round2(tx.amount), compactRef(tx.reference), norm(tx.counterparty)].join('|');
-          if (db.fac_bank_tx.some(t => t.id === tx.id) || otherType.has(sig)) { nDup++; continue; }
+          if (db.fac_bank_tx.some(t => t.id === tx.id) || otherType.has(sig) || db.fac_bank_tx.some(t => String(t.id).startsWith('pdf_') && t.booking_date === tx.booking_date && Math.abs(num(t.amount) - tx.amount) < 0.005)) { nDup++; continue; }
           const row = { ...tx, statement_id: st.id, iban: st.iban, category: null };
           saveRow('fac_bank_tx', row, 'insert');
           if (autoAllocate(row)) nAuto++;
@@ -2605,8 +2605,27 @@ async function importCamtFiles(files) {
 }
 function unmatchedCredits() { return db.fac_bank_tx.filter(t => Number(t.amount) > 0 && txOpen(t) > 0.009 && (!t.category || t.category === 'Clients')); }
 function bankTodo() {
-  return db.fac_bank_tx.filter(t => txOpen(t) > 0.009 && ((t.amount > 0 && (!t.category || t.category === 'Clients')) || (t.amount < 0 && suggestionFor(t))))
+  return db.fac_bank_tx.filter(t => txOpen(t) > 0.009 && t.note !== 'ignorer-rapprochement' && ((t.amount > 0 && (!t.category || t.category === 'Clients')) || (t.amount < 0 && suggestionFor(t))))
     .sort((a, b) => b.booking_date.localeCompare(a.booking_date));
+}
+function confirmAllSuggestions() {
+  const list = bankTodo().filter(t => suggestionFor(t));
+  if (!list.length) return;
+  if (!confirm(`Confirmer les ${list.length} rapprochement(s) proposé(s) ? Vérifiez au besoin la liste filtrée « Avec suggestion » avant.`)) return;
+  let n = 0;
+  list.forEach(t => { if (suggestionFor(t)) { confirmSuggestionSilent(t.id); n++; } });
+  renderAll(); toast(`${n} rapprochement(s) confirmé(s)`);
+}
+function confirmSuggestionSilent(txId) {
+  const t = db.fac_bank_tx.find(x => x.id === txId); const s = suggestionFor(t); if (!s) return;
+  const open = txOpen(t);
+  if (s.kind === 'doc') saveRow('fac_allocations', { id: uuid(), tx_id: t.id, document_id: s.item.id, achat_id: null, amount: round2(Math.min(open, docRemaining(s.item))), pay_date: t.booking_date, mode: 'manuel', created_by: userEmail() });
+  else saveRow('fac_allocations', { id: uuid(), tx_id: t.id, document_id: null, achat_id: s.item.id, amount: round2(open), pay_date: t.booking_date, mode: 'manuel', created_by: userEmail() });
+  const c = autoCategory(db.fac_bank_tx.find(x => x.id === txId)); if (c) saveRow('fac_bank_tx', { ...t, category: c });
+}
+function ignoreTodo(id) {
+  const t = db.fac_bank_tx.find(x => x.id === id); if (!t) return;
+  saveRow('fac_bank_tx', { ...t, note: 'ignorer-rapprochement' }); renderAll(); toast('Retiré de la liste à rapprocher');
 }
 function txLinks(t) {
   return allocsForTx(t.id).map(a => {
@@ -2622,13 +2641,29 @@ function renderBank() {
   $('todo-empty').style.display = todo.length ? 'none' : '';
   $('bank-todo-banner').style.display = todo.length && canWrite() ? '' : 'none';
   $('bank-todo-banner').innerHTML = `<b>${todo.length} paiement${todo.length > 1 ? 's' : ''} à rapprocher</b> — ouvrir le rapprochement →`;
-  $('bank-todo').innerHTML = `<table class="tbl"><tbody>${todo.slice(0, 40).map(t => {
+  // Liste à rapprocher : filtres, pagination et actions groupées
+  const tf = window.todoFilter || 'all', tq = norm(window.todoQuery || '');
+  const todoF = todo.filter(t => (tf === 'all' || (tf === 'sugg' ? !!suggestionFor(t) : tf === 'in' ? t.amount > 0 : t.amount < 0))
+    && (!tq || norm([t.counterparty, t.remittance, t.reference, t.info].join(' ')).includes(tq)));
+  const nSugg = todo.filter(t => suggestionFor(t)).length;
+  const page = Math.max(0, Math.min(window.todoPage || 0, Math.max(0, Math.ceil(todoF.length / 40) - 1))); window.todoPage = page;
+  const slice = todoF.slice(page * 40, page * 40 + 40);
+  const pager = todoF.length > 40 ? `<div style="display:flex;gap:8px;align-items:center;justify-content:center;padding:10px">
+      <button class="btn btn-ghost btn-sm" ${page ? '' : 'disabled'} onclick="window.todoPage=${page - 1};renderBank()">← Précédents</button>
+      <span class="sub">${page * 40 + 1}–${Math.min(todoF.length, page * 40 + 40)} sur ${todoF.length}</span>
+      <button class="btn btn-ghost btn-sm" ${(page + 1) * 40 < todoF.length ? '' : 'disabled'} onclick="window.todoPage=${page + 1};renderBank()">Suivants →</button></div>` : '';
+  $('bank-todo').innerHTML = `<div class="sbar" style="margin:0 0 10px">
+      <input class="inp" placeholder="Rechercher un nom, une référence…" value="${esc(window.todoQuery || '')}" oninput="window.todoQuery=this.value;window.todoPage=0;clearTimeout(window._tq);window._tq=setTimeout(renderBank,250)">
+      <select class="sel" onchange="window.todoFilter=this.value;window.todoPage=0;renderBank()">
+        ${[['all', `Tout (${todo.length})`], ['sugg', `Avec suggestion (${nSugg})`], ['in', 'Entrées'], ['out', 'Sorties']].map(([v, l]) => `<option value="${v}" ${tf === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
+      ${nSugg ? `<button class="btn btn-dark btn-sm" onclick="confirmAllSuggestions()">Confirmer les ${nSugg} suggestion${nSugg > 1 ? 's' : ''}</button>` : ''}</div>
+    ${pager}<table class="tbl"><tbody>${slice.map(t => {
       const s = suggestionFor(t); const inc = t.amount > 0;
       const label = s ? (s.kind === 'doc' ? `Facture ${esc(s.item.numero)}` : esc(s.item.fournisseur)) : '';
-      return `<tr><td>${fmtDate(t.booking_date)}</td><td><b>${esc(t.counterparty || '—')}</b><div class="sub">${esc(t.remittance || t.reference || t.info || '')}${s ? ` · suggestion : ${label} (${s.why})` : ''}</div></td>
+      return `<tr><td>${fmtDate(t.booking_date)}</td><td><b>${esc(t.counterparty || '—')}</b><div class="sub">${esc(t.remittance || t.reference || '')}${s ? ` · suggestion : ${label} (${s.why})` : ''}</div></td>
         <td class="num ${inc ? 'amt-in' : 'amt-out'}">${inc ? '+' : ''}${fmtAmt(t.amount)}${txAllocated(t) ? `<div class="sub">reste ${fmtAmt(txOpen(t))}</div>` : ''}</td>
         <td style="text-align:right;white-space:nowrap">${s ? `<button class="btn btn-dark btn-sm" onclick="confirmSuggestion('${t.id}')">Confirmer : ${label}</button> ` : ''}<button class="btn btn-ghost btn-sm" onclick="openLinkTx('${t.id}')">Choisir…</button>
-        ${inc ? `<button class="btn btn-ghost btn-sm" onclick="setTxCategory('${t.id}','Autres entrées',true)">Pas une facture</button>` : ''}</td></tr>`; }).join('')}</tbody></table>`;
+        ${inc ? `<button class="btn btn-ghost btn-sm" onclick="setTxCategory('${t.id}','Clients – factures antérieures',true)" title="Paiement d'une facture non présente dans Factu_RDZ (2025 ou avant)">Facture antérieure</button><button class="btn btn-ghost btn-sm" onclick="setTxCategory('${t.id}','Autres entrées',true)">Pas une facture</button>` : `<button class="btn btn-ghost btn-sm" onclick="ignoreTodo('${t.id}')">Ignorer</button>`}</td></tr>`; }).join('') || '<tr><td class="empty">Aucun paiement pour ce filtre.</td></tr>'}</tbody></table>${pager}`;
   const q = norm($('bank-q').value), dir = $('bank-dir').value, m = $('bank-m').value;
   const list = db.fac_bank_tx.filter(t => (!m || monthKey(t.booking_date) === m) && (!dir || (dir === 'in' ? t.amount > 0 : dir === 'out' ? t.amount < 0 : !t.category))
     && (!q || norm([t.counterparty, t.remittance, t.reference, t.info, t.category].join(' ')).includes(q)))
