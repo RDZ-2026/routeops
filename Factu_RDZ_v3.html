@@ -1984,6 +1984,35 @@ function setPeriodMode(mode) {
   }
   $('d-period').innerHTML = periodInputsHTML(d, docEditable() ? '' : 'disabled'); updateNumPreview();
 }
+function purgeInvoice() {
+  const d = db.fac_documents.find(x => x.id === editDoc.id);
+  genModal(`Supprimer définitivement la facture ${d.numero}`, 'Facture annulée, jamais transmise ni payée', `
+    <div class="lock-note">La facture disparaît des listes, des analyses et des exports. Son numéro <b class="mono">${esc(d.numero)}</b> redevient libre. La suppression et son motif restent inscrits dans le journal d'audit.</div>
+    <div class="fg"><label class="flabel" for="g-reason">Motif (obligatoire)</label><input class="finp" id="g-reason" placeholder="Ex. erreur de saisie, facture refaite avec le même numéro"></div>
+    <label class="chk" style="margin-top:12px"><input type="checkbox" id="g-redo" checked> Refaire tout de suite une facture avec le numéro ${esc(d.numero)} (contenu repris, modifiable)</label>`,
+    `<button class="btn btn-ghost" onclick="closeModal('m-gen')">Annuler</button><button class="btn btn-danger" onclick="confirmPurge('${d.id}')">Supprimer définitivement</button>`);
+  setTimeout(() => $('g-reason').focus(), 50);
+}
+async function confirmPurge(id) {
+  const reason = $('g-reason').value.trim(); if (!reason) { toast('Indiquez le motif', 'err'); return; }
+  if (!navigator.onLine) { toast('Connexion requise', 'err'); return; }
+  const d = db.fac_documents.find(x => x.id === id); const redo = $('g-redo').checked;
+  try {
+    await pushDirty();
+    await rpc('fac_purge_cancelled', { p_id: id, p_reason: reason });
+    removeLocal('fac_documents', id); persist(); closeModal('m-gen'); renderAll();
+    toast(`Facture ${d.numero} supprimée définitivement`);
+    if (redo) {
+      const date = d.date_doc;
+      editDoc = { id: uuid(), kind: 'facture', statut: 'brouillon', client_id: d.client_id, titre: d.titre, date_doc: date, date_echeance: d.date_echeance,
+        periode_debut: d.periode_debut || null, periode_fin: d.periode_fin || null, site: d.site || null,
+        lignes: (d.lignes || []).map(l => ({ ...l, id: uuid() })), tva_code: docDefaultCode(d), tva_rate: num(d.tva_rate), conclusion: d.conclusion,
+        notes_internes: `Refaite en remplacement de la facture supprimée (${reason})`, legacy: false, created_by: userEmail(), _new: true, _manualNum: d.numero };
+      renderDocModal(); openModal('m-doc');
+      toast(`Nouvelle facture prête avec le numéro ${d.numero} : corrigez-la puis émettez-la`);
+    } else closeModal('m-doc');
+  } catch (e) { toast(e.message, 'err'); }
+}
 function canCancelInvoice(d) { return d.kind === 'facture' && d.statut === 'emise' && !d.sent_at && !allocsForDoc(d.id).length && !avoirsFor(d).length; }
 function renderDocFoot() {
   const d = editDoc, isF = d.kind === 'facture', w = canWrite();
@@ -2001,6 +2030,7 @@ function renderDocFoot() {
     f += `<button class="btn btn-primary" onclick="reviseDoc()" ${navigator.onLine ? '' : 'disabled title="Connexion requise"'}>Enregistrer la modification</button>`;
   } else {
     if (w && canRevise(d)) f += `<button class="btn btn-ghost" onclick="startRevise()">Modifier</button>`;
+    if (w && d.kind === 'facture' && d.statut === 'annulee' && !d.sent_at && !allocsForDoc(d.id).length && !avoirsFor(d).length) f += `<button class="btn btn-danger" onclick="purgeInvoice()">Supprimer définitivement</button>`;
     if (w && canCancelInvoice(d)) f += `<button class="btn btn-danger" onclick="cancelInvoice()" title="Possible tant que la facture n'est ni transmise ni payée">Annuler la facture</button>`;
     if (w && d.kind === 'devis' && ['emise', 'accepte', 'refuse'].includes(d.statut)) f += `<button class="btn btn-danger" onclick="setDevisStatus('annulee')">Annuler le devis</button>`;
     f += `<span class="spacer"></span>`;
