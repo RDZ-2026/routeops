@@ -3670,13 +3670,25 @@ function parseBexioInvoices(pages) {
       if (pm && MONTH_IDX[norm(pm[1])] || (pm && MONTH_IDX[pm[1].toLowerCase()])) { const mo = MONTH_IDX[pm[1].toLowerCase()] || MONTH_IDX[norm(pm[1])]; r.periode_debut = `${pm[2]}-${pad2(mo)}-01`; r.periode_fin = isoLocal(new Date(+pm[2], mo, 0)); }
       const s = L.findIndex(l => /^\s*pos\.\s+description/.test(l)), e = L.findIndex(l => /^\s*total\s+-?[\d'.]+\s*$/.test(l));
       if (s < 0 || e < 0) throw new Error('tableau des positions illisible');
-      const items = [];
+      const items = []; let adjMode = false; r.warnings = [];
       for (const ln of L.slice(s + 1, e)) {
         const st = ln.trim();
+        if (/^sous-total\b/i.test(st)) { adjMode = true; continue; }
+        if (adjMode) {
+          if (!st || /RDZ Security Management SA Quai|Titulaire du compte/.test(ln) || FACT.test(st) || /^Page \d+ de \d+$/.test(st)) continue;
+          const am = ln.match(/^\s*(.*?)\s{2,}(-?[\d'.]+)\s*$/);
+          if (am && /\d\.\d\d$/.test(am[2])) items.push({ desc: am[1].trim(), qty: 1, unit: '', pu: amtB(am[2]), tot: amtB(am[2]), adj: true });
+          else if (items.length && items[items.length - 1].adj) items[items.length - 1].desc += ' ' + st;
+          continue;
+        }
         if (!st || /RDZ Security Management SA Quai|Titulaire du compte/.test(ln) || /^\s*pos\.\s+description/.test(ln) || FACT.test(st) || /^Page \d+ de \d+$/.test(st) || /^période de prestation/i.test(st) || /^date:/.test(st)) continue;
         if (/^(RDZ Security Management SA|Quai du seujet 22|1201 Genève)$/.test(st) || clientLines.includes(st)) continue;
-        const m = ln.match(/^\s*(\d+)\s{2,}(.*?)\s{2,}(-?[\d'.]+)(?:\s+([A-Za-zé][^\d]*?))?\s{2,}(-?[\d'.]+)\s{2,}(-?[\d'.]+)\s*$/);
-        if (m) items.push({ desc: m[2].trim(), qty: amtB(m[3]), unit: (m[4] || '').trim(), pu: amtB(m[5]), tot: amtB(m[6]) });
+        const m = ln.match(/^\s*(\d+)\s{2,}(.*?)\s{2,}(-?[\d'.]+)(?:\s+([A-Za-zé][^\d]*?))?\s{2,}(-?[\d'.]+)(?:\s{2,}(\d+(?:\.\d+)?)\s?%)?\s{2,}(-?[\d'.]+)\s*$/);
+        if (m) {
+          const it = { desc: m[2].trim(), qty: amtB(m[3]), unit: (m[4] || '').trim(), pu: amtB(m[5]), tot: amtB(m[7]) };
+          if (m[6]) { const gross = round2(it.qty * it.pu); items.push({ ...it, tot: gross }); items.push({ desc: `Rabais ${m[6]} % sur la position ${m[1]}`, qty: 1, unit: '', pu: round2(it.tot - gross), tot: round2(it.tot - gross), adj: true, rabaisOf: items.length - 1 }); }
+          else items.push(it);
+        }
         else if (items.length) items[items.length - 1].desc += '\n' + st;
         else r.errors.push('ligne non reconnue : ' + st);
       }
@@ -3695,24 +3707,39 @@ function parseBexioInvoices(pages) {
       items.forEach((x, i) => { if (Math.abs(round2(x.qty * x.pu) - x.tot) > 0.011) r.errors.push(`ligne ${i + 1} : quantité × prix ≠ montant`); });
       if (Math.abs(r.total_ht + r.total_tva - r.total_ttc) > 0.011) r.errors.push('total HT + TVA ≠ TTC');
       // Traitement TVA de chaque ligne
-      const t81 = round2(r.tv.filter(t => t[0] === 8.1).reduce((a, t) => a + t[1], 0));
-      let codes = items.map(() => 'N81');
-      if (r.tv.length && r.tv.every(t => t[0] === 0)) codes = items.map(() => 'HC');
-      else if (r.tv.some(t => t[0] === 0) && items.length <= 16) {
-        let best = null;
+      const RATE_CODE = { 8.1: 'N81', 3.8: 'H38', 2.6: 'R26', 0: 'HC' };
+      const rates = [...new Set(r.tv.map(t => t[0]))];
+      if (rates.some(x => !(x in RATE_CODE))) r.errors.push('taux de TVA non pris en charge');
+      const tvaBy = {}; r.tv.forEach(([rt, v]) => { tvaBy[rt] = round2((tvaBy[rt] || 0) + v); });
+      let codes = null;
+      if (rates.length <= 1) codes = items.map(() => RATE_CODE[rates[0] ?? 8.1] || 'N81');
+      else if (rates.length === 2 && rates.includes(0) && items.length <= 16) {
+        const rt = rates.find(x => x !== 0), target = tvaBy[rt]; let best = null;
         for (let mask = 1; mask < (1 << items.length); mask++) {
-          let base = 0; for (let i = 0; i < items.length; i++) if (mask & (1 << i)) base += items[i].tot;
-          const d = Math.abs(round2(round2(base) * 0.081) - t81);
-          const k = items.reduce((c, _, i) => c + (mask & (1 << i) ? 1 : 0), 0);
-          if (d <= 0.03 && (!best || k > best.k || (k === best.k && d < best.d))) best = { mask, d, k };
+          let base = 0, k = 0; for (let i = 0; i < items.length; i++) if (mask & (1 << i)) { base += items[i].tot; k++; }
+          const bad = items.some((it, i) => it.rabaisOf != null && (!!(mask & (1 << i)) !== !!(mask & (1 << it.rabaisOf))));
+          const dd = Math.abs(round2(round2(base) * rt / 100) - target);
+          if (!bad && dd <= 0.03 && (!best || k > best.k || (k === best.k && dd < best.d))) best = { mask, d: dd, k };
         }
-        if (best) codes = items.map((_, i) => best.mask & (1 << i) ? 'N81' : 'HC'); else r.errors.push('répartition TVA 8.1 % / 0 % indéterminée');
-      } else if (r.tv.some(t => t[0] !== 8.1 && t[0] !== 0)) r.errors.push('taux de TVA non pris en charge');
-      r.lignes = items.map((x, i) => ({ id: uuid(), desc: x.desc, qty: x.qty, unit: x.unit, pu: x.pu, tva_code: codes[i] }));
-      const bhc = round2(items.filter((_, i) => codes[i] === 'HC').reduce((a, x) => a + x.tot, 0));
-      r.total_breakdown = [];
-      if (codes.includes('N81')) r.total_breakdown.push({ code: 'N81', rate: 8.1, base: round2(r.total_ht - bhc), tva: t81 });
-      if (bhc || !codes.includes('N81')) r.total_breakdown.push({ code: 'HC', rate: 0, base: bhc, tva: 0 });
+        if (best) codes = items.map((_, i) => best.mask & (1 << i) ? RATE_CODE[rt] : 'HC');
+      }
+      if (codes) {
+        r.lignes = items.map((x, i) => ({ id: uuid(), desc: x.desc, qty: x.qty, unit: x.unit, pu: x.pu, tva_code: codes[i] }));
+        const groups = {}; items.forEach((x, i) => { groups[codes[i]] = round2((groups[codes[i]] || 0) + x.tot); });
+        const RATES = { N81: 8.1, H38: 3.8, R26: 2.6, HC: 0 };
+        r.total_breakdown = Object.entries(groups).map(([c, base]) => ({ code: c, rate: RATES[c], base, tva: RATES[c] ? (tvaBy[RATES[c]] ?? round2(base * RATES[c] / 100)) : 0 }));
+        const sumB = round2(r.total_breakdown.reduce((s2, x) => s2 + x.base, 0)); if (Math.abs(sumB - r.total_ht) > 0.004 && r.total_breakdown.length) r.total_breakdown[0].base = round2(r.total_breakdown[0].base + r.total_ht - sumB);
+      } else if (!r.errors.length) {
+        // Répartition par ligne impossible à déduire du PDF : on reprend exactement les totaux TVA imprimés par Bexio
+        const pos = rates.filter(x => x > 0).sort((x, y) => y - x);
+        const bd = pos.map(rt => ({ code: RATE_CODE[rt], rate: rt, base: round2(tvaBy[rt] * 100 / rt), tva: tvaBy[rt] }));
+        const rest = round2(r.total_ht - bd.reduce((s2, x) => s2 + x.base, 0));
+        if (rates.includes(0)) bd.push({ code: 'HC', rate: 0, base: rest, tva: 0 }); else if (bd.length) bd[0].base = round2(bd[0].base + rest);
+        r.total_breakdown = bd;
+        const main = bd.slice().sort((x, y) => y.base - x.base)[0];
+        r.lignes = items.map(x => ({ id: uuid(), desc: x.desc, qty: x.qty, unit: x.unit, pu: x.pu, tva_code: main ? main.code : 'N81' }));
+        r.warnings.push(`taux TVA par ligne non indiqué sur le PDF : totaux TVA de Bexio repris tels quels (${bd.map(x => `${x.rate} % sur ${fmtAmt(x.base)}`).join(', ')})`);
+      }
     } catch (e) { r.errors.push(e.message); }
     results.push(r);
   }
@@ -3766,7 +3793,7 @@ async function readBexioFiles(files) {
 function renderBexioPreview() {
   const ok = bexioBatch.filter(r => r.numero && !r.existing && !r.errors.length);
   const rows = bexioBatch.map((r, i) => {
-    const st = r.existing ? badge('Déjà présente', 'b-gray') : r.errors.length ? `${badge('À vérifier', 'b-red')}<div class="sub" style="white-space:normal">${esc(r.errors.join(' · '))}</div>` : badge('Prête', 'b-green');
+    const st = r.existing ? badge('Déjà présente', 'b-gray') : r.errors.length ? `${badge('À vérifier', 'b-red')}<div class="sub" style="white-space:normal">${esc(r.errors.join(' · '))}</div>` : (r.warnings && r.warnings.length ? `${badge('Prête', 'b-green')}<div class="sub" style="white-space:normal;color:var(--orange)">${esc(r.warnings.join(' · '))}</div>` : badge('Prête', 'b-green'));
     const cl = r.client ? (r.match ? esc(r.match.nom) : `${esc(r.client.nom)} <span class="badge b-blue">nouveau client</span>`) : '—';
     const pay = (r.payments || []).reduce((a, p) => a + p.amount, 0);
     return `<tr><td>${r.numero && !r.existing && !r.errors.length ? `<input type="checkbox" class="bx-cb" data-i="${i}" checked aria-label="Importer">` : ''}</td><td class="mono">${esc(r.numero || '?')}</td><td>${r.date_doc ? fmtDate(r.date_doc) : ''}</td><td>${cl}</td><td>${esc(r.titre || '')}</td><td class="num">${r.total_ttc != null ? fmtAmt(r.total_ttc) : ''}</td><td class="num">${pay ? fmtAmt(pay) : ''}</td><td>${st}</td></tr>`;
