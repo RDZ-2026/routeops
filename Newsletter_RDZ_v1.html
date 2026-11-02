@@ -189,6 +189,35 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.5}
 .tl-body{border-left:2px solid var(--border);padding-left:18px;position:relative;padding-bottom:2px}
 .tl-body::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--paper);border:3px solid var(--accent)}
 
+/* Mission photos */
+.ms-photos{grid-column:2;display:grid;gap:6px;margin-top:8px;grid-template-columns:repeat(3,1fr)}
+.tl-body .ms-photos{margin-top:10px}
+.ms-photos.n1{grid-template-columns:1fr}
+.ms-photos.n2{grid-template-columns:1fr 1fr}
+.ms-photos button{border:none;padding:0;background:#f2f3f5;border-radius:10px;overflow:hidden;aspect-ratio:4/3;cursor:zoom-in;position:relative}
+.ms-photos.n1 button{aspect-ratio:16/9}
+.ms-photos img{width:100%;height:100%;object-fit:cover;display:block}
+.ms-photos .more{position:absolute;inset:0;background:rgba(30,30,30,.55);color:#fff;font-weight:700;font-size:20px;display:flex;align-items:center;justify-content:center}
+.ms-done-date{font-size:13.5px;color:var(--ok);font-weight:600}
+.lightbox{position:fixed;inset:0;z-index:300;background:rgba(15,15,15,.94);display:flex;align-items:center;justify-content:center;padding:calc(56px + env(safe-area-inset-top,0px)) 12px calc(56px + env(safe-area-inset-bottom,0px))}
+.lightbox img{max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;user-select:none}
+.lb-btn{position:absolute;width:46px;height:46px;border-radius:50%;border:none;background:rgba(255,255,255,.14);color:#fff;font-size:24px;display:flex;align-items:center;justify-content:center}
+.lb-btn:hover{background:rgba(255,255,255,.26)}
+.lb-close{top:calc(10px + env(safe-area-inset-top,0px));right:12px}
+.lb-prev{left:12px;top:50%;transform:translateY(-50%)}
+.lb-next{right:12px;top:50%;transform:translateY(-50%)}
+.lb-count{position:absolute;bottom:calc(16px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);color:#ddd;font-family:var(--mono);font-size:13px}
+/* Editor photo field */
+.ed-photos{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:6px}
+.ed-ph{position:relative;aspect-ratio:1;border-radius:8px;overflow:hidden;background:#eee}
+.ed-ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ed-ph .mini{position:absolute;top:4px;right:4px;width:24px;height:24px;font-size:12px;background:rgba(255,255,255,.92)}
+.ed-ph.loading::after{content:"";position:absolute;inset:0;margin:auto;width:22px;height:22px;border:3px solid rgba(255,255,255,.6);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+.ed-photo-add{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;border:1.5px dashed var(--border2);border-radius:8px;padding:8px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;background:var(--paper)}
+.ed-photo-add:hover{border-color:var(--anthracite);color:var(--text)}
+.ed-photo-add input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.ed-item-actions{display:flex;gap:6px;margin:-2px 0 8px}
+
 /* Safety */
 .safety{background:var(--anthracite);color:#fff;border-top:none}
 .safety .sec-title{color:#fff}
@@ -379,6 +408,10 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.5}
 const SB_URL = 'https://trdhtlcenmjlcvzuplid.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
 const TABLE = 'rdz_newsletters';
+const PHOTO_BUCKET = 'newsletter-photos';
+const PHOTO_MAX_PX = 1600;      // longest side after client-side resize
+const PHOTO_QUALITY = 0.82;     // JPEG quality
+const PHOTOS_PER_MISSION = 8;
 const EDITOR_ROLES = ['admin', 'direction', 'superviseur', 'supervisor'];
 const LS_SESSION = 'rdz_nl_session';
 const LS_CACHE = 'rdz_nl_cache';
@@ -414,6 +447,7 @@ let editing = false;
 let pushTimer = null;
 let renderTimer = null;
 let pushing = false;
+let currentPhotos = [];      // photos of the issue on screen, for the lightbox
 
 // ════════════════════════════════════════════════════════
 //  HELPERS
@@ -662,6 +696,7 @@ function emptyContent(){
     farewell: [],
     missions_current: [],
     missions_upcoming: [],
+    missions_done: [],
     safety: { title: '', body: '' },
     contact: { ...DEFAULT_CONTACT }
   };
@@ -678,6 +713,7 @@ function normalize(c){
     farewell: Array.isArray(c.farewell) ? c.farewell : [],
     missions_current: Array.isArray(c.missions_current) ? c.missions_current : [],
     missions_upcoming: Array.isArray(c.missions_upcoming) ? c.missions_upcoming : [],
+    missions_done: Array.isArray(c.missions_done) ? c.missions_done : [],
     safety: { ...e.safety, ...(c.safety || {}) },
     contact: { ...e.contact, ...(c.contact || {}) }
   };
@@ -839,6 +875,16 @@ function renderIssue(animate){
 
   // Missions current
   const cur = c.missions_current.filter(x => (x.name || '').trim());
+  const photoRefs = []; // flat list for the lightbox
+  const photosHTML = (x) => {
+    const ph = (Array.isArray(x.photos) ? x.photos : []).filter(p => p && p.url);
+    if (!ph.length) return '';
+    const shown = ph.slice(0, 6);
+    const base = photoRefs.length;
+    photoRefs.push(...ph.map(p => ({ url: p.url, alt: x.name })));
+    const n = shown.length === 1 ? ' n1' : shown.length === 2 ? ' n2' : '';
+    return `<div class="ms-photos${n}">${shown.map((p, i) => `<button type="button" data-photo="${base + i}" aria-label="Agrandir la photo ${i + 1} de ${esc(x.name)}"><img src="${esc(p.url)}" alt="" loading="lazy" decoding="async">${i === shown.length - 1 && ph.length > shown.length ? `<span class="more">+${ph.length - shown.length}</span>` : ''}</button>`).join('')}</div>`;
+  };
   if (cur.length){
     h += `<section class="sec"><h2 class="sec-title"><span class="ico">🛡️</span>Missions en cours</h2><div class="missions">`;
     cur.forEach(x => {
@@ -847,6 +893,7 @@ function renderIssue(animate){
         <div class="ms-name">${esc(x.name)}</div>
         <div class="ms-meta"><span class="pill">${t.label}</span>${x.place ? `<span>📍 ${esc(x.place)}</span>` : ''}</div>
         ${x.detail ? `<div class="ms-detail">${esc(x.detail)}</div>` : '<div></div>'}
+        ${photosHTML(x)}
       </div>`;
     });
     h += `</div></section>`;
@@ -868,7 +915,31 @@ function renderIssue(animate){
         <div class="ms-name">${esc(x.name)}</div>
         <div class="ms-meta" style="margin:4px 0"><span class="pill">${t.ico} ${t.label}</span>${x.place ? `<span>📍 ${esc(x.place)}</span>` : ''}</div>
         ${x.detail ? `<div class="ms-detail">${esc(x.detail)}</div>` : ''}
+        ${photosHTML(x)}
       </div></div>`;
+    });
+    h += `</div></section>`;
+  }
+
+  // Missions done
+  const done = c.missions_done.filter(x => (x.name || '').trim()).slice()
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  if (done.length){
+    h += `<section class="sec"><h2 class="sec-title"><span class="ico">✅</span>Missions effectuées</h2>
+      <p class="sec-intro">Bravo et merci à toutes celles et ceux qui y ont participé.</p><div class="missions">`;
+    done.forEach(x => {
+      const t = MISSION_TYPES[x.type] || MISSION_TYPES.autre;
+      let when = '';
+      if (x.date && /^\d{4}-\d{2}-\d{2}$/.test(x.date)){
+        const [yy, mm, dd] = x.date.split('-').map(Number);
+        when = `<span class="ms-done-date">✓ Terminée le ${dd} ${MONTHS[mm - 1]}${yy !== y ? ' ' + yy : ''}</span>`;
+      }
+      h += `<div class="ms"><div class="ms-ico" aria-hidden="true">${t.ico}</div>
+        <div class="ms-name">${esc(x.name)}</div>
+        <div class="ms-meta"><span class="pill">${t.label}</span>${x.place ? `<span>📍 ${esc(x.place)}</span>` : ''}${when}</div>
+        ${x.detail ? `<div class="ms-detail">${esc(x.detail)}</div>` : '<div></div>'}
+        ${photosHTML(x)}
+      </div>`;
     });
     h += `</div></section>`;
   }
@@ -891,6 +962,7 @@ function renderIssue(animate){
   </footer>`;
 
   paper.innerHTML = h;
+  currentPhotos = photoRefs;
 }
 
 // ════════════════════════════════════════════════════════
@@ -921,20 +993,40 @@ const LIST_SCHEMAS = {
     { k: 'name', l: 'Nom de la mission' },
     { k: 'type', l: 'Type', type: 'select', opts: Object.fromEntries(Object.entries(MISSION_TYPES).map(([k, v]) => [k, v.label])) },
     { k: 'place', l: 'Lieu' },
-    { k: 'detail', l: 'Ce que les agents doivent savoir', type: 'textarea' }
-  ], blank: () => ({ name: '', type: 'surveillance', place: '', detail: '' }) },
+    { k: 'detail', l: 'Ce que les agents doivent savoir', type: 'textarea' },
+    { k: 'photos', l: 'Photos', type: 'photos' }
+  ], actions: [{ id: 'done', label: '✓ Marquer comme effectuée' }],
+  blank: () => ({ name: '', type: 'surveillance', place: '', detail: '', photos: [] }) },
   missions_upcoming: { label: 'Mission', fields: [
     { k: 'name', l: 'Nom de la mission' },
     { k: 'type', l: 'Type', type: 'select', opts: Object.fromEntries(Object.entries(MISSION_TYPES).map(([k, v]) => [k, v.label])) },
     { k: 'start', l: 'Début prévu', type: 'date' },
     { k: 'place', l: 'Lieu' },
-    { k: 'detail', l: 'Détails', type: 'textarea' }
-  ], blank: () => ({ name: '', type: 'surveillance', start: '', place: '', detail: '' }) }
+    { k: 'detail', l: 'Détails', type: 'textarea' },
+    { k: 'photos', l: 'Photos', type: 'photos' }
+  ], actions: [{ id: 'start', label: '▶ Passer en cours' }],
+  blank: () => ({ name: '', type: 'surveillance', start: '', place: '', detail: '', photos: [] }) },
+  missions_done: { label: 'Mission', fields: [
+    { k: 'name', l: 'Nom de la mission' },
+    { k: 'type', l: 'Type', type: 'select', opts: Object.fromEntries(Object.entries(MISSION_TYPES).map(([k, v]) => [k, v.label])) },
+    { k: 'date', l: 'Terminée le', type: 'date' },
+    { k: 'place', l: 'Lieu' },
+    { k: 'detail', l: 'Bilan / remerciements', type: 'textarea' },
+    { k: 'photos', l: 'Photos', type: 'photos' }
+  ], blank: () => ({ name: '', type: 'surveillance', date: new Date().toISOString().slice(0, 10), place: '', detail: '', photos: [] }) }
 };
 
 function fieldHTML(path, f, val){
   const id = 'f-' + path.replace(/[^a-z0-9]/gi, '-');
   let input;
+  if (f.type === 'photos'){
+    const list = Array.isArray(val) ? val : [];
+    const pending = pendingUploads[path] || 0;
+    return `<div class="field"><label>${esc(f.l)}${list.length ? ` (${list.length})` : ''}</label>
+      ${list.length || pending ? `<div class="ed-photos">${list.map((p, i) => `<div class="ed-ph"><img src="${esc(p.url)}" alt="" loading="lazy"><button class="mini del" title="Retirer la photo" aria-label="Retirer la photo ${i + 1}" data-photo-del="${path}.${i}">✕</button></div>`).join('')}${'<div class="ed-ph loading"></div>'.repeat(pending)}</div>` : ''}
+      ${list.length + pending < PHOTOS_PER_MISSION ? `<label class="ed-photo-add">📷 Ajouter des photos<input type="file" accept="image/*" multiple data-photo-add="${path}"></label>` : `<p class="ed-hint">Maximum ${PHOTOS_PER_MISSION} photos par mission.</p>`}
+    </div>`;
+  }
   if (f.type === 'textarea') input = `<textarea class="inp" id="${id}" data-path="${path}">${esc(val)}</textarea>`;
   else if (f.type === 'select') input = `<select class="inp" id="${id}" data-path="${path}">${Object.entries(f.opts).map(([k, l]) => `<option value="${k}"${k === String(val) ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
   else input = `<input class="inp" id="${id}" data-path="${path}" type="${f.type || 'text'}"${f.min ? ` min="${f.min}"` : ''}${f.max ? ` max="${f.max}"` : ''} value="${esc(val)}">`;
@@ -949,6 +1041,7 @@ function listHTML(key, items){
       <button class="mini" title="Monter" aria-label="Monter" data-move="${key}.${i}.-1"${i === 0 ? ' disabled' : ''}>↑</button>
       <button class="mini" title="Descendre" aria-label="Descendre" data-move="${key}.${i}.1"${i === items.length - 1 ? ' disabled' : ''}>↓</button>
       <button class="mini del" title="Supprimer" aria-label="Supprimer" data-del="${key}.${i}">✕</button></div>
+      ${s.actions ? `<div class="ed-item-actions">${s.actions.map(a => `<button class="btn btn-ghost btn-sm" data-act="${a.id}" data-idx="${key}.${i}">${a.label}</button>`).join('')}</div>` : ''}
       ${s.row ? `<div class="row2">${fields.join('')}</div>` : fields.join('')}</div>`;
   });
   h += `<button class="ed-add" data-add="${key}">+ Ajouter ${s.label.toLowerCase() === 'info' ? 'une info' : s.label === 'Anniversaire' ? 'un anniversaire' : s.label === 'Nouvel agent' ? 'un nouvel agent' : s.label === 'Départ' ? 'un départ' : 'une mission'}</button>`;
@@ -999,6 +1092,9 @@ function renderEditor(){
 
   h += group('🗓️ Missions à venir', c.missions_upcoming.length, listHTML('missions_upcoming', c.missions_upcoming), isOpen('up', false)).replace('<details', '<details data-k="up"');
 
+  h += group('✅ Missions effectuées', c.missions_done.length,
+    `<p class="ed-hint">Une mission en cours passe ici avec le bouton « Marquer comme effectuée », photos comprises.</p>` + listHTML('missions_done', c.missions_done), isOpen('done', false)).replace('<details', '<details data-k="done"');
+
   h += group('🦺 Le point sécurité', null,
     fieldHTML('safety.title', { l: 'Sujet' }, c.safety.title) +
     fieldHTML('safety.body', { l: 'Message', type: 'textarea' }, c.safety.body), isOpen('safety', false)).replace('<details', '<details data-k="safety"');
@@ -1019,6 +1115,9 @@ function renderEditor(){
   $('ed-scroll').scrollTop = scroll;
 }
 
+function getByPath(obj, path){
+  return path.split('.').reduce((o, p) => (o == null ? o : o[/^\d+$/.test(p) ? Number(p) : p]), obj);
+}
 function setByPath(obj, path, val){
   const parts = path.split('.');
   let o = obj;
@@ -1058,6 +1157,31 @@ function onEditorClick(e){
   if (t.id === 'imp-rh'){ openBirthdayImport(); return; }
   if (t.id === 'imp-crm'){ importCRM(); return; }
   if (t.dataset.pick){ openAgentPicker(t.dataset.pick); return; }
+  if (t.dataset.photoDel){
+    const parts = t.dataset.photoDel.split('.');
+    const idx = Number(parts.pop());
+    const path = parts.join('.');
+    mutate(c => { const arr = getByPath(c, path); if (Array.isArray(arr)) arr.splice(idx, 1); }, { rerenderEditor: true });
+    return;
+  }
+  if (t.dataset.act){
+    const [key, i] = t.dataset.idx.split('.');
+    const idx = Number(i);
+    if (t.dataset.act === 'done'){
+      mutate(c => {
+        const [item] = c[key].splice(idx, 1);
+        c.missions_done.unshift({ name: item.name, type: item.type, date: new Date().toISOString().slice(0, 10), place: item.place, detail: '', photos: item.photos || [] });
+      }, { rerenderEditor: true });
+      toast('Mission déplacée dans « Missions effectuées ». Ajoutez un petit bilan si vous le souhaitez.', 3600);
+    } else if (t.dataset.act === 'start'){
+      mutate(c => {
+        const [item] = c[key].splice(idx, 1);
+        c.missions_current.push({ name: item.name, type: item.type, place: item.place, detail: item.detail, photos: item.photos || [] });
+      }, { rerenderEditor: true });
+      toast('Mission passée « en cours ».');
+    }
+    return;
+  }
   if (t.dataset.add){
     const key = t.dataset.add;
     mutate(c => c[key].push(LIST_SCHEMAS[key].blank()), { rerenderEditor: true });
@@ -1150,7 +1274,7 @@ function openNewIssue(){
       const monthStart = id + '-01';
       const nextMonthStart = shiftMonth(id, 1) + '-01';
       p.missions_upcoming.forEach(x => {
-        if (x.start && x.start < nextMonthStart && x.start <= monthStart) content.missions_current.push({ name: x.name, type: x.type, place: x.place, detail: x.detail });
+        if (x.start && x.start < nextMonthStart && x.start <= monthStart) content.missions_current.push({ name: x.name, type: x.type, place: x.place, detail: x.detail, photos: x.photos || [] });
         else content.missions_upcoming.push({ ...x });
       });
       content.safety = { ...p.safety };
@@ -1248,6 +1372,124 @@ async function openAgentPicker(kind){
   setTimeout(() => $('pick-q').focus(), 30);
 }
 // Birthday import: ask which month, then pull active agents born that month from RH
+// ════════════════════════════════════════════════════════
+//  PHOTOS — resized in the browser, stored in Supabase Storage (public bucket)
+// ════════════════════════════════════════════════════════
+const pendingUploads = {}; // field path → number of uploads in progress
+function loadImage(file){
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Format d\'image non pris en charge')); };
+    img.src = url;
+  });
+}
+async function resizePhoto(file){
+  const img = await loadImage(file);
+  const scale = Math.min(1, PHOTO_MAX_PX / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.round(img.naturalWidth * scale), hgt = Math.round(img.naturalHeight * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = hgt;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, hgt);
+  ctx.drawImage(img, 0, 0, w, hgt);
+  return await new Promise((resolve, reject) => canvas.toBlob(b => b ? resolve(b) : reject(new Error('Conversion impossible')), 'image/jpeg', PHOTO_QUALITY));
+}
+async function uploadPhoto(blob){
+  await refreshSessionIfNeeded();
+  const rand = (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2));
+  const objectPath = `${currentId}/${rand}.jpg`;
+  const res = await fetch(`${SB_URL}/storage/v1/object/${PHOTO_BUCKET}/${objectPath}`, {
+    method: 'POST',
+    headers: { apikey: SB_KEY, Authorization: 'Bearer ' + session.access_token, 'Content-Type': 'image/jpeg', 'x-upsert': 'false', 'cache-control': '31536000' },
+    body: blob
+  });
+  if (res.status === 401){ const e = new Error('Session expirée'); e.auth = true; throw e; }
+  if (!res.ok){ const t = await res.text().catch(() => ''); throw new Error(`Envoi refusé (${res.status}) ${t.slice(0, 120)}`); }
+  return { url: `${SB_URL}/storage/v1/object/public/${PHOTO_BUCKET}/${objectPath}`, path: objectPath };
+}
+async function addPhotos(path, files){
+  if (!isEditor()) return;
+  if (!navigator.onLine){ toast('Les photos ne peuvent être envoyées qu\'avec une connexion internet.', 3600); return; }
+  const issueId = currentId;
+  const existing = getByPath(normalize(issues[issueId].content), path) || [];
+  const room = PHOTOS_PER_MISSION - existing.length - (pendingUploads[path] || 0);
+  const list = Array.from(files).filter(f => f.type.startsWith('image/') || /\.(jpe?g|png|webp|heic|heif)$/i.test(f.name)).slice(0, Math.max(0, room));
+  if (!list.length){ toast(room <= 0 ? `Maximum ${PHOTOS_PER_MISSION} photos par mission.` : 'Aucune image valide sélectionnée.'); return; }
+  if (Array.from(files).length > list.length && room > 0) toast(`Seules ${list.length} photo(s) ont été retenues (maximum ${PHOTOS_PER_MISSION}).`, 3200);
+  pendingUploads[path] = (pendingUploads[path] || 0) + list.length;
+  renderEditor();
+  setSync('pending', 'Envoi des photos…');
+  let ok = 0, failed = 0;
+  for (const file of list){
+    try {
+      const blob = await resizePhoto(file);
+      const ref = await uploadPhoto(blob);
+      if (issues[issueId]){
+        const row = issues[issueId];
+        const c = normalize(row.content);
+        const arr = getByPath(c, path);
+        if (Array.isArray(arr)) arr.push(ref);
+        else if (getByPath(c, path.split('.').slice(0, -1).join('.'))) setByPath(c, path, [ref]);
+        row.content = c; row.updated_at = new Date().toISOString();
+        markDirty(issueId, 'upsert');
+      }
+      ok++;
+    } catch(e){
+      console.error('addPhotos', e);
+      failed++;
+      if (e.auth){ pendingUploads[path] = 0; handleAuthLost(); return; }
+      toast('Photo non envoyée : ' + e.message, 4200);
+    } finally {
+      pendingUploads[path] = Math.max(0, (pendingUploads[path] || 1) - 1);
+      if (currentId === issueId){ renderEditor(); renderIssue(false); }
+    }
+  }
+  if (ok) toast(`${ok} photo(s) ajoutée(s).`);
+  if (!failed && !Object.keys(dirty).length) setSync('ok', 'Enregistré');
+}
+
+// Lightbox for readers
+let lbIndex = 0;
+function openLightbox(i){
+  if (!currentPhotos.length) return;
+  lbIndex = i;
+  let lb = $('lightbox');
+  if (!lb){
+    lb = document.createElement('div');
+    lb.id = 'lightbox'; lb.className = 'lightbox';
+    lb.setAttribute('role', 'dialog'); lb.setAttribute('aria-modal', 'true'); lb.setAttribute('aria-label', 'Photo');
+    lb.innerHTML = `<img id="lb-img" alt=""><button class="lb-btn lb-close" id="lb-close" aria-label="Fermer">✕</button>
+      <button class="lb-btn lb-prev" id="lb-prev" aria-label="Photo précédente">‹</button><button class="lb-btn lb-next" id="lb-next" aria-label="Photo suivante">›</button><div class="lb-count" id="lb-count"></div>`;
+    document.body.appendChild(lb);
+    lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
+    $('lb-close').onclick = closeLightbox;
+    $('lb-prev').onclick = () => showLightbox(lbIndex - 1);
+    $('lb-next').onclick = () => showLightbox(lbIndex + 1);
+    let sx = null;
+    lb.addEventListener('touchstart', e => { sx = e.touches[0].clientX; }, { passive: true });
+    lb.addEventListener('touchend', e => { if (sx === null) return; const dx = e.changedTouches[0].clientX - sx; if (Math.abs(dx) > 50) showLightbox(lbIndex + (dx < 0 ? 1 : -1)); sx = null; });
+  }
+  lb.classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  showLightbox(i);
+  $('lb-close').focus();
+}
+function showLightbox(i){
+  const n = currentPhotos.length;
+  lbIndex = (i + n) % n;
+  const p = currentPhotos[lbIndex];
+  $('lb-img').src = p.url; $('lb-img').alt = p.alt ? 'Photo — ' + p.alt : 'Photo';
+  $('lb-count').textContent = n > 1 ? `${lbIndex + 1} / ${n}` : '';
+  $('lb-prev').classList.toggle('hidden', n < 2);
+  $('lb-next').classList.toggle('hidden', n < 2);
+}
+function closeLightbox(){
+  const lb = $('lightbox');
+  if (lb && !lb.classList.contains('hidden')){ lb.classList.add('hidden'); document.body.style.overflow = ''; }
+}
+
 function openBirthdayImport(){
   if (!navigator.onLine){ toast('Import impossible hors ligne.'); return; }
   const issueMonth = Number(currentId.split('-')[1]);
@@ -1291,26 +1533,33 @@ async function importCRM(){
   try {
     setSync('pending', 'Import CRM…');
     const [missions, clients] = await Promise.all([
-      sb('crm_missions?select=id,titre,type,statut,date_debut,date_fin,adresse,client_id&statut=in.(en_cours,signe)&order=date_debut.asc'),
+      sb('crm_missions?select=id,titre,type,statut,date_debut,date_fin,adresse,client_id&statut=in.(en_cours,signe,termine)&order=date_debut.asc'),
       sb('crm_clients?select=id,raison_sociale,nom')
     ]);
     const cname = id => { const cl = (clients || []).find(x => x.id === id); return cl ? (cl.raison_sociale || cl.nom || '') : ''; };
     const today = new Date().toISOString().slice(0, 10);
     const toType = t => MISSION_TYPES[t] ? t : 'autre';
-    const cur = [], up = [];
+    const cur = [], up = [], fin = [];
+    const doneSince = shiftMonth(currentId, -1) + '-01';
     (missions || []).forEach(mi => {
       const name = [mi.titre, cname(mi.client_id)].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(' — ') || 'Mission';
       const base = { name, type: toType(mi.type), place: mi.adresse || '', detail: '' };
-      if (mi.statut === 'en_cours' && (!mi.date_debut || mi.date_debut <= today)) cur.push(base);
+      if (mi.statut === 'termine'){
+        const end = mi.date_fin ? String(mi.date_fin).slice(0, 10) : '';
+        if (end && end >= doneSince) fin.push({ ...base, date: end, photos: [] });
+        return;
+      }
+      if (mi.statut === 'en_cours' && (!mi.date_debut || mi.date_debut <= today)) cur.push({ ...base, photos: [] });
       else up.push({ ...base, start: mi.date_debut ? String(mi.date_debut).slice(0, 10) : '' });
     });
     const c = normalize(issues[currentId].content);
-    const seen = new Set([...c.missions_current, ...c.missions_upcoming].map(x => (x.name || '').toLowerCase()));
+    const seen = new Set([...c.missions_current, ...c.missions_upcoming, ...c.missions_done].map(x => (x.name || '').toLowerCase()));
     const newCur = cur.filter(x => !seen.has(x.name.toLowerCase()));
     const newUp = up.filter(x => !seen.has(x.name.toLowerCase()));
-    mutate(cc => { cc.missions_current.push(...newCur); cc.missions_upcoming.push(...newUp); }, { rerenderEditor: true });
+    const newFin = fin.filter(x => !seen.has(x.name.toLowerCase()));
+    mutate(cc => { cc.missions_current.push(...newCur); cc.missions_upcoming.push(...newUp); cc.missions_done.push(...newFin); }, { rerenderEditor: true });
     setSync('ok', 'À jour');
-    toast(`${newCur.length} mission(s) en cours et ${newUp.length} à venir ajoutées. Relisez-les avant de publier.`, 4200);
+    toast(`${newCur.length} en cours, ${newUp.length} à venir et ${newFin.length} effectuée(s) ajoutées. Relisez-les avant de publier.`, 4200);
   } catch(e){
     console.error('importCRM', e);
     setSync('error', 'Import CRM échoué');
@@ -1354,7 +1603,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('btn-newer').addEventListener('click', () => { const ids = visibleIds(); const i = ids.indexOf(currentId); if (i > 0) goTo(ids[i - 1]); });
   $('btn-menu').addEventListener('click', e => { e.stopPropagation(); toggleMenu(); });
   document.addEventListener('click', e => { if (!e.target.closest('.menu-wrap')) toggleMenu(false); });
-  document.addEventListener('keydown', e => { if (e.key === 'Escape'){ toggleMenu(false); closeModal(); closeLogin(); } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape'){ toggleMenu(false); closeModal(); closeLogin(); closeLightbox(); } });
   $('mi-edit').addEventListener('click', () => { toggleMenu(false); toggleEditing(); if (editing && window.innerWidth <= 1020) $('editor').scrollIntoView({ behavior: 'smooth' }); });
   $('mi-new').addEventListener('click', () => { toggleMenu(false); openNewIssue(); });
   $('mi-print').addEventListener('click', () => { toggleMenu(false); window.print(); });
@@ -1365,6 +1614,17 @@ document.addEventListener('DOMContentLoaded', () => {
   $('login-screen').addEventListener('click', e => { if (e.target.id === 'login-screen') closeLogin(); });
   $('editor').addEventListener('input', onEditorInput);
   $('editor').addEventListener('click', onEditorClick);
+  $('editor').addEventListener('change', e => {
+    const p = e.target.dataset?.photoAdd;
+    if (p && e.target.files?.length){ addPhotos(p, e.target.files); e.target.value = ''; }
+  });
+  $('paper').addEventListener('click', e => { const b = e.target.closest('[data-photo]'); if (b) openLightbox(Number(b.dataset.photo)); });
+  document.addEventListener('keydown', e => {
+    const lb = $('lightbox');
+    if (!lb || lb.classList.contains('hidden')) return;
+    if (e.key === 'ArrowLeft') showLightbox(lbIndex - 1);
+    if (e.key === 'ArrowRight') showLightbox(lbIndex + 1);
+  });
   window.addEventListener('online', () => { { setSync('pending', 'Reconnexion…'); pushDirty().then(loadRemote).then(() => { renderNav(); renderIssue(false); }); } });
   let lastNarrow = window.innerWidth <= 640;
   window.addEventListener('resize', () => { const n = window.innerWidth <= 640; if (n !== lastNarrow){ lastNarrow = n; renderNav(); } });
