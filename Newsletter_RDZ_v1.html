@@ -213,9 +213,9 @@ textarea.inp{resize:vertical;min-height:84px;line-height:1.5}
 .ed-ph img{width:100%;height:100%;object-fit:cover;display:block}
 .ed-ph .mini{position:absolute;top:4px;right:4px;width:24px;height:24px;font-size:12px;background:rgba(255,255,255,.92)}
 .ed-ph.loading::after{content:"";position:absolute;inset:0;margin:auto;width:22px;height:22px;border:3px solid rgba(255,255,255,.6);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
-.ed-photo-add{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;border:1.5px dashed var(--border2);border-radius:8px;padding:8px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;background:var(--paper)}
+.ed-photo-add{position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;gap:6px;width:100%;border:1.5px dashed var(--border2);border-radius:8px;padding:8px;font-size:13px;font-weight:600;color:var(--text2);cursor:pointer;background:var(--paper)}
 .ed-photo-add:hover{border-color:var(--anthracite);color:var(--text)}
-.ed-photo-add input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.ed-photo-add input{position:absolute;inset:0;width:100%;height:100%;opacity:0;pointer-events:none}
 .ed-item-actions{display:flex;gap:6px;margin:-2px 0 8px}
 
 /* Safety */
@@ -1112,6 +1112,7 @@ function renderEditor(){
 
   const scroll = $('ed-scroll')?.scrollTop || 0;
   ed.innerHTML = h;
+  ed.scrollTop = 0;
   $('ed-scroll').scrollTop = scroll;
 }
 
@@ -1614,6 +1615,7 @@ document.addEventListener('DOMContentLoaded', () => {
   $('login-screen').addEventListener('click', e => { if (e.target.id === 'login-screen') closeLogin(); });
   $('editor').addEventListener('input', onEditorInput);
   $('editor').addEventListener('click', onEditorClick);
+  $('editor').addEventListener('scroll', () => { const ed = $('editor'); if (ed.scrollTop) ed.scrollTop = 0; });
   $('editor').addEventListener('change', e => {
     const p = e.target.dataset?.photoAdd;
     if (p && e.target.files?.length){ addPhotos(p, e.target.files); e.target.value = ''; }
