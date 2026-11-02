@@ -925,8 +925,7 @@ function renderIssue(animate){
   const done = c.missions_done.filter(x => (x.name || '').trim()).slice()
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   if (done.length){
-    h += `<section class="sec"><h2 class="sec-title"><span class="ico">✅</span>Missions effectuées</h2>
-      <p class="sec-intro">Bravo et merci à toutes celles et ceux qui y ont participé.</p><div class="missions">`;
+    h += `<section class="sec"><h2 class="sec-title"><span class="ico">✅</span>Missions effectuées</h2><div class="missions">`;
     done.forEach(x => {
       const t = MISSION_TYPES[x.type] || MISSION_TYPES.autre;
       let when = '';
