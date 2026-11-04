@@ -418,6 +418,7 @@ body{background:var(--bg);font-size:13.5px;}
       <button class="nav-item" data-panel="clients" data-icon="users">Clients</button>
       <button class="nav-item" data-panel="fournisseurs" data-icon="store">Fournisseurs</button>
       <button class="nav-item" data-panel="achats" data-icon="cart">Achats</button>
+      <button class="nav-item" data-panel="contrats" data-icon="calendar">Paiements récurrents<span class="nbadge" id="nb-contrats"></span></button>
       <button class="nav-item" data-panel="banque" data-icon="bank">Banque</button>
       <button class="nav-item" data-panel="rapprochement" data-icon="refresh">Rapprochement<span class="nbadge" id="nb-bank"></span></button>
       <button class="nav-item" data-panel="tva" data-icon="percent">TVA</button>
@@ -539,6 +540,14 @@ body{background:var(--bg);font-size:13.5px;}
         <div class="tbl-wrap" id="cli-list"></div>
       </section>
 
+      <!-- CONTRATS -->
+      <section class="panel" id="p-contrats">
+        <div class="ph"><div><div class="ph-title">Paiements récurrents</div><div class="ph-sub">Leasings, loyer, abonnements : le contrat une fois, les prélèvements rattachés automatiquement</div></div>
+          <div class="ph-right w-only"><button class="btn btn-primary" onclick="openContrat()">Nouveau contrat</button></div></div>
+        <div class="card" id="ct-sugg-card" style="display:none"><div class="card-head"><div><div class="card-title">Prélèvements récurrents détectés</div><div class="card-note">Même créancier, même montant, au moins 3 mois, sans contrat</div></div></div><div id="ct-sugg"></div></div>
+        <div class="tbl-wrap" id="ct-list"></div>
+      </section>
+
       <!-- ACHATS -->
       <section class="panel" id="p-achats">
         <div class="ph"><div><div class="ph-title">Achats</div><div class="ph-sub">Factures fournisseurs, pièces jointes et paiements</div></div>
@@ -643,6 +652,13 @@ body{background:var(--bg);font-size:13.5px;}
   <div class="modal-head"><div><div class="modal-title" id="ach-title">Achat</div><div class="modal-sub" id="ach-sub"></div></div><button class="modal-x" onclick="closeModal('m-achat')" aria-label="Fermer">×</button></div>
   <div class="modal-body"><div class="fgrid" id="ach-form"></div></div>
   <div class="modal-foot" id="ach-foot"></div>
+</div></div>
+
+<!-- MODAL : CONTRAT -->
+<div class="overlay" id="m-contrat"><div class="modal wide" role="dialog" aria-modal="true" aria-labelledby="ct-title">
+  <div class="modal-head"><div><div class="modal-title" id="ct-title">Paiement récurrent</div><div class="modal-sub">Contrat, mensualité et prélèvements bancaires</div></div><button class="modal-x" onclick="closeModal('m-contrat')" aria-label="Fermer">×</button></div>
+  <div class="modal-body"><div class="fgrid" id="ct-form"></div></div>
+  <div class="modal-foot" id="ct-foot"></div>
 </div></div>
 
 <!-- MODAL : GENERIQUE -->
@@ -1067,13 +1083,14 @@ const IDB_NAME = 'factu_rdz';
 const STORAGE_BUCKET = 'fac-pieces';
 const PORTAL_URL = 'https://rdz-2026.github.io/routeops/RDZ_index.html';
 
-const TABLES = ['fac_clients', 'fac_documents', 'fac_achats', 'fac_bank_statements', 'fac_bank_tx', 'fac_bank_rules', 'fac_allocations'];
+const TABLES = ['fac_clients', 'fac_documents', 'fac_achats', 'fac_contrats', 'fac_bank_statements', 'fac_bank_tx', 'fac_bank_rules', 'fac_allocations'];
 const COLUMNS = {
   fac_clients: ['id','nom','nom_court','complement','rue','numero_rue','npa','ville','pays','email','contact','delai_pmt','tva_rate','crm_client_id','notes','created_at','deleted_at'],
   fac_documents: ['id','kind','numero','seq','client_id','client_snapshot','titre','date_doc','date_echeance','periode_debut','periode_fin','site','lignes','tva_rate','tva_code','total_ht','total_tva','total_ttc','total_breakdown','statut','reference','source_devis_id','ref_document_id','intro','conclusion','notes_internes','sent_at','emitted_at','cancelled_reason','legacy','pdf_path','pdf_sha256','version','revised_at','revision_reason','pdf_history','created_by','created_at','deleted_at'],
   fac_achats: ['id','fournisseur','numero_facture','date_facture','date_echeance','categorie','site','montant_ht','tva_rate','tva_code','montant_tva','montant_ttc','reference_paiement','piece_path','piece_name','notes','created_by','created_at','deleted_at'],
   fac_bank_statements: ['id','camt_type','iban','from_date','to_date','opening','closing','closing_date','filename','imported_by','imported_at'],
-  fac_bank_tx: ['id','statement_id','iban','booking_date','value_date','amount','currency','counterparty','counterparty_iban','reference','ref_type','remittance','info','category','note','created_at'],
+  fac_bank_tx: ['id','statement_id','iban','booking_date','value_date','amount','currency','counterparty','counterparty_iban','reference','ref_type','remittance','info','category','note','contrat_id','created_at'],
+  fac_contrats: ['id','libelle','fournisseur','motif','categorie','site','montant','tva_code','periodicite','jour','date_debut','date_fin','piece_path','piece_name','notes','actif','created_by','created_at','deleted_at'],
   fac_bank_rules: ['id','pattern','direction','category','created_at'],
   fac_allocations: ['id','tx_id','document_id','achat_id','amount','pay_date','mode','note','created_by','created_at'],
 };
@@ -1127,7 +1144,7 @@ const DAYS_LONG = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','sam
 // ════════════════════════════════════════
 let session = null;
 let myRole = null;          // 'direction' | 'lecture'
-let db = { fac_clients: [], fac_documents: [], fac_achats: [], fac_bank_statements: [], fac_bank_tx: [], fac_bank_rules: [], fac_allocations: [] };
+let db = { fac_clients: [], fac_documents: [], fac_achats: [], fac_contrats: [], fac_bank_statements: [], fac_bank_tx: [], fac_bank_rules: [], fac_allocations: [] };
 let tvaCodes = DEFAULT_TVA_CODES.slice();
 let settings = { ...DEFAULT_SETTINGS };
 let counters = [];
@@ -1423,7 +1440,7 @@ async function pushDirty() {
   try {
     const groups = {};
     for (const e of entries) { const k = e.table + '|' + e.mode; (groups[k] = groups[k] || []).push(e); }
-    const order = ['fac_clients', 'fac_documents', 'fac_achats', 'fac_bank_statements', 'fac_bank_rules', 'fac_bank_tx', 'fac_allocations'];
+    const order = ['fac_clients', 'fac_documents', 'fac_achats', 'fac_contrats', 'fac_bank_statements', 'fac_bank_rules', 'fac_bank_tx', 'fac_allocations'];
     const keys = Object.keys(groups).sort((a, b) => order.indexOf(a.split('|')[0]) - order.indexOf(b.split('|')[0]));
     for (const k of keys) {
       const [table, mode] = k.split('|');
@@ -1631,10 +1648,11 @@ function renderAll() {
   renderPanel(currentPanel);
 }
 function renderPanel(p) {
-  const fn = { dash: renderDashboard, analyses: renderAnalyses, factures: renderFactures, devis: renderDevis, clients: renderClients, fournisseurs: renderFournisseurs, achats: renderAchats, banque: renderBank, rapprochement: renderBank, tva: renderTva, export: renderExport, reglages: renderSettings }[p];
+  const fn = { dash: renderDashboard, analyses: renderAnalyses, factures: renderFactures, devis: renderDevis, clients: renderClients, fournisseurs: renderFournisseurs, achats: renderAchats, contrats: renderContrats, banque: renderBank, rapprochement: renderBank, tva: renderTva, export: renderExport, reglages: renderSettings }[p];
   if (fn) fn();
 }
 function updateBadges() {
+  if ($('nb-contrats')) $('nb-contrats').textContent = contrats().filter(c => c.actif && contratStatus(c).missing.length).length || '';
   const late = factures().filter(d => invoiceState(d) === 'retard').length;
   $('nb-retard').textContent = late || '';
   $('nb-bank').textContent = bankTodo().length || '';
@@ -2329,6 +2347,157 @@ function settlePendingRegie() {
   (window._regPending || []).forEach(id => { const d = db.fac_documents.find(x => x.id === id); if (d && docRemaining(d) > 0.009) addDiscount(d, docRemaining(d), docLastPaymentDate(d) || todayISO(), `Remise régie ${rate} %`); });
   window._regPending = []; closeModal('m-gen'); renderAll(); toast('Factures soldées en remise régie');
 }
+// ════════════════════════════════════════
+//  PAIEMENTS RÉCURRENTS (leasing, loyer, abonnements)
+// ════════════════════════════════════════
+const PERIOD_MONTHS = { mensuel: 1, trimestriel: 3, semestriel: 6, annuel: 12 };
+const PERIOD_LABEL = { mensuel: 'Mensuel', trimestriel: 'Trimestriel', semestriel: 'Semestriel', annuel: 'Annuel' };
+function contrats() { return live('fac_contrats'); }
+function contratTx(c) { return db.fac_bank_tx.filter(t => t.contrat_id === c.id).sort((a, b) => a.booking_date.localeCompare(b.booking_date)); }
+function addMonthsISO(iso, n) { const d = parseISO(iso); const day = d.getDate(); const x = new Date(d.getFullYear(), d.getMonth() + n, 1); x.setDate(Math.min(day, new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate())); return isoLocal(x); }
+function contratHay(t) { return norm([t.counterparty, t.remittance, t.info].join(' ')); }
+// Rattache les prélèvements aux contrats : par le texte du relevé, puis par le montant si plusieurs contrats ont le même créancier
+function linkContrats(onlyIds) {
+  if (!canWrite()) return 0;
+  const act = contrats().filter(c => c.actif && (c.motif || c.fournisseur));
+  let n = 0;
+  db.fac_bank_tx.forEach(t => {
+    if (t.amount >= 0 || t.contrat_id || allocsForTx(t.id).length || (onlyIds && !onlyIds.has(t.id))) return;
+    const hay = contratHay(t);
+    let cands = act.filter(c => hay.includes(norm(c.motif || c.fournisseur))
+      && (!c.date_debut || t.booking_date >= addDays(c.date_debut, -31)) && (!c.date_fin || t.booking_date <= addDays(c.date_fin, 31)));
+    if (cands.length > 1) cands = cands.filter(c => Math.abs(num(c.montant) - Math.abs(num(t.amount))) < 0.05);
+    // Un seul contrat pour ce créancier : on tolère un montant légèrement différent (révision, frais), pas un autre contrat
+    else cands = cands.filter(c => Math.abs(Math.abs(num(t.amount)) - num(c.montant)) <= Math.max(0.05, num(c.montant) * 0.2));
+    if (cands.length !== 1) return;
+    const c = cands[0];
+    saveRow('fac_bank_tx', { ...t, contrat_id: c.id, category: t.category || c.categorie || null });
+    n++;
+  });
+  return n;
+}
+function contratStatus(c, today = todayISO()) {
+  const step = PERIOD_MONTHS[c.periodicite] || 1, txs = contratTx(c);
+  const start = c.date_debut || (txs[0] && txs[0].booking_date);
+  const lastBank = db.fac_bank_tx.reduce((m, t) => t.booking_date > m ? t.booking_date : m, '');
+  const res = { missing: [], diff: txs.filter(t => Math.abs(Math.abs(num(t.amount)) - num(c.montant)) > 0.05), next: null, remaining: null, paidYear: 0, last: txs.length ? txs[txs.length - 1].booking_date : null };
+  res.paidYear = round2(txs.filter(t => t.booking_date.startsWith(today.slice(0, 4))).reduce((s, t) => s - num(t.amount), 0));
+  if (!start) return res;
+  const day = c.jour || +start.slice(8, 10);
+  let p = `${start.slice(0, 7)}-01`;
+  for (let k = 0; k < 240; k++) {
+    const due = addMonthsISO(`${p.slice(0, 7)}-${pad2(Math.min(day, 28))}`, 0).slice(0, 8) + pad2(Math.min(day, +lastDayOf(p.slice(0, 7)).slice(8, 10)));
+    const pend = addMonthsISO(p, step);
+    if (c.date_fin && p > c.date_fin) break;
+    if (due >= today && !res.next) res.next = due;
+    if (p > today) break;
+    const win = Math.min(20, step * 15); const paid = txs.some(t => t.booking_date >= addDays(due, -win) && t.booking_date <= addDays(due, win));
+    if (!paid && due < addDays(today, -5) && lastBank && due < addDays(lastBank, -3) && (!txs.length || due > addDays(txs[0].booking_date, -20))) res.missing.push(p.slice(0, 7));
+    p = pend;
+  }
+  if (!res.next) { let q = `${today.slice(0, 7)}-01`; res.next = `${q.slice(0, 8)}${pad2(Math.min(day, 28))}`; if (res.next < today) res.next = addMonthsISO(res.next, step); if (c.date_fin && res.next > c.date_fin) res.next = null; }
+  if (c.date_fin && res.next) { let cnt = 0, d = res.next; while (d <= c.date_fin && cnt < 600) { cnt++; d = addMonthsISO(d, step); } res.remaining = round2(cnt * num(c.montant)); }
+  return res;
+}
+// Prélèvements qui reviennent chaque mois sans contrat : même créancier, même montant, au moins 3 mois
+function recurringSuggestions() {
+  const g = {};
+  const EXCL = ['Salaires', 'Charges sociales', 'Notes de frais', 'Impôts & TVA', 'Transfert interne', 'Frais bancaires'];
+  const COMPANY = /\b(SA|AG|SARL|SÀRL|GMBH|LTD|SNC|INC|LEASING|FINANCE|FINANCIAL|BANQUE|BANK|SWISSCOM|SUNRISE|SALT|ASSURANCES?|VERSICHERUNG|IMMOBILI|REGIE|GERANCE|RENAUD)\b/i;
+  const KEEP = ['Véhicules', 'Loyer & charges', 'Télécom & informatique', 'Assurances'];
+  db.fac_bank_tx.filter(t => t.amount < 0 && !t.contrat_id && t.counterparty && t.note !== 'hors-contrat' && !allocsForTx(t.id).length
+      && !EXCL.includes(t.category) && (KEEP.includes(t.category) || COMPANY.test(t.counterparty))).forEach(t => {
+    const k = norm(t.counterparty) + '|' + Math.abs(num(t.amount)).toFixed(2);
+    (g[k] = g[k] || []).push(t);
+  });
+  return Object.values(g).map(list => ({ list, months: new Set(list.map(t => monthKey(t.booking_date))).size, t: list[list.length - 1] }))
+    .filter(x => x.months >= 3).sort((a, b) => (KEEP.includes(b.t.category) - KEEP.includes(a.t.category)) || Math.abs(num(b.t.amount)) - Math.abs(num(a.t.amount)));
+}
+function renderContrats() {
+  const sugg = canWrite() ? recurringSuggestions() : [];
+  window._contratSugg = sugg;
+  $('ct-sugg-card').style.display = sugg.length ? '' : 'none';
+  $('ct-sugg').innerHTML = `<table class="tbl"><tbody>${sugg.slice(0, 30).map((x, i) => `<tr><td><b>${esc(x.t.counterparty)}</b><div class="sub">${esc((x.t.remittance || '').slice(0, 60))}</div></td><td class="num">${fmtAmt(-x.t.amount)} CHF</td><td>${x.months} mois</td><td>${esc(x.t.category || '—')}</td>
+    <td style="text-align:right"><button class="btn btn-dark btn-sm" onclick="openContrat(null, ${i})">Créer le contrat</button></td></tr>`).join('')}</tbody></table>`;
+  const list = contrats().sort((a, b) => (b.actif - a.actif) || num(b.montant) - num(a.montant));
+  if (!list.length) { $('ct-list').innerHTML = `<div class="empty"><b>Aucun paiement récurrent</b>${canWrite() ? 'Créez un contrat ou partez d\'un prélèvement détecté ci-dessus.' : ''}</div>`; return; }
+  const tot = list.filter(c => c.actif).reduce((s, c) => s + num(c.montant) / (PERIOD_MONTHS[c.periodicite] || 1), 0);
+  $('ct-list').innerHTML = `<table class="tbl"><thead><tr><th>Contrat</th><th>Fournisseur</th><th>Catégorie</th><th class="num">Montant</th><th>Périodicité</th><th>Dernier paiement</th><th>Prochain</th><th class="num">Payé ${todayISO().slice(0, 4)}</th><th class="num">Reste jusqu'à la fin</th><th>État</th></tr></thead><tbody>
+    ${list.map(c => { const s = contratStatus(c);
+      const st = !c.actif ? badge('Terminé', 'b-gray') : s.missing.length ? badge(`${s.missing.length} paiement${s.missing.length > 1 ? 's' : ''} manquant${s.missing.length > 1 ? 's' : ''}`, 'b-red') : s.diff.length ? badge('Montant différent', 'b-orange') : contratTx(c).length ? badge('À jour', 'b-green') : badge('Aucun paiement rattaché', 'b-gray');
+      return `<tr class="click" onclick="openContrat('${c.id}')"><td><b>${esc(c.libelle)}</b>${c.piece_path ? ' 📎' : ''}</td><td>${esc(c.fournisseur)}</td><td>${esc(c.categorie || '—')}</td><td class="num">${fmtAmt(c.montant)}</td><td>${PERIOD_LABEL[c.periodicite] || ''}</td>
+        <td>${fmtDate(s.last)}</td><td>${c.actif ? fmtDate(s.next) : '—'}</td><td class="num">${fmtAmt(s.paidYear)}</td><td class="num">${s.remaining != null ? fmtAmt(s.remaining) : '—'}</td><td>${st}</td></tr>`; }).join('')}</tbody>
+    <tfoot><tr><td colspan="3">${list.filter(c => c.actif).length} contrat(s) actif(s)</td><td class="num">${fmtAmt(tot)}</td><td colspan="6">par mois en moyenne</td></tr></tfoot></table>`;
+}
+let editContratId = null;
+function openContrat(id, suggIdx) {
+  editContratId = id || null;
+  let c = id ? db.fac_contrats.find(x => x.id === id) : { periodicite: 'mensuel', actif: true, tva_code: 'N81' };
+  if (!id && suggIdx != null) {
+    const x = window._contratSugg[suggIdx]; const t = x.t;
+    const days = {}; x.list.forEach(y => { const d = +y.booking_date.slice(8, 10); days[d] = (days[d] || 0) + 1; });
+    const refs = {}; x.list.forEach(y => { const r = (y.remittance || '').trim(); if (r && !/^\d+$/.test(r)) refs[r] = (refs[r] || 0) + 1; });
+    const ref = Object.entries(refs).sort((a, b) => b[1] - a[1])[0];
+    c = { ...c, fournisseur: t.counterparty, motif: (t.counterparty || '').toUpperCase(), libelle: ref ? ref[0] : t.counterparty, montant: Math.abs(num(t.amount)),
+      jour: +Object.entries(days).sort((a, b) => b[1] - a[1])[0][0], categorie: t.category || null, date_debut: x.list[0].booking_date.slice(0, 8) + '01' };
+  }
+  const ro = canWrite() ? '' : 'disabled';
+  const txs = id ? contratTx(c) : []; const s = id ? contratStatus(c) : null;
+  const opt = (v, l, cur) => `<option value="${v}" ${v === cur ? 'selected' : ''}>${esc(l)}</option>`;
+  $('ct-title').textContent = id ? c.libelle : 'Nouveau paiement récurrent';
+  $('ct-form').innerHTML = `
+    <div class="fg c6"><label class="flabel" for="cf2-lib">Libellé *</label><input class="finp" id="cf2-lib" ${ro} value="${esc(c.libelle || '')}" placeholder="Ex. Leasing Audi A6"></div>
+    <div class="fg c6"><label class="flabel" for="cf2-four">Fournisseur *</label><input class="finp" id="cf2-four" ${ro} value="${esc(c.fournisseur || '')}"></div>
+    <div class="fg c12"><label class="flabel" for="cf2-motif">Texte à reconnaître sur le relevé</label><input class="finp mono" id="cf2-motif" ${ro} value="${esc(c.motif || '')}" placeholder="Ex. AMAG LEASING ou LOCATION MEGANE"><div class="fhint">Si plusieurs contrats ont le même créancier (ex. RCI Finance), le montant sert à les distinguer, ou indiquez la communication propre à chacun.</div></div>
+    <div class="fg c3"><label class="flabel" for="cf2-mt">Montant *</label><input class="finp mono" id="cf2-mt" ${ro} value="${c.montant != null ? num(c.montant).toFixed(2) : ''}"></div>
+    <div class="fg c3"><label class="flabel" for="cf2-per">Périodicité</label><select class="fsel" id="cf2-per" ${ro}>${Object.entries(PERIOD_LABEL).map(([v, l]) => opt(v, l, c.periodicite)).join('')}</select></div>
+    <div class="fg c3"><label class="flabel" for="cf2-jour">Jour du prélèvement</label><input class="finp mono" id="cf2-jour" ${ro} value="${c.jour || ''}" placeholder="1 à 31"></div>
+    <div class="fg c3"><label class="flabel" for="cf2-code">TVA</label><select class="fsel" id="cf2-code" ${ro}>${codeOptions(c.tva_code || 'N81')}</select></div>
+    <div class="fg c4"><label class="flabel" for="cf2-cat">Catégorie</label><select class="fsel" id="cf2-cat" ${ro}><option value="">—</option>${settings.categories_out.filter(x => x !== INTERNAL_CATEGORY).map(x => opt(x, x, c.categorie)).join('')}</select></div>
+    <div class="fg c4"><label class="flabel" for="cf2-deb">Début du contrat</label><input class="finp" type="date" id="cf2-deb" ${ro} value="${c.date_debut || ''}"></div>
+    <div class="fg c4"><label class="flabel" for="cf2-fin">Fin du contrat</label><input class="finp" type="date" id="cf2-fin" ${ro} value="${c.date_fin || ''}"></div>
+    <div class="fg c6"><label class="flabel" for="cf2-site">Site ou mandat</label><input class="finp" id="cf2-site" ${ro} value="${esc(c.site || '')}"></div>
+    <div class="fg c6"><label class="flabel" for="cf2-file">Contrat (PDF)</label>${c.piece_path ? `<div><button class="btn btn-ghost btn-sm" onclick="openPiece('${esc(c.piece_path)}')">Ouvrir ${esc(c.piece_name || 'le contrat')}</button></div>` : canWrite() ? `<input class="finp" type="file" id="cf2-file" accept="application/pdf,image/*">` : '<span class="sub">Aucun</span>'}</div>
+    <div class="fg c12"><label class="flabel" for="cf2-notes">Notes</label><textarea class="ftxt" id="cf2-notes" ${ro}>${esc(c.notes || '')}</textarea></div>
+    <div class="fg c12"><label class="chk"><input type="checkbox" id="cf2-actif" ${c.actif !== false ? 'checked' : ''} ${ro}> Contrat en cours</label></div>
+    ${id ? `<div class="fg c12"><span class="flabel">Prélèvements rattachés (${txs.length})</span>
+      ${s.missing.length ? `<div class="lock-note" style="margin:6px 0">Aucun prélèvement trouvé pour : ${s.missing.map(m => monthLabel(m)).join(', ')}</div>` : ''}
+      ${s.diff.length ? `<div class="info-note" style="margin:6px 0">${s.diff.length} prélèvement(s) d'un montant différent de ${fmtAmt(c.montant)} CHF.</div>` : ''}
+      <div class="pay-list" style="max-height:260px;overflow:auto">${txs.slice().reverse().map(t => `<div><span>${fmtDate(t.booking_date)} · ${esc(t.counterparty || '')}${Math.abs(Math.abs(num(t.amount)) - num(c.montant)) > 0.05 ? ' <span class="badge b-orange">montant différent</span>' : ''}</span><span><span class="mono">${fmtAmt(-t.amount)}</span>${canWrite() ? ` <button class="btn-link" style="margin-left:8px" onclick="unlinkContrat('${t.id}')">Détacher</button>` : ''}</span></div>`).join('') || '<div><span class="sub">Aucun pour l’instant : ils seront rattachés à l’import des relevés.</span></div>'}</div></div>` : ''}`;
+  $('ct-foot').innerHTML = (canWrite() && id ? `<button class="btn btn-danger" onclick="deleteContrat()">Supprimer</button>` : '') + `<span class="spacer"></span><button class="btn btn-ghost" onclick="closeModal('m-contrat')">Fermer</button>` + (canWrite() ? `<button class="btn btn-primary" id="cf2-save" onclick="saveContrat()">Enregistrer</button>` : '');
+  openModal('m-contrat');
+}
+async function saveContrat() {
+  const g = k => $('cf2-' + k).value.trim();
+  const lib = g('lib'), four = g('four'), mt = round2(num(g('mt')));
+  if (!lib || !four || !(mt > 0)) { toast('Libellé, fournisseur et montant sont obligatoires', 'err'); return; }
+  const jour = g('jour') ? Math.round(num(g('jour'))) : null;
+  if (jour != null && (jour < 1 || jour > 31)) { toast('Jour entre 1 et 31', 'err'); return; }
+  const base = editContratId ? db.fac_contrats.find(x => x.id === editContratId) : { id: uuid(), created_by: userEmail() };
+  const row = { ...base, libelle: lib, fournisseur: four, motif: g('motif') || four.toUpperCase(), montant: mt, periodicite: $('cf2-per').value, jour, tva_code: $('cf2-code').value,
+    categorie: $('cf2-cat').value || null, date_debut: g('deb') || null, date_fin: g('fin') || null, site: g('site') || null, notes: $('cf2-notes').value.trim() || null, actif: $('cf2-actif').checked };
+  const file = $('cf2-file') && $('cf2-file').files[0];
+  if (file) {
+    if (!navigator.onLine) toast('Hors ligne : contrat enregistré sans le PDF, ajoutez-le une fois reconnecté', 'err');
+    else { $('cf2-save').disabled = true; try { row.piece_path = await uploadPiece(row.id, file); row.piece_name = file.name; } catch (e) { toast(e.message, 'err'); $('cf2-save').disabled = false; return; } }
+  }
+  saveRow('fac_contrats', row);
+  const n = linkContrats();
+  closeModal('m-contrat'); renderAll();
+  toast(`Contrat enregistré${n ? ` · ${n} prélèvement(s) rattaché(s)` : ''}`);
+}
+function unlinkContrat(txId) {
+  const t = db.fac_bank_tx.find(x => x.id === txId); if (!t) return;
+  saveRow('fac_bank_tx', { ...t, contrat_id: null, note: 'hors-contrat' }); openContrat(editContratId); renderAll();
+}
+function deleteContrat() {
+  if (!confirm('Supprimer ce contrat ? Les prélèvements restent dans la banque, sans lien avec le contrat.')) return;
+  const c = db.fac_contrats.find(x => x.id === editContratId);
+  db.fac_bank_tx.filter(t => t.contrat_id === c.id).forEach(t => saveRow('fac_bank_tx', { ...t, contrat_id: null }));
+  saveRow('fac_contrats', { ...c, deleted_at: new Date().toISOString(), actif: false });
+  closeModal('m-contrat'); renderAll(); toast('Contrat supprimé');
+}
+
 function confirmWriteOff() {
   const d = db.fac_documents.find(x => x.id === editDoc.id);
   const amt = round2(num($('g-amt').value)), note = $('g-note').value.trim();
@@ -2709,6 +2878,7 @@ async function importCamtFiles(files) {
     } catch (e) { errors.push(`${file.name} : ${e.message}`); }
   }
   nAuto += rematchAll();
+  const nCt = linkContrats(); if (nCt) toast(`${nCt} prélèvement(s) rattaché(s) à un paiement récurrent`);
   renderAll();
   errors.forEach(m => toast(m, 'err'));
   warnings.forEach(m => toast(m, 'err'));
@@ -2742,6 +2912,7 @@ function ignoreTodo(id) {
   saveRow('fac_bank_tx', { ...t, note: 'ignorer-rapprochement' }); renderAll(); toast('Retiré de la liste à rapprocher');
 }
 function txLinks(t) {
+  if (t.contrat_id) { const c = db.fac_contrats.find(x => x.id === t.contrat_id); if (c) return `<button class="btn-link" onclick="openContrat('${c.id}')">↻ ${esc(c.libelle)}</button>`; }
   return allocsForTx(t.id).map(a => {
     if (a.document_id) { const d = db.fac_documents.find(x => x.id === a.document_id); return d ? `<button class="btn-link" onclick="openDoc('${d.id}')">${d.kind === 'avoir' ? 'NC' : 'Facture'} ${esc(d.numero)}</button>` : ''; }
     const ac = db.fac_achats.find(x => x.id === a.achat_id); return ac ? `<button class="btn-link" onclick="openAchat('${ac.id}')">${esc(ac.fournisseur)}</button>` : '';
@@ -3207,7 +3378,10 @@ function fiduciarySheets(r) {
     { title: 'HT', type: 'num' }, { title: 'TVA', type: 'num' }, { title: 'TTC', type: 'num' }, { title: 'Échéance', type: 'date', width: 11 }, { title: 'Statut', width: 12 }, { title: 'Payé le', type: 'date', width: 11 }, { title: 'Pièce', width: 30 }];
   const achRows = ach.map(a => [a.date_facture, a.fournisseur, a.numero_facture || '', a.categorie || '', a.site || '', a.tva_code || codeForRate(a.tva_rate), num(a.montant_ht), num(a.montant_tva), num(a.montant_ttc),
     a.date_echeance || '', ACH_BADGE[achatState(a)][0], achatPaidDate(a) || '', a.piece_path ? achatPieceName(a) : 'MANQUANTE']);
-  return { docs, ach, sheets: [{ name: 'Factures', columns: facCols, rows: facRows }, { name: 'Encaissements', columns: encCols, rows: encRows }, { name: 'Achats', columns: achCols, rows: achRows }] };
+  const ctCols = [{ title: 'Date', type: 'date', width: 11 }, { title: 'Contrat', width: 30 }, { title: 'Fournisseur', width: 30 }, { title: 'Catégorie', width: 22 }, { title: 'Code TVA', width: 9 }, { title: 'Montant prélevé', type: 'num' }, { title: 'Montant du contrat', type: 'num' }, { title: 'Justificatif', width: 30 }];
+  const ctRows = db.fac_bank_tx.filter(t => t.contrat_id && inRange(t.booking_date, r)).sort((a, b) => a.booking_date.localeCompare(b.booking_date)).map(t => { const c = db.fac_contrats.find(x => x.id === t.contrat_id) || {};
+    return [t.booking_date, c.libelle || '', c.fournisseur || t.counterparty || '', c.categorie || t.category || '', c.tva_code || '', -num(t.amount), num(c.montant), c.piece_name || (c.piece_path ? 'oui' : 'MANQUANT')]; });
+  return { docs, ach, sheets: [{ name: 'Factures', columns: facCols, rows: facRows }, { name: 'Encaissements', columns: encCols, rows: encRows }, { name: 'Achats', columns: achCols, rows: achRows }, { name: 'Paiements récurrents', columns: ctCols, rows: ctRows }] };
 }
 function achatPieceName(a) { const ext = (String(a.piece_path).match(/\.[a-z0-9]+$/i) || ['.pdf'])[0]; return `${a.date_facture}_${safeFile(a.fournisseur)}${a.numero_facture ? '_' + safeFile(a.numero_facture) : ''}${ext}`; }
 function periodLabel(r) { return r[0].slice(0, 7) === r[1].slice(0, 7) ? r[0].slice(0, 7) : `${r[0]}_${r[1]}`; }
@@ -3511,6 +3685,7 @@ function renderDashboard() {
   [String(+Y - 1), Y].forEach(yy => [1, 2, 3, 4].forEach(q => { const x = quarterInfo(yy, q); if (!x.declared && x.end < t0 && x.deadline >= addDays(t0, -90)) items.push({ d: x.deadline, l: `Décompte TVA T${q} ${yy}`, v: x.deadline < t0 ? 'En retard' : 'À préparer', c: x.deadline < t0 ? 'var(--red)' : 'var(--orange)', a: "showPanel('tva')" }); }));
   if (late.length) items.push({ d: t0, l: 'Factures clients à relancer', v: `${late.length} facture${late.length > 1 ? 's' : ''}`, c: 'var(--red)', a: "goFactures('retard')" });
   live('fac_achats').filter(a => achatState(a) !== 'paid' && a.date_echeance && a.date_echeance <= addDays(t0, 30)).forEach(a => items.push({ d: a.date_echeance, l: `Paiement ${a.fournisseur}`, v: `CHF ${fmtAmt(round2(num(a.montant_ttc) - achatPaidAmount(a)))}`, c: a.date_echeance < t0 ? 'var(--red)' : 'var(--ink)', a: `openAchat('${a.id}')` }));
+  contrats().filter(c => c.actif).forEach(c => { const s = contratStatus(c); if (s.next && s.next <= addDays(t0, 30)) items.push({ d: s.next, l: `Prélèvement ${c.libelle}`, v: `CHF ${fmtAmt(c.montant)}`, c: 'var(--ink)', a: `openContrat('${c.id}')` }); if (s.missing.length) items.push({ d: t0, l: `${c.libelle} : paiement manquant (${monthLabel(s.missing[s.missing.length - 1])})`, v: 'À vérifier', c: 'var(--red)', a: `openContrat('${c.id}')` }); });
   devisList().filter(d => d.statut === 'emise' && d.date_echeance && d.date_echeance >= t0 && d.date_echeance <= addDays(t0, 14)).forEach(d => items.push({ d: d.date_echeance, l: `Devis ${d.numero} (${shortClient(d)}) expire`, v: `${fmtAmt(d.total_ht, 0)} CHF`, c: 'var(--ink)', a: `openDoc('${d.id}')` }));
   const ITEMS = items.sort((a, b) => a.d.localeCompare(b.d)).slice(0, 5);
   $('d-ech').innerHTML = ITEMS.length ? ITEMS.map(x => `<div class="ech" onclick="${x.a}"><div class="ech-date"><small>${MONTHS_SHORT[+x.d.slice(5, 7) - 1].slice(0, 4)}</small><b>${+x.d.slice(8, 10)}</b></div><div class="ech-lbl">${esc(x.l)}</div><div class="ech-val" style="color:${x.c}">${esc(x.v)}</div></div>`).join('')
