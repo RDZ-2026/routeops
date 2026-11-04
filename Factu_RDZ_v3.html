@@ -390,6 +390,19 @@ body{background:var(--bg);font-size:13.5px;}
   .ph-title{font-size:23px;}
   .box{padding:16px;overflow-x:auto;}
 }
+
+/* Banque : ligne entière colorée selon le sens du mouvement */
+.tbl tr.tx-in td{background:rgba(22,128,61,.07)}
+.tbl tr.tx-out td{background:rgba(192,39,45,.06)}
+.tbl tr.tx-int td{background:rgba(120,120,120,.06)}
+.tbl tr.tx-in td:first-child{box-shadow:inset 4px 0 0 #16803d}
+.tbl tr.tx-out td:first-child{box-shadow:inset 4px 0 0 #c0272d}
+.tbl tr.tx-int td:first-child{box-shadow:inset 4px 0 0 #9a9a9a}
+.tbl tr.tx-in:hover td{background:rgba(22,128,61,.13)}
+.tbl tr.tx-out:hover td{background:rgba(192,39,45,.11)}
+.tx-legend{display:flex;gap:16px;align-items:center;font-size:12px;color:var(--ink-3,#777);padding:10px 14px 8px}
+.tx-legend span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.tx-legend .l-in::before{background:#16803d}.tx-legend .l-out::before{background:#c0272d}.tx-legend .l-int::before{background:#9a9a9a}
 </style>
 </head>
 <body>
@@ -3113,11 +3126,11 @@ function renderBank() {
   if (!list.length) { $('bank-list').innerHTML = `<div class="empty"><b>Aucune opération</b>${db.fac_bank_tx.length ? 'Aucun résultat pour ces filtres.' : 'Importez un relevé camt.053 de PostFinance pour commencer.'}</div>`; return; }
   const shown = list.slice(0, bankLimit);
   const sumIn = list.filter(t => t.amount > 0).reduce((s, t) => s + Number(t.amount), 0), sumOut = list.filter(t => t.amount < 0).reduce((s, t) => s + Number(t.amount), 0);
-  $('bank-list').innerHTML = `<table class="tbl"><thead><tr><th>Date</th><th>Contrepartie et communication</th><th>Catégorie</th><th>Rapprochement</th><th class="num">Montant</th></tr></thead><tbody>
+  $('bank-list').innerHTML = `<div class="tx-legend"><span class="l-in">Entrée</span><span class="l-out">Sortie</span><span class="l-int">Transfert interne</span></div><table class="tbl"><thead><tr><th>Date</th><th>Contrepartie et communication</th><th>Catégorie</th><th>Rapprochement</th><th class="num">Montant</th></tr></thead><tbody>
     ${shown.map(t => { const inc = t.amount > 0; const cats = inc ? settings.categories_in : settings.categories_out;
       const links = txLinks(t); const open = txOpen(t);
       const link = (links || '') + (open > 0.009 && links ? `<div class="sub">reste ${fmtAmt(open)}</div>` : '') + (!links ? (canWrite() ? `<button class="btn-link" style="color:var(--text3)" onclick="openLinkTx('${t.id}')">Associer…</button>` : '—') : (canWrite() ? ` <button class="btn-link" style="color:var(--text3)" onclick="openLinkTx('${t.id}')">Modifier</button>` : ''));
-      return `<tr><td>${fmtDate(t.booking_date)}</td><td><b>${esc(t.counterparty || (inc ? 'Crédit' : 'Débit'))}</b><div class="sub">${esc([t.remittance, t.reference && groupRef(t.reference)].filter(Boolean).join(' · ') || t.info || '')}</div></td>
+      return `<tr class="${t.category === INTERNAL_CATEGORY ? 'tx-int' : inc ? 'tx-in' : 'tx-out'}"><td>${fmtDate(t.booking_date)}</td><td><b>${esc(t.counterparty || (inc ? 'Crédit' : 'Débit'))}</b><div class="sub">${esc([t.remittance, t.reference && groupRef(t.reference)].filter(Boolean).join(' · ') || t.info || '')}</div></td>
         <td>${canWrite() ? `<select class="cat-sel" aria-label="Catégorie" onchange="setTxCategory('${t.id}',this.value)"><option value="">—</option>${cats.concat(t.category && !cats.includes(t.category) ? [t.category] : []).map(c => `<option ${c === t.category ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>` : esc(t.category || '—')}</td>
         <td>${link}</td><td class="num ${inc ? 'amt-in' : 'amt-out'}">${inc ? '+' : ''}${fmtAmt(t.amount)}</td></tr>`; }).join('')}</tbody>
     <tfoot><tr><td colspan="4">${list.length} opération${list.length > 1 ? 's' : ''} · entrées +${fmtAmt(sumIn)} · sorties ${fmtAmt(sumOut)}</td><td class="num">${fmtAmt(sumIn + sumOut)}</td></tr></tfoot></table>
