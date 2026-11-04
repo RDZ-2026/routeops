@@ -305,7 +305,19 @@ const VAT_RATES = [0, 2.6, 3.8, 8.1];
 // Wording: agents record an expense (« dépense »), the direction manages expense reports (« note de frais »)
 const XP = PUBLIC_AGENT ? 'dépense' : 'note de frais';
 const XPc = XP.charAt(0).toUpperCase() + XP.slice(1);
-const CURRENCIES = ['CHF', 'EUR', 'USD', 'GBP', 'AED', 'SAR', 'QAR', 'KWD', 'BHD', 'MAD', 'TRY', 'JPY', 'CNY', 'SGD', 'HKD', 'RUB', 'ILS', 'EGP', 'CAD', 'AUD', 'SEK', 'NOK', 'DKK', 'PLN', 'CZK', 'HUF'];
+// Suggested currencies (any 3-letter ISO code can still be typed; the converter knows 300+)
+const CURRENCY_NAMES = {
+  CHF: 'Franc suisse', EUR: 'Euro', USD: 'Dollar américain', GBP: 'Livre sterling', GIP: 'Livre de Gibraltar',
+  AED: 'Dirham (Émirats)', SAR: 'Riyal saoudien', QAR: 'Riyal qatari', KWD: 'Dinar koweïtien', BHD: 'Dinar bahreïni',
+  MAD: 'Dirham marocain', TRY: 'Livre turque', VND: 'Dong vietnamien', THB: 'Baht thaïlandais', JPY: 'Yen japonais',
+  CNY: 'Yuan chinois', SGD: 'Dollar de Singapour', HKD: 'Dollar de Hong Kong', RUB: 'Rouble russe', ILS: 'Shekel israélien',
+  EGP: 'Livre égyptienne', CAD: 'Dollar canadien', AUD: 'Dollar australien', SEK: 'Couronne suédoise', NOK: 'Couronne norvégienne',
+  DKK: 'Couronne danoise', PLN: 'Zloty polonais', CZK: 'Couronne tchèque', HUF: 'Forint hongrois',
+};
+const CURRENCIES = Object.keys(CURRENCY_NAMES);
+const currencyOptions = () => CURRENCIES.map((c) => `<option value="${c}" label="${c} — ${esc(CURRENCY_NAMES[c])}">${c} — ${esc(CURRENCY_NAMES[c])}</option>`).join('');
+// Exchange rates: 4 decimals for usual currencies, 4 significant digits for very small ones (VND: 0.00003176)
+const fmtRate = (r) => (r >= 0.01 ? r.toFixed(4) : r.toPrecision(4));
 
 const TABLES = {
   ndf_missions: { key: 'missions', pk: ['id'] },
@@ -336,8 +348,21 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const uuid = () => (crypto.randomUUID ? crypto.randomUUID() : 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => { const r = (Math.random() * 16) | 0; return (c === 'x' ? r : (r & 0x3) | 0x8).toString(16); }));
 const round2 = (n) => Math.round((Number(n) + Number.EPSILON) * 100) / 100;
-const num = (v) => { if (v === null || v === undefined || v === '') return NaN; return Number(String(v).replace(/[\s'’]/g, '').replace(',', '.')); };
+// Amount parsing tolerant to local formats: 1'234.50, 1 234,50, 1.500.000 (VND), 1,500,000.00, 1.234,50
+// Currencies without decimals: "1.500" means 1500
+const ZERO_DECIMALS = ['VND', 'JPY', 'KRW', 'IDR', 'CLP', 'ISK', 'HUF', 'UGX', 'PYG', 'XOF', 'XAF'];
+const num = (v, currency) => {
+  if (v === null || v === undefined || v === '') return NaN;
+  let t = String(v).replace(/[\s'’\u00a0\u202f]/g, '');
+  if (/^-?\d{1,3}([.,]\d{3}){2,}$/.test(t) || (ZERO_DECIMALS.includes(currency) && /^-?\d{1,3}([.,]\d{3})+$/.test(t))) t = t.replace(/[.,]/g, '');            // 1.500.000 or 1,500,000
+  else if (t.includes('.') && t.includes(',')) {                                       // both: last one is the decimal mark
+    t = t.lastIndexOf(',') > t.lastIndexOf('.') ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '');
+  } else t = t.replace(',', '.');
+  return /^-?\d*\.?\d+$/.test(t) ? Number(t) : NaN;
+};
 const fmt = (n) => (Number(n) || 0).toLocaleString('de-CH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Local-currency amount: no decimals for currencies without cents (1’500’000 VND)
+const fmtLoc = (n, currency) => (ZERO_DECIMALS.includes(currency) ? (Number(n) || 0).toLocaleString('de-CH', { maximumFractionDigits: 0 }) : fmt(n));
 const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
 const fdate = (iso) => { if (!iso) return ''; const [y, m, d] = iso.slice(0, 10).split('-'); return `${d}.${m}.${y}`; };
 const DAYS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
@@ -1155,7 +1180,7 @@ function xpRow(x, admin) {
     <span style="min-width:0;"><span class="t"><span class="cat ${c.id}">${c.short}</span>${pend}</span>
       <div class="d">${esc(x.description || c.label)}</div>${admin ? `<div class="who">${esc(userName(x.agent_id))}</div>` : ''}</span>
     <span class="am"><div class="chf">${fmt(x.amount_chf)} CHF</div>
-      ${x.currency !== 'CHF' ? `<div class="loc">${fmt(x.amount_local)} ${esc(x.currency)}</div>` : ''}
+      ${x.currency !== 'CHF' ? `<div class="loc">${fmtLoc(x.amount_local, x.currency)} ${esc(x.currency)}</div>` : ''}
       ${vat > 0 ? `<div class="vat">TVA ${String(Number(x.vat_rate)).replace('.', ',')} % : ${fmt(vat)}</div>` : ''}</span>
   </button>`;
 }
@@ -1205,7 +1230,7 @@ function missionModal(m) {
         <div class="agents" id="f-agents">${agentsHtml}</div>
         <div style="display:flex;gap:8px;margin-top:8px;"><input class="inp" id="f-ext" placeholder="Agent externe (renfort) : prénom nom"><button type="button" class="btn" id="f-extadd">Ajouter</button></div></div>
       <div class="field"><label for="f-notes">Notes internes</label><textarea class="inp" id="f-notes">${esc(m.notes || '')}</textarea></div>
-      <datalist id="curlist">${CURRENCIES.map((c) => `<option value="${c}">`).join('')}</datalist>
+      <datalist id="curlist">${currencyOptions()}</datalist>
       <div class="login-err" id="f-err"></div>`,
     foot: `${!isNew && !hasX ? '<button class="btn danger" id="f-del">Supprimer</button>' : ''}<span class="sp"></span><button class="btn" data-close>Annuler</button><button class="btn primary" id="f-save">${isNew ? 'Créer la mission' : 'Enregistrer'}</button>`,
   });
@@ -1296,7 +1321,7 @@ function expenseModal(m, x) {
       <div class="field"><span class="flabel">Justificatif</span><div id="x-receipt"></div></div>
       <input type="file" id="x-cam" accept="image/*" capture="environment" hidden>
       <input type="file" id="x-file" accept="image/*,application/pdf" hidden>
-      <datalist id="xcurlist">${CURRENCIES.map((c) => `<option value="${c}">`).join('')}</datalist>
+      <datalist id="xcurlist">${currencyOptions()}</datalist>
       <div class="login-err" id="x-err"></div>`,
     foot: `${!isNew ? '<button class="btn danger" id="x-del">Supprimer</button>' : ''}<span class="sp"></span><button class="btn" data-close>Annuler</button><button class="btn primary" id="x-save">${isNew ? `Créer la ${XP}` : 'Enregistrer'}</button>`,
   });
@@ -1315,7 +1340,7 @@ function expenseModal(m, x) {
     const vo = q('#x-vatother');
     vo.style.display = other ? '' : 'none';
     if (other && document.activeElement !== vo) vo.value = isNaN(st.vat) ? '' : String(st.vat).replace('.', ',');
-    const loc = num(q('#x-loc').value), chf = isChf ? loc : num(q('#x-chf').value);
+    const loc = num(q('#x-loc').value, cur()), chf = isChf ? loc : num(q('#x-chf').value);
     if (isChf && Number(st.vat) > 0 && chf > 0) {
       const v = round2((chf * st.vat) / (100 + st.vat));
       q('#x-vatinfo').textContent = `TVA incluse : ${fmt(v)} CHF, montant HT : ${fmt(chf - v)} CHF`;
@@ -1323,14 +1348,14 @@ function expenseModal(m, x) {
     let rateHtml = '';
     if (!isChf) {
       const fx = st.fx;
-      const fxTxt = fx && fx.rate ? `1 ${esc(cur())} = ${fx.rate.toFixed(4)} CHF, taux du ${fdate(fx.date)}${fx.stale ? ' (dernier taux connu)' : ''}` : '';
+      const fxTxt = fx && fx.rate ? `1 ${esc(cur())} = ${fmtRate(fx.rate)} CHF, taux du ${fdate(fx.date)}${fx.stale ? ' (dernier taux connu)' : ''}` : '';
       if (st.fxLoading) rateHtml = 'Recherche du taux de change…';
       else if (st.chfAuto && fx && fx.rate) rateHtml = `<span class="auto">Converti automatiquement</span> : ${fxTxt}<br>Modifiable si le montant débité sur la carte est différent.`;
       else if (st.chfAuto && fx && fx.unknown) rateHtml = `<span class="warnline">Devise ${esc(cur())} inconnue du convertisseur : saisissez le montant en CHF.</span>`;
       else if (st.chfAuto && /^[A-Z]{3}$/.test(cur())) rateHtml = '<span class="warnline">Taux indisponible (hors ligne) : saisissez le montant en CHF.</span>';
       else if (!st.chfAuto) {
-        rateHtml = loc > 0 && chf > 0 ? `Montant saisi manuellement : 1 ${esc(cur())} = ${(chf / loc).toFixed(4)} CHF` : 'Montant saisi manuellement.';
-        if (fx && fx.rate) rateHtml += `<br><button type="button" class="linkbtn" data-fxauto>Recalculer au taux du ${fdate(fx.date)} (${fx.rate.toFixed(4)})</button>`;
+        rateHtml = loc > 0 && chf > 0 ? `Montant saisi manuellement : 1 ${esc(cur())} = ${fmtRate(chf / loc)} CHF` : 'Montant saisi manuellement.';
+        if (fx && fx.rate) rateHtml += `<br><button type="button" class="linkbtn" data-fxauto>Recalculer au taux du ${fdate(fx.date)} (${fmtRate(fx.rate)})</button>`;
       }
     }
     q('#x-rate').innerHTML = rateHtml;
@@ -1401,7 +1426,7 @@ function expenseModal(m, x) {
   q('#x-vatother').oninput = () => { st.vat = num(q('#x-vatother').value); refresh(); };
   const applyAuto = () => {
     if (!st.chfAuto || cur() === 'CHF' || !st.fx || !st.fx.rate) return;
-    const loc = num(q('#x-loc').value);
+    const loc = num(q('#x-loc').value, cur());
     q('#x-chf').value = loc > 0 ? round2(loc * st.fx.rate).toFixed(2) : '';
   };
   const updateFx = async () => {
@@ -1429,7 +1454,7 @@ function expenseModal(m, x) {
     const fail = (t) => { err.textContent = t; err.classList.add('visible'); err.scrollIntoView?.({ block: 'nearest' }); };
     const c = cur();
     const date = q('#x-date').value;
-    const loc = num(q('#x-loc').value);
+    const loc = num(q('#x-loc').value, cur());
     const chf = c === 'CHF' ? loc : num(q('#x-chf').value);
     const user = admin ? q('#x-user')?.value : meFor(m.id);
     if (!user) return fail('Choisissez l\'agent concerné.');
@@ -1495,7 +1520,7 @@ async function viewExpense(m, x) {
     title: c.label,
     body: `<div class="viewer">${media}</div><dl class="kv">
       <dt>Date</dt><dd>${fdate(x.expense_date)}</dd>
-      <dt>Montant</dt><dd>${fmt(x.amount_local)} ${esc(x.currency)}</dd>
+      <dt>Montant</dt><dd>${fmtLoc(x.amount_local, x.currency)} ${esc(x.currency)}</dd>
       ${x.currency !== 'CHF' ? `<dt>En CHF</dt><dd>${fmt(x.amount_chf)} CHF</dd>` : ''}
       ${x.currency === 'CHF' ? `<dt>TVA</dt><dd>${Number(x.vat_rate) ? `${String(Number(x.vat_rate)).replace('.', ',')} %, ${fmt(vat)} CHF` : 'Sans TVA'}</dd>` : ''}
       ${x.description ? `<dt>Description</dt><dd style="font-family:inherit;">${esc(x.description)}</dd>` : ''}
@@ -1599,7 +1624,7 @@ async function exportPdf(m) {
     header();
     rows.forEach((x) => {
       if (y < M + 20) { page = doc.addPage([W, H]); y = H - M; header(); }
-      const vals = [String(x.ref), fdate(x.expense_date), userName(x.agent_id).slice(0, 26), catOf(x.category).short, `${fmt(x.amount_local)} ${x.currency}`, fmt(x.amount_chf) + (x.receipt_path ? '' : '  (sans ticket)')];
+      const vals = [String(x.ref), fdate(x.expense_date), userName(x.agent_id).slice(0, 26), catOf(x.category).short, `${fmtLoc(x.amount_local, x.currency)} ${x.currency}`, fmt(x.amount_chf) + (x.receipt_path ? '' : '  (sans ticket)')];
       vals.forEach((v, i) => page.drawText(pdfText(v), { x: cols[i], y, size: 9, font: i === 0 ? bold : font, color: !x.receipt_path && i === 5 ? red : dark }));
       y -= 14;
     });
@@ -1611,7 +1636,7 @@ async function exportPdf(m) {
       const rec = await getReceiptBlob(x.receipt_path).catch(() => null);
       done++;
       const label = pdfText(`N° ${x.ref}   ${fdate(x.expense_date)}   ${catOf(x.category).short}   ${userName(x.agent_id)}`);
-      const amt = pdfText(`${fmt(x.amount_chf)} CHF` + (x.currency !== 'CHF' ? `  (${fmt(x.amount_local)} ${x.currency})` : '') + (vatOf(x) > 0 ? `   TVA ${Number(x.vat_rate)} % : ${fmt(vatOf(x))}` : ''));
+      const amt = pdfText(`${fmt(x.amount_chf)} CHF` + (x.currency !== 'CHF' ? `  (${fmtLoc(x.amount_local, x.currency)} ${x.currency})` : '') + (vatOf(x) > 0 ? `   TVA ${Number(x.vat_rate)} % : ${fmt(vatOf(x))}` : ''));
       const newPage = () => {
         const p = doc.addPage([W, H]);
         p.drawRectangle({ x: 0, y: H - 54, width: W, height: 54, color: rgb(0.965, 0.965, 0.97) });
