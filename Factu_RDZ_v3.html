@@ -2364,11 +2364,17 @@ function linkContrats(onlyIds) {
   db.fac_bank_tx.forEach(t => {
     if (t.amount >= 0 || t.contrat_id || allocsForTx(t.id).length || (onlyIds && !onlyIds.has(t.id))) return;
     const hay = contratHay(t);
-    let cands = act.filter(c => hay.includes(norm(c.motif || c.fournisseur))
+    const excl = String(t.note || '').startsWith('hors-contrat:') ? t.note.slice(13).split(',') : [];
+    const legacyExcl = t.note === 'hors-contrat';
+    let cands = act.filter(c => !excl.includes(c.id) && (!legacyExcl || Math.abs(num(c.montant) - Math.abs(num(t.amount))) < 0.05) && hay.includes(norm(c.motif || c.fournisseur))
       && (!c.date_debut || t.booking_date >= addDays(c.date_debut, -31)) && (!c.date_fin || t.booking_date <= addDays(c.date_fin, 31)));
     if (cands.length > 1) cands = cands.filter(c => Math.abs(num(c.montant) - Math.abs(num(t.amount))) < 0.05);
     // Un seul contrat pour ce créancier : on tolère un montant légèrement différent (révision, frais), pas un autre contrat
-    else cands = cands.filter(c => Math.abs(Math.abs(num(t.amount)) - num(c.montant)) <= Math.max(0.05, num(c.montant) * 0.2));
+    else {
+      const sameMonth = db.fac_bank_tx.filter(x => x.amount < 0 && norm(x.counterparty) === norm(t.counterparty) && monthKey(x.booking_date) === monthKey(t.booking_date)).length;
+      const tol = sameMonth > 1 ? 0.05 : Math.max(0.05, num(cands[0] ? cands[0].montant : 0) * 0.2);
+      cands = cands.filter(c => Math.abs(Math.abs(num(t.amount)) - num(c.montant)) <= tol);
+    }
     if (cands.length !== 1) return;
     const c = cands[0];
     saveRow('fac_bank_tx', { ...t, contrat_id: c.id, category: t.category || c.categorie || null });
@@ -2405,7 +2411,7 @@ function recurringSuggestions() {
   const EXCL = ['Salaires', 'Charges sociales', 'Notes de frais', 'Impôts & TVA', 'Transfert interne', 'Frais bancaires'];
   const COMPANY = /\b(SA|AG|SARL|SÀRL|GMBH|LTD|SNC|INC|LEASING|FINANCE|FINANCIAL|BANQUE|BANK|SWISSCOM|SUNRISE|SALT|ASSURANCES?|VERSICHERUNG|IMMOBILI|REGIE|GERANCE|RENAUD)\b/i;
   const KEEP = ['Véhicules', 'Loyer & charges', 'Télécom & informatique', 'Assurances'];
-  db.fac_bank_tx.filter(t => t.amount < 0 && !t.contrat_id && t.counterparty && t.note !== 'hors-contrat' && !allocsForTx(t.id).length
+  db.fac_bank_tx.filter(t => t.amount < 0 && !t.contrat_id && t.counterparty && !allocsForTx(t.id).length
       && !EXCL.includes(t.category) && (KEEP.includes(t.category) || COMPANY.test(t.counterparty))).forEach(t => {
     const k = norm(t.counterparty) + '|' + Math.abs(num(t.amount)).toFixed(2);
     (g[k] = g[k] || []).push(t);
@@ -2462,7 +2468,7 @@ function openContrat(id, suggIdx) {
     <div class="fg c12"><label class="chk"><input type="checkbox" id="cf2-actif" ${c.actif !== false ? 'checked' : ''} ${ro}> Contrat en cours</label></div>
     ${id ? `<div class="fg c12"><span class="flabel">Prélèvements rattachés (${txs.length})</span>
       ${s.missing.length ? `<div class="lock-note" style="margin:6px 0">Aucun prélèvement trouvé pour : ${s.missing.map(m => monthLabel(m)).join(', ')}</div>` : ''}
-      ${s.diff.length ? `<div class="info-note" style="margin:6px 0">${s.diff.length} prélèvement(s) d'un montant différent de ${fmtAmt(c.montant)} CHF.</div>` : ''}
+      ${s.diff.length ? `<div class="info-note" style="margin:6px 0;display:flex;justify-content:space-between;gap:10px;align-items:center"><span>${s.diff.length} prélèvement(s) d'un montant différent de ${fmtAmt(c.montant)} CHF.</span>${canWrite() ? `<button class="btn btn-ghost btn-sm" onclick="unlinkDiff('${c.id}')">Détacher les ${s.diff.length}</button>` : ''}</div>` : ''}
       <div class="pay-list" style="max-height:260px;overflow:auto">${txs.slice().reverse().map(t => `<div><span>${fmtDate(t.booking_date)} · ${esc(t.counterparty || '')}${Math.abs(Math.abs(num(t.amount)) - num(c.montant)) > 0.05 ? ' <span class="badge b-orange">montant différent</span>' : ''}</span><span><span class="mono">${fmtAmt(-t.amount)}</span>${canWrite() ? ` <button class="btn-link" style="margin-left:8px" onclick="unlinkContrat('${t.id}')">Détacher</button>` : ''}</span></div>`).join('') || '<div><span class="sub">Aucun pour l’instant : ils seront rattachés à l’import des relevés.</span></div>'}</div></div>` : ''}`;
   $('ct-foot').innerHTML = (canWrite() && id ? `<button class="btn btn-danger" onclick="deleteContrat()">Supprimer</button>` : '') + `<span class="spacer"></span><button class="btn btn-ghost" onclick="closeModal('m-contrat')">Fermer</button>` + (canWrite() ? `<button class="btn btn-primary" id="cf2-save" onclick="saveContrat()">Enregistrer</button>` : '');
   openModal('m-contrat');
@@ -2486,9 +2492,17 @@ async function saveContrat() {
   closeModal('m-contrat'); renderAll();
   toast(`Contrat enregistré${n ? ` · ${n} prélèvement(s) rattaché(s)` : ''}`);
 }
+function unlinkDiff(cid) {
+  const c = db.fac_contrats.find(x => x.id === cid); if (!c) return;
+  const list = contratTx(c).filter(t => Math.abs(Math.abs(num(t.amount)) - num(c.montant)) > 0.05);
+  list.forEach(t => { const prev = String(t.note || '').startsWith('hors-contrat:') ? t.note.slice(13).split(',') : []; saveRow('fac_bank_tx', { ...t, contrat_id: null, note: 'hors-contrat:' + [...new Set([...prev, cid])].join(',') }); });
+  openContrat(cid); renderAll(); toast(`${list.length} prélèvement(s) détaché(s) et enregistré(s)`);
+}
 function unlinkContrat(txId) {
   const t = db.fac_bank_tx.find(x => x.id === txId); if (!t) return;
-  saveRow('fac_bank_tx', { ...t, contrat_id: null, note: 'hors-contrat' }); openContrat(editContratId); renderAll();
+  const prev = String(t.note || '').startsWith('hors-contrat:') ? t.note.slice(13).split(',') : [];
+  saveRow('fac_bank_tx', { ...t, contrat_id: null, note: 'hors-contrat:' + [...new Set([...prev, t.contrat_id])].join(',') });
+  openContrat(editContratId); renderAll(); toast('Prélèvement détaché (enregistré)');
 }
 function deleteContrat() {
   if (!confirm('Supprimer ce contrat ? Les prélèvements restent dans la banque, sans lien avec le contrat.')) return;
