@@ -2704,6 +2704,9 @@ function openAchat(id) {
   $('ach-title').textContent = id ? a.fournisseur : 'Nouvel achat';
   $('ach-sub').textContent = id ? `Saisi le ${fmtDateTime(a.created_at)}${a.created_by ? ' par ' + a.created_by : ''}` : 'Facture fournisseur';
   $('ach-form').innerHTML = `
+    ${!a.piece_path && canWrite() ? `<label class="drop" style="grid-column:span 12;margin:0;padding:14px" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="event.preventDefault();this.classList.remove('over');achatDropFile(event.dataTransfer.files[0])">
+      <input type="file" accept="application/pdf,image/*" onchange="achatDropFile(this.files[0])"><b>Déposez la facture (PDF ou photo)</b><br><span class="sub">les champs se remplissent automatiquement ; vous pouvez ensuite les modifier</span></label>
+      <div id="af-prefill" class="info-note" style="display:none;grid-column:span 12;margin:0"></div>` : ''}
     <div class="fg c8"><label class="flabel" for="af-four">Fournisseur *</label><input class="finp" id="af-four" list="af-four-list" ${ro} value="${esc(a.fournisseur || '')}"><datalist id="af-four-list">${sup.map(s => `<option value="${esc(s)}">`).join('')}</datalist></div>
     <div class="fg c4"><label class="flabel" for="af-num">N° de facture</label><input class="finp" id="af-num" ${ro} value="${esc(a.numero_facture || '')}"></div>
     <div class="fg c4"><label class="flabel" for="af-date">Date *</label><input class="finp" type="date" id="af-date" ${ro} value="${a.date_facture || ''}"></div>
@@ -2716,7 +2719,7 @@ function openAchat(id) {
     <div class="fg c6"><label class="flabel" for="af-ref">Référence de paiement (QR / RF)</label><input class="finp mono" id="af-ref" ${ro} value="${esc(a.reference_paiement || '')}" placeholder="Rapproche le débit avec certitude"></div>
     <div class="fg c12"><label class="flabel" for="af-file">Pièce justificative (PDF ou photo)</label>
       ${a.piece_path ? `<div><button class="btn btn-ghost btn-sm" onclick="openPiece('${esc(a.piece_path)}')">Ouvrir ${esc(a.piece_name || 'la pièce')}</button> <span class="sub">Archivée, non remplaçable</span></div>`
-        : canWrite() ? `<input class="finp" type="file" id="af-file" accept="application/pdf,image/*">` : '<span class="sub">Aucune pièce</span>'}</div>
+        : canWrite() ? `<input class="finp" type="file" id="af-file" accept="application/pdf,image/*" onchange="prefillAchat(this.files[0])">` : '<span class="sub">Aucune pièce</span>'}</div>
     <div class="fg c12"><label class="flabel" for="af-notes">Notes</label><textarea class="ftxt" id="af-notes" ${ro}>${esc(a.notes || '')}</textarea></div>
     ${id ? `<div class="fg c12"><span class="flabel">Paiements</span><div class="pay-list">${allocs.map(x => { const t = x.tx_id ? db.fac_bank_tx.find(y => y.id === x.tx_id) : null;
         return `<div><span>${fmtDate(x.pay_date)} · ${x.mode === 'hors_banque' ? 'Hors banque' + (x.note ? ' — ' + esc(x.note) : '') : esc(t ? t.counterparty || 'Débit' : 'Débit')}</span><span><span class="mono">${fmtAmt(x.amount)}</span>${canWrite() ? ` <button class="btn-link" style="margin-left:8px" onclick="detachAlloc('${x.id}');openAchat('${a.id}')">Détacher</button>` : ''}</span></div>`; }).join('') || '<div><span class="sub">Pas encore payé : le débit sera proposé à l’import du relevé.</span></div>'}</div>
@@ -2724,6 +2727,143 @@ function openAchat(id) {
   $('ach-foot').innerHTML = (canWrite() && id && !allocs.length ? `<button class="btn btn-danger" onclick="deleteAchat()">Supprimer</button>` : '') + `<span class="spacer"></span><button class="btn btn-ghost" onclick="closeModal('m-achat')">Fermer</button>` + (canWrite() ? `<button class="btn btn-primary" id="af-save" onclick="saveAchat()">Enregistrer</button>` : '');
   openModal('m-achat');
 }
+// ════════════════════════════════════════
+//  PRÉREMPLISSAGE D'UN ACHAT DEPUIS LE PDF OU LA PHOTO DE LA FACTURE
+//  1) QR-facture suisse (fiable) : fournisseur, montant, référence, et souvent n°, date, TVA (données Swico S1)
+//  2) Texte du PDF : n° de facture, dates, total, TVA
+// ════════════════════════════════════════
+const JSQR_URL = 'https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js';
+async function ensureJsQR() { if (!window.jsQR) await loadScript(JSQR_URL); }
+function parseSwissQR(txt) {
+  const L = String(txt || '').split(/\r?\n/);
+  if (L[0] !== 'SPC') return null;
+  const q = { iban: L[3], creditor: L[5], amount: L[18] ? num(L[18]) : null, currency: L[19], refType: L[27], reference: L[28] || null, message: L[29] || '' };
+  const bill = L.slice(31).join('\n');
+  if (/^\/\/S1/.test(bill)) {
+    const parts = {}; bill.replace(/^\/\/S1/, '').split(/\/(?=\d\d\/)/).forEach(s => { const m = s.match(/^\/?(\d\d)\/(.*)$/s); if (m) parts[m[1]] = m[2].replace(/\\\//g, '/'); });
+    const d6 = s => s && /^\d{6}/.test(s) ? `20${s.slice(0, 2)}-${s.slice(2, 4)}-${s.slice(4, 6)}` : null;
+    q.invoiceNo = parts['10'] || null; q.invoiceDate = d6(parts['11']);
+    if (parts['32']) { const rates = parts['32'].split(';').map(x => x.split(':')); q.vatRate = num(rates[0][0]); q.vatMulti = rates.length > 1; }
+    if (parts['40']) { const terms = parts['40'].split(';').map(x => x.split(':')); const net = terms.find(t => num(t[0]) === 0); if (net) q.payDays = Math.round(num(net[1])); }
+  }
+  return q;
+}
+async function qrFromCanvas(canvas) {
+  const ctx = canvas.getContext('2d'); const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const r = window.jsQR(img.data, img.width, img.height, { inversionAttempts: 'attemptBoth' });
+  return r ? r.data : null;
+}
+async function readInvoiceFile(file) {
+  const out = { text: '', qr: null };
+  if (file.type === 'application/pdf' || /\.pdf$/i.test(file.name)) {
+    await ensurePdfLibs();
+    const pdf = await window.pdfjsLib.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+    const pages = [];
+    for (let i = 1; i <= Math.min(pdf.numPages, 6); i++) { const pg = await pdf.getPage(i); pages.push(pageLinesFromItems((await pg.getTextContent()).items).map(l => l.text).join('\n')); }
+    out.text = pages.join('\n');
+    await ensureJsQR();
+    for (const i of [pdf.numPages, 1, ...Array.from({ length: Math.min(pdf.numPages, 6) }, (_, k) => k + 1)].filter((v, k, a) => a.indexOf(v) === k)) {
+      const pg = await pdf.getPage(i); const vp = pg.getViewport({ scale: 2.2 });
+      const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+      await pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise;
+      const d = await qrFromCanvas(c); if (d && d.startsWith('SPC')) { out.qr = parseSwissQR(d); break; }
+    }
+  } else if (/^image\//.test(file.type)) {
+    await ensureJsQR();
+    const url = URL.createObjectURL(file);
+    const img = await new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = rej; im.src = url; });
+    const W = img.width, H = img.height;
+    const tries = [[0, 0, W, H, 1600], [0, 0, W, H, 2400]];
+    // zones : tiers inférieur (bulletin de versement), puis une grille de 3×3 recouvrante
+    tries.push([0, H * 0.55, W * 0.6, H * 0.45, 1400], [0, H * 0.5, W, H * 0.5, 1800]);
+    for (let gy = 0; gy < 3; gy++) for (let gx = 0; gx < 3; gx++) tries.push([gx * W / 4, gy * H / 4, W / 2, H / 2, 1200]);
+    for (const [sx, sy, sw, sh, maxW] of tries) {
+      const sc = maxW / Math.max(sw, sh); const c = document.createElement('canvas');
+      c.width = Math.round(sw * sc); c.height = Math.round(sh * sc);
+      const ctx = c.getContext('2d'); ctx.filter = 'grayscale(1) contrast(1.4)'; ctx.drawImage(img, sx, sy, sw, sh, 0, 0, c.width, c.height);
+      const d = await qrFromCanvas(c); if (d && d.startsWith('SPC')) { out.qr = parseSwissQR(d); break; }
+    }
+    URL.revokeObjectURL(url);
+  }
+  return out;
+}
+const FR_MONTHS = { janvier: 1, fevrier: 2, mars: 3, avril: 4, mai: 5, juin: 6, juillet: 7, aout: 8, septembre: 9, octobre: 10, novembre: 11, decembre: 12, januar: 1, februar: 2, marz: 3, april: 4, juni: 6, juli: 7, august: 8, oktober: 10, dezember: 12, january: 1, february: 2, march: 3, may: 5, june: 6, july: 7, october: 10, december: 12 };
+function parseAnyDate(s) {
+  let m = s.match(/\b(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})\b/);
+  if (m) { const y = m[3].length === 2 ? '20' + m[3] : m[3]; if (+m[2] >= 1 && +m[2] <= 12 && +m[1] >= 1 && +m[1] <= 31) return `${y}-${pad2(m[2])}-${pad2(m[1])}`; }
+  m = norm(s).match(/\b(\d{1,2})\.?\s+([a-z]+)\s+(\d{4})\b/);
+  if (m && FR_MONTHS[m[2]]) return `${m[3]}-${pad2(FR_MONTHS[m[2]])}-${pad2(m[1])}`;
+  m = s.match(/\b(\d{4})-(\d{2})-(\d{2})\b/); if (m) return m[0];
+  return null;
+}
+function amountsIn(s) { return [...String(s).matchAll(/(-?\d{1,3}(?:['’\s]\d{3})*(?:[.,]\d{2}))(?!\d)/g)].map(m => num(m[1].replace(/['’\s]/g, '').replace(',', '.'))); }
+function extractFromText(text) {
+  const lines = text.split('\n').map(l => l.trim()).filter(Boolean); const r = {};
+  const find = (rx) => lines.find(l => rx.test(norm(l)));
+  const NUMRX = /(?:facture|rechnung|invoice|n[°o]\.?\s*de\s*facture|rechnungs?-?nr\.?)\s*(?:n[°o]\.?|nr\.?|no\.?|num[eé]ro|#)?\s*:?\s*([A-Z0-9][\w\-\/.]*\d[\w\-\/.]*)/i;
+  for (const ln of lines) { const m = ln.match(NUMRX); if (m && !/^\d{1,2}[.\/]\d{1,2}[.\/]\d{2,4}$/.test(m[1])) { r.number = m[1].replace(/[.,;:]$/, ''); break; } }
+  l = find(/(date de (la )?facture|rechnungsdatum|invoice date|date\s*:|datum\s*:|^date\b)/); if (l) r.date = parseAnyDate(l);
+  if (!r.date) { const d = lines.map(parseAnyDate).filter(Boolean); if (d.length) r.date = d[0]; }
+  l = find(/(echeance|payable (jusq|d.ici|au plus tard|avant)|zahlbar bis|due date|faellig|falligkeit|a payer avant|delai de paiement)/);
+  if (l) { const k = norm(l).search(/(echeance|payable|zahlbar|due date|faellig|falligkeit|a payer avant|delai de paiement)/); r.due = parseAnyDate(l.slice(Math.max(0, k))); const dd = norm(l).match(/(\d{1,3})\s*(jours|tage|days)/); if (!r.due && dd) r.dueDays = +dd[1]; }
+  if (!r.due && !r.dueDays) { l = find(/(net|netto|payable|zahlbar)\s*(a\s*)?\d{1,3}\s*(jours|tage|days)/); if (l) r.dueDays = +norm(l).match(/(\d{1,3})\s*(jours|tage|days)/)[1]; }
+  const totL = lines.filter(x => /(total\s*(ttc|a payer|du|chf|general|inkl|incl)|montant (total|a payer|de la facture)|a payer|gesamtbetrag|rechnungsbetrag|total due|amount due|totalbetrag|^total\b)/.test(norm(x)));
+  const tots = totL.flatMap(amountsIn).filter(v => v > 0);
+  if (tots.length) r.total = Math.max(...tots);
+  const vatL = lines.filter(x => /\b(tva|mwst|mehrwertsteuer|vat|iva)\b/.test(norm(x)) && /(\d{1,2}(?:[.,]\d{1,2})?)\s*%/.test(x));
+  if (vatL.length) { const rates = [...new Set(vatL.map(x => num(x.match(/(\d{1,2}(?:[.,]\d{1,2})?)\s*%/)[1].replace(',', '.'))))]; r.vatRate = rates.find(v => v > 0) ?? rates[0]; r.vatMulti = rates.filter(v => v > 0).length > 1;
+    const va = vatL.flatMap(x => amountsIn(x.replace(/\d{1,2}(?:[.,]\d{1,2})?\s*%/, ''))).filter(v => v > 0 && (!r.total || v < r.total * 0.3)); if (va.length) r.vatAmount = round2(va.reduce((s2, v) => s2 + v, 0)); }
+  const head = lines.slice(0, 12).find(x => /\b(SA|AG|S[àa]rl|GmbH|S\.A\.|Ltd|SNC|Sagl)\b/.test(x) && !/RDZ/i.test(x) && x.length < 70);
+  if (head) r.supplier = head.replace(/\s{2,}.*$/, '').trim();
+  r.vatNo = (text.match(/CHE[-\s]?\d{3}[.\s]?\d{3}[.\s]?\d{3}/) || [null])[0];
+  return r;
+}
+function knownSupplierIn(text) {
+  const t = norm(text); const sup = [...new Set(live('fac_achats').map(a => a.fournisseur))];
+  return sup.filter(s => s && norm(s).length >= 4 && t.includes(norm(s))).sort((a, b) => b.length - a.length)[0] || null;
+}
+async function prefillAchat(file) {
+  if (!file) return;
+  const box = $('af-prefill'); box.style.display = ''; box.className = 'info-note'; box.textContent = 'Lecture de la facture…';
+  try {
+    const { text, qr } = await readInvoiceFile(file);
+    const t = text ? extractFromText(text) : {};
+    const filled = [];
+    const set = (id, v, label) => { const el = $(id); if (!el || v == null || v === '' || el.disabled) return; if (el.value && el.value.trim() !== '') return; el.value = v; el.style.background = '#fffbe6'; filled.push(label); };
+    const four = (qr && qr.creditor) || (text && knownSupplierIn(text)) || t.supplier || null;
+    set('af-four', four, 'fournisseur');
+    set('af-num', (qr && qr.invoiceNo) || t.number, 'n° de facture');
+    const date = (qr && qr.invoiceDate) || t.date;
+    if (date && (!$('af-date').value || $('af-date').dataset.auto !== 'no')) { if ($('af-date').value !== date) { $('af-date').value = date; $('af-date').style.background = '#fffbe6'; filled.push('date'); } }
+    const due = t.due || ((qr && qr.payDays) || t.dueDays ? addDays(date || todayISO(), (qr && qr.payDays) || t.dueDays) : null);
+    set('af-ech', due, 'échéance');
+    const ttc = (qr && qr.amount) || t.total;
+    set('af-ttc', ttc != null ? num(ttc).toFixed(2) : null, 'montant TTC');
+    const rate = (qr && qr.vatRate != null) ? qr.vatRate : t.vatRate;
+    if (rate != null && !$('af-code').disabled) { const code = codeForRate(rate === 7.7 ? 8.1 : rate); $('af-code').value = rate === 0 ? 'HC' : code; filled.push(`TVA ${rate} %`); }
+    if (ttc != null) { if (t.vatAmount != null && !(qr && qr.vatMulti) && !t.vatMulti) { $('af-tva').value = num(t.vatAmount).toFixed(2); } else achatCalc(); }
+    set('af-ref', qr && qr.reference, 'référence de paiement');
+    if (four && !$('af-cat').value) { const prev = live('fac_achats').filter(a => norm(a.fournisseur) === norm(four) && a.categorie).sort((a, b) => b.date_facture.localeCompare(a.date_facture))[0];
+      const rule = !prev && db.fac_bank_rules.find(rr => norm(four).includes(norm(rr.pattern)) || norm(rr.pattern).includes(norm(four)));
+      const cat = prev ? prev.categorie : rule ? rule.category : null; if (cat && [...$('af-cat').options].some(o => o.value === cat)) { $('af-cat').value = cat; filled.push('catégorie'); } }
+    const warn = [];
+    if (!qr && /^image\//.test(file.type)) warn.push("photo sans QR-facture lisible : seuls les champs du QR peuvent être lus sur une photo, complétez le reste à la main");
+    if ((qr && qr.vatMulti) || t.vatMulti) warn.push('plusieurs taux de TVA sur la facture : vérifiez le montant de TVA');
+    if (ttc != null && rate == null) warn.push(`taux de TVA non indiqué sur le document : TVA calculée avec « ${tvaCode($('af-code').value).label || $('af-code').value} », à vérifier`);
+    if (qr && t.total && Math.abs(num(qr.amount) - t.total) > 0.05) warn.push(`le montant du QR (${fmtAmt(qr.amount)}) diffère du total lu dans le texte (${fmtAmt(t.total)})`);
+    const dup = four && $('af-num').value && live('fac_achats').find(a => a.id !== editAchatId && norm(a.fournisseur) === norm($('af-four').value) && a.numero_facture === $('af-num').value);
+    if (dup) warn.push(`cette facture semble déjà saisie (${fmtDate(dup.date_facture)})`);
+    box.className = warn.length ? 'lock-note' : 'info-note';
+    box.innerHTML = filled.length ? `Prérempli depuis ${qr ? 'la QR-facture' + (text ? ' et le texte' : '') : 'le texte du PDF'} : ${esc(filled.join(', '))}. <b>Vérifiez les champs surlignés.</b>${warn.length ? '<br>⚠ ' + warn.map(esc).join('<br>⚠ ') : ''}`
+      : `Je n'ai rien pu lire de fiable sur ce document${warn.length ? ' (' + esc(warn.join(' ; ')) + ')' : ''} : complétez les champs à la main.`;
+  } catch (e) { box.className = 'lock-note'; box.textContent = 'Lecture impossible : ' + e.message + '. Complétez les champs à la main.'; }
+}
+function achatDropFile(file) {
+  if (!file) return;
+  const inp = $('af-file'); if (inp) { const dt = new DataTransfer(); dt.items.add(file); inp.files = dt.files; }
+  prefillAchat(file);
+}
+
 function achatCalc() {
   const ttc = num($('af-ttc').value), rate = num(tvaCode($('af-code').value).rate);
   $('af-tva').value = (ttc ? round2(ttc - ttc / (1 + rate / 100)) : 0).toFixed(2);
