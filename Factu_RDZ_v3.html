@@ -1100,7 +1100,7 @@ const TABLES = ['fac_clients', 'fac_documents', 'fac_achats', 'fac_contrats', 'f
 const COLUMNS = {
   fac_clients: ['id','nom','nom_court','complement','rue','numero_rue','npa','ville','pays','email','contact','delai_pmt','tva_rate','crm_client_id','notes','created_at','deleted_at'],
   fac_documents: ['id','kind','numero','seq','client_id','client_snapshot','titre','date_doc','date_echeance','periode_debut','periode_fin','site','lignes','tva_rate','tva_code','total_ht','total_tva','total_ttc','total_breakdown','statut','reference','source_devis_id','ref_document_id','intro','conclusion','notes_internes','sent_at','emitted_at','cancelled_reason','legacy','pdf_path','pdf_sha256','version','revised_at','revision_reason','pdf_history','created_by','created_at','deleted_at'],
-  fac_achats: ['id','fournisseur','numero_facture','date_facture','date_echeance','categorie','site','montant_ht','tva_rate','tva_code','montant_tva','montant_ttc','reference_paiement','piece_path','piece_name','notes','created_by','created_at','deleted_at'],
+  fac_achats: ['id','fournisseur','numero_facture','date_facture','date_echeance','categorie','site','montant_ht','tva_rate','tva_code','montant_tva','montant_ttc','reference_paiement','piece_path','piece_name','notes','devise','montant_devise','taux','created_by','created_at','deleted_at'],
   fac_bank_statements: ['id','camt_type','iban','from_date','to_date','opening','closing','closing_date','filename','imported_by','imported_at'],
   fac_bank_tx: ['id','statement_id','iban','booking_date','value_date','amount','currency','counterparty','counterparty_iban','reference','ref_type','remittance','info','category','note','contrat_id','created_at'],
   fac_contrats: ['id','libelle','fournisseur','motif','categorie','site','montant','tva_code','periodicite','jour','date_debut','date_fin','piece_path','piece_name','notes','actif','created_by','created_at','deleted_at'],
@@ -2725,7 +2725,11 @@ function openAchat(id) {
     <div class="fg c4"><label class="flabel" for="af-date">Date *</label><input class="finp" type="date" id="af-date" ${ro} value="${a.date_facture || ''}"></div>
     <div class="fg c4"><label class="flabel" for="af-ech">Échéance</label><input class="finp" type="date" id="af-ech" ${ro} value="${a.date_echeance || ''}"></div>
     <div class="fg c4"><label class="flabel" for="af-cat">Catégorie</label><select class="fsel" id="af-cat" ${ro}><option value="">—</option>${settings.categories_out.filter(c => c !== INTERNAL_CATEGORY).map(c => `<option ${c === a.categorie ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select></div>
-    <div class="fg c4"><label class="flabel" for="af-ttc">Montant TTC *</label><input class="finp mono" id="af-ttc" ${amtLock} value="${a.montant_ttc != null ? num(a.montant_ttc).toFixed(2) : ''}" oninput="achatCalc()"></div>
+    <div class="fg c3"><label class="flabel" for="af-dev">Devise</label><select class="fsel" id="af-dev" ${amtLock} onchange="achatFx('devise');if(this.value!=='CHF'&&!$('af-taux').value)fetchFxRate()">${[...new Set([...FX_LIST, a.devise || 'CHF'])].map(c => `<option ${c === (a.devise || 'CHF') ? 'selected' : ''}>${c}</option>`).join('')}</select></div>
+    <div class="fg c3 af-fx" style="${(a.devise || 'CHF') === 'CHF' ? 'display:none' : ''}"><label class="flabel" for="af-mdev">Montant en <span id="af-devl">${a.devise || 'EUR'}</span> *</label><input class="finp mono" id="af-mdev" ${amtLock} value="${a.montant_devise != null ? num(a.montant_devise).toFixed(2) : ''}" oninput="achatFx('dev')"></div>
+    <div class="fg c3 af-fx" style="${(a.devise || 'CHF') === 'CHF' ? 'display:none' : ''}"><label class="flabel" for="af-taux" id="af-tauxl">Taux (1 ${a.devise || 'EUR'} = … CHF)</label><div style="display:flex;gap:4px"><input class="finp mono" id="af-taux" ${amtLock} value="${a.taux != null ? num(a.taux).toFixed(6) : ''}" oninput="achatFx('taux')">${amtLock ? '' : `<button type="button" class="btn btn-ghost btn-sm" title="Taux de la Banque centrale européenne à la date de la facture" onclick="fetchFxRate()">BCE</button>`}</div></div>
+    <div class="fg c3"><label class="flabel" for="af-ttc" id="af-ttc-l">${(a.devise || 'CHF') === 'CHF' ? 'Montant TTC *' : 'Équivalent en CHF *'}</label><input class="finp mono" id="af-ttc" ${amtLock} value="${a.montant_ttc != null ? num(a.montant_ttc).toFixed(2) : ''}" oninput="achatFx('chf')"></div>
+    <div class="fg c12 af-fx fhint" style="margin-top:-6px;${(a.devise || 'CHF') === 'CHF' ? 'display:none' : ''}">Le montant en CHF est celui qui compte (analyses, exports). Une fois le débit rapproché, il est aligné sur le montant réellement débité par la banque. La TVA étrangère n'est pas récupérable en Suisse : laissez le code « hors champ ».</div>
     <div class="fg c4"><label class="flabel" for="af-code">TVA</label><select class="fsel" id="af-code" ${ro} onchange="achatCalc()">${codeOptions(code)}</select></div>
     <div class="fg c4"><label class="flabel" for="af-tva">Dont TVA</label><input class="finp mono" id="af-tva" ${ro} value="${a.montant_tva != null ? num(a.montant_tva).toFixed(2) : ''}"></div>
     <div class="fg c6"><label class="flabel" for="af-site">Site ou mandat</label><input class="finp" id="af-site" list="af-site-list" ${ro} value="${esc(a.site || '')}"><datalist id="af-site-list">${sitesKnown().map(s => `<option value="${esc(s)}">`).join('')}</datalist></div>
@@ -2826,8 +2830,9 @@ function extractFromText(text) {
   const vatL = lines.filter(x => /\b(tva|mwst|mehrwertsteuer|vat|iva)\b/.test(norm(x)) && /(\d{1,2}(?:[.,]\d{1,2})?)\s*%/.test(x));
   if (vatL.length) { const rates = [...new Set(vatL.map(x => num(x.match(/(\d{1,2}(?:[.,]\d{1,2})?)\s*%/)[1].replace(',', '.'))))]; r.vatRate = rates.find(v => v > 0) ?? rates[0]; r.vatMulti = rates.filter(v => v > 0).length > 1;
     const va = vatL.flatMap(x => amountsIn(x.replace(/\d{1,2}(?:[.,]\d{1,2})?\s*%/, ''))).filter(v => v > 0 && (!r.total || v < r.total * 0.3)); if (va.length) r.vatAmount = round2(va.reduce((s2, v) => s2 + v, 0)); }
-  const head = lines.slice(0, 12).find(x => /\b(SA|AG|S[àa]rl|GmbH|S\.A\.|Ltd|SNC|Sagl)\b/.test(x) && !/RDZ/i.test(x) && x.length < 70);
+  const head = lines.slice(0, 12).map(x => x.replace(/\s{2,}.*$/, '').trim()).find(x => /\b(SA|AG|S[àa]rl|GmbH|S\.A\.|Ltd|SNC|Sagl)\b/.test(x) && /[A-Za-zÀ-ÿ]{3,}\s+\S/.test(x) && !/RDZ|company name|^(sa|ag)$/i.test(x) && x.length < 70);
   if (head) r.supplier = head.replace(/\s{2,}.*$/, '').trim();
+  else { const first = lines.find(x => /[A-Za-z]{3}/.test(x) && !/RDZ|^(date|facture|invoice|rechnung|information bill)\b/i.test(x) && x.length < 90); if (first) r.supplier = first.replace(/\s{2,}.*$/, '').split(/,\s*/)[0].trim(); }
   r.vatNo = (text.match(/CHE[-\s]?\d{3}[.\s]?\d{3}[.\s]?\d{3}/) || [null])[0];
   return r;
 }
@@ -2851,10 +2856,17 @@ async function prefillAchat(file) {
     const due = t.due || ((qr && qr.payDays) || t.dueDays ? addDays(date || todayISO(), (qr && qr.payDays) || t.dueDays) : null);
     set('af-ech', due, 'échéance');
     const ttc = (qr && qr.amount) || t.total;
-    set('af-ttc', ttc != null ? num(ttc).toFixed(2) : null, 'montant TTC');
+    const cur = (qr && qr.currency) || detectCurrency(text);
+    const foreign = cur && cur !== 'CHF' && $('af-dev') && !$('af-dev').disabled;
+    if (foreign) {
+      $('af-dev').value = FX_LIST.includes(cur) ? cur : 'EUR'; achatFx('devise'); filled.push(`devise ${cur}`);
+      set('af-mdev', ttc != null ? num(ttc).toFixed(2) : null, `montant en ${cur}`);
+      if (ttc != null) { const j = await fetchFxRate(true); if (j) filled.push(`taux BCE du ${fmtDate(j.date)}`); }
+    } else set('af-ttc', ttc != null ? num(ttc).toFixed(2) : null, 'montant TTC');
     const rate = (qr && qr.vatRate != null) ? qr.vatRate : t.vatRate;
-    if (rate != null && !$('af-code').disabled) { const code = codeForRate(rate === 7.7 ? 8.1 : rate); $('af-code').value = rate === 0 ? 'HC' : code; filled.push(`TVA ${rate} %`); }
-    if (ttc != null) { if (t.vatAmount != null && !(qr && qr.vatMulti) && !t.vatMulti) { $('af-tva').value = num(t.vatAmount).toFixed(2); } else achatCalc(); }
+    if (rate != null && !$('af-code').disabled && !foreign) { const code = codeForRate(rate === 7.7 ? 8.1 : rate); $('af-code').value = rate === 0 ? 'HC' : code; filled.push(`TVA ${rate} %`); }
+    if (foreign) { $('af-code').value = 'HC'; achatCalc(); if (t.vatRate || t.vatAmount) warn.push(`TVA étrangère (${cur}) sur la facture : non récupérable en Suisse, code « hors champ » appliqué`); }
+    else if (ttc != null) { if (t.vatAmount != null && !(qr && qr.vatMulti) && !t.vatMulti) { $('af-tva').value = num(t.vatAmount).toFixed(2); } else achatCalc(); }
     set('af-ref', qr && qr.reference, 'référence de paiement');
     if (four && !$('af-cat').value) { const prev = live('fac_achats').filter(a => norm(a.fournisseur) === norm(four) && a.categorie).sort((a, b) => b.date_facture.localeCompare(a.date_facture))[0];
       const rule = !prev && db.fac_bank_rules.find(rr => norm(four).includes(norm(rr.pattern)) || norm(rr.pattern).includes(norm(four)));
@@ -2862,7 +2874,8 @@ async function prefillAchat(file) {
     const warn = [];
     if (!qr && /^image\//.test(file.type)) warn.push("photo sans QR-facture lisible : seuls les champs du QR peuvent être lus sur une photo, complétez le reste à la main");
     if ((qr && qr.vatMulti) || t.vatMulti) warn.push('plusieurs taux de TVA sur la facture : vérifiez le montant de TVA');
-    if (ttc != null && rate == null) warn.push(`taux de TVA non indiqué sur le document : TVA calculée avec « ${tvaCode($('af-code').value).label || $('af-code').value} », à vérifier`);
+    if (foreign && ttc != null && !num($('af-taux').value)) warn.push(`taux ${cur}/CHF introuvable : saisissez le taux ou directement l'équivalent en CHF`);
+    if (ttc != null && rate == null && !foreign) warn.push(`taux de TVA non indiqué sur le document : TVA calculée avec « ${tvaCode($('af-code').value).label || $('af-code').value} », à vérifier`);
     if (qr && t.total && Math.abs(num(qr.amount) - t.total) > 0.05) warn.push(`le montant du QR (${fmtAmt(qr.amount)}) diffère du total lu dans le texte (${fmtAmt(t.total)})`);
     const dup = four && $('af-num').value && live('fac_achats').find(a => a.id !== editAchatId && norm(a.fournisseur) === norm($('af-four').value) && a.numero_facture === $('af-num').value);
     if (dup) warn.push(`cette facture semble déjà saisie (${fmtDate(dup.date_facture)})`);
@@ -2875,6 +2888,40 @@ function achatDropFile(file) {
   if (!file) return;
   const inp = $('af-file'); if (inp) { const dt = new DataTransfer(); dt.items.add(file); inp.files = dt.files; }
   prefillAchat(file);
+}
+
+// ── Achats en devises : le montant CHF (montant_ttc) reste la référence, la devise d'origine est conservée
+const FX_LIST = ['CHF', 'EUR', 'USD', 'GBP'];
+function achatFx(src) {
+  const dev = $('af-dev').value, foreign = dev !== 'CHF';
+  document.querySelectorAll('.af-fx').forEach(el => el.style.display = foreign ? '' : 'none');
+  $('af-devl').textContent = dev; $('af-tauxl').textContent = `Taux (1 ${dev} = … CHF)`;
+  $('af-ttc-l').textContent = foreign ? 'Équivalent en CHF *' : 'Montant TTC *';
+  if (foreign) {
+    const md = num($('af-mdev').value), tx = num($('af-taux').value), chf = num($('af-ttc').value);
+    if ((src === 'dev' || src === 'taux') && md && tx) $('af-ttc').value = round2(md * tx).toFixed(2);
+    if (src === 'chf' && md && chf) $('af-taux').value = (chf / md).toFixed(6);
+    if (src === 'devise' && $('af-code').value !== 'HC' && !num($('af-tva').value)) { $('af-code').value = 'HC'; }
+  }
+  achatCalc();
+}
+async function fetchFxRate(silent) {
+  const dev = $('af-dev').value; if (dev === 'CHF') return;
+  const date = $('af-date').value || todayISO();
+  try {
+    const r = await fetch(`https://api.frankfurter.app/${date}?from=${dev}&to=CHF`);
+    if (!r.ok) throw new Error('taux indisponible');
+    const j = await r.json(); const rate = j.rates && j.rates.CHF; if (!rate) throw new Error('taux indisponible');
+    $('af-taux').value = Number(rate).toFixed(6); $('af-taux').style.background = '#fffbe6'; achatFx('taux');
+    if (!silent) toast(`Taux BCE du ${fmtDate(j.date)} : 1 ${dev} = ${Number(rate).toFixed(4)} CHF`);
+    return j;
+  } catch (e) { if (!silent) toast('Taux introuvable (hors ligne ?) : saisissez-le ou indiquez directement le montant CHF', 'err'); return null; }
+}
+function detectCurrency(text) {
+  const t = String(text || '');
+  const c = { EUR: (t.match(/€|\bEUR\b/g) || []).length, CHF: (t.match(/\bCHF\b|\bFr\.\s?\d/g) || []).length, USD: (t.match(/\$|\bUSD\b/g) || []).length, GBP: (t.match(/£|\bGBP\b/g) || []).length };
+  const best = Object.entries(c).sort((a, b) => b[1] - a[1])[0];
+  return best[1] > 0 ? best[0] : null;
 }
 
 function achatCalc() {
@@ -2906,10 +2953,13 @@ async function saveAchat() {
   const four = $('af-four').value.trim(), date = $('af-date').value, ttc = round2(num($('af-ttc').value));
   if (!four || !date || !$('af-ttc').value.trim()) { toast('Fournisseur, date et montant TTC sont obligatoires', 'err'); return; }
   const code = $('af-code').value, tva = round2(num($('af-tva').value));
+  const dev = $('af-dev') ? $('af-dev').value : 'CHF', mdev = $('af-mdev') ? round2(num($('af-mdev').value)) : 0;
+  if (dev !== 'CHF' && !mdev) { toast(`Indiquez le montant en ${dev}`, 'err'); return; }
   if (tva > ttc) { toast('La TVA dépasse le montant TTC', 'err'); return; }
   const base = editAchatId ? db.fac_achats.find(x => x.id === editAchatId) : { id: uuid(), created_by: userEmail() };
   const row = { ...base, fournisseur: four, numero_facture: $('af-num').value.trim() || null, date_facture: date, date_echeance: $('af-ech').value || null,
-    categorie: $('af-cat').value || null, site: $('af-site').value.trim() || null, montant_ttc: ttc, tva_code: code, tva_rate: num(tvaCode(code).rate), montant_tva: tva, montant_ht: round2(ttc - tva),
+    categorie: $('af-cat').value || null, site: $('af-site').value.trim() || null, montant_ttc: ttc,
+    devise: dev, montant_devise: dev === 'CHF' ? null : mdev, taux: dev === 'CHF' ? null : (num($('af-taux').value) || (mdev ? round2(ttc / mdev * 1e6) / 1e6 : null)), tva_code: code, tva_rate: num(tvaCode(code).rate), montant_tva: tva, montant_ht: round2(ttc - tva),
     reference_paiement: compactRef($('af-ref').value) || null, notes: $('af-notes').value.trim() || null };
   const dup = live('fac_achats').find(x => x.id !== row.id && row.numero_facture && x.numero_facture === row.numero_facture && norm(x.fournisseur) === norm(four));
   if (dup && !confirm(`Une facture ${row.numero_facture} de ${four} existe déjà (${fmtDate(dup.date_facture)}). L'enregistrer quand même ?`)) return;
@@ -3007,6 +3057,10 @@ function suggestionFor(tx) {
   const byName = cands.filter(a => norm(a.fournisseur).split(/[^a-z0-9]+/).filter(w => w.length >= 4).some(w => party.includes(w)));
   if (byName.length === 1) return { kind: 'achat', item: byName[0], why: 'même montant et même fournisseur' };
   if (cands.length === 1) return { kind: 'achat', item: cands[0], why: 'même montant' };
+  const fx = live('fac_achats').filter(a => (a.devise || 'CHF') !== 'CHF' && achatState(a) !== 'paid' && !achatPaidAmount(a) && Math.abs(num(a.montant_ttc) - open) <= Math.max(1, num(a.montant_ttc) * 0.03));
+  const fxName = fx.filter(a => norm(a.fournisseur).split(/[^a-z0-9]+/).filter(w => w.length >= 4).some(w => party.includes(w)));
+  const fxPick = fxName.length === 1 ? fxName[0] : fx.length === 1 ? fx[0] : null;
+  if (fxPick) return { kind: 'achat', item: fxPick, why: `montant converti (${fxPick.devise} ${fmtAmt(fxPick.montant_devise)})`, fx: true };
   return null;
 }
 async function importCamtFiles(files) {
@@ -3071,6 +3125,8 @@ function confirmSuggestionSilent(txId) {
   const open = txOpen(t);
   if (s.kind === 'doc') { saveRow('fac_allocations', { id: uuid(), tx_id: t.id, document_id: s.item.id, achat_id: null, amount: round2(Math.min(open, docRemaining(s.item))), pay_date: t.booking_date, mode: 'manuel', created_by: userEmail() });
     if (s.remise && docRemaining(s.item) > 0.009) addDiscount(s.item, docRemaining(s.item), t.booking_date, `Remise régie ${num(settings.remise_rate || 5)} %`); }
+  else if (s.fx) { const a2 = { ...s.item, montant_ttc: round2(open), montant_ht: round2(open - num(s.item.montant_tva)), taux: num(s.item.montant_devise) ? Math.round(open / num(s.item.montant_devise) * 1e6) / 1e6 : s.item.taux };
+    saveRow('fac_achats', a2); saveRow('fac_allocations', { id: uuid(), tx_id: t.id, document_id: null, achat_id: s.item.id, amount: round2(open), pay_date: t.booking_date, mode: 'manuel', created_by: userEmail() }); }
   else saveRow('fac_allocations', { id: uuid(), tx_id: t.id, document_id: null, achat_id: s.item.id, amount: round2(open), pay_date: t.booking_date, mode: 'manuel', created_by: userEmail() });
   const c = autoCategory(db.fac_bank_tx.find(x => x.id === txId)); if (c) saveRow('fac_bank_tx', { ...t, category: c });
 }
@@ -3156,6 +3212,8 @@ function confirmSuggestion(txId) {
   const open = txOpen(t);
   if (s.kind === 'doc') { saveRow('fac_allocations', { id: uuid(), tx_id: t.id, document_id: s.item.id, achat_id: null, amount: round2(Math.min(open, docRemaining(s.item))), pay_date: t.booking_date, mode: 'manuel', created_by: userEmail() });
     if (s.remise && docRemaining(s.item) > 0.009) addDiscount(s.item, docRemaining(s.item), t.booking_date, `Remise régie ${num(settings.remise_rate || 5)} %`); }
+  else if (s.fx) { const a2 = { ...s.item, montant_ttc: round2(open), montant_ht: round2(open - num(s.item.montant_tva)), taux: num(s.item.montant_devise) ? Math.round(open / num(s.item.montant_devise) * 1e6) / 1e6 : s.item.taux };
+    saveRow('fac_achats', a2); saveRow('fac_allocations', { id: uuid(), tx_id: t.id, document_id: null, achat_id: s.item.id, amount: round2(open), pay_date: t.booking_date, mode: 'manuel', created_by: userEmail() }); }
   else saveRow('fac_allocations', { id: uuid(), tx_id: t.id, document_id: null, achat_id: s.item.id, amount: round2(open), pay_date: t.booking_date, mode: 'manuel', created_by: userEmail() });
   const c = autoCategory(db.fac_bank_tx.find(x => x.id === txId)); if (c) saveRow('fac_bank_tx', { ...t, category: c });
   renderAll(); toast('Rapprochement confirmé');
@@ -3542,8 +3600,8 @@ function fiduciarySheets(r) {
     { title: 'Écart facture − encaissement', type: 'num', width: 16 }, { title: 'Payeur (relevé)', width: 30 }, { title: 'Origine', width: 26 }, { title: 'Référence', width: 30 }, { title: 'Note', width: 34 }];
   const ach = live('fac_achats').filter(a => inRange(a.date_facture, r)).sort((a, b) => a.date_facture.localeCompare(b.date_facture));
   const achCols = [{ title: 'Date', type: 'date', width: 11 }, { title: 'Fournisseur', width: 30 }, { title: 'N° facture', width: 14 }, { title: 'Catégorie', width: 22 }, { title: 'Site', width: 14 }, { title: 'Code TVA', width: 9 },
-    { title: 'HT', type: 'num' }, { title: 'TVA', type: 'num' }, { title: 'TTC', type: 'num' }, { title: 'Échéance', type: 'date', width: 11 }, { title: 'Statut', width: 12 }, { title: 'Payé le', type: 'date', width: 11 }, { title: 'Pièce', width: 30 }];
-  const achRows = ach.map(a => [a.date_facture, a.fournisseur, a.numero_facture || '', a.categorie || '', a.site || '', a.tva_code || codeForRate(a.tva_rate), num(a.montant_ht), num(a.montant_tva), num(a.montant_ttc),
+    { title: 'HT', type: 'num' }, { title: 'TVA', type: 'num' }, { title: 'TTC CHF', type: 'num' }, { title: 'Devise', width: 7 }, { title: 'Montant devise', type: 'num' }, { title: 'Taux', type: 'num' }, { title: 'Échéance', type: 'date', width: 11 }, { title: 'Statut', width: 12 }, { title: 'Payé le', type: 'date', width: 11 }, { title: 'Pièce', width: 30 }];
+  const achRows = ach.map(a => [a.date_facture, a.fournisseur, a.numero_facture || '', a.categorie || '', a.site || '', a.tva_code || codeForRate(a.tva_rate), num(a.montant_ht), num(a.montant_tva), num(a.montant_ttc), a.devise || 'CHF', a.devise && a.devise !== 'CHF' ? num(a.montant_devise) : '', a.devise && a.devise !== 'CHF' ? num(a.taux) : '',
     a.date_echeance || '', ACH_BADGE[achatState(a)][0], achatPaidDate(a) || '', a.piece_path ? achatPieceName(a) : 'MANQUANTE']);
   const ctCols = [{ title: 'Date', type: 'date', width: 11 }, { title: 'Contrat', width: 30 }, { title: 'Fournisseur', width: 30 }, { title: 'Catégorie', width: 22 }, { title: 'Code TVA', width: 9 }, { title: 'Montant prélevé', type: 'num' }, { title: 'Montant du contrat', type: 'num' }, { title: 'Justificatif', width: 30 }];
   const ctRows = db.fac_bank_tx.filter(t => t.contrat_id && inRange(t.booking_date, r)).sort((a, b) => a.booking_date.localeCompare(b.booking_date)).map(t => { const c = db.fac_contrats.find(x => x.id === t.contrat_id) || {};
