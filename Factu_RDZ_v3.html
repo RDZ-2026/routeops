@@ -1100,7 +1100,7 @@ const TABLES = ['fac_clients', 'fac_documents', 'fac_achats', 'fac_contrats', 'f
 const COLUMNS = {
   fac_clients: ['id','nom','nom_court','complement','rue','numero_rue','npa','ville','pays','email','contact','delai_pmt','tva_rate','crm_client_id','notes','created_at','deleted_at'],
   fac_documents: ['id','kind','numero','seq','client_id','client_snapshot','titre','date_doc','date_echeance','periode_debut','periode_fin','site','lignes','tva_rate','tva_code','total_ht','total_tva','total_ttc','total_breakdown','statut','reference','source_devis_id','ref_document_id','intro','conclusion','notes_internes','sent_at','emitted_at','cancelled_reason','legacy','pdf_path','pdf_sha256','version','revised_at','revision_reason','pdf_history','created_by','created_at','deleted_at'],
-  fac_achats: ['id','fournisseur','numero_facture','date_facture','date_echeance','categorie','site','montant_ht','tva_rate','tva_code','montant_tva','montant_ttc','reference_paiement','piece_path','piece_name','notes','devise','montant_devise','taux','created_by','created_at','deleted_at'],
+  fac_achats: ['id','fournisseur','numero_facture','date_facture','date_echeance','categorie','site','montant_ht','tva_rate','tva_code','montant_tva','montant_ttc','reference_paiement','piece_path','piece_name','notes','devise','montant_devise','taux','tva_lines','created_by','created_at','deleted_at'],
   fac_bank_statements: ['id','camt_type','iban','from_date','to_date','opening','closing','closing_date','filename','imported_by','imported_at'],
   fac_bank_tx: ['id','statement_id','iban','booking_date','value_date','amount','currency','counterparty','counterparty_iban','reference','ref_type','remittance','info','category','note','contrat_id','created_at'],
   fac_contrats: ['id','libelle','fournisseur','motif','categorie','site','montant','tva_code','periodicite','jour','date_debut','date_fin','piece_path','piece_name','notes','actif','created_by','created_at','deleted_at'],
@@ -2716,6 +2716,7 @@ function openAchat(id) {
   const sup = [...new Set(live('fac_achats').map(x => x.fournisseur))].sort();
   $('ach-title').textContent = id ? a.fournisseur : 'Nouvel achat';
   $('ach-sub').textContent = id ? `Saisi le ${fmtDateTime(a.created_at)}${a.created_by ? ' par ' + a.created_by : ''}` : 'Facture fournisseur';
+  vatLines = a.tva_lines && a.tva_lines.length ? a.tva_lines.map(l => ({ ...l })) : null;
   $('ach-form').innerHTML = `
     ${!a.piece_path && canWrite() ? `<label class="drop" style="grid-column:span 12;margin:0;padding:14px" ondragover="event.preventDefault();this.classList.add('over')" ondragleave="this.classList.remove('over')" ondrop="event.preventDefault();this.classList.remove('over');achatDropFile(event.dataTransfer.files[0])">
       <input type="file" accept="application/pdf,image/*" onchange="achatDropFile(this.files[0])"><b>Déposez la facture (PDF ou photo)</b><br><span class="sub">les champs se remplissent automatiquement ; vous pouvez ensuite les modifier</span></label>
@@ -2731,7 +2732,8 @@ function openAchat(id) {
     <div class="fg c3"><label class="flabel" for="af-ttc" id="af-ttc-l">${(a.devise || 'CHF') === 'CHF' ? 'Montant TTC *' : 'Équivalent en CHF *'}</label><input class="finp mono" id="af-ttc" ${amtLock} value="${a.montant_ttc != null ? num(a.montant_ttc).toFixed(2) : ''}" oninput="achatFx('chf')"></div>
     <div class="fg c12 af-fx fhint" style="margin-top:-6px;${(a.devise || 'CHF') === 'CHF' ? 'display:none' : ''}">Le montant en CHF est celui qui compte (analyses, exports). Une fois le débit rapproché, il est aligné sur le montant réellement débité par la banque. La TVA étrangère n'est pas récupérable en Suisse : laissez le code « hors champ ».</div>
     <div class="fg c4"><label class="flabel" for="af-code">TVA</label><select class="fsel" id="af-code" ${ro} onchange="achatCalc()">${codeOptions(code)}</select></div>
-    <div class="fg c4"><label class="flabel" for="af-tva">Dont TVA</label><input class="finp mono" id="af-tva" ${ro} value="${a.montant_tva != null ? num(a.montant_tva).toFixed(2) : ''}"></div>
+    <div class="fg c4"><label class="flabel" for="af-tva">Dont TVA</label><input class="finp mono" id="af-tva" ${ro} ${a.tva_lines && a.tva_lines.length ? 'disabled' : ''} value="${a.montant_tva != null ? num(a.montant_tva).toFixed(2) : ''}"></div>
+    <div class="fg c12"><label class="chk"><input type="checkbox" id="af-multi" ${a.tva_lines && a.tva_lines.length ? 'checked' : ''} ${amtLock || ro} onchange="toggleMultiVat()"> Plusieurs taux de TVA sur cette facture</label><div id="af-vlines"></div></div>
     <div class="fg c6"><label class="flabel" for="af-site">Site ou mandat</label><input class="finp" id="af-site" list="af-site-list" ${ro} value="${esc(a.site || '')}"><datalist id="af-site-list">${sitesKnown().map(s => `<option value="${esc(s)}">`).join('')}</datalist></div>
     <div class="fg c6"><label class="flabel" for="af-ref">Référence de paiement (QR / RF)</label><input class="finp mono" id="af-ref" ${ro} value="${esc(a.reference_paiement || '')}" placeholder="Rapproche le débit avec certitude"></div>
     <div class="fg c12"><label class="flabel" for="af-file">Pièce justificative (PDF ou photo)</label>
@@ -2833,6 +2835,13 @@ function extractFromText(text) {
   const head = lines.slice(0, 12).map(x => x.replace(/\s{2,}.*$/, '').trim()).find(x => /\b(SA|AG|S[àa]rl|GmbH|S\.A\.|Ltd|SNC|Sagl)\b/.test(x) && /[A-Za-zÀ-ÿ]{3,}\s+\S/.test(x) && !/RDZ|company name|^(sa|ag)$/i.test(x) && x.length < 70);
   if (head) r.supplier = head.replace(/\s{2,}.*$/, '').trim();
   else { const first = lines.find(x => /[A-Za-z]{3}/.test(x) && !/RDZ|^(date|facture|invoice|rechnung|information bill)\b/i.test(x) && x.length < 90); if (first) r.supplier = first.replace(/\s{2,}.*$/, '').split(/,\s*/)[0].trim(); }
+  const vl = [];
+  for (const ln of lines) {
+    const m = norm(ln).match(/(?:taux de tva|tva|mwst(?:-satz)?|vat(?: rate)?)\s*(\d{1,2}(?:[.,]\d{1,2})?)\s*%?\s*\*?\)?\s+(-?[\d' ]*\d[.,]\d{2})\s+(-?[\d' ]*\d[.,]\d{2})\s+(-?[\d' ]*\d[.,]\d{2})\s*$/);
+    if (m) { const a2 = x => num(x.replace(/['\s]/g, '').replace(',', '.')); vl.push({ rate: a2(m[1]), base: a2(m[2]), tva: a2(m[3]), ttc: a2(m[4]) }); }
+  }
+  const uniq = [...new Map(vl.map(v => [v.rate, v])).values()];
+  if (uniq.length >= 2) { r.vatLines = uniq; r.vatMulti = true; r.vatAmount = round2(uniq.reduce((s2, v) => s2 + v.tva, 0)); r.vatRate = uniq.slice().sort((x, y) => y.ttc - x.ttc)[0].rate; }
   r.vatNo = (text.match(/CHE[-\s]?\d{3}[.\s]?\d{3}[.\s]?\d{3}/) || [null])[0];
   return r;
 }
@@ -2865,7 +2874,12 @@ async function prefillAchat(file) {
     } else set('af-ttc', ttc != null ? num(ttc).toFixed(2) : null, 'montant TTC');
     const rate = (qr && qr.vatRate != null) ? qr.vatRate : t.vatRate;
     if (rate != null && !$('af-code').disabled && !foreign) { const code = codeForRate(rate === 7.7 ? 8.1 : rate); $('af-code').value = rate === 0 ? 'HC' : code; filled.push(`TVA ${rate} %`); }
-    if (foreign) { $('af-code').value = 'HC'; achatCalc(); if (t.vatRate || t.vatAmount) warn.push(`TVA étrangère (${cur}) sur la facture : non récupérable en Suisse, code « hors champ » appliqué`); }
+    if (!foreign && t.vatLines && $('af-multi') && !$('af-multi').disabled) {
+      vatLines = t.vatLines.map(v => ({ code: codeForRate(v.rate) || (v.rate ? 'N81' : 'Z0'), ttc: v.ttc, tva: v.tva }));
+      const tt = round2(num($('af-ttc').value)), sum = round2(vatLines.reduce((s2, l) => s2 + l.ttc, 0));
+      if (tt && Math.abs(tt - sum) <= 0.05) { const main = vatLines.slice().sort((x, y) => y.ttc - x.ttc)[0]; main.ttc = round2(main.ttc + tt - sum); }
+      toggleMultiVat(true); filled.push(`TVA par taux (${t.vatLines.map(v => v.rate + ' %').join(' + ')})`);
+    } else if (foreign) { $('af-code').value = 'HC'; achatCalc(); if (t.vatRate || t.vatAmount) warn.push(`TVA étrangère (${cur}) sur la facture : non récupérable en Suisse, code « hors champ » appliqué`); }
     else if (ttc != null) { if (t.vatAmount != null && !(qr && qr.vatMulti) && !t.vatMulti) { $('af-tva').value = num(t.vatAmount).toFixed(2); } else achatCalc(); }
     set('af-ref', qr && qr.reference, 'référence de paiement');
     if (four && !$('af-cat').value) { const prev = live('fac_achats').filter(a => norm(a.fournisseur) === norm(four) && a.categorie).sort((a, b) => b.date_facture.localeCompare(a.date_facture))[0];
@@ -2873,7 +2887,7 @@ async function prefillAchat(file) {
       const cat = prev ? prev.categorie : rule ? rule.category : null; if (cat && [...$('af-cat').options].some(o => o.value === cat)) { $('af-cat').value = cat; filled.push('catégorie'); } }
     const warn = [];
     if (!qr && /^image\//.test(file.type)) warn.push("photo sans QR-facture lisible : seuls les champs du QR peuvent être lus sur une photo, complétez le reste à la main");
-    if ((qr && qr.vatMulti) || t.vatMulti) warn.push('plusieurs taux de TVA sur la facture : vérifiez le montant de TVA');
+    if (((qr && qr.vatMulti) || t.vatMulti) && !t.vatLines) warn.push('plusieurs taux de TVA sur la facture : cochez « Plusieurs taux de TVA » et répartissez les montants');
     if (foreign && ttc != null && !num($('af-taux').value)) warn.push(`taux ${cur}/CHF introuvable : saisissez le taux ou directement l'équivalent en CHF`);
     if (ttc != null && rate == null && !foreign) warn.push(`taux de TVA non indiqué sur le document : TVA calculée avec « ${tvaCode($('af-code').value).label || $('af-code').value} », à vérifier`);
     if (qr && t.total && Math.abs(num(qr.amount) - t.total) > 0.05) warn.push(`le montant du QR (${fmtAmt(qr.amount)}) diffère du total lu dans le texte (${fmtAmt(t.total)})`);
@@ -2924,7 +2938,44 @@ function detectCurrency(text) {
   return best[1] > 0 ? best[0] : null;
 }
 
+// ── Achats : plusieurs taux de TVA sur une même facture (ex. Swisscom 8.1 % + 0 %)
+let vatLines = null;
+function vatLineTva(l) { const rate = num(tvaCode(l.code).rate); return round2(num(l.ttc) - num(l.ttc) / (1 + rate / 100)); }
+function renderVatLines() {
+  const box = $('af-vlines'); if (!box) return;
+  if (!vatLines) { box.innerHTML = ''; return; }
+  const lock = $('af-ttc').disabled ? 'disabled' : '';
+  const sum = round2(vatLines.reduce((s, l) => s + num(l.ttc), 0)), ttc = round2(num($('af-ttc').value)), diff = round2(ttc - sum);
+  box.innerHTML = `<table class="tbl" style="margin-top:6px"><thead><tr><th>Taux de TVA</th><th class="num">Montant TTC</th><th class="num">dont TVA</th><th></th></tr></thead><tbody>
+    ${vatLines.map((l, i) => `<tr><td><select class="fsel" ${lock} onchange="vatLines[${i}].code=this.value;vatLines[${i}].tva=vatLineTva(vatLines[${i}]);renderVatLines();syncVat()">${codeOptions(l.code)}</select></td>
+      <td class="num"><input class="finp mono" style="text-align:right" ${lock} value="${num(l.ttc).toFixed(2)}" onchange="vatLines[${i}].ttc=round2(num(this.value));vatLines[${i}].tva=vatLineTva(vatLines[${i}]);renderVatLines();syncVat()"></td>
+      <td class="num"><input class="finp mono" style="text-align:right" ${lock} value="${num(l.tva).toFixed(2)}" onchange="vatLines[${i}].tva=round2(num(this.value));syncVat()"></td>
+      <td>${lock || vatLines.length <= 2 ? '' : `<button class="ln-del" aria-label="Supprimer" onclick="vatLines.splice(${i},1);renderVatLines();syncVat()">×</button>`}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td>${lock ? '' : `<button class="btn btn-ghost btn-sm" onclick="vatLines.push({code:'N81',ttc:0,tva:0});renderVatLines()">Ajouter un taux</button>`}</td>
+      <td class="num">${fmtAmt(sum)}</td><td class="num">${fmtAmt(vatLines.reduce((s, l) => s + num(l.tva), 0))}</td><td></td></tr></tfoot></table>
+    ${Math.abs(diff) > 0.009 ? `<div class="fhint" style="color:var(--red)">La somme des taux (${fmtAmt(sum)}) ne correspond pas au montant TTC (${fmtAmt(ttc)}) : écart ${fmtAmt(diff)}${!lock && Math.abs(diff) <= 0.05 ? ` <button class="btn-link" onclick="absorbVatDiff()">reporter l'arrondi sur le taux principal</button>` : ''}</div>` : ''}`;
+}
+function absorbVatDiff() {
+  const ttc = round2(num($('af-ttc').value)), sum = round2(vatLines.reduce((s, l) => s + num(l.ttc), 0));
+  const main = vatLines.slice().sort((a, b) => num(b.ttc) - num(a.ttc))[0]; main.ttc = round2(num(main.ttc) + ttc - sum);
+  renderVatLines(); syncVat();
+}
+function syncVat() {
+  if (!vatLines) return;
+  $('af-tva').value = round2(vatLines.reduce((s, l) => s + num(l.tva), 0)).toFixed(2);
+  const main = vatLines.slice().sort((a, b) => num(b.ttc) - num(a.ttc))[0]; if (main) $('af-code').value = main.code;
+}
+function toggleMultiVat(on) {
+  const chk = $('af-multi'); if (on != null) chk.checked = on;
+  if (chk.checked) {
+    if (!vatLines) { const ttc = round2(num($('af-ttc').value)); vatLines = [{ code: $('af-code').value || 'N81', ttc, tva: round2(num($('af-tva').value)) }, { code: codeForRate(0) || 'Z0', ttc: 0, tva: 0 }]; }
+    $('af-code').disabled = true; $('af-tva').disabled = true;
+  } else { vatLines = null; if (!$('af-ttc').disabled) { $('af-code').disabled = false; $('af-tva').disabled = false; } achatCalc(); }
+  renderVatLines(); syncVat();
+}
+
 function achatCalc() {
+  if (vatLines && $('af-multi') && $('af-multi').checked) { renderVatLines(); syncVat(); return; }
   const ttc = num($('af-ttc').value), rate = num(tvaCode($('af-code').value).rate);
   $('af-tva').value = (ttc ? round2(ttc - ttc / (1 + rate / 100)) : 0).toFixed(2);
 }
@@ -2953,12 +3004,17 @@ async function saveAchat() {
   const four = $('af-four').value.trim(), date = $('af-date').value, ttc = round2(num($('af-ttc').value));
   if (!four || !date || !$('af-ttc').value.trim()) { toast('Fournisseur, date et montant TTC sont obligatoires', 'err'); return; }
   const code = $('af-code').value, tva = round2(num($('af-tva').value));
+  if (vatLines && $('af-multi').checked) {
+    const sum = round2(vatLines.reduce((s, l) => s + num(l.ttc), 0));
+    if (Math.abs(sum - ttc) > 0.009) { toast(`La somme des taux de TVA (${fmtAmt(sum)}) doit égaler le montant TTC (${fmtAmt(ttc)})`, 'err'); return; }
+  }
   const dev = $('af-dev') ? $('af-dev').value : 'CHF', mdev = $('af-mdev') ? round2(num($('af-mdev').value)) : 0;
   if (dev !== 'CHF' && !mdev) { toast(`Indiquez le montant en ${dev}`, 'err'); return; }
   if (tva > ttc) { toast('La TVA dépasse le montant TTC', 'err'); return; }
   const base = editAchatId ? db.fac_achats.find(x => x.id === editAchatId) : { id: uuid(), created_by: userEmail() };
   const row = { ...base, fournisseur: four, numero_facture: $('af-num').value.trim() || null, date_facture: date, date_echeance: $('af-ech').value || null,
     categorie: $('af-cat').value || null, site: $('af-site').value.trim() || null, montant_ttc: ttc,
+    tva_lines: vatLines && $('af-multi').checked ? vatLines.filter(l => num(l.ttc) !== 0).map(l => ({ code: l.code, ttc: round2(num(l.ttc)), tva: round2(num(l.tva)) })) : null,
     devise: dev, montant_devise: dev === 'CHF' ? null : mdev, taux: dev === 'CHF' ? null : (num($('af-taux').value) || (mdev ? round2(ttc / mdev * 1e6) / 1e6 : null)), tva_code: code, tva_rate: num(tvaCode(code).rate), montant_tva: tva, montant_ht: round2(ttc - tva),
     reference_paiement: compactRef($('af-ref').value) || null, notes: $('af-notes').value.trim() || null };
   const dup = live('fac_achats').find(x => x.id !== row.id && row.numero_facture && x.numero_facture === row.numero_facture && norm(x.fournisseur) === norm(four));
@@ -3599,9 +3655,9 @@ function fiduciarySheets(r) {
   const encCols = [{ title: 'Date', type: 'date', width: 11 }, { title: 'Montant', type: 'num' }, { title: 'N° facture', width: 13 }, { title: 'Client', width: 34 }, { title: 'Montant de la facture', type: 'num', width: 16 },
     { title: 'Écart facture − encaissement', type: 'num', width: 16 }, { title: 'Payeur (relevé)', width: 30 }, { title: 'Origine', width: 26 }, { title: 'Référence', width: 30 }, { title: 'Note', width: 34 }];
   const ach = live('fac_achats').filter(a => inRange(a.date_facture, r)).sort((a, b) => a.date_facture.localeCompare(b.date_facture));
-  const achCols = [{ title: 'Date', type: 'date', width: 11 }, { title: 'Fournisseur', width: 30 }, { title: 'N° facture', width: 14 }, { title: 'Catégorie', width: 22 }, { title: 'Site', width: 14 }, { title: 'Code TVA', width: 9 },
+  const achCols = [{ title: 'Date', type: 'date', width: 11 }, { title: 'Fournisseur', width: 30 }, { title: 'N° facture', width: 14 }, { title: 'Catégorie', width: 22 }, { title: 'Site', width: 14 }, { title: 'Code TVA', width: 24 },
     { title: 'HT', type: 'num' }, { title: 'TVA', type: 'num' }, { title: 'TTC CHF', type: 'num' }, { title: 'Devise', width: 7 }, { title: 'Montant devise', type: 'num' }, { title: 'Taux', type: 'num' }, { title: 'Échéance', type: 'date', width: 11 }, { title: 'Statut', width: 12 }, { title: 'Payé le', type: 'date', width: 11 }, { title: 'Pièce', width: 30 }];
-  const achRows = ach.map(a => [a.date_facture, a.fournisseur, a.numero_facture || '', a.categorie || '', a.site || '', a.tva_code || codeForRate(a.tva_rate), num(a.montant_ht), num(a.montant_tva), num(a.montant_ttc), a.devise || 'CHF', a.devise && a.devise !== 'CHF' ? num(a.montant_devise) : '', a.devise && a.devise !== 'CHF' ? num(a.taux) : '',
+  const achRows = ach.map(a => [a.date_facture, a.fournisseur, a.numero_facture || '', a.categorie || '', a.site || '', a.tva_lines && a.tva_lines.length ? a.tva_lines.map(l => `${l.code} ${fmtAmt(l.ttc)} (TVA ${fmtAmt(l.tva)})`).join(' / ') : (a.tva_code || codeForRate(a.tva_rate)), num(a.montant_ht), num(a.montant_tva), num(a.montant_ttc), a.devise || 'CHF', a.devise && a.devise !== 'CHF' ? num(a.montant_devise) : '', a.devise && a.devise !== 'CHF' ? num(a.taux) : '',
     a.date_echeance || '', ACH_BADGE[achatState(a)][0], achatPaidDate(a) || '', a.piece_path ? achatPieceName(a) : 'MANQUANTE']);
   const ctCols = [{ title: 'Date', type: 'date', width: 11 }, { title: 'Contrat', width: 30 }, { title: 'Fournisseur', width: 30 }, { title: 'Catégorie', width: 22 }, { title: 'Code TVA', width: 9 }, { title: 'Montant prélevé', type: 'num' }, { title: 'Montant du contrat', type: 'num' }, { title: 'Justificatif', width: 30 }];
   const ctRows = db.fac_bank_tx.filter(t => t.contrat_id && inRange(t.booking_date, r)).sort((a, b) => a.booking_date.localeCompare(b.booking_date)).map(t => { const c = db.fac_contrats.find(x => x.id === t.contrat_id) || {};
