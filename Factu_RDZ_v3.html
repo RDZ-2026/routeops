@@ -611,7 +611,7 @@ body{background:var(--bg);font-size:13.5px;}
             <button class="btn btn-primary" id="btn-package" onclick="exportPackageFiduciaire()">Paquet mensuel (Excel + PDF)</button>
             <button class="btn btn-ghost" onclick="exportExcelFiduciaire()">Excel seul</button>
           </div>
-          <p class="fhint" style="margin-top:10px">Le ZIP contient le classeur Excel (onglets Factures, Encaissements, Achats), les PDF archivés des factures et notes de crédit numérotés dans l'ordre, et les pièces des achats. Un fichier « À lire » signale ce qui manque.</p>
+          <p class="fhint" style="margin-top:10px">Le ZIP contient le classeur Excel (Factures, Encaissements, Achats, Sorties bancaires, Paiements récurrents, Contrôle banque), les PDF des factures et notes de crédit dans l'ordre, les pièces des achats et les contrats des paiements récurrents. Un fichier « À lire » liste ce qui manque, dont les sorties sans justificatif.</p>
         </div>
         <div class="card">
           <div class="card-head"><div class="card-title">Autres formats</div></div>
@@ -3601,7 +3601,7 @@ async function buildXlsx(sheets) {
     const body = sh.rows.map((r, ri) => `<row r="${ri + 2}">${r.map((v, ci) => {
       const ref = `${colName(ci)}${ri + 2}`, type = sh.columns[ci].type;
       if (v === null || v === undefined || v === '') return '';
-      if (type === 'num') return `<c r="${ref}" s="2"><v>${round2(num(v))}</v></c>`;
+      if (type === 'num' && (typeof v === 'number' || /^-?\d+(\.\d+)?$/.test(String(v)))) return `<c r="${ref}" s="2"><v>${round2(num(v))}</v></c>`;
       if (type === 'date') return `<c r="${ref}" s="3"><v>${excelDate(v)}</v></c>`;
       return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`;
     }).join('')}</row>`).join('');
@@ -3662,7 +3662,44 @@ function fiduciarySheets(r) {
   const ctCols = [{ title: 'Date', type: 'date', width: 11 }, { title: 'Contrat', width: 30 }, { title: 'Fournisseur', width: 30 }, { title: 'Catégorie', width: 22 }, { title: 'Code TVA', width: 9 }, { title: 'Montant prélevé', type: 'num' }, { title: 'Montant du contrat', type: 'num' }, { title: 'Justificatif', width: 30 }];
   const ctRows = db.fac_bank_tx.filter(t => t.contrat_id && inRange(t.booking_date, r)).sort((a, b) => a.booking_date.localeCompare(b.booking_date)).map(t => { const c = db.fac_contrats.find(x => x.id === t.contrat_id) || {};
     return [t.booking_date, c.libelle || '', c.fournisseur || t.counterparty || '', c.categorie || t.category || '', c.tva_code || '', -num(t.amount), num(c.montant), c.piece_name || (c.piece_path ? 'oui' : 'MANQUANT')]; });
-  return { docs, ach, sheets: [{ name: 'Factures', columns: facCols, rows: facRows }, { name: 'Encaissements', columns: encCols, rows: encRows }, { name: 'Achats', columns: achCols, rows: achRows }, { name: 'Paiements récurrents', columns: ctCols, rows: ctRows }] };
+  // Toutes les sorties du compte sur la période, avec leur justificatif
+  const outTx = db.fac_bank_tx.filter(t => t.amount < 0 && inRange(t.booking_date, r)).sort((a, b) => a.booking_date.localeCompare(b.booking_date) || num(a.amount) - num(b.amount));
+  const PAYROLL = ['Salaires', 'Charges sociales'];
+  const unjustified = [], ctPieces = new Map();
+  const outRows = outTx.map(t => {
+    const amt = -num(t.amount); let just = '', piece = '', status = '';
+    const al = allocsForTx(t.id).filter(a => a.achat_id);
+    if (al.length) {
+      const names = al.map(a => { const x = db.fac_achats.find(y => y.id === a.achat_id); return x ? `${x.fournisseur}${x.numero_facture ? ' n° ' + x.numero_facture : ''}` : '?'; });
+      piece = al.map(a => { const x = db.fac_achats.find(y => y.id === a.achat_id); return x && x.piece_path ? achatPieceName(x) : 'pièce manquante'; }).join(' / ');
+      const cov = round2(al.reduce((s, a) => s + num(a.amount), 0));
+      just = 'Achat : ' + names.join(' + '); status = cov >= amt - 0.009 ? 'Justifié' : `Partiel (reste ${fmtAmt(amt - cov)})`;
+    } else if (t.contrat_id) {
+      const c = db.fac_contrats.find(x => x.id === t.contrat_id) || {};
+      just = 'Paiement récurrent : ' + (c.libelle || ''); piece = c.piece_name || (c.piece_path ? 'contrat' : 'contrat manquant'); status = c.piece_path ? 'Justifié' : 'Contrat manquant';
+      if (c.piece_path) ctPieces.set(c.piece_path, c);
+    } else if (t.category === INTERNAL_CATEGORY) { just = 'Transfert interne'; status = 'Sans objet'; }
+    else if (PAYROLL.includes(t.category)) { just = 'Paie (décomptes Socafid)'; status = 'Justifié par la paie'; }
+    else if (t.category === 'Frais bancaires') { just = 'Relevé PostFinance'; status = 'Justifié'; }
+    else { just = ''; status = 'SANS JUSTIFICATIF'; unjustified.push(t); }
+    return [t.booking_date, amt, t.counterparty || '', (t.remittance || t.info || '').slice(0, 160), t.category || '', just, piece, status];
+  });
+  const outCols = [{ title: 'Date', type: 'date', width: 11 }, { title: 'Montant', type: 'num' }, { title: 'Bénéficiaire (relevé)', width: 32 }, { title: 'Communication', width: 44 }, { title: 'Catégorie', width: 22 }, { title: 'Justificatif', width: 38 }, { title: 'Pièce', width: 34 }, { title: 'Statut', width: 20 }];
+  // Relevé : soldes et contrôle de cohérence
+  const stmts = db.fac_bank_statements.slice().sort((a, b) => String(a.closing_date).localeCompare(String(b.closing_date)));
+  const [rFrom, rTo] = r; const before = stmts.filter(s => s.closing_date && s.closing_date < rFrom).pop(), atEnd = stmts.filter(s => s.closing_date && s.closing_date <= rTo).pop();
+  const inSum = round2(db.fac_bank_tx.filter(t => t.amount > 0 && inRange(t.booking_date, r)).reduce((s, t) => s + num(t.amount), 0));
+  const outSum = round2(outTx.reduce((s, t) => s - num(t.amount), 0));
+  const opening = before ? num(before.closing) : null, closing = atEnd ? num(atEnd.closing) : null;
+  const recRows = [
+    ['Solde au début de la période', opening ?? ''], ['Total des entrées', inSum], ['Total des sorties', outSum],
+    ['Solde final calculé', opening != null ? round2(opening + inSum - outSum) : ''], [`Solde du dernier relevé importé${atEnd ? ' (' + fmtDate(atEnd.closing_date) + ')' : ''}`, closing ?? ''],
+    ['Écart (doit être 0)', opening != null && closing != null && atEnd.closing_date >= (rTo < '9999' ? rTo : atEnd.closing_date).slice(0, 8) + '28' ? round2(closing - (opening + inSum - outSum)) : 'relevé incomplet'],
+    ['Sorties de la période', outTx.length], ['dont justifiées (achat, contrat, paie, banque)', outTx.length - unjustified.length - outRows.filter(x => x[7] === 'Sans objet').length],
+    ['dont sans justificatif', unjustified.length], ['Montant sans justificatif', round2(unjustified.reduce((s, t) => s - num(t.amount), 0))]];
+  const recCols = [{ title: 'Contrôle', width: 46 }, { title: 'CHF', type: 'num' }];
+  return { docs, ach, unjustified, ctPieces: [...ctPieces.values()], sheets: [{ name: 'Factures', columns: facCols, rows: facRows }, { name: 'Encaissements', columns: encCols, rows: encRows }, { name: 'Achats', columns: achCols, rows: achRows },
+    { name: 'Sorties bancaires', columns: outCols, rows: outRows }, { name: 'Paiements récurrents', columns: ctCols, rows: ctRows }, { name: 'Contrôle banque', columns: recCols, rows: recRows }] };
 }
 function achatPieceName(a) { const ext = (String(a.piece_path).match(/\.[a-z0-9]+$/i) || ['.pdf'])[0]; return `${a.date_facture}_${safeFile(a.fournisseur)}${a.numero_facture ? '_' + safeFile(a.numero_facture) : ''}${ext}`; }
 function periodLabel(r) { return r[0].slice(0, 7) === r[1].slice(0, 7) ? r[0].slice(0, 7) : `${r[0]}_${r[1]}`; }
@@ -3680,8 +3717,8 @@ async function fetchStored(path) {
 async function exportPackageFiduciaire() {
   if (!navigator.onLine) { toast('Connexion requise pour réunir les PDF archivés', 'err'); return; }
   const r = exRange(); const label = periodLabel(r);
-  const { docs, ach, sheets } = fiduciarySheets(r);
-  if (!docs.length && !ach.length) { toast('Aucune facture ni achat sur cette période', 'err'); return; }
+  const { docs, ach, sheets, unjustified, ctPieces } = fiduciarySheets(r);
+  if (!docs.length && !ach.length && !sheets[3].rows.length) { toast('Aucune facture, achat ni mouvement sur cette période', 'err'); return; }
   const btn = $('btn-package'); btn.disabled = true;
   const files = [], issues = [];
   try {
@@ -3698,6 +3735,9 @@ async function exportPackageFiduciaire() {
       btn.textContent = `Pièces ${i + 1}/${ach.length}…`;
       try { files.push({ name: `achats/${achatPieceName(a)}`, data: await fetchStored(a.piece_path) }); } catch (e) { issues.push(e.message); }
     }
+    for (const c of ctPieces) { try { files.push({ name: `contrats/${(c.piece_name || c.libelle + '.pdf').replace(/[\\/:*?"<>|]/g, '_')}`, data: await fetchStored(c.piece_path) }); } catch (e) { issues.push(`Contrat ${c.libelle} : ${e.message}`); } }
+    if (unjustified.length) { issues.push('', `${unjustified.length} sortie(s) bancaire(s) sans justificatif (onglet « Sorties bancaires ») :`);
+      unjustified.forEach(t => issues.push(`  ${fmtDate(t.booking_date)}  ${fmtAmt(-t.amount).padStart(12)} CHF  ${t.counterparty || ''}  ${(t.remittance || '').slice(0, 60)}`)); }
     if (issues.length) files.push({ name: 'A_LIRE_points_a_verifier.txt', data: issues.join('\r\n') });
     download(`RDZ_fiduciaire_${label}.zip`, await buildZip(files), 'application/zip');
     toast(`Paquet prêt : ${docs.length} facture(s), ${ach.filter(a => a.piece_path).length} pièce(s) d'achat${issues.length ? ` · ${issues.length} point(s) à vérifier` : ''}`, issues.length ? 'err' : 'ok');
