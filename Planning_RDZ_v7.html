@@ -1,4 +1,4 @@
-<!-- RDZ · Planning_RDZ · v7 · 2026-11-16 · base v6 + reliquat de congés de l’année précédente (Réglages › Comptes congés) -->
+<!-- RDZ · Planning_RDZ · v7 · 2026-11-16 · base v6 + reliquat de congés N-1 avec date limite de prise, soldes restants, suppression d’un compte congés -->
 <!-- RDZ · Planning_RDZ · v6 · 2026-10-14 · base v5 + statut « Sous-traitant » (agents hors base RH : planifiables, exclus de la paie et du compteur d’heures) -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -686,7 +686,7 @@ function mapAgent(row, leaveByAgent){
     } : undefined,
     weekly: row.weekly, annual: row.annual, monthly: row.monthly ?? undefined, done: row.done||0,
     available: !!row.available, competencePassport: row.competence_passport||[], quizResults: row.quiz_results||[],
-    leaveAccounts: (leaveByAgent[row.id]||[]).map(l=>({ year:l.year, opening:Number(l.opening)||0, carryover:Number(l.carryover)||0, method:l.method }))
+    leaveAccounts: (leaveByAgent[row.id]||[]).map(l=>({ year:Number(l.year), opening:Number(l.opening)||0, carryover:Number(l.carryover)||0, carryoverUntil:l.carryover_until||'', method:l.method }))
   };
   if(row.deleted_at) a.deletedAt = row.deleted_at;
   return a;
@@ -852,11 +852,15 @@ async function apiAction(action, params){
       case 'approveAbsence': await rpc('rdz_planning_approve_absence', { p_id: params.id, p_accept: !!params.accept }); break;
 
       case 'saveLeaveAccount':
-        // `opening` stays the TOTAL available (annual entitlement + carry-over), so every
-        // existing balance computation (Planning, agent app) keeps working unchanged.
-        // The carry-over part is stored separately for display.
+        // `opening` stays the TOTAL available (annual + carry-over); the carry-over part
+        // and its deadline are stored separately and applied by rdz_planning_leave_balance_calc.
         await rpc('rdz_planning_save_leave_account', { p_agent: params.agent, p_year: params.year, p_opening: params.opening, p_method: params.method });
-        await rpc('rdz_planning_set_leave_carryover', { p_agent: params.agent, p_year: params.year, p_carryover: params.carryover||0 });
+        await rpc('rdz_planning_set_leave_carryover', { p_agent: params.agent, p_year: params.year, p_carryover: params.carryover||0, p_until: params.carryoverUntil||null });
+        LEAVE_BAL = null;
+        break;
+      case 'deleteLeaveAccount':
+        await rpc('rdz_planning_delete_leave_account', { p_agent: params.agent, p_year: params.year });
+        LEAVE_BAL = null;
         break;
 
       case 'saveMember': await rpc('rdz_planning_save_member', { p_values: params.values }); break;
@@ -3655,6 +3659,7 @@ async function sendMessageFormAgent(){
 }
 function renderSettings(el){
   const isOwner = ACTOR.owner;
+  setTimeout(loadLeaveBalances, 0);
   const canManageViews = ACTOR.role==='direction'||ACTOR.role==='planning';
   const rules = STATE.rules;
   const members = STATE.members||[];
@@ -3678,10 +3683,9 @@ function renderSettings(el){
         <div style="font-weight:700;">Comptes congés</div>
         <button class="btn btn-ghost btn-sm" onclick="openLeaveAccountModal()">+ Définir un solde</button>
       </div>
-      <div class="hint" style="margin-bottom:10px;">Le reliquat correspond aux jours non pris de l’année précédente. Il s’ajoute au droit annuel et l’agent voit le total dans son application.</div>
-      <div class="tbl-wrap"><table><thead><tr><th>Agent</th><th>Année</th><th>Droit annuel</th><th>Reliquat N-1</th><th>Total</th><th>Méthode</th><th></th></tr></thead><tbody>
-        ${agents.flatMap(a=>(a.leaveAccounts||[]).slice().sort((x,y)=>y.year-x.year).map(la=>`<tr><td>${esc(displayNomPrenom(a))}</td><td>${la.year}</td><td>${fmtLeaveDays(la.opening-(la.carryover||0))}</td><td>${la.carryover? fmtLeaveDays(la.carryover)+' <span class="hint">('+(la.year-1)+')</span>' : '—'}</td><td><b>${fmtLeaveDays(la.opening)}</b></td><td>${la.method==='scheduled'?'Jours planifiés':'Jours ouvrés'}</td>
-          <td style="text-align:right;"><button class="btn btn-sm btn-ghost" onclick="openLeaveAccountModal('${jsStr(a.id)}',${Number(la.year)})" title="Modifier">✏️</button></td></tr>`)).join('') || '<tr><td colspan="7" style="color:var(--text3);">Aucun compte congé défini</td></tr>'}
+      <div class="hint" style="margin-bottom:10px;">Le reliquat (jours non pris de l’année précédente) s’ajoute au droit annuel. Les congés pris jusqu’à sa date limite le consomment en premier ; ce qui n’est pas pris à cette date est perdu. L’agent voit son solde dans son application.</div>
+      <div class="tbl-wrap"><table><thead><tr><th>Agent</th><th>Année</th><th>Droit annuel</th><th>Reliquat N-1</th><th>Total</th><th>Pris</th><th>Restant</th><th></th></tr></thead><tbody id="leave-tbody">
+        ${leaveAccountRowsHtml(agents)}
       </tbody></table></div>
     </div>
 
@@ -3720,42 +3724,99 @@ async function saveRulesForm(){
   const ok = await apiAction('rules', { values });
   if(ok) toast('Règles mises à jour');
 }
+// ── COMPTES CONGÉS (droit annuel + reliquat N-1 avec date limite) ──
+let LEAVE_BAL = null;        // { 'agentId|year': balance } — chargé à l'ouverture des Réglages
+let LEAVE_BAL_LOADING = false;
 function fmtLeaveDays(n){ n = Number(n)||0; return String(Number.isInteger(n)? n : n.toFixed(1)).replace('.',',')+' j'; }
+function fmtShortDate(iso){ if(!iso) return ''; const [y,m,d] = String(iso).slice(0,10).split('-'); return d+'.'+m+'.'+y; }
+async function loadLeaveBalances(force){
+  if(LEAVE_BAL_LOADING || (LEAVE_BAL && !force)) { refreshLeaveTable(); return; }
+  if(!(ACTOR && (ACTOR.role==='direction'||ACTOR.role==='planning'))) return;
+  LEAVE_BAL_LOADING = true;
+  try{
+    const rows = await rpc('rdz_planning_leave_balances', {});
+    const m = {}; (rows||[]).forEach(b=>{ if(b && b.agent_id) m[b.agent_id+'|'+b.year] = b; });
+    LEAVE_BAL = m;
+  }catch(e){ LEAVE_BAL = LEAVE_BAL || {}; }
+  finally{ LEAVE_BAL_LOADING = false; }
+  refreshLeaveTable();
+}
+function refreshLeaveTable(){
+  const tb = document.getElementById('leave-tbody'); if(!tb || !STATE) return;
+  tb.innerHTML = leaveAccountRowsHtml(sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt)));
+}
+function leaveAccountRowsHtml(agents){
+  const canManage = ACTOR.role==='direction'||ACTOR.role==='planning';
+  const rows = agents.flatMap(a=>(a.leaveAccounts||[]).slice().sort((x,y)=>y.year-x.year).map(la=>{
+    const b = LEAVE_BAL? LEAVE_BAL[a.id+'|'+la.year] : null;
+    let carry = '—';
+    if(la.carryover){
+      carry = fmtLeaveDays(la.carryover)+' <span class="hint">('+(la.year-1)+')</span>';
+      if(la.carryoverUntil) carry += `<div class="hint">à prendre avant le ${esc(fmtShortDate(la.carryoverUntil))}</div>`;
+      if(b && b.carryover_expired && b.carryover_lapsed>0) carry += `<div class="hint" style="color:#b91c1c;">${fmtLeaveDays(b.carryover_lapsed)} perdu${b.carryover_lapsed>1?'s':''}</div>`;
+      else if(b && la.carryoverUntil && !b.carryover_expired) carry += `<div class="hint">reste ${fmtLeaveDays(b.carryover_left)}</div>`;
+    }
+    const taken = b? fmtLeaveDays(b.taken)+(b.pending? `<div class="hint">+ ${fmtLeaveDays(b.pending)} en attente</div>` : '') : (LEAVE_BAL? '—' : '…');
+    const remaining = b? `<b style="color:${b.remaining<0?'#b91c1c':'inherit'}">${fmtLeaveDays(b.remaining)}</b>` : (LEAVE_BAL? '—' : '…');
+    const total = b && b.carryover_expired? fmtLeaveDays(b.opening)+` <span class="hint">(${fmtLeaveDays(la.opening)} avant le ${esc(fmtShortDate(la.carryoverUntil))})</span>` : fmtLeaveDays(la.opening);
+    return `<tr><td>${esc(displayNomPrenom(a))}</td><td>${la.year}</td><td>${fmtLeaveDays(la.opening-(la.carryover||0))}</td><td>${carry}</td><td>${total}</td><td>${taken}</td><td>${remaining}</td>
+      <td style="text-align:right;white-space:nowrap;">${canManage? `<button class="btn btn-sm btn-ghost" onclick="openLeaveAccountModal('${jsStr(a.id)}',${Number(la.year)})" title="Modifier">✏️</button><button class="btn btn-sm btn-danger" onclick="deleteLeaveAccountAction('${jsStr(a.id)}',${Number(la.year)})" title="Supprimer">🗑</button>` : ''}</td></tr>`;
+  }));
+  return rows.join('') || '<tr><td colspan="8" style="color:var(--text3);">Aucun compte congé défini</td></tr>';
+}
 function openLeaveAccountModal(agentId, year){
   const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
-  const nextYear = new Date().getFullYear() + (new Date().getMonth()>=10 ? 1 : 0); // à partir de novembre, on prépare l'année suivante
+  const now = new Date();
+  const defYear = now.getFullYear() + (now.getMonth()>=9 ? 1 : 0); // dès octobre, on prépare l'année suivante
   const a = agentId? agentById(agentId) : null;
   const la = a && year? (a.leaveAccounts||[]).find(x=>Number(x.year)===Number(year)) : null;
-  const y = la? la.year : nextYear;
+  const y = la? la.year : defYear;
   const carry = la? (la.carryover||0) : 0;
-  const annual = la? (la.opening - carry) : 25;
+  const annual = la? (la.opening - carry) : 20;
+  const until = la && la.carryoverUntil? String(la.carryoverUntil).slice(0,10) : (y+'-03-31');
   openModal('leave-modal', la? 'Modifier le solde de congés' : 'Solde de congés', `
     <div class="fgrid">
       <div class="fg full"><div class="flabel">Agent *</div><select class="fsel" id="la-agent" ${la?'disabled':''}>${agents.map(x=>`<option value="${x.id}" ${a&&x.id===a.id?'selected':''}>${esc(displayNomPrenom(x))}</option>`).join('')}</select></div>
-      <div class="fg"><div class="flabel">Année *</div><input class="finp" type="number" id="la-year" value="${y}" ${la?'disabled':''} oninput="updateLeaveTotal()"></div>
-      <div class="fg"><div class="flabel">Droit annuel (j) *</div><input class="finp" type="number" id="la-annual" min="0" step="0.5" value="${annual}" oninput="updateLeaveTotal()"></div>
-      <div class="fg"><div class="flabel" id="la-carry-label">Reliquat ${y-1} (j)</div><input class="finp" type="number" id="la-carry" min="0" step="0.5" value="${carry}" oninput="updateLeaveTotal()"></div>
+      <div class="fg"><div class="flabel">Année *</div><input class="finp" type="number" id="la-year" value="${y}" ${la?'disabled':''} oninput="updateLeaveForm(true)"></div>
+      <div class="fg"><div class="flabel">Droit annuel (j) *</div><input class="finp" type="number" id="la-annual" min="0" step="0.5" value="${annual}" oninput="updateLeaveForm()"></div>
+      <div class="fg"><div class="flabel" id="la-carry-label">Reliquat ${y-1} (j)</div><input class="finp" type="number" id="la-carry" min="0" step="0.5" value="${carry}" oninput="updateLeaveForm()"></div>
+      <div class="fg"><div class="flabel">Reliquat à prendre avant le</div><input class="finp" type="date" id="la-until" value="${until}"></div>
       <div class="fg"><div class="flabel">Total disponible</div><div class="finp" id="la-total" style="background:var(--bg);font-weight:700;"></div></div>
-      <div class="fg full"><div class="flabel">Méthode de décompte</div><select class="fsel" id="la-method"><option value="weekdays" ${la&&la.method==='scheduled'?'':'selected'}>Jours ouvrés</option><option value="scheduled" ${la&&la.method==='scheduled'?'selected':''}>Jours planifiés</option></select></div>
+      <div class="fg"><div class="flabel">Méthode de décompte</div><select class="fsel" id="la-method"><option value="weekdays" ${la&&la.method==='scheduled'?'':'selected'}>Jours ouvrés</option><option value="scheduled" ${la&&la.method==='scheduled'?'selected':''}>Jours planifiés</option></select></div>
     </div>
-    <div class="hint" style="margin-top:8px;">L’agent voit le total dans son application. Les congés déjà pris ou demandés pour cette année sont déduits automatiquement.</div>
+    <div class="hint" style="margin-top:8px;" id="la-help"></div>
   `, `<button class="btn btn-ghost" onclick="closeModal()">Annuler</button><button class="btn btn-primary" onclick="saveLeaveAccountForm()">Enregistrer</button>`);
-  updateLeaveTotal();
+  updateLeaveForm();
 }
-function updateLeaveTotal(){
+function updateLeaveForm(yearChanged){
   const annual = Number(modalVal('la-annual'))||0, carry = Number(modalVal('la-carry'))||0, y = Number(modalVal('la-year'))||0;
+  const until = document.getElementById('la-until');
+  if(yearChanged && until && y>=2000) until.value = y+'-03-31';
+  if(until) until.disabled = !(carry>0);
   const t = document.getElementById('la-total'); if(t) t.textContent = fmtLeaveDays(annual+carry);
   const l = document.getElementById('la-carry-label'); if(l && y) l.textContent = 'Reliquat '+(y-1)+' (j)';
+  const h = document.getElementById('la-help');
+  if(h) h.textContent = carry>0
+    ? `L’agent verra ${fmtLeaveDays(annual+carry)} : ${fmtLeaveDays(annual)} pour ${y} + ${fmtLeaveDays(carry)} de reliquat ${y-1}. Les congés pris jusqu’au ${fmtShortDate(until&&until.value)||'…'} utilisent d’abord le reliquat ; le reliquat non pris à cette date est perdu.`
+    : `L’agent verra ${fmtLeaveDays(annual)} pour ${y}. Les congés pris ou demandés sont déduits automatiquement.`;
 }
 async function saveLeaveAccountForm(){
   const agent = modalVal('la-agent'), year = Number(modalVal('la-year'));
   const annual = Number(modalVal('la-annual')), carryover = Number(modalVal('la-carry')||0);
+  const carryoverUntil = carryover>0? (modalVal('la-until')||'') : '';
   if(!agent){ modalError('Choisissez un agent.'); return; }
   if(!(year>=2020 && year<=2100)){ modalError('Année invalide.'); return; }
   if(!(annual>=0) || annual>100){ modalError('Droit annuel invalide.'); return; }
   if(!(carryover>=0) || carryover>100){ modalError('Reliquat invalide.'); return; }
-  const ok = await apiAction('saveLeaveAccount', { agent, year, opening: annual+carryover, carryover, method: modalVal('la-method') });
-  if(ok){ closeModal(); toast('Solde de congés enregistré'); }
+  if(carryover>0 && carryoverUntil && Number(carryoverUntil.slice(0,4))!==year){ modalError('La date limite du reliquat doit être dans l’année '+year+'.'); return; }
+  const ok = await apiAction('saveLeaveAccount', { agent, year, opening: annual+carryover, carryover, carryoverUntil, method: modalVal('la-method') });
+  if(ok){ closeModal(); toast('Solde de congés enregistré'); loadLeaveBalances(true); }
+}
+async function deleteLeaveAccountAction(agentId, year){
+  const a = agentById(agentId);
+  if(!confirm(`Supprimer le compte congés ${year} de ${a? displayNomPrenom(a) : 'cet agent'} ?\n\nLes demandes de congé déjà faites ne sont pas supprimées.`)) return;
+  const ok = await apiAction('deleteLeaveAccount', { agent: agentId, year });
+  if(ok){ toast('Compte congés supprimé'); loadLeaveBalances(true); }
 }
 function openMemberModal(email){
   const m = email? (STATE.members||[]).find(x=>x.email===email) : null;
