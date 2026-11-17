@@ -1099,13 +1099,13 @@ const PORTAL_URL = 'https://rdz-2026.github.io/routeops/RDZ_index.html';
 const TABLES = ['fac_clients', 'fac_documents', 'fac_achats', 'fac_contrats', 'fac_bank_statements', 'fac_bank_tx', 'fac_bank_rules', 'fac_allocations'];
 const COLUMNS = {
   fac_clients: ['id','nom','nom_court','complement','rue','numero_rue','npa','ville','pays','email','contact','delai_pmt','tva_rate','crm_client_id','notes','created_at','deleted_at'],
-  fac_documents: ['id','kind','numero','seq','client_id','client_snapshot','titre','date_doc','date_echeance','periode_debut','periode_fin','site','lignes','tva_rate','tva_code','total_ht','total_tva','total_ttc','total_breakdown','statut','reference','source_devis_id','ref_document_id','intro','conclusion','notes_internes','sent_at','emitted_at','cancelled_reason','legacy','pdf_path','pdf_sha256','version','revised_at','revision_reason','pdf_history','created_by','created_at','deleted_at'],
+  fac_documents: ['id','kind','numero','seq','client_id','client_snapshot','titre','date_doc','date_echeance','periode_debut','periode_fin','site','lignes','tva_rate','tva_code','total_ht','total_tva','total_ttc','total_breakdown','devise','taux','statut','reference','source_devis_id','ref_document_id','intro','conclusion','notes_internes','sent_at','emitted_at','cancelled_reason','legacy','pdf_path','pdf_sha256','version','revised_at','revision_reason','pdf_history','created_by','created_at','deleted_at'],
   fac_achats: ['id','fournisseur','numero_facture','date_facture','date_echeance','categorie','site','montant_ht','tva_rate','tva_code','montant_tva','montant_ttc','reference_paiement','piece_path','piece_name','notes','devise','montant_devise','taux','tva_lines','created_by','created_at','deleted_at'],
   fac_bank_statements: ['id','camt_type','iban','from_date','to_date','opening','closing','closing_date','filename','imported_by','imported_at'],
   fac_bank_tx: ['id','statement_id','iban','booking_date','value_date','amount','currency','counterparty','counterparty_iban','reference','ref_type','remittance','info','category','note','contrat_id','created_at'],
   fac_contrats: ['id','libelle','fournisseur','motif','categorie','site','montant','tva_code','periodicite','jour','date_debut','date_fin','piece_path','piece_name','notes','actif','created_by','created_at','deleted_at'],
   fac_bank_rules: ['id','pattern','direction','category','created_at'],
-  fac_allocations: ['id','tx_id','document_id','achat_id','amount','pay_date','mode','note','created_by','created_at'],
+  fac_allocations: ['id','tx_id','document_id','achat_id','amount','pay_date','mode','note','created_by','created_at','montant_devise'],
 };
 
 const DEFAULT_SETTINGS = {
@@ -1410,6 +1410,7 @@ function cleanRow(table, row) {
     if (out.lignes == null) out.lignes = [];
     if (out.total_breakdown == null) out.total_breakdown = [];
     if (out.tva_code == null) out.tva_code = 'N81';
+    if (out.devise == null) out.devise = 'CHF';
   }
   if (table === 'fac_achats' && out.tva_code == null) out.tva_code = 'N81';
   return out;
@@ -1577,10 +1578,23 @@ function txAllocated(t) { return round2(allocsForTx(t.id).reduce((s, a) => s + M
 function txOpen(t) { return round2(Math.abs(num(t.amount)) - txAllocated(t)); }
 function avoirsFor(d) { return db.fac_documents.filter(x => x.kind === 'avoir' && x.ref_document_id === d.id && x.statut === 'emise' && !x.deleted_at); }
 function docCredited(d) { return round2(avoirsFor(d).reduce((s, a) => s + num(a.total_ttc), 0)); }
-function docPaid(d) { return round2(allocsForDoc(d.id).filter(a => a.mode !== 'perte' && a.mode !== 'remise').reduce((s, a) => s + num(a.amount), 0)); }
-function docDiscount(d) { return round2(allocsForDoc(d.id).filter(a => a.mode === 'remise').reduce((s, a) => s + num(a.amount), 0)); }
-function discountHT(a) { const d = db.fac_documents.find(x => x.id === a.document_id); return d && num(d.total_ttc) ? round2(num(a.amount) * num(d.total_ht) / num(d.total_ttc)) : 0; }
-function docWrittenOff(d) { return round2(allocsForDoc(d.id).filter(a => a.mode === 'perte').reduce((s, a) => s + num(a.amount), 0)); }
+function docCur(d) { return (d && d.devise) || 'CHF'; }
+function fx(d) { return docCur(d) === 'CHF' ? 1 : (num(d.taux) || 1); }
+function fxMissing(d) { return docCur(d) !== 'CHF' && !num(d.taux); }
+function allocDocAmt(a, d) { d = d || db.fac_documents.find(x => x.id === a.document_id); if (docCur(d) === 'CHF') return num(a.amount); return a.montant_devise != null ? num(a.montant_devise) : (['remise', 'perte'].includes(a.mode) ? num(a.amount) : num(a.amount) / fx(d)); }
+function money(d, v, dec) { return (docCur(d) === 'CHF' ? '' : docCur(d) + ' ') + fmtAmt(v, dec); }
+function docRemainingCHF(d) { return round2(docRemaining(d) * fx(d)); }
+// Ventilation d'un encaissement en CHF sur une facture : en devise, le paiement complet (±3 % de change) solde la facture
+function docAlloc(t, d, amtCHF, mode) {
+  const rem = docRemaining(d), base = { id: uuid(), tx_id: t.id, document_id: d.id, achat_id: null, pay_date: t.booking_date, mode, created_by: userEmail() };
+  if (docCur(d) === 'CHF') return { ...base, amount: round2(Math.min(amtCHF, rem)) };
+  const conv = amtCHF / fx(d);
+  return { ...base, amount: round2(amtCHF), montant_devise: round2(Math.abs(conv - rem) <= rem * 0.03 ? rem : Math.min(conv, rem)) };
+}
+function docPaid(d) { return round2(allocsForDoc(d.id).filter(a => a.mode !== 'perte' && a.mode !== 'remise').reduce((s, a) => s + allocDocAmt(a, d), 0)); }
+function docDiscount(d) { return round2(allocsForDoc(d.id).filter(a => a.mode === 'remise').reduce((s, a) => s + allocDocAmt(a, d), 0)); }
+function discountHT(a) { const d = db.fac_documents.find(x => x.id === a.document_id); return d && num(d.total_ttc) ? round2(allocDocAmt(a, d) * fx(d) * num(d.total_ht) / num(d.total_ttc)) : 0; }
+function docWrittenOff(d) { return round2(allocsForDoc(d.id).filter(a => a.mode === 'perte').reduce((s, a) => s + allocDocAmt(a, d), 0)); }
 function docLastPaymentDate(d) { return allocsForDoc(d.id).filter(a => num(a.amount) > 0 && a.mode !== 'perte' && a.mode !== 'remise').map(a => a.pay_date).sort().pop() || null; }
 function docRemaining(d) { return round2(num(d.total_ttc) - docCredited(d) - docPaid(d) - docWrittenOff(d) - docDiscount(d)); }
 // État calculé d'une facture : brouillon | annulee | creditee | payee | trop | partielle | retard | attente
@@ -1758,15 +1772,15 @@ function renderFactures() {
   $('fac-sub').textContent = `${factures().filter(d => d.statut !== 'brouillon').length} factures émises, ${open.length} en suspens`;
   if (!list.length) { $('fac-list').innerHTML = `<div class="empty"><b>Aucun document</b>${canWrite() ? 'Créez une facture ou reprenez une facture émise dans Bexio.' : ''}</div>`; return; }
   const sign = d => d.kind === 'avoir' ? -1 : 1;
-  const tot = list.filter(d => d.statut !== 'annulee' && d.statut !== 'brouillon').reduce((s, d) => s + sign(d) * Number(d.total_ttc || 0), 0);
+  const tot = list.filter(d => d.statut !== 'annulee' && d.statut !== 'brouillon').reduce((s, d) => s + sign(d) * Number(d.total_ttc || 0) * fx(d), 0);
   $('fac-list').innerHTML = `<table class="tbl"><thead><tr><th>N°</th><th>Date</th><th>Client</th><th>Objet</th><th>Échéance</th><th class="num">Montant TTC</th><th class="num">Reste dû</th><th>Statut</th></tr></thead>
     <tbody>${list.map(d => {
       if (d.kind === 'avoir') { const ref = db.fac_documents.find(x => x.id === d.ref_document_id);
         return `<tr class="click" onclick="openDoc('${d.id}')"><td class="mono">${esc(d.numero || '—')}</td><td>${fmtDate(d.date_doc)}</td><td>${esc(docClientName(d))}</td>
         <td>${esc(d.titre || '')}<div class="sub">Note de crédit${ref ? ' sur la facture ' + esc(ref.numero) : ''}</div></td><td></td><td class="num">−${fmtAmt(d.total_ttc)}</td><td></td><td>${badge(d.statut === 'brouillon' ? 'Brouillon' : 'Note de crédit', d.statut === 'brouillon' ? 'b-gray' : 'b-yellow')}</td></tr>`; }
-      const st = invoiceState(d); const [bl, bc] = INV_BADGE[st]; const rem = d.statut === 'brouillon' || st === 'annulee' ? '' : fmtAmt(docRemaining(d));
+      const st = invoiceState(d); const [bl, bc] = INV_BADGE[st]; const rem = d.statut === 'brouillon' || st === 'annulee' ? '' : money(d, docRemaining(d));
       return `<tr class="click" onclick="openDoc('${d.id}')"><td class="mono">${esc(d.numero || '—')}</td><td>${fmtDate(d.date_doc)}</td><td>${esc(docClientName(d))}</td>
-      <td>${esc(d.titre || '')}${d.site ? `<div class="sub">${esc(d.site)}</div>` : ''}</td><td>${fmtDate(d.date_echeance)}</td><td class="num">${fmtAmt(d.total_ttc)}</td><td class="num">${rem}</td><td>${badge(bl, bc)}</td></tr>`; }).join('')}</tbody>
+      <td>${esc(d.titre || '')}${d.site ? `<div class="sub">${esc(d.site)}</div>` : ''}</td><td>${fmtDate(d.date_echeance)}</td><td class="num">${money(d, d.total_ttc)}</td><td class="num">${rem}</td><td>${badge(bl, bc)}</td></tr>`; }).join('')}</tbody>
     <tfoot><tr><td colspan="5">${list.length} document${list.length > 1 ? 's' : ''} (total net des notes de crédit, hors brouillons et annulées)</td><td class="num">${fmtAmt(tot)}</td><td></td><td></td></tr></tfoot></table>`;
 }
 function renderDevis() {
@@ -1856,7 +1870,11 @@ function renderDocModal() {
     ${isA ? '' : `<div class="fg c3"><label class="flabel" for="d-ech">${isF ? 'Payable jusqu’au' : 'Valable jusqu’au'}</label><input class="finp" type="date" id="d-ech" ${dis} value="${d.date_echeance || ''}" onchange="editDoc.date_echeance=this.value"></div>`}
     <div class="fg c6"><span class="flabel">Prestations</span><div style="display:flex;gap:6px;align-items:center" id="d-period">${periodInputsHTML(d, dis)}</div></div>
     <div class="fg c4"><label class="flabel" for="d-tva">TVA par défaut des nouvelles lignes</label><select class="fsel" id="d-tva" ${dis} onchange="editDoc.tva_code=this.value;editDoc.tva_rate=num(tvaCode(this.value).rate)">${codeOptions(d.tva_code)}</select></div>
-    <div class="fg c4"><label class="flabel" for="d-site">Site ou mandat</label><input class="finp" id="d-site" list="d-site-list" ${docEditable() ? '' : 'disabled'} value="${esc(d.site || '')}" placeholder="Ex. IHEID, Port Blanc" oninput="editDoc.site=this.value"><datalist id="d-site-list">${sitesKnown().map(s => `<option value="${esc(s)}">`).join('')}</datalist></div>`;
+    <div class="fg c4"><label class="flabel" for="d-site">Site ou mandat</label><input class="finp" id="d-site" list="d-site-list" ${docEditable() ? '' : 'disabled'} value="${esc(d.site || '')}" placeholder="Ex. IHEID, Port Blanc" oninput="editDoc.site=this.value"><datalist id="d-site-list">${sitesKnown().map(s => `<option value="${esc(s)}">`).join('')}</datalist></div>
+    ${(() => { const cur = docCur(d), canCur = !isA && (d.statut === 'brouillon' || (d.legacy && canWrite() && !d._revise)), foreign = cur !== 'CHF';
+      return `<div class="fg c4"><label class="flabel" for="d-cur">Devise</label><div style="display:flex;gap:6px"><select class="fsel" id="d-cur" style="width:96px" ${canCur ? '' : 'disabled'} onchange="setDocCurrency(this.value)">${['CHF', 'EUR'].concat(cur !== 'CHF' && cur !== 'EUR' ? [cur] : []).map(c => `<option ${c === cur ? 'selected' : ''}>${c}</option>`).join('')}</select>
+        ${foreign ? `<input class="finp mono" id="d-taux" ${canWrite() ? '' : 'disabled'} value="${d.taux != null ? num(d.taux).toFixed(6) : ''}" placeholder="Taux CHF" title="CHF pour 1 ${cur} (chiffre d'affaires et TVA en CHF)" oninput="editDoc.taux=num(this.value)||null;updateDocTotals()">${canWrite() ? `<button class="btn btn-ghost btn-sm" type="button" title="Taux BCE à la date de la facture" onclick="docFxRate()">BCE</button>` : ''}${d.statut !== 'brouillon' && canWrite() ? `<button class="btn btn-ghost btn-sm" type="button" onclick="saveDocFx()">Enregistrer</button>` : ''}` : ''}</div>
+        ${foreign ? `<div class="fhint">1 ${cur} = ${d.taux ? num(d.taux).toFixed(4) : '?'} CHF · sert au chiffre d’affaires et à la TVA en CHF</div>` : ''}</div>`; })()}`;
   if (d._legacy && ed) {
     h += `<div class="fg c4"><label class="flabel" for="d-lnum">Numéro Bexio</label><input class="finp mono" id="d-lnum" value="${esc(editLegacy.numero)}" placeholder="349202610" oninput="editLegacy.numero=this.value"></div>
       <div class="fg c8"><label class="flabel" for="d-lref">Référence de la QR-facture</label><input class="finp mono" id="d-lref" value="${esc(editLegacy.reference)}" placeholder="RF39 0000 0000 0000 0000 0121 3" oninput="editLegacy.reference=this.value"></div>`;
@@ -1924,12 +1942,12 @@ function paymentsCard(d) {
   const avs = avoirsFor(d);
   const rows = allocs.map(a => { const t = a.tx_id ? db.fac_bank_tx.find(x => x.id === a.tx_id) : null;
       const label = a.mode === 'remise' ? `<b>Remise accordée</b>${a.note ? ' — ' + esc(a.note) : ''}` : a.mode === 'perte' ? `<b>Passée en perte</b>${a.note ? ' — ' + esc(a.note) : ''}` : a.mode === 'reprise' ? 'Encaissement enregistré dans Bexio (en attente du relevé)' : a.mode === 'hors_banque' ? `Paiement hors banque${a.note ? ' — ' + esc(a.note) : ''}` : `${esc(t ? t.counterparty || 'Virement' : 'Virement')} <span class="sub">(${a.mode === 'auto' ? 'référence QR reconnue' : 'associé manuellement'})</span>`;
-      return `<div><span>${fmtDate(a.pay_date)} · ${num(a.amount) < 0 ? 'Remboursement · ' : ''}${label}</span><span><span class="mono">${fmtAmt(a.amount)}</span>${canWrite() ? ` <button class="btn-link" style="margin-left:8px" onclick="detachAlloc('${a.id}')">Détacher</button>` : ''}</span></div>`; })
+      return `<div><span>${fmtDate(a.pay_date)} · ${num(a.amount) < 0 ? 'Remboursement · ' : ''}${label}</span><span><span class="mono">${docCur(d) !== 'CHF' && !['remise', 'perte'].includes(a.mode) ? `${money(d, allocDocAmt(a, d))} <span class="sub">(reçu CHF ${fmtAmt(a.amount)})</span>` : money(d, a.amount)}</span>${canWrite() ? ` <button class="btn-link" style="margin-left:8px" onclick="detachAlloc('${a.id}')">Détacher</button>` : ''}</span></div>`; })
     .concat(avs.map(a => `<div><span>${fmtDate(a.date_doc)} · Note de crédit ${esc(a.numero)}</span><span><button class="btn-link mono" onclick="openDoc('${a.id}')">${fmtAmt(a.total_ttc)}</button></span></div>`));
   const rem = docRemaining(d);
-  return `<div class="card" style="margin:16px 0 0;box-shadow:none"><div class="card-head"><div class="card-title">Règlements</div><div class="card-note">Payé ${chf(docPaid(d))}${docCredited(d) ? ` · crédité ${chf(docCredited(d))}` : ''}${docWrittenOff(d) ? ` · perte ${chf(docWrittenOff(d))}` : ''}${docDiscount(d) ? ` · remise ${chf(docDiscount(d))}` : ''} · reste ${chf(rem)}</div></div>
+  return `<div class="card" style="margin:16px 0 0;box-shadow:none"><div class="card-head"><div class="card-title">Règlements</div><div class="card-note">Payé ${money(d, docPaid(d))}${docCredited(d) ? ` · crédité ${money(d, docCredited(d))}` : ''}${docWrittenOff(d) ? ` · perte ${money(d, docWrittenOff(d))}` : ''}${docDiscount(d) ? ` · remise ${money(d, docDiscount(d))}` : ''} · reste ${money(d, rem)}</div></div>
     <div class="pay-list">${rows.join('') || '<div><span class="sub">Aucun paiement reçu pour l’instant.</span></div>'}</div>
-    ${rem < -0.009 ? `<div class="lock-note" style="margin:10px 0 0">Trop-perçu de ${chf(-rem)} : remboursez le client puis associez le débit à cette facture dans Banque, ou vérifiez qu'un paiement n'a pas été associé par erreur.</div>` : ''}</div>`;
+    ${rem < -0.009 ? `<div class="lock-note" style="margin:10px 0 0">Trop-perçu de ${money(d, -rem)} : remboursez le client puis associez le débit à cette facture dans Banque, ou vérifiez qu'un paiement n'a pas été associé par erreur.</div>` : ''}</div>`;
 }
 function renderDocLines() {
   const ed = docEditable(), dis = ed ? '' : 'disabled';
@@ -1948,7 +1966,7 @@ function updateDocTotals() {
   const t = editDoc.statut === 'brouillon' || editDoc._revise ? computeTotals(editDoc.lignes, editDoc.tva_code) : docTotals(editDoc);
   $('d-totals').innerHTML = `<div><span>Total HT</span><span>${fmtAmt(t.ht)}</span></div>` +
     t.breakdown.map(b => b.rate > 0 ? `<div><span>TVA ${b.rate.toFixed(2)} % sur ${fmtAmt(b.base)}</span><span>${fmtAmt(b.tva)}</span></div>` : `<div><span>${esc(shortCode(b.code))} : ${fmtAmt(b.base)}</span><span>0.00</span></div>`).join('') +
-    `<div class="grand"><span>${editDoc.kind === 'avoir' ? 'Montant crédité TTC' : 'Montant TTC'}</span><span>${fmtAmt(t.ttc)} CHF</span></div>`;
+    `<div class="grand"><span>${editDoc.kind === 'avoir' ? 'Montant crédité TTC' : 'Montant TTC'}</span><span>${fmtAmt(t.ttc)} ${docCur(editDoc)}</span></div>` + (docCur(editDoc) !== 'CHF' ? `<div class="fhint" style="text-align:right">${num(editDoc.taux) ? `≈ ${fmtAmt(t.ttc * num(editDoc.taux))} CHF au taux de ${num(editDoc.taux).toFixed(4)}` : 'Taux CHF à indiquer pour le chiffre d’affaires et la TVA'}</div>` : '');
 }
 function addDocLine() { editDoc.lignes.push(newLine(editDoc.tva_code)); renderDocLines(); updateDocTotals(); const tas = document.querySelectorAll('#d-lines textarea'); tas[tas.length - 1]?.focus(); }
 function delDocLine(i) { editDoc.lignes.splice(i, 1); renderDocLines(); updateDocTotals(); }
@@ -2043,6 +2061,27 @@ async function confirmPurge(id) {
       toast(`Nouvelle facture prête avec le numéro ${d.numero} : corrigez-la puis émettez-la`);
     } else closeModal('m-doc');
   } catch (e) { toast(e.message, 'err'); }
+}
+function setDocCurrency(cur) {
+  editDoc.devise = cur; if (cur === 'CHF') editDoc.taux = null;
+  if (editDoc.statut !== 'brouillon') { if (!confirm(`Passer cette facture reprise de Bexio en ${cur} ? Ses montants sont alors lus en ${cur}.`)) { renderDocModal(); return; } saveDocFx(true); return; }
+  renderDocModal(); if (cur !== 'CHF' && !editDoc.taux) docFxRate();
+}
+async function docFxRate() {
+  const cur = docCur(editDoc); if (cur === 'CHF') return;
+  try { const r = await fetch(`https://api.frankfurter.app/${editDoc.date_doc || todayISO()}?from=${cur}&to=CHF`); const j = await r.json();
+    if (!j.rates || !j.rates.CHF) throw new Error(); editDoc.taux = Math.round(j.rates.CHF * 1e6) / 1e6; $('d-taux').value = editDoc.taux.toFixed(6); updateDocTotals(); toast(`Taux BCE du ${fmtDate(j.date)} : 1 ${cur} = ${j.rates.CHF.toFixed(4)} CHF`); }
+  catch (e) { toast('Taux introuvable (hors ligne ?) : saisissez-le à la main', 'err'); }
+}
+function saveDocFx(silent) {
+  const d = db.fac_documents.find(x => x.id === editDoc.id); if (!d) return;
+  const taux = editDoc.devise === 'CHF' ? null : (num(editDoc.taux) || null);
+  saveRow('fac_documents', { ...d, devise: editDoc.devise || 'CHF', taux });
+  // paiements déjà reçus en CHF : ils soldent la facture dans sa devise (±3 % de change)
+  if (docCur(editDoc) !== 'CHF' && taux) allocsForDoc(d.id).filter(a => a.tx_id && a.montant_devise == null).forEach(a => {
+    const conv = num(a.amount) / taux, rem = num(d.total_ttc) - allocsForDoc(d.id).filter(x => x.id !== a.id).reduce((s, x) => s + allocDocAmt(x, { ...d, devise: editDoc.devise, taux }), 0);
+    saveRow('fac_allocations', { ...a, montant_devise: round2(Math.abs(conv - rem) <= rem * 0.03 ? rem : Math.min(conv, rem)) }); });
+  openDoc(d.id); renderAll(); if (!silent) toast('Devise et taux enregistrés');
 }
 function canCancelInvoice(d) { return d.kind === 'facture' && d.statut === 'emise' && !d.sent_at && !allocsForDoc(d.id).length && !avoirsFor(d).length; }
 function renderDocFoot() {
@@ -2268,7 +2307,7 @@ function confirmCancelInvoice() {
 function openCreditNote() {
   const f = db.fac_documents.find(x => x.id === editDoc.id);
   const date = todayISO() < f.date_doc ? f.date_doc : todayISO();
-  editDoc = { id: uuid(), kind: 'avoir', statut: 'brouillon', client_id: f.client_id, ref_document_id: f.id, titre: `Note de crédit sur la facture ${f.numero}`,
+  editDoc = { id: uuid(), kind: 'avoir', statut: 'brouillon', client_id: f.client_id, ref_document_id: f.id, devise: docCur(f), taux: f.taux || null, titre: `Note de crédit sur la facture ${f.numero}`,
     date_doc: date, date_echeance: null, periode_debut: f.periode_debut || null, periode_fin: f.periode_fin || null, site: f.site || null,
     lignes: (f.lignes || []).map(l => ({ ...l, id: uuid(), tva_code: l.tva_code || docDefaultCode(f) })), tva_code: docDefaultCode(f), tva_rate: num(f.tva_rate),
     conclusion: 'Ce montant sera déduit de votre facture ou vous sera remboursé.', notes_internes: '', legacy: false, created_by: userEmail(), _new: true };
@@ -2314,7 +2353,7 @@ function manualPayment() {
 }
 function writeOff() {
   const d = db.fac_documents.find(x => x.id === editDoc.id);
-  genModal('Passer en perte', `Facture ${d.numero} · reste dû ${chf(docRemaining(d))}`, `<div class="fgrid">
+  genModal('Passer en perte', `Facture ${d.numero} · reste dû ${money(d, docRemaining(d))}`, `<div class="fgrid">
     <div class="fg c6"><label class="flabel" for="g-amt">Montant perdu TTC</label><input class="finp mono" id="g-amt" value="${docRemaining(d).toFixed(2)}"></div>
     <div class="fg c6"><label class="flabel" for="g-date">Date de comptabilisation</label><input class="finp" type="date" id="g-date" value="${todayISO()}"></div>
     <div class="fg c12"><label class="flabel" for="g-note">Motif (obligatoire)</label><input class="finp" id="g-note" value="Faillite du débiteur"></div></div>
@@ -2333,12 +2372,12 @@ function discountRest(docId) {
     `<button class="btn btn-ghost" onclick="closeModal('m-gen')">Annuler</button><button class="btn btn-primary" onclick="confirmDiscount('${d.id}')">Solder la facture</button>`);
 }
 function addDiscount(d, amt, date, note) {
-  saveRow('fac_allocations', { id: uuid(), tx_id: null, document_id: d.id, achat_id: null, amount: round2(amt), pay_date: date, mode: 'remise', note, created_by: userEmail() });
+  saveRow('fac_allocations', { id: uuid(), tx_id: null, document_id: d.id, achat_id: null, amount: round2(amt), montant_devise: docCur(d) === 'CHF' ? null : round2(amt), pay_date: date, mode: 'remise', note, created_by: userEmail() });
 }
 function confirmDiscount(docId) {
   const d = db.fac_documents.find(x => x.id === docId);
   const amt = round2(num($('g-amt').value)), note = $('g-note').value.trim() || 'Remise';
-  if (amt <= 0 || amt > docRemaining(d) + 0.009) { toast(`Montant entre 0 et ${chf(docRemaining(d))}`, 'err'); return; }
+  if (amt <= 0 || amt > docRemaining(d) + 0.009) { toast(`Montant entre 0 et ${money(d, docRemaining(d))}`, 'err'); return; }
   addDiscount(d, amt, $('g-date').value || todayISO(), note);
   closeModal('m-gen'); if (editDoc && editDoc.id === docId && $('m-doc').classList.contains('open')) openDoc(docId); renderAll(); toast(`Facture ${d.numero} soldée (${note})`);
 }
@@ -2528,7 +2567,7 @@ function deleteContrat() {
 function confirmWriteOff() {
   const d = db.fac_documents.find(x => x.id === editDoc.id);
   const amt = round2(num($('g-amt').value)), note = $('g-note').value.trim();
-  if (amt <= 0 || amt > docRemaining(d) + 0.009) { toast(`Montant entre 0 et ${chf(docRemaining(d))}`, 'err'); return; }
+  if (amt <= 0 || amt > docRemaining(d) + 0.009) { toast(`Montant entre 0 et ${money(d, docRemaining(d))}`, 'err'); return; }
   if (!note) { toast('Indiquez le motif', 'err'); return; }
   saveRow('fac_allocations', { id: uuid(), tx_id: null, document_id: d.id, achat_id: null, amount: amt, pay_date: $('g-date').value || todayISO(), mode: 'perte', note, created_by: userEmail() });
   closeModal('m-gen'); openDoc(d.id); renderAll(); toast('Facture passée en perte');
@@ -2538,7 +2577,7 @@ function confirmManualPayment() {
   const amt = round2(num($('g-amt').value)), note = $('g-note').value.trim();
   if (amt <= 0) { toast('Montant invalide', 'err'); return; }
   if (!note) { toast('Indiquez une justification', 'err'); return; }
-  if (amt > docRemaining(d) + 0.009) { toast(`Montant supérieur au reste dû (${chf(docRemaining(d))})`, 'err'); return; }
+  if (amt > docRemaining(d) + 0.009) { toast(`Montant supérieur au reste dû (${money(d, docRemaining(d))})`, 'err'); return; }
   saveRow('fac_allocations', { id: uuid(), tx_id: null, document_id: d.id, achat_id: null, amount: amt, pay_date: $('g-date').value || todayISO(), mode: 'hors_banque', note, created_by: userEmail() });
   closeModal('m-gen'); openDoc(d.id); renderAll(); toast('Paiement enregistré');
 }
@@ -2616,7 +2655,7 @@ function renderClients() {
   $('cli-list').innerHTML = `<table class="tbl"><thead><tr><th>Client</th><th>Adresse</th><th>E-mail de facturation</th><th class="num">CA HT ${year}</th><th class="num">Reste dû</th></tr></thead><tbody>
     ${list.map(c => { const docs = factures().filter(d => d.client_id === c.id && d.statut !== 'brouillon' && d.statut !== 'annulee');
       const ca = netCA(year, d => d.client_id === c.id);
-      const due = docs.filter(isOpenInvoice).reduce((s, d) => s + docRemaining(d), 0);
+      const due = docs.filter(isOpenInvoice).reduce((s, d) => s + docRemainingCHF(d), 0);
       const addrOk = c.rue && c.npa && c.ville;
       return `<tr class="click" onclick="openClient('${c.id}')"><td><b>${esc(c.nom)}</b>${c.nom_court ? `<div class="sub">${esc(c.nom_court)}</div>` : ''}</td>
         <td>${addrOk ? esc(`${c.rue} ${c.numero_rue || ''}, ${c.npa} ${c.ville}`) : '<span class="badge b-orange">Adresse incomplète</span>'}</td>
@@ -3079,6 +3118,7 @@ function autoAllocate(tx) {
     if (rep) { saveRow('fac_allocations', { ...rep, tx_id: tx.id, mode: 'auto', pay_date: tx.booking_date, note: 'Encaissement Bexio confirmé par le relevé' }); return true; }
   }
   const m = certainMatch(tx); if (!m) return false;
+  if (m.document_id) { const d0 = db.fac_documents.find(x => x.id === m.document_id); if (d0 && docCur(d0) !== 'CHF') { saveRow('fac_allocations', docAlloc(tx, d0, txOpen(tx), 'auto')); return true; } }
   let amount = txOpen(tx) * Math.sign(tx.amount);
   if (m.achat_id) { const a = db.fac_achats.find(x => x.id === m.achat_id); amount = Math.min(txOpen(tx), round2(num(a.montant_ttc) - achatPaidAmount(a))); if (amount <= 0) return false; }
   saveRow('fac_allocations', { id: uuid(), tx_id: tx.id, document_id: m.document_id || null, achat_id: m.achat_id || null, amount: round2(amount), pay_date: tx.booking_date, mode: 'auto', note: null, created_by: userEmail() });
@@ -3101,7 +3141,7 @@ function suggestionFor(tx) {
     const text = [tx.remittance, tx.info].join(' ');
     const byNum = factures().filter(isOpenInvoice).find(d => d.numero && new RegExp(`(^|\\D)${d.numero}(\\D|$)`).test(text));
     if (byNum) return { kind: 'doc', item: byNum, why: 'numéro cité dans la communication' };
-    const exact = factures().filter(isOpenInvoice).filter(d => Math.abs(docRemaining(d) - open) < 0.01);
+    const exact = factures().filter(isOpenInvoice).filter(d => docCur(d) === 'CHF' ? Math.abs(docRemaining(d) - open) < 0.01 : Math.abs(docRemainingCHF(d) - open) <= docRemainingCHF(d) * 0.03);
     if (exact.length === 1) return { kind: 'doc', item: exact[0], why: 'montant identique' };
     const rate = num(settings.remise_rate || 5) / 100;
     const reg = factures().filter(isOpenInvoice).filter(d => Math.abs(round2(docRemaining(d) * (1 - rate)) - open) <= 0.05);
@@ -3179,7 +3219,7 @@ function confirmAllSuggestions() {
 function confirmSuggestionSilent(txId) {
   const t = db.fac_bank_tx.find(x => x.id === txId); const s = suggestionFor(t); if (!s) return;
   const open = txOpen(t);
-  if (s.kind === 'doc') { saveRow('fac_allocations', { id: uuid(), tx_id: t.id, document_id: s.item.id, achat_id: null, amount: round2(Math.min(open, docRemaining(s.item))), pay_date: t.booking_date, mode: 'manuel', created_by: userEmail() });
+  if (s.kind === 'doc') { saveRow('fac_allocations', docAlloc(t, s.item, open, 'manuel'));
     if (s.remise && docRemaining(s.item) > 0.009) addDiscount(s.item, docRemaining(s.item), t.booking_date, `Remise régie ${num(settings.remise_rate || 5)} %`); }
   else if (s.fx) { const a2 = { ...s.item, montant_ttc: round2(open), montant_ht: round2(open - num(s.item.montant_tva)), taux: num(s.item.montant_devise) ? Math.round(open / num(s.item.montant_devise) * 1e6) / 1e6 : s.item.taux };
     saveRow('fac_achats', a2); saveRow('fac_allocations', { id: uuid(), tx_id: t.id, document_id: null, achat_id: s.item.id, amount: round2(open), pay_date: t.booking_date, mode: 'manuel', created_by: userEmail() }); }
@@ -3266,7 +3306,7 @@ function setTxCategory(id, cat, silent) {
 function confirmSuggestion(txId) {
   const t = db.fac_bank_tx.find(x => x.id === txId); const s = suggestionFor(t); if (!s) return;
   const open = txOpen(t);
-  if (s.kind === 'doc') { saveRow('fac_allocations', { id: uuid(), tx_id: t.id, document_id: s.item.id, achat_id: null, amount: round2(Math.min(open, docRemaining(s.item))), pay_date: t.booking_date, mode: 'manuel', created_by: userEmail() });
+  if (s.kind === 'doc') { saveRow('fac_allocations', docAlloc(t, s.item, open, 'manuel'));
     if (s.remise && docRemaining(s.item) > 0.009) addDiscount(s.item, docRemaining(s.item), t.booking_date, `Remise régie ${num(settings.remise_rate || 5)} %`); }
   else if (s.fx) { const a2 = { ...s.item, montant_ttc: round2(open), montant_ht: round2(open - num(s.item.montant_tva)), taux: num(s.item.montant_devise) ? Math.round(open / num(s.item.montant_devise) * 1e6) / 1e6 : s.item.taux };
     saveRow('fac_achats', a2); saveRow('fac_allocations', { id: uuid(), tx_id: t.id, document_id: null, achat_id: s.item.id, amount: round2(open), pay_date: t.booking_date, mode: 'manuel', created_by: userEmail() }); }
@@ -3280,7 +3320,7 @@ function openLinkTx(txId) {
   const t = db.fac_bank_tx.find(x => x.id === txId); if (!t) return;
   const inc = t.amount > 0, open = txOpen(t);
   let cands;
-  if (inc) cands = factures().filter(isOpenInvoice).map(d => ({ type: 'doc', id: d.id, label: `${d.numero} · ${docClientName(d)}`, sub: d.titre || '', due: docRemaining(d) }));
+  if (inc) cands = factures().filter(isOpenInvoice).map(d => ({ type: 'doc', id: d.id, label: `${d.numero} · ${docClientName(d)}`, sub: (d.titre || '') + (docCur(d) !== 'CHF' ? ` · facture ${money(d, docRemaining(d))}${fxMissing(d) ? ' (taux à saisir)' : ''}` : ''), due: docRemainingCHF(d) }));
   else cands = live('fac_achats').filter(a => achatState(a) !== 'paid').map(a => ({ type: 'achat', id: a.id, label: `${a.fournisseur}${a.numero_facture ? ' · N° ' + a.numero_facture : ''}`, sub: fmtDate(a.date_facture), due: round2(num(a.montant_ttc) - achatPaidAmount(a)) }))
     .concat(factures().filter(d => invoiceState(d) === 'trop').map(d => ({ type: 'refund', id: d.id, label: `Remboursement · facture ${d.numero}`, sub: docClientName(d), due: -docRemaining(d) })));
   cands.sort((a, b) => Math.abs(a.due - open) - Math.abs(b.due - open));
@@ -3314,8 +3354,10 @@ function confirmLink() {
   if (linkRest() < -0.009) { toast('La ventilation dépasse le montant du mouvement', 'err'); return; }
   const picks = linkCtx.cands.map((c, i) => ({ c, amt: $('lk-c' + i).checked ? round2(num($('lk-a' + i).value)) : 0 })).filter(p => p.amt > 0);
   if (!picks.length) { toast('Cochez au moins une ligne', 'err'); return; }
-  picks.forEach(({ c, amt }) => saveRow('fac_allocations', { id: uuid(), tx_id: t.id, document_id: c.type === 'achat' ? null : c.id, achat_id: c.type === 'achat' ? c.id : null,
-    amount: c.type === 'achat' ? amt : (t.amount > 0 ? amt : -amt), pay_date: t.booking_date, mode: 'manuel', created_by: userEmail() }));
+  picks.forEach(({ c, amt }) => { const d0 = c.type === 'doc' ? db.fac_documents.find(x => x.id === c.id) : null;
+    if (d0 && docCur(d0) !== 'CHF' && t.amount > 0) { saveRow('fac_allocations', docAlloc(t, d0, amt, 'manuel')); return; }
+    saveRow('fac_allocations', { id: uuid(), tx_id: t.id, document_id: c.type === 'achat' ? null : c.id, achat_id: c.type === 'achat' ? c.id : null,
+    amount: c.type === 'achat' ? amt : (t.amount > 0 ? amt : -amt), pay_date: t.booking_date, mode: 'manuel', created_by: userEmail() }); });
   const cat = autoCategory(t); if (cat) saveRow('fac_bank_tx', { ...t, category: cat });
   closeModal('m-gen'); renderAll(); toast('Ventilation enregistrée');
   const reg = picks.filter(p => p.c.type === 'doc').map(p => db.fac_documents.find(x => x.id === p.c.id)).filter(d => d && regieCandidates().some(x => x.id === d.id));
@@ -3329,7 +3371,7 @@ function confirmLink() {
 // ════════════════════════════════════════
 // CA HT net : factures émises moins notes de crédit (à leur date)
 function caDocs(pred = () => true) { return live('fac_documents').filter(d => (d.kind === 'facture' || d.kind === 'avoir') && d.statut !== 'brouillon' && d.statut !== 'annulee' && pred(d)); }
-function signedHT(d) { return (d.kind === 'avoir' ? -1 : 1) * num(d.total_ht); }
+function signedHT(d) { return (d.kind === 'avoir' ? -1 : 1) * num(d.total_ht) * fx(d); }
 function netCA(prefix, pred) { const ids = new Set(caDocs(pred).map(d => d.id)); return round2(caDocs(pred).filter(d => d.date_doc.startsWith(prefix)).reduce((s, d) => s + signedHT(d), 0) - db.fac_allocations.filter(a => a.mode === 'remise' && ids.has(a.document_id) && String(a.pay_date).startsWith(prefix)).reduce((s, a) => s + discountHT(a), 0)); }
 function renderAnalyses() {
   const y = $('an-year').value || String(new Date().getFullYear());
@@ -3371,7 +3413,7 @@ function renderAnalyses() {
     <div class="fhint" style="margin-top:8px">Sans le coût des agents (paie), cette différence n'est pas une marge : elle sert à repérer les mandats qui portent le plus de frais directs.</div>` : '<div class="empty">Aucune donnée.</div>';
 
   const buckets = [['Non échu', -Infinity, 0], ['1 à 30 j', 1, 30], ['31 à 60 j', 31, 60], ['61 à 90 j', 61, 90], ['Plus de 90 j', 91, Infinity]].map(([l, a, b]) => ({ l, a, b, sum: 0, n: 0 }));
-  factures().filter(isOpenInvoice).forEach(d => { const late = d.date_echeance ? daysBetween(d.date_echeance, todayISO()) : 0; const bk = buckets.find(k => late >= k.a && late <= k.b) || buckets[0]; bk.sum += docRemaining(d); bk.n++; });
+  factures().filter(isOpenInvoice).forEach(d => { const late = d.date_echeance ? daysBetween(d.date_echeance, todayISO()) : 0; const bk = buckets.find(k => late >= k.a && late <= k.b) || buckets[0]; bk.sum += docRemainingCHF(d); bk.n++; });
   $('an-aging').innerHTML = buckets.map((b, i) => `<div><div class="a-l">${b.l}</div><div class="a-v ${i >= 2 && b.sum > 0 ? 'kv-red' : ''}">${fmtAmt(b.sum, 0)}</div><div class="a-c">${b.n} facture${b.n > 1 ? 's' : ''}</div></div>`).join('');
 }
 
@@ -3462,10 +3504,10 @@ function renderExport() {
   const docs = live('fac_documents').filter(d => (d.kind === 'facture' || d.kind === 'avoir') && d.statut !== 'brouillon' && d.statut !== 'annulee' && inRange(d.date_doc, r));
   const ach = live('fac_achats').filter(a => inRange(a.date_facture, r));
   const codes = {};
-  docs.forEach(d => { const s = d.kind === 'avoir' ? -1 : 1; docTotals(d).breakdown.forEach(b => { const c = codes[b.code] = codes[b.code] || { base: 0, tva: 0, abase: 0, atva: 0 }; c.base += s * b.base; c.tva += s * b.tva; }); });
+  docs.forEach(d => { const s = d.kind === 'avoir' ? -1 : 1, k = fx(d); docTotals(d).breakdown.forEach(b => { const c = codes[b.code] = codes[b.code] || { base: 0, tva: 0, abase: 0, atva: 0 }; c.base += s * b.base * k; c.tva += s * b.tva * k; }); });
   ach.forEach(a => { const k = a.tva_code || codeForRate(a.tva_rate); const c = codes[k] = codes[k] || { base: 0, tva: 0, abase: 0, atva: 0 }; c.abase += num(a.montant_ht); c.atva += num(a.montant_tva); });
   const loss = { ttc: 0, tva: 0 };
-  db.fac_allocations.filter(a => (a.mode === 'perte' || a.mode === 'remise') && inRange(a.pay_date, r)).forEach(a => { const d = db.fac_documents.find(x => x.id === a.document_id); if (!d || !num(d.total_ttc)) return; loss.ttc = round2(loss.ttc + num(a.amount)); loss.tva = round2(loss.tva + num(a.amount) * num(d.total_tva) / num(d.total_ttc)); });
+  db.fac_allocations.filter(a => (a.mode === 'perte' || a.mode === 'remise') && inRange(a.pay_date, r)).forEach(a => { const d = db.fac_documents.find(x => x.id === a.document_id); if (!d || !num(d.total_ttc)) return; const v = allocDocAmt(a, d) * fx(d); loss.ttc = round2(loss.ttc + v); loss.tva = round2(loss.tva + v * num(d.total_tva) / num(d.total_ttc)); });
   const keys = tvaCodes.map(c => c.code).filter(k => codes[k]);
   if (!keys.length) { $('ex-tva').innerHTML = '<div class="empty">Aucune facture ni achat sur cette période.</div>'; return; }
   const sum = f => keys.reduce((s, k) => s + codes[k][f], 0);
@@ -3633,13 +3675,13 @@ function fiduciarySheets(r) {
     { title: 'Client', width: 34 }, { title: 'Objet', width: 40 }, { title: 'Période du', type: 'date', width: 11 }, { title: 'Période au', type: 'date', width: 11 }, { title: 'Site', width: 14 },
     ...codes.flatMap(c => [{ title: `Base ${num(c.rate) ? c.rate + ' %' : c.code}`, type: 'num' }, { title: `TVA ${num(c.rate) ? c.rate + ' %' : c.code}`, type: 'num' }]),
     { title: 'Total HT', type: 'num' }, { title: 'TVA', type: 'num' }, { title: 'Total TTC', type: 'num' }, { title: 'Statut au jour de l’export', width: 22 }, { title: 'Encaissé', type: 'num' }, { title: 'Remise', type: 'num' }, { title: 'Perte', type: 'num' },
-    { title: 'Reste dû', type: 'num' }, { title: 'Référence QR', width: 30 }, { title: 'Motif d’annulation', width: 24 }];
-  const facRows = docs.map(d => { const s = d.kind === 'avoir' ? -1 : 1; const t = docTotals(d); const ref = d.kind === 'avoir' ? db.fac_documents.find(x => x.id === d.ref_document_id) : null; const ann = d.statut === 'annulee';
+    { title: 'Reste dû', type: 'num' }, { title: 'Référence QR', width: 30 }, { title: 'Motif d’annulation', width: 24 }, { title: 'Devise', width: 7 }, { title: 'TTC en devise', type: 'num' }, { title: 'Taux CHF', type: 'num' }];
+  const facRows = docs.map(d => { const s = (d.kind === 'avoir' ? -1 : 1) * fx(d); const t = docTotals(d); const ref = d.kind === 'avoir' ? db.fac_documents.find(x => x.id === d.ref_document_id) : null; const ann = d.statut === 'annulee';
     return [d.kind === 'avoir' ? 'Note de crédit' : ann ? 'Facture annulée' : 'Facture', d.numero, ref ? ref.numero : '', d.date_doc, d.kind === 'avoir' ? '' : d.date_echeance, docClientName(d), d.titre || '',
       d.periode_debut || '', d.periode_fin || '', d.site || '',
       ...codes.flatMap(c => { const b = t.breakdown.find(x => x.code === c.code); return [ann ? 0 : s * (b ? b.base : 0), ann ? 0 : s * (b ? b.tva : 0)]; }),
       ann ? 0 : s * t.ht, ann ? 0 : s * t.tva, ann ? 0 : s * t.ttc, d.kind === 'avoir' ? 'Émise' : INV_BADGE[invoiceState(d)][0],
-      d.kind === 'avoir' ? '' : docPaid(d), d.kind === 'avoir' ? '' : docDiscount(d), d.kind === 'avoir' ? '' : docWrittenOff(d), d.kind === 'avoir' || ann ? '' : Math.max(0, docRemaining(d)), d.reference || '', d.cancelled_reason || '']; });
+      d.kind === 'avoir' ? '' : round2(docPaid(d) * fx(d)), d.kind === 'avoir' ? '' : round2(docDiscount(d) * fx(d)), d.kind === 'avoir' ? '' : round2(docWrittenOff(d) * fx(d)), d.kind === 'avoir' || ann ? '' : Math.max(0, docRemainingCHF(d)), d.reference || '', d.cancelled_reason || '', docCur(d), docCur(d) === 'CHF' ? '' : (d.kind === 'avoir' ? -1 : 1) * num(d.total_ttc), docCur(d) === 'CHF' ? '' : num(d.taux)]; });
   // Encaissements de la période : ventilations bancaires et hors banque, plus les crédits non rapprochés
   const encRows = [];
   db.fac_allocations.filter(a => a.document_id && a.mode !== 'perte' && a.mode !== 'remise' && inRange(a.pay_date, r)).sort((a, b) => a.pay_date.localeCompare(b.pay_date)).forEach(a => {
@@ -3916,9 +3958,9 @@ function quarterInfo(Y, q, today = todayISO()) {
   const start = `${Y}-${pad2(q * 3 - 2)}-01`, end = isoLocal(new Date(+Y, q * 3, 0)), deadline = addDays(end, 60);
   const r = [start, end];
   const docs = caDocs(d => inRange(d.date_doc, r));
-  const tvaF = round2(docs.reduce((s, d) => s + (d.kind === 'avoir' ? -1 : 1) * num(d.total_tva), 0));
+  const tvaF = round2(docs.reduce((s, d) => s + (d.kind === 'avoir' ? -1 : 1) * num(d.total_tva) * fx(d), 0));
   const tvaA = round2(live('fac_achats').filter(a => inRange(a.date_facture, r)).reduce((s, a) => s + num(a.montant_tva), 0));
-  let tvaL = 0; db.fac_allocations.filter(a => (a.mode === 'perte' || a.mode === 'remise') && inRange(a.pay_date, r)).forEach(a => { const d = db.fac_documents.find(x => x.id === a.document_id); if (d && num(d.total_ttc)) tvaL += num(a.amount) * num(d.total_tva) / num(d.total_ttc); });
+  let tvaL = 0; db.fac_allocations.filter(a => (a.mode === 'perte' || a.mode === 'remise') && inRange(a.pay_date, r)).forEach(a => { const d = db.fac_documents.find(x => x.id === a.document_id); if (d && num(d.total_ttc)) tvaL += allocDocAmt(a, d) * fx(d) * num(d.total_tva) / num(d.total_ttc); });
   tvaL = round2(tvaL);
   const key = `${Y}-T${q}`, declared = !!(settings.tva_declared || {})[key];
   let st;
@@ -3934,7 +3976,7 @@ function renderDashboard() {
   const Y = exYear, r = ytdRange(Y), pr = prevRange(r), PY = String(+Y - 1);
   const ca = caNetRange(r), caP = caNetRange(pr), enc = cashInRange(r), encP = cashInRange(pr);
   const open = factures().filter(isOpenInvoice), late = open.filter(d => invoiceState(d) === 'retard');
-  const due = open.reduce((s, d) => s + docRemaining(d), 0);
+  const due = open.reduce((s, d) => s + docRemainingCHF(d), 0);
   const bal = latestBalance();
   const txY = db.fac_bank_tx.filter(t => inRange(t.booking_date, r) && t.category !== INTERNAL_CATEGORY);
   const bin = txY.filter(t => t.amount > 0).reduce((s, t) => s + num(t.amount), 0), bout = txY.filter(t => t.amount < 0).reduce((s, t) => s - num(t.amount), 0);
@@ -3986,7 +4028,7 @@ function renderDashboard() {
 
   // Factures en retard
   const lateS = late.map(d => ({ d, days: daysBetween(d.date_echeance, todayISO()) })).sort((a, b) => b.days - a.days).slice(0, 5);
-  $('d-late').innerHTML = lateS.length ? `<table class="dtbl"><thead><tr><th>Client</th><th>N°</th><th class="r">Montant</th><th class="r">Jours</th></tr></thead><tbody>${lateS.map(({ d, days }) => `<tr class="click" onclick="openDoc('${d.id}')"><td>${esc(shortClient(d))}</td><td class="mono">${esc(d.numero)}</td><td class="r">${fmtAmt(docRemaining(d), 0)} CHF</td><td class="r"><span class="days">${days} j</span></td></tr>`).join('')}</tbody></table>${late.length > 5 ? `<div class="fhint" style="margin-top:8px">${late.length - 5} autre${late.length - 5 > 1 ? 's' : ''} facture${late.length - 5 > 1 ? 's' : ''} en retard.</div>` : ''}`
+  $('d-late').innerHTML = lateS.length ? `<table class="dtbl"><thead><tr><th>Client</th><th>N°</th><th class="r">Montant</th><th class="r">Jours</th></tr></thead><tbody>${lateS.map(({ d, days }) => `<tr class="click" onclick="openDoc('${d.id}')"><td>${esc(shortClient(d))}</td><td class="mono">${esc(d.numero)}</td><td class="r">${docCur(d) === 'CHF' ? fmtAmt(docRemaining(d), 0) + ' CHF' : money(d, docRemaining(d), 0)}</td><td class="r"><span class="days">${days} j</span></td></tr>`).join('')}</tbody></table>${late.length > 5 ? `<div class="fhint" style="margin-top:8px">${late.length - 5} autre${late.length - 5 > 1 ? 's' : ''} facture${late.length - 5 > 1 ? 's' : ''} en retard.</div>` : ''}`
     : '<div class="empty-mini">Aucune facture en retard.</div>';
 
   // Position TVA
@@ -4189,6 +4231,7 @@ function parseBexioInvoices(pages) {
         else r.errors.push('ligne non reconnue : ' + st);
       }
       r.items = items;
+      const curM = L.join('\n').match(/prix net (CHF|EUR|USD|GBP)/); r.devise = curM ? curM[1] : 'CHF';
       const txt = L.join('\n');
       r.total_ht = amtB(txt.match(/^\s*total\s+(-?[\d'.]+)\s*$/m)[1]);
       r.tv = [...txt.matchAll(/TVA en sus ([\d.]+)%\s+(-?[\d'.]+)/g)].map(x => [parseFloat(x[1]), amtB(x[2])]);
@@ -4330,6 +4373,7 @@ async function importBexioBatch() {
         total_ht: r.total_ht, total_tva: r.total_tva, total_ttc: r.total_ttc, total_breakdown: r.total_breakdown, reference: r.reference,
         site: r.match.nom_court || null, payments: r.payments || [] } });
       const doc = Array.isArray(res) ? res[0] : res;
+      if (r.devise && r.devise !== 'CHF') { doc.devise = r.devise; doc.taux = null; saveRow('fac_documents', { ...doc }); fails.push(`${r.numero} : facture en ${r.devise}, indiquez le taux CHF dans la facture`); }
       upsertLocal('fac_documents', doc);
       try { await storeArchive(doc, await splitPdf(r.bytes, r.pages)); } catch (e) { fails.push(`${r.numero} : importée, mais PDF non archivé (${e.message})`); }
       done++;
@@ -4438,7 +4482,7 @@ function qrPayload(d, debtor) {
   const refType = !ref ? 'NON' : ref.startsWith('RF') ? 'SCOR' : 'QRR';
   const lines = ['SPC', '0200', '1', compactRef(s.iban), 'S', cut(s.creditor_name, 70), cut(s.street, 70), cut(s.street_no, 16), cut(s.npa, 16), cut(s.city, 35), (s.country || 'CH').toUpperCase(),
     '', '', '', '', '', '', '',
-    Number(d.total_ttc).toFixed(2), 'CHF'];
+    Number(d.total_ttc).toFixed(2), docCur(d) === 'EUR' ? 'EUR' : 'CHF'];
   if (debtor) lines.push('S', debtor.name, debtor.street, debtor.no, debtor.npa, debtor.city, debtor.country);
   else lines.push('', '', '', '', '', '', '');
   lines.push(refType, ref, cut(`${d.kind === 'facture' ? 'Facture' : 'Devis'} ${d.numero || ''}`.trim(), 140), 'EPD');
@@ -4482,14 +4526,14 @@ function drawQrBill(pdf, d, client) {
   if (deb) rBlock('Payable par', deb);
   else { pdf.setFont('helvetica', 'bold'); pdf.setFontSize(6); pdf.text('Payable par (nom/adresse)', x, y); cornerBox(pdf, x, y + 1.5, 52, 20); }
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(6); pdf.text('Monnaie', x, top + 70); pdf.text('Montant', x + 13, top + 70);
-  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.text('CHF', x, top + 74); pdf.text(qrAmt(d.total_ttc), x + 13, top + 74);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.text(docCur(d) === 'EUR' ? 'EUR' : 'CHF', x, top + 74); pdf.text(qrAmt(d.total_ttc), x + 13, top + 74);
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(6); pdf.text('Point de dépôt', 57, top + 85, { align: 'right' });
   // Section paiement
   x = 67;
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(11); pdf.text('Section paiement', x, top + 9);
   drawQrCode(pdf, qrPayload(d, debtor), x, top + 17, 46);
   pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); pdf.text('Monnaie', x, top + 70); pdf.text('Montant', x + 13, top + 70);
-  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.text('CHF', x, top + 75); pdf.text(qrAmt(d.total_ttc), x + 13, top + 75);
+  pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); pdf.text(docCur(d) === 'EUR' ? 'EUR' : 'CHF', x, top + 75); pdf.text(qrAmt(d.total_ttc), x + 13, top + 75);
   x = 118; y = top + 9;
   const pBlock = (label, lines) => { pdf.setFont('helvetica', 'bold'); pdf.setFontSize(8); pdf.text(label, x, y); y += 4; pdf.setFont('helvetica', 'normal'); pdf.setFontSize(10); lines.forEach(l => { pdf.splitTextToSize(l, 87).forEach(t => { pdf.text(t, x, y); y += 4.2; }); }); y += 2.6; };
   pBlock('Compte / Payable à', cred);
@@ -4552,7 +4596,7 @@ function renderDocument(pdf, d) {
   const header = () => {
     pdf.setFont('helvetica', 'bold'); pdf.setFontSize(9);
     pdf.text('pos.', L, y); pdf.text('description', 36, y);
-    pdf.text('quantité', 143, y, { align: 'right' }); pdf.text('prix unitaire', 167, y, { align: 'right' }); pdf.text('prix net CHF', R, y, { align: 'right' });
+    pdf.text('quantité', 143, y, { align: 'right' }); pdf.text('prix unitaire', 167, y, { align: 'right' }); pdf.text(`prix net ${docCur(d)}`, R, y, { align: 'right' });
     y += 3.5; pdf.line(L, y, R, y); y += 4.5; pdf.setFont('helvetica', 'normal');
   };
   header();
