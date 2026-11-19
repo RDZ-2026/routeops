@@ -1,4 +1,4 @@
-<!-- RDZ · Planning_RDZ · v8 · 2026-11-19 · base v7 + heures payées par jour de congé (auto selon contrat, modifiable par compte congés) -->
+<!-- RDZ · Planning_RDZ · v9 · 2026-11-19 · base v8 + congés payés comptés en heures (totaux planning, compteur d’heures, export paie) · correctif fmtHours -->
 <!-- RDZ · Planning_RDZ · v6 · 2026-10-14 · base v5 + statut « Sous-traitant » (agents hors base RH : planifiables, exclus de la paie et du compteur d’heures) -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -2196,24 +2196,34 @@ function generatePayrollExport(){
   if(typeof XLSX==='undefined'){ modalError('La bibliothèque Excel n’a pas pu se charger (vérifiez la connexion internet puis réessayez).'); return; }
   const nsT = modalVal('px-ns'), neT = modalVal('px-ne');
   const rows = computePayrollRows(month, base, hhmmToMin(nsT), hhmmToMin(neT));
-  if(!rows.length){ modalError('Aucun service pour ce mois avec cette base de calcul.'); return; }
+  // Congés payés acceptés du mois (salariés RDZ uniquement), comptés en heures.
+  const [my, mm] = month.split('-').map(Number);
+  const mDays = daysBetweenISO(month+'-01', month+'-'+String(new Date(Date.UTC(my, mm, 0)).getUTCDate()).padStart(2,'0'));
+  const leaveRows = [];
+  STATE.agents.filter(a=>!a.deletedAt && !isSubcontractor(a)).forEach(a=>{
+    agentPaidLeaveHours(a.id, mDays).items.forEach(it=>leaveRows.push({ agent:a.id, date:it.date, hours:it.hours }));
+  });
+  if(!rows.length && !leaveRows.length){ modalError('Aucun service ni congé payé pour ce mois avec cette base de calcul.'); return; }
   const r2 = x=>Math.round(x*100)/100;
   const per = {};
-  rows.forEach(w=>{ const a = per[w.shift.agent] ||= { n:0, paid:0, night:0, sunday:0, holiday:0 }; a.n++; a.paid+=w.paid; a.night+=w.night; a.sunday+=w.sunday; a.holiday+=w.holiday; });
+  const blank = ()=>({ n:0, paid:0, night:0, sunday:0, holiday:0, cpDays:0, cp:0 });
+  rows.forEach(w=>{ const a = per[w.shift.agent] ||= blank(); a.n++; a.paid+=w.paid; a.night+=w.night; a.sunday+=w.sunday; a.holiday+=w.holiday; });
+  leaveRows.forEach(l=>{ const a = per[l.agent] ||= blank(); a.cpDays++; a.cp+=l.hours; });
   const baseLabel = { planned_pub:'Prévu (publiés ou au-delà)', planned_all:'Prévu (brouillons inclus)', real:'Réel (effectués)' }[base];
   const agentsSorted = sortAgentsByNom(Object.keys(per).map(id=>agentById(id)).filter(Boolean));
-  const tot = { n:0, paid:0, night:0, sunday:0, holiday:0 };
+  const tot = { n:0, paid:0, night:0, sunday:0, holiday:0, cpDays:0, cp:0 };
   const sumRows = agentsSorted.map(a=>{
     const v = per[a.id], np = getNomPrenom(a), contract = (Number.isFinite(a.monthly) && a.monthly>0)? a.monthly : null;
-    ['n','paid','night','sunday','holiday'].forEach(k=>tot[k]+=v[k]);
-    return [np.nom, np.prenom, contract, v.n, r2(v.paid), r2(v.night), r2(v.sunday), r2(v.holiday), contract!=null? r2(v.paid-contract) : ''];
+    ['n','paid','night','sunday','holiday','cpDays','cp'].forEach(k=>tot[k]+=v[k]);
+    const total = v.paid + v.cp;
+    return [np.nom, np.prenom, contract, v.n, r2(v.paid), v.cpDays, r2(v.cp), r2(total), r2(v.night), r2(v.sunday), r2(v.holiday), contract!=null? r2(total-contract) : ''];
   });
   const sheet1 = [
     ['RDZ Security Management — Heures pour la paie'], [`Mois : ${month} · Base : ${baseLabel}${rows.excluded? ` · ⚠ ${rows.excluded} service(s) « à contrôler » NON inclus` : ''}${rows.subAgents.size? ` · ${rows.subAgents.size} sous-traitant(s) exclu(s) de la paie` : ''}`],
     [`Nuit : ${nsT} → ${neT} · Dimanche : samedi ${nsT} → lundi ${neT} · Jour férié (Genève) : veille ${nsT} → lendemain ${neT} · les catégories peuvent se chevaucher`], [],
-    ['Nom','Prénom','Contrat (h/mois)','Nb services','Heures payées','dont nuit','dont dimanche (sam. → lun.)','dont jours fériés (veille → lendemain)','Écart vs contrat'],
+    ['Nom','Prénom','Contrat (h/mois)','Nb services','Heures travaillées','Jours de congés payés','Heures de congés payés','Total heures payées','dont nuit (travail)','dont dimanche (sam. → lun.)','dont jours fériés (veille → lendemain)','Écart total vs contrat'],
     ...sumRows,
-    ['TOTAL','','',tot.n,r2(tot.paid),r2(tot.night),r2(tot.sunday),r2(tot.holiday),'']
+    ['TOTAL','','',tot.n,r2(tot.paid),tot.cpDays,r2(tot.cp),r2(tot.paid+tot.cp),r2(tot.night),r2(tot.sunday),r2(tot.holiday),'']
   ];
   const detail = [['Date','Jour','Nom','Prénom','Site','Poste','Début','Fin','Pause (min)','Pause payée','Statut','Heures payées','Nuit','Dimanche (sam.→lun.)','Jour férié (veille→lendemain)'],
     ...rows.sort((a,b)=>a.shift.date.localeCompare(b.shift.date)||a.start.localeCompare(b.start)).map(w=>{
@@ -2222,9 +2232,13 @@ function generatePayrollExport(){
         w.shift.breakMinutes||0, w.shift.breakMinutes? (w.shift.breakPaid?'Oui':'Non') : '—', shiftStateLabel(w.shift), r2(w.paid), r2(w.night), r2(w.sunday), r2(w.holiday)];
     })];
   const wb = XLSX.utils.book_new();
-  const ws1 = XLSX.utils.aoa_to_sheet(sheet1); ws1['!cols'] = [{wch:20},{wch:16},{wch:15},{wch:11},{wch:13},{wch:10},{wch:26},{wch:34},{wch:15}];
+  const ws1 = XLSX.utils.aoa_to_sheet(sheet1); ws1['!cols'] = [{wch:20},{wch:16},{wch:15},{wch:11},{wch:16},{wch:12},{wch:14},{wch:16},{wch:14},{wch:26},{wch:34},{wch:18}];
+  const cpSheet = [['Date','Jour','Nom','Prénom','Heures de congé payé'],
+    ...leaveRows.sort((x,y)=>x.date.localeCompare(y.date)).map(l=>{ const a = agentById(l.agent), np = a? getNomPrenom(a) : {nom:'?',prenom:''};
+      return [fmtDate(l.date), weekdayFullName(l.date), np.nom, np.prenom, r2(l.hours)]; })];
+  const ws3 = XLSX.utils.aoa_to_sheet(cpSheet); ws3['!cols'] = [{wch:11},{wch:11},{wch:18},{wch:14},{wch:20}];
   const ws2 = XLSX.utils.aoa_to_sheet(detail); ws2['!cols'] = [{wch:11},{wch:11},{wch:18},{wch:14},{wch:16},{wch:18},{wch:7},{wch:7},{wch:11},{wch:11},{wch:11},{wch:13},{wch:8},{wch:20},{wch:26}];
-  XLSX.utils.book_append_sheet(wb, ws1, 'Synthèse'); XLSX.utils.book_append_sheet(wb, ws2, 'Détail');
+  XLSX.utils.book_append_sheet(wb, ws1, 'Synthèse'); XLSX.utils.book_append_sheet(wb, ws2, 'Détail'); XLSX.utils.book_append_sheet(wb, ws3, 'Congés payés');
   XLSX.writeFile(wb, `Paie_Heures_${month}.xlsx`);
   closeModal(); toast(`${rows.length} service(s) exporté(s) pour ${sumRows.length} agent(s)${rows.excluded? ` — ${rows.excluded} à contrôler non inclus` : ''}${rows.subAgents.size? ` — ${rows.subAgents.size} sous-traitant(s) exclu(s)` : ''}`, !!rows.excluded);
 }
@@ -2233,7 +2247,8 @@ function generatePayrollExport(){
 // ── COMPTEUR D'HEURES CUMULÉ (banque d'heures) ──────────────
 // Heures faites depuis le début de l'année moins heures dues au contrat.
 //  · fait  : services « Effectué » ou « à contrôler » jusqu'à aujourd'hui (heures déclarées si
-//            l'agent les a modifiées, sinon heures prévues), pause non payée déduite ;
+//            l'agent les a modifiées, sinon heures prévues), pause non payée déduite,
+//            + congés payés acceptés (jours × heures d'un jour de congé) ;
 //  · dû    : contrat mensuel (ou annuel/12) × mois écoulés, au prorata du premier mois (date du
 //            premier service enregistré dans le Planning cette année) et du mois en cours.
 // ⚠ Fiable seulement si le Planning contient tous les services depuis l'entrée de l'agent.
@@ -2252,11 +2267,13 @@ function agentHoursBalance(a){
     done += shiftDurationHours({ start:useA?x.actualStart:x.start, end:useA?x.actualEnd:x.end, breakMinutes:x.breakMinutes, breakPaid:x.breakPaid });
   });
   const first = mine.map(x=>x.date).sort()[0];
+  const leave = agentPaidLeaveHours(a.id, daysBetweenISO(first, today)).hours;   // congés payés acceptés = heures payées
+  done += leave;
   const [fy,fm,fd] = first.split('-').map(Number), [ty,tm,td] = today.split('-').map(Number);
   const dim = (y,m)=>new Date(Date.UTC(y,m,0)).getUTCDate();
   const months = (fm===tm) ? (td-fd+1)/dim(ty,tm) : ((dim(fy,fm)-fd+1)/dim(fy,fm)) + (tm-fm-1) + td/dim(ty,tm);
   const due = monthly*months;
-  return { done, due, balance:done-due, since:first };
+  return { done, due, balance:done-due, since:first, leave };
 }
 function fmtBalance(h){ const r = Math.round(h*10)/10; return (r>0?'+':'')+r+'h'; }
 function renderHoursBalanceCard(){
@@ -2644,6 +2661,12 @@ function agentHoursInRange(agentId, days){
   const daySet = new Set(days);
   return STATE.shifts.filter(s=>s.agent===agentId && daySet.has(s.date)).reduce((sum,s)=>sum+shiftDurationHours(s), 0);
 }
+// Total affiché dans les colonnes « Total semaine / mois » : services + congés payés acceptés.
+function agentTotalCell(agentId, days, target){
+  const worked = agentHoursInRange(agentId, days), cp = agentPaidLeaveHours(agentId, days).hours;
+  const main = fmtAgentHours(worked+cp, target);
+  return cp>0? `${main}<div class="hint" style="font-size:10.5px;font-weight:400;" title="dont congés payés">dont CP ${Math.round(cp*10)/10}h</div>` : main;
+}
 // Renamed from a generic fmtHours to avoid colliding with an existing,
 // differently-shaped fmtHours(minutes) used elsewhere (Heures & présences) —
 // same name, incompatible signature, easy to trip over later.
@@ -2702,8 +2725,8 @@ function renderAgentCalendar(days, today, canManage, activeView){
         return `
         <div class="cell row-label">${esc(displayNomPrenom(a))}${subBadge(a)}${isSecondary? ' <span class="badge badge-grey" style="font-weight:400;">secondaire</span>' : ''}${a.available===false? ' <span class="badge badge-red" style="font-weight:600;">indisponible</span>' : ''}</div>
         ${days.map(d=>renderAgentPlanningCell(a,d,today,canManage)).join('')}
-        ${showWeekCol? `<div class="cell total-cell">${fmtAgentHours(agentHoursInRange(a.id, days), a.weekly)}</div>` : ''}
-        <div class="cell total-cell">${fmtAgentHours(agentHoursInRange(a.id, monthDays), agentMonthlyTarget(a))}</div>
+        ${showWeekCol? `<div class="cell total-cell">${agentTotalCell(a.id, days, a.weekly)}</div>` : ''}
+        <div class="cell total-cell">${agentTotalCell(a.id, monthDays, agentMonthlyTarget(a))}</div>
       `;}).join('') : `<div class="cell" style="grid-column:1/-1;color:var(--text3);">Aucun agent${emptyReason}${PLAN_FILTER.onlyActive?' avec service sur cette période':''}.</div>`}
     </div>
   `;
@@ -2724,7 +2747,7 @@ function renderAgentPlanningCell(agent, date, today, canManage){
   const dropAttrs = canManage && !SELECT_MODE? `ondragover="handleCellDragOver(event)" ondragleave="handleCellDragLeave(event)" ondrop="handleCellDrop(event,{agent:'${jsStr(agent.id)}',date:'${date}'})"` : '';
   const abs = agentAbsenceOn(agent.id, date);
   const absHours = abs? paidLeaveHoursOn(abs, date) : null;
-  const absTag = abs? `<div class="abs-tag ${abs.status==='Acceptée'?'':'pending'}" title="${esc(absenceKindLabel(abs.kind))} — ${esc(abs.status)}${absHours!=null? ' — '+fmtHours(absHours)+' payées' : ''}">${abs.status==='Acceptée'?'⛔':'⏳'} ${esc(absenceKindLabel(abs.kind))}${absHours!=null? ' · '+fmtHours(absHours) : ''}${abs.status==='Acceptée'?'':' (demande)'}</div>` : '';
+  const absTag = abs? `<div class="abs-tag ${abs.status==='Acceptée'?'':'pending'}" title="${esc(absenceKindLabel(abs.kind))} — ${esc(abs.status)}${absHours!=null? ' — '+fmtLeaveHours(absHours)+' payées' : ''}">${abs.status==='Acceptée'?'⛔':'⏳'} ${esc(absenceKindLabel(abs.kind))}${absHours!=null? ' · '+fmtLeaveHours(absHours) : ''}${abs.status==='Acceptée'?'':' (demande)'}</div>` : '';
   const absCls = abs? (abs.status==='Acceptée'?'is-absent':'is-absence-pending') : '';
   const offTag = (!abs && usuallyOff(agent.id, date))? '<div class="avail-tag" title="Jour d’indisponibilité habituelle déclaré par l’agent">habituellement indisponible</div>' : '';
   return `<div class="cell shift-cell ${date===today?'is-today':''} ${holidayName(date)?'is-holiday':''} ${absCls} ${offTag?'is-usually-off':''}" ${dropAttrs}>${absTag}${offTag}${chips}${addBtn}</div>`;
@@ -3180,15 +3203,39 @@ async function controlShift(id){ const ok=await apiAction('check',{id}); if(ok){
 // ── ABSENCES ────────────────────────────────────────────────
 // Heures payées pour ce jour de congé payé. En « jours ouvrés », seuls lun.–ven. comptent ;
 // en « jours planifiés », chaque jour du congé compte.
-function paidLeaveHoursOn(abs, date){
-  if(!abs || abs.kind!=='paid') return null;
+function leaveDayCounts(abs, date){
   const ag = agentById(abs.agent); const y = Number(String(abs.from||date).slice(0,4));
   const la = ag && (ag.leaveAccounts||[]).find(x=>Number(x.year)===y);
-  if(!(la && la.method==='scheduled')){
-    const dow = new Date(date+'T12:00:00').getDay(); if(dow===0 || dow===6) return null;
-  }
-  return leaveDayHours(ag, y);
+  if(la && la.method==='scheduled') return true;
+  const dow = new Date(date+'T12:00:00').getDay(); return dow!==0 && dow!==6;
 }
+function paidLeaveHoursOn(abs, date){
+  if(!abs || abs.kind!=='paid') return null;
+  if(!leaveDayCounts(abs, date)) return null;
+  // Si le nombre de jours a été fixé sur la demande, on ne compte pas plus de jours que ce nombre.
+  if(abs.days!=null && abs.days!==''){
+    let idx = 0;
+    for(let d=String(abs.from).slice(0,10); d<date; d=addDaysISO(d,1)) if(leaveDayCounts(abs, d)) idx++;
+    if(idx >= Number(abs.days)) return null;
+  }
+  return leaveDayHours(agentById(abs.agent), Number(String(abs.from||date).slice(0,4)));
+}
+function addDaysISO(iso, n){ const d = new Date(iso+'T12:00:00Z'); d.setUTCDate(d.getUTCDate()+n); return d.toISOString().slice(0,10); }
+// Heures de congés payés ACCEPTÉS d'un agent sur une liste de jours → { hours, days, items:[{date,hours,abs}] }
+function agentPaidLeaveHours(agentId, days){
+  const out = { hours:0, days:0, items:[] };
+  const a = agentById(agentId); if(!a || isSubcontractor(a)) return out;
+  const list = (STATE.absences||[]).filter(x=>x.agent===agentId && x.kind==='paid' && x.status==='Acceptée');
+  if(!list.length) return out;
+  days.forEach(date=>{
+    const abs = list.find(x=>String(x.from).slice(0,10)<=date && String(x.to).slice(0,10)>=date);
+    if(!abs) return;
+    const h = paidLeaveHoursOn(abs, date);
+    if(h){ out.hours += h; out.days++; out.items.push({ date, hours:h, abs }); }
+  });
+  return out;
+}
+function daysBetweenISO(from, to){ const r=[]; for(let d=from; d<=to; d=addDaysISO(d,1)) r.push(d); return r; }
 function renderAbsenceRow(a, forApproval){
   const canManage = ACTOR.role==='direction'||ACTOR.role==='planning';
   const mine = ACTOR.role==='agent' && a.agent===ACTOR.agent;
@@ -3197,7 +3244,7 @@ function renderAbsenceRow(a, forApproval){
   const demo = isDemoAgent(agentById(a.agent)||{});
   return `<div class="shift-row" style="cursor:default;">
     <span class="shift-time">${esc(fmtDate(a.from))} → ${esc(fmtDate(a.to))}</span>
-    <span class="shift-site">${a.kind==='paid'?'Congé payé':'Indisponibilité'}${a.days?' · '+a.days+' j':''}${(()=>{ if(a.kind!=='paid' || !a.days) return ''; const h = leaveDayHours(agentById(a.agent), Number(String(a.from).slice(0,4))); return h==null? '' : ' · '+fmtHours(a.days*h)+' payées'; })()}</span>
+    <span class="shift-site">${a.kind==='paid'?'Congé payé':'Indisponibilité'}${a.days?' · '+a.days+' j':''}${(()=>{ if(a.kind!=='paid' || !a.days) return ''; const h = leaveDayHours(agentById(a.agent), Number(String(a.from).slice(0,4))); return h==null? '' : ' · '+fmtLeaveHours(a.days*h)+' payées'; })()}</span>
     <span class="shift-agent">${esc(agentLabel(a.agent))} ${demo?'<span class="badge demo-badge">Démo</span>':''}</span>
     <span class="badge ${a.status==='Acceptée'?'badge-green':a.status==='Refusée'?'badge-red':'badge-orange'}">${esc(a.status)}</span>
     <span style="display:flex;gap:4px;">
@@ -3752,7 +3799,7 @@ function leaveDayHours(a, year){
   const la = a && (a.leaveAccounts||[]).find(x=>Number(x.year)===Number(year));
   return (la && la.dayHours!=null)? la.dayHours : autoLeaveDayHours(a);
 }
-function fmtHours(h){ if(h==null || !isFinite(h)) return '—'; const r = Math.round(h*100)/100; return String(r).replace('.',',')+' h'; }
+function fmtLeaveHours(h){ if(h==null || !isFinite(h)) return '—'; const r = Math.round(h*100)/100; return String(r).replace('.',',')+' h'; }
 function fmtLeaveDays(n){ n = Number(n)||0; return String(Number.isInteger(n)? n : n.toFixed(1)).replace('.',',')+' j'; }
 function fmtShortDate(iso){ if(!iso) return ''; const [y,m,d] = String(iso).slice(0,10).split('-'); return d+'.'+m+'.'+y; }
 async function loadLeaveBalances(force){
@@ -3785,7 +3832,7 @@ function leaveAccountRowsHtml(agents){
     const taken = b? fmtLeaveDays(b.taken)+(b.pending? `<div class="hint">+ ${fmtLeaveDays(b.pending)} en attente</div>` : '') : (LEAVE_BAL? '—' : '…');
     const remaining = b? `<b style="color:${b.remaining<0?'#b91c1c':'inherit'}">${fmtLeaveDays(b.remaining)}</b>` : (LEAVE_BAL? '—' : '…');
     const total = b && b.carryover_expired? fmtLeaveDays(b.opening)+` <span class="hint">(${fmtLeaveDays(la.opening)} avant le ${esc(fmtShortDate(la.carryoverUntil))})</span>` : fmtLeaveDays(la.opening);
-    return `<tr><td>${esc(displayNomPrenom(a))}</td><td>${la.year}</td><td>${fmtLeaveDays(la.opening-(la.carryover||0))}</td><td>${carry}</td><td>${total}</td><td>${taken}</td><td>${remaining}</td><td>${(()=>{ const h = la.dayHours!=null? la.dayHours : autoLeaveDayHours(a); return h==null? '<span class="hint">à définir</span>' : fmtHours(h)+(la.dayHours!=null? ' <span class="hint">(fixé)</span>' : ' <span class="hint">(contrat)</span>'); })()}</td>
+    return `<tr><td>${esc(displayNomPrenom(a))}</td><td>${la.year}</td><td>${fmtLeaveDays(la.opening-(la.carryover||0))}</td><td>${carry}</td><td>${total}</td><td>${taken}</td><td>${remaining}</td><td>${(()=>{ const h = la.dayHours!=null? la.dayHours : autoLeaveDayHours(a); return h==null? '<span class="hint">à définir</span>' : fmtLeaveHours(h)+(la.dayHours!=null? ' <span class="hint">(fixé)</span>' : ' <span class="hint">(contrat)</span>'); })()}</td>
       <td style="text-align:right;white-space:nowrap;">${canManage? `<button class="btn btn-sm btn-ghost" onclick="openLeaveAccountModal('${jsStr(a.id)}',${Number(la.year)})" title="Modifier">✏️</button><button class="btn btn-sm btn-danger" onclick="deleteLeaveAccountAction('${jsStr(a.id)}',${Number(la.year)})" title="Supprimer">🗑</button>` : ''}</td></tr>`;
   }));
   return rows.join('') || '<tr><td colspan="9" style="color:var(--text3);">Aucun compte congé défini</td></tr>';
@@ -3826,7 +3873,7 @@ function updateLeaveForm(yearChanged){
   if(dhHint){
     const ag = agentById(modalVal('la-agent')), auto = autoLeaveDayHours(ag);
     const src = ag && Number.isFinite(ag.monthly) && ag.monthly>0 ? `contrat ${String(ag.monthly).replace('.',',')} h/mois × 12 ÷ 52 ÷ 5` : (ag && Number(ag.weekly)>0 ? `objectif ${String(ag.weekly).replace('.',',')} h/sem ÷ 5` : '');
-    dhHint.textContent = auto!=null? `Vide = calcul automatique : ${fmtHours(auto)} (${src}).` : 'Aucun contrat connu : saisissez la valeur.';
+    dhHint.textContent = auto!=null? `Vide = calcul automatique : ${fmtLeaveHours(auto)} (${src}).` : 'Aucun contrat connu : saisissez la valeur.';
   }
   const h = document.getElementById('la-help');
   if(h) h.textContent = carry>0
