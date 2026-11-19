@@ -1,4 +1,4 @@
-<!-- RDZ · Planning_RDZ · v7 · 2026-11-16 · base v6 + reliquat de congés N-1 avec date limite de prise, soldes restants, suppression d’un compte congés -->
+<!-- RDZ · Planning_RDZ · v8 · 2026-11-19 · base v7 + heures payées par jour de congé (auto selon contrat, modifiable par compte congés) -->
 <!-- RDZ · Planning_RDZ · v6 · 2026-10-14 · base v5 + statut « Sous-traitant » (agents hors base RH : planifiables, exclus de la paie et du compteur d’heures) -->
 <!DOCTYPE html>
 <html lang="fr">
@@ -686,7 +686,7 @@ function mapAgent(row, leaveByAgent){
     } : undefined,
     weekly: row.weekly, annual: row.annual, monthly: row.monthly ?? undefined, done: row.done||0,
     available: !!row.available, competencePassport: row.competence_passport||[], quizResults: row.quiz_results||[],
-    leaveAccounts: (leaveByAgent[row.id]||[]).map(l=>({ year:Number(l.year), opening:Number(l.opening)||0, carryover:Number(l.carryover)||0, carryoverUntil:l.carryover_until||'', method:l.method }))
+    leaveAccounts: (leaveByAgent[row.id]||[]).map(l=>({ year:Number(l.year), opening:Number(l.opening)||0, carryover:Number(l.carryover)||0, carryoverUntil:l.carryover_until||'', dayHours:(l.day_hours!=null && l.day_hours!=='')? Number(l.day_hours) : null, method:l.method }))
   };
   if(row.deleted_at) a.deletedAt = row.deleted_at;
   return a;
@@ -855,7 +855,7 @@ async function apiAction(action, params){
         // `opening` stays the TOTAL available (annual + carry-over); the carry-over part
         // and its deadline are stored separately and applied by rdz_planning_leave_balance_calc.
         await rpc('rdz_planning_save_leave_account', { p_agent: params.agent, p_year: params.year, p_opening: params.opening, p_method: params.method });
-        await rpc('rdz_planning_set_leave_carryover', { p_agent: params.agent, p_year: params.year, p_carryover: params.carryover||0, p_until: params.carryoverUntil||null });
+        await rpc('rdz_planning_set_leave_details', { p_agent: params.agent, p_year: params.year, p_carryover: params.carryover||0, p_until: params.carryoverUntil||null, p_day_hours: params.dayHours ?? null });
         LEAVE_BAL = null;
         break;
       case 'deleteLeaveAccount':
@@ -2723,7 +2723,8 @@ function renderAgentPlanningCell(agent, date, today, canManage){
   }
   const dropAttrs = canManage && !SELECT_MODE? `ondragover="handleCellDragOver(event)" ondragleave="handleCellDragLeave(event)" ondrop="handleCellDrop(event,{agent:'${jsStr(agent.id)}',date:'${date}'})"` : '';
   const abs = agentAbsenceOn(agent.id, date);
-  const absTag = abs? `<div class="abs-tag ${abs.status==='Acceptée'?'':'pending'}" title="${esc(absenceKindLabel(abs.kind))} — ${esc(abs.status)}">${abs.status==='Acceptée'?'⛔':'⏳'} ${esc(absenceKindLabel(abs.kind))}${abs.status==='Acceptée'?'':' (demande)'}</div>` : '';
+  const absHours = abs? paidLeaveHoursOn(abs, date) : null;
+  const absTag = abs? `<div class="abs-tag ${abs.status==='Acceptée'?'':'pending'}" title="${esc(absenceKindLabel(abs.kind))} — ${esc(abs.status)}${absHours!=null? ' — '+fmtHours(absHours)+' payées' : ''}">${abs.status==='Acceptée'?'⛔':'⏳'} ${esc(absenceKindLabel(abs.kind))}${absHours!=null? ' · '+fmtHours(absHours) : ''}${abs.status==='Acceptée'?'':' (demande)'}</div>` : '';
   const absCls = abs? (abs.status==='Acceptée'?'is-absent':'is-absence-pending') : '';
   const offTag = (!abs && usuallyOff(agent.id, date))? '<div class="avail-tag" title="Jour d’indisponibilité habituelle déclaré par l’agent">habituellement indisponible</div>' : '';
   return `<div class="cell shift-cell ${date===today?'is-today':''} ${holidayName(date)?'is-holiday':''} ${absCls} ${offTag?'is-usually-off':''}" ${dropAttrs}>${absTag}${offTag}${chips}${addBtn}</div>`;
@@ -3177,6 +3178,17 @@ function openControlModal(id){
 async function controlShift(id){ const ok=await apiAction('check',{id}); if(ok){closeModal();toast('Heures contrôlées');} }
 
 // ── ABSENCES ────────────────────────────────────────────────
+// Heures payées pour ce jour de congé payé. En « jours ouvrés », seuls lun.–ven. comptent ;
+// en « jours planifiés », chaque jour du congé compte.
+function paidLeaveHoursOn(abs, date){
+  if(!abs || abs.kind!=='paid') return null;
+  const ag = agentById(abs.agent); const y = Number(String(abs.from||date).slice(0,4));
+  const la = ag && (ag.leaveAccounts||[]).find(x=>Number(x.year)===y);
+  if(!(la && la.method==='scheduled')){
+    const dow = new Date(date+'T12:00:00').getDay(); if(dow===0 || dow===6) return null;
+  }
+  return leaveDayHours(ag, y);
+}
 function renderAbsenceRow(a, forApproval){
   const canManage = ACTOR.role==='direction'||ACTOR.role==='planning';
   const mine = ACTOR.role==='agent' && a.agent===ACTOR.agent;
@@ -3185,7 +3197,7 @@ function renderAbsenceRow(a, forApproval){
   const demo = isDemoAgent(agentById(a.agent)||{});
   return `<div class="shift-row" style="cursor:default;">
     <span class="shift-time">${esc(fmtDate(a.from))} → ${esc(fmtDate(a.to))}</span>
-    <span class="shift-site">${a.kind==='paid'?'Congé payé':'Indisponibilité'}${a.days?' · '+a.days+' j':''}</span>
+    <span class="shift-site">${a.kind==='paid'?'Congé payé':'Indisponibilité'}${a.days?' · '+a.days+' j':''}${(()=>{ if(a.kind!=='paid' || !a.days) return ''; const h = leaveDayHours(agentById(a.agent), Number(String(a.from).slice(0,4))); return h==null? '' : ' · '+fmtHours(a.days*h)+' payées'; })()}</span>
     <span class="shift-agent">${esc(agentLabel(a.agent))} ${demo?'<span class="badge demo-badge">Démo</span>':''}</span>
     <span class="badge ${a.status==='Acceptée'?'badge-green':a.status==='Refusée'?'badge-red':'badge-orange'}">${esc(a.status)}</span>
     <span style="display:flex;gap:4px;">
@@ -3684,7 +3696,7 @@ function renderSettings(el){
         <button class="btn btn-ghost btn-sm" onclick="openLeaveAccountModal()">+ Définir un solde</button>
       </div>
       <div class="hint" style="margin-bottom:10px;">Le reliquat (jours non pris de l’année précédente) s’ajoute au droit annuel. Les congés pris jusqu’à sa date limite le consomment en premier ; ce qui n’est pas pris à cette date est perdu. L’agent voit son solde dans son application.</div>
-      <div class="tbl-wrap"><table><thead><tr><th>Agent</th><th>Année</th><th>Droit annuel</th><th>Reliquat N-1</th><th>Total</th><th>Pris</th><th>Restant</th><th></th></tr></thead><tbody id="leave-tbody">
+      <div class="tbl-wrap"><table><thead><tr><th>Agent</th><th>Année</th><th>Droit annuel</th><th>Reliquat N-1</th><th>Total</th><th>Pris</th><th>Restant</th><th>1 j de congé</th><th></th></tr></thead><tbody id="leave-tbody">
         ${leaveAccountRowsHtml(agents)}
       </tbody></table></div>
     </div>
@@ -3727,6 +3739,20 @@ async function saveRulesForm(){
 // ── COMPTES CONGÉS (droit annuel + reliquat N-1 avec date limite) ──
 let LEAVE_BAL = null;        // { 'agentId|year': balance } — chargé à l'ouverture des Réglages
 let LEAVE_BAL_LOADING = false;
+// Heures payées pour 1 jour de congé payé : valeur saisie sur le compte congés de l'année,
+// sinon heures hebdomadaires du contrat ÷ 5 (mensuel × 12 ÷ 52 ÷ 5). Même règle que
+// rdz_planning_leave_day_hours côté base.
+function autoLeaveDayHours(a){
+  if(!a) return null;
+  if(Number.isFinite(a.monthly) && a.monthly>0) return Math.round(a.monthly*12/52/5*100)/100;
+  if(Number(a.weekly)>0) return Math.round(Number(a.weekly)/5*100)/100;
+  return null;
+}
+function leaveDayHours(a, year){
+  const la = a && (a.leaveAccounts||[]).find(x=>Number(x.year)===Number(year));
+  return (la && la.dayHours!=null)? la.dayHours : autoLeaveDayHours(a);
+}
+function fmtHours(h){ if(h==null || !isFinite(h)) return '—'; const r = Math.round(h*100)/100; return String(r).replace('.',',')+' h'; }
 function fmtLeaveDays(n){ n = Number(n)||0; return String(Number.isInteger(n)? n : n.toFixed(1)).replace('.',',')+' j'; }
 function fmtShortDate(iso){ if(!iso) return ''; const [y,m,d] = String(iso).slice(0,10).split('-'); return d+'.'+m+'.'+y; }
 async function loadLeaveBalances(force){
@@ -3759,10 +3785,10 @@ function leaveAccountRowsHtml(agents){
     const taken = b? fmtLeaveDays(b.taken)+(b.pending? `<div class="hint">+ ${fmtLeaveDays(b.pending)} en attente</div>` : '') : (LEAVE_BAL? '—' : '…');
     const remaining = b? `<b style="color:${b.remaining<0?'#b91c1c':'inherit'}">${fmtLeaveDays(b.remaining)}</b>` : (LEAVE_BAL? '—' : '…');
     const total = b && b.carryover_expired? fmtLeaveDays(b.opening)+` <span class="hint">(${fmtLeaveDays(la.opening)} avant le ${esc(fmtShortDate(la.carryoverUntil))})</span>` : fmtLeaveDays(la.opening);
-    return `<tr><td>${esc(displayNomPrenom(a))}</td><td>${la.year}</td><td>${fmtLeaveDays(la.opening-(la.carryover||0))}</td><td>${carry}</td><td>${total}</td><td>${taken}</td><td>${remaining}</td>
+    return `<tr><td>${esc(displayNomPrenom(a))}</td><td>${la.year}</td><td>${fmtLeaveDays(la.opening-(la.carryover||0))}</td><td>${carry}</td><td>${total}</td><td>${taken}</td><td>${remaining}</td><td>${(()=>{ const h = la.dayHours!=null? la.dayHours : autoLeaveDayHours(a); return h==null? '<span class="hint">à définir</span>' : fmtHours(h)+(la.dayHours!=null? ' <span class="hint">(fixé)</span>' : ' <span class="hint">(contrat)</span>'); })()}</td>
       <td style="text-align:right;white-space:nowrap;">${canManage? `<button class="btn btn-sm btn-ghost" onclick="openLeaveAccountModal('${jsStr(a.id)}',${Number(la.year)})" title="Modifier">✏️</button><button class="btn btn-sm btn-danger" onclick="deleteLeaveAccountAction('${jsStr(a.id)}',${Number(la.year)})" title="Supprimer">🗑</button>` : ''}</td></tr>`;
   }));
-  return rows.join('') || '<tr><td colspan="8" style="color:var(--text3);">Aucun compte congé défini</td></tr>';
+  return rows.join('') || '<tr><td colspan="9" style="color:var(--text3);">Aucun compte congé défini</td></tr>';
 }
 function openLeaveAccountModal(agentId, year){
   const agents = sortAgentsByNom(STATE.agents.filter(a=>!a.deletedAt));
@@ -3776,12 +3802,13 @@ function openLeaveAccountModal(agentId, year){
   const until = la && la.carryoverUntil? String(la.carryoverUntil).slice(0,10) : (y+'-03-31');
   openModal('leave-modal', la? 'Modifier le solde de congés' : 'Solde de congés', `
     <div class="fgrid">
-      <div class="fg full"><div class="flabel">Agent *</div><select class="fsel" id="la-agent" ${la?'disabled':''}>${agents.map(x=>`<option value="${x.id}" ${a&&x.id===a.id?'selected':''}>${esc(displayNomPrenom(x))}</option>`).join('')}</select></div>
+      <div class="fg full"><div class="flabel">Agent *</div><select class="fsel" id="la-agent" ${la?'disabled':''} onchange="updateLeaveForm()">${agents.map(x=>`<option value="${x.id}" ${a&&x.id===a.id?'selected':''}>${esc(displayNomPrenom(x))}</option>`).join('')}</select></div>
       <div class="fg"><div class="flabel">Année *</div><input class="finp" type="number" id="la-year" value="${y}" ${la?'disabled':''} oninput="updateLeaveForm(true)"></div>
       <div class="fg"><div class="flabel">Droit annuel (j) *</div><input class="finp" type="number" id="la-annual" min="0" step="0.5" value="${annual}" oninput="updateLeaveForm()"></div>
       <div class="fg"><div class="flabel" id="la-carry-label">Reliquat ${y-1} (j)</div><input class="finp" type="number" id="la-carry" min="0" step="0.5" value="${carry}" oninput="updateLeaveForm()"></div>
       <div class="fg"><div class="flabel">Reliquat à prendre avant le</div><input class="finp" type="date" id="la-until" value="${until}"></div>
       <div class="fg"><div class="flabel">Total disponible</div><div class="finp" id="la-total" style="background:var(--bg);font-weight:700;"></div></div>
+      <div class="fg"><div class="flabel">1 jour de congé = (heures payées)</div><input class="finp" type="number" id="la-dh" min="0.25" max="24" step="0.01" value="${la&&la.dayHours!=null? la.dayHours : ''}" placeholder="Auto" oninput="updateLeaveForm()"><div class="hint" id="la-dh-hint"></div></div>
       <div class="fg"><div class="flabel">Méthode de décompte</div><select class="fsel" id="la-method"><option value="weekdays" ${la&&la.method==='scheduled'?'':'selected'}>Jours ouvrés</option><option value="scheduled" ${la&&la.method==='scheduled'?'selected':''}>Jours planifiés</option></select></div>
     </div>
     <div class="hint" style="margin-top:8px;" id="la-help"></div>
@@ -3795,6 +3822,12 @@ function updateLeaveForm(yearChanged){
   if(until) until.disabled = !(carry>0);
   const t = document.getElementById('la-total'); if(t) t.textContent = fmtLeaveDays(annual+carry);
   const l = document.getElementById('la-carry-label'); if(l && y) l.textContent = 'Reliquat '+(y-1)+' (j)';
+  const dhHint = document.getElementById('la-dh-hint');
+  if(dhHint){
+    const ag = agentById(modalVal('la-agent')), auto = autoLeaveDayHours(ag);
+    const src = ag && Number.isFinite(ag.monthly) && ag.monthly>0 ? `contrat ${String(ag.monthly).replace('.',',')} h/mois × 12 ÷ 52 ÷ 5` : (ag && Number(ag.weekly)>0 ? `objectif ${String(ag.weekly).replace('.',',')} h/sem ÷ 5` : '');
+    dhHint.textContent = auto!=null? `Vide = calcul automatique : ${fmtHours(auto)} (${src}).` : 'Aucun contrat connu : saisissez la valeur.';
+  }
   const h = document.getElementById('la-help');
   if(h) h.textContent = carry>0
     ? `L’agent verra ${fmtLeaveDays(annual+carry)} : ${fmtLeaveDays(annual)} pour ${y} + ${fmtLeaveDays(carry)} de reliquat ${y-1}. Les congés pris jusqu’au ${fmtShortDate(until&&until.value)||'…'} utilisent d’abord le reliquat ; le reliquat non pris à cette date est perdu.`
@@ -3808,8 +3841,12 @@ async function saveLeaveAccountForm(){
   if(!(year>=2020 && year<=2100)){ modalError('Année invalide.'); return; }
   if(!(annual>=0) || annual>100){ modalError('Droit annuel invalide.'); return; }
   if(!(carryover>=0) || carryover>100){ modalError('Reliquat invalide.'); return; }
+  const dhRaw = String(modalVal('la-dh')||'').trim().replace(',','.');
+  const dayHours = dhRaw===''? null : Number(dhRaw);
+  if(dayHours!=null && !(dayHours>0 && dayHours<=24)){ modalError('Heures par jour de congé invalides (entre 0 et 24).'); return; }
+  if(dayHours==null && autoLeaveDayHours(agentById(agent))==null){ modalError('Cet agent n’a pas de contrat connu : indiquez les heures payées pour 1 jour de congé.'); return; }
   if(carryover>0 && carryoverUntil && Number(carryoverUntil.slice(0,4))!==year){ modalError('La date limite du reliquat doit être dans l’année '+year+'.'); return; }
-  const ok = await apiAction('saveLeaveAccount', { agent, year, opening: annual+carryover, carryover, carryoverUntil, method: modalVal('la-method') });
+  const ok = await apiAction('saveLeaveAccount', { agent, year, opening: annual+carryover, carryover, carryoverUntil, dayHours, method: modalVal('la-method') });
   if(ok){ closeModal(); toast('Solde de congés enregistré'); loadLeaveBalances(true); }
 }
 async function deleteLeaveAccountAction(agentId, year){
