@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rapports_RDZ — Rapports et envois automatiques</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+<style>
+:root{
+  --red:#c0272d;--red-d:#a31f24;--red-l:#fdf2f2;--red-m:#fecaca;
+  --accent:#c0272d;--accent-hover:#a31f24;
+  --bg:#f2f2f4;--white:#fff;
+  --anth:#2d2d2d;--anth2:#3a3a3a;--anth3:#1a1a1a;
+  --border:#e2e2e6;--border2:#d0d0d6;
+  --text:#2d2d2d;--text2:#4b5563;--text3:#9ca3af;
+  --green:#16a34a;--green-l:#f0fdf4;--green-m:#bbf7d0;
+  --orange:#ea580c;--orange-l:#fff7ed;--orange-m:#fed7aa;
+  --blue:#2563eb;--blue-l:#eff6ff;--blue-m:#bfdbfe;
+  --yellow:#ca8a04;--yellow-l:#fefce8;--yellow-m:#fef08a;
+  --shadow:0 1px 3px rgba(0,0,0,.07),0 4px 12px rgba(0,0,0,.05);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.14);
+  --radius:14px;--radius-sm:8px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html,body{height:100%;}
+body{font-family:'DM Sans',system-ui,sans-serif;background:var(--bg);color:var(--text);font-size:13.5px;line-height:1.45;}
+button,input,select,textarea{font-family:inherit;font-size:inherit;color:inherit;}
+button{cursor:pointer;}
+:focus-visible{outline:2px solid var(--red);outline-offset:2px;}
+.mono{font-family:'DM Mono',monospace;}
+[hidden]{display:none!important;}
+
+/* Login */
+.login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--anth3);padding:20px;}
+.login-box{background:#fff;border-radius:18px;padding:40px;width:100%;max-width:420px;box-shadow:0 20px 60px rgba(0,0,0,.4);}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:28px;}
+.mark{width:40px;height:40px;background:var(--red);border-radius:9px;display:flex;align-items:center;justify-content:center;font-family:'DM Mono';font-size:13px;font-weight:600;color:#fff;flex-shrink:0;}
+.login-brand{font-family:'DM Mono';font-size:15px;font-weight:600;color:var(--anth);}
+.login-sub{font-size:11px;color:var(--text3);margin-top:2px;}
+.login-title{font-family:'DM Mono';font-size:22px;font-weight:600;color:var(--anth);margin-bottom:6px;}
+.login-desc{font-size:13px;color:var(--text2);margin-bottom:24px;}
+.login-box label{display:block;font-size:12px;font-weight:600;color:var(--text2);margin:0 0 6px;}
+.login-box input{width:100%;border:1.5px solid var(--border);border-radius:8px;padding:10px 14px;font-size:14px;margin-bottom:16px;outline:none;}
+.login-box input:focus{border-color:var(--red);}
+.login-err{color:var(--red);font-size:12.5px;min-height:18px;margin-top:10px;}
+.login-back{text-align:center;margin-top:18px;}
+.login-back a{font-size:12px;color:var(--text3);text-decoration:none;}
+
+/* Topbar */
+.topbar{background:var(--anth2);color:#fff;height:56px;display:flex;align-items:center;padding:0 20px;gap:12px;border-bottom:3px solid var(--red);position:sticky;top:0;z-index:50;}
+.topbar .mark{width:32px;height:32px;font-size:11px;border-radius:7px;}
+.tb-brand{font-family:'DM Mono';font-size:13.5px;font-weight:600;line-height:1.1;}
+.tb-sub{font-size:10.5px;color:rgba(255,255,255,.45);}
+.tb-spacer{flex:1;}
+.sync{display:flex;align-items:center;gap:7px;font-size:11.5px;color:rgba(255,255,255,.55);}
+.sync-dot{width:8px;height:8px;border-radius:50%;background:#9ca3af;}
+.sync-dot.ok{background:#4ade80;}.sync-dot.pending{background:#fbbf24;}.sync-dot.error{background:#f87171;}
+.tb-user{font-size:12px;color:#fff;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:5px 10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tb-logout{background:none;border:none;color:rgba(255,255,255,.55);font-size:12px;padding:6px 8px;border-radius:6px;}
+.tb-logout:hover{color:#fff;}
+
+/* Shell */
+.shell{display:flex;min-height:calc(100vh - 56px);}
+.side{width:220px;flex-shrink:0;background:#fff;border-right:1px solid var(--border);padding:18px 10px;position:sticky;top:56px;height:calc(100vh - 56px);overflow-y:auto;}
+.side button{display:flex;align-items:center;justify-content:space-between;width:100%;text-align:left;background:none;border:none;border-radius:8px;padding:9px 12px;margin-bottom:2px;color:var(--text2);font-weight:500;border-left:3px solid transparent;}
+.side button:hover{background:var(--bg);color:var(--anth);}
+.side button.active{background:var(--red-l);color:var(--red);border-left-color:var(--red);font-weight:600;}
+.side .count{font-family:'DM Mono';font-size:11px;background:var(--red);color:#fff;border-radius:10px;padding:0 7px;}
+.side .sep{height:1px;background:var(--border);margin:10px 8px;}
+.main{flex:1;min-width:0;padding:28px 28px 80px;max-width:1240px;}
+@media(max-width:860px){
+  .shell{flex-direction:column;}
+  .side{width:auto;height:auto;position:sticky;top:56px;z-index:40;display:flex;overflow-x:auto;padding:8px;border-right:none;border-bottom:1px solid var(--border);}
+  .side button{width:auto;white-space:nowrap;margin:0 2px;border-left:none;border-bottom:3px solid transparent;border-radius:6px;}
+  .side button.active{border-bottom-color:var(--red);}
+  .side .sep{display:none;}
+  .main{padding:18px 14px 70px;}
+  .tb-sub,.tb-user{display:none;}
+}
+
+/* Page */
+.page-head{margin-bottom:22px;}
+.page-head h1{font-family:'DM Mono';font-size:24px;font-weight:600;color:var(--anth);}
+.page-head .sub{color:var(--text2);margin-top:4px;max-width:70ch;}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-bottom:18px;}
+.toolbar .grow{flex:1;}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field>span{font-size:12px;font-weight:600;color:var(--text2);}
+.field small{font-size:11.5px;color:var(--text3);font-weight:400;}
+.inp,select.inp,textarea.inp{border:1.5px solid var(--border);border-radius:8px;padding:8px 11px;background:#fff;outline:none;min-width:0;width:100%;}
+.inp:focus{border-color:var(--red);}
+textarea.inp{resize:vertical;min-height:80px;}
+.inp.mono{font-family:'DM Mono';font-size:12.5px;}
+.panel{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow);margin-bottom:18px;}
+.panel h2{font-size:15px;font-weight:700;color:var(--anth);margin-bottom:12px;}
+.panel h3{font-size:14px;font-weight:600;}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+.grid-form{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;}
+@media(max-width:860px){.grid2{grid-template-columns:1fr;}}
+.muted{color:var(--text3);}
+.empty{padding:28px 18px;text-align:center;color:var(--text2);background:#fff;border:1.5px dashed var(--border2);border-radius:var(--radius);}
+.empty p{margin-bottom:12px;}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1.5px solid var(--border);background:#fff;color:var(--anth);border-radius:8px;padding:8px 14px;font-weight:600;font-size:12.5px;white-space:nowrap;}
+.btn:hover{border-color:var(--anth);}
+.btn.primary{background:var(--red);border-color:var(--red);color:#fff;}
+.btn.primary:hover{background:var(--red-d);border-color:var(--red-d);}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--text2);}
+.btn.ghost:hover{background:var(--bg);color:var(--anth);}
+.btn.danger{color:var(--red);}
+.btn.sm{padding:5px 10px;font-size:12px;}
+.btn:disabled{opacity:.5;cursor:not-allowed;}
+.link{background:none;border:none;color:var(--red);font-weight:600;padding:0;}
+
+/* Badges */
+.badge{display:inline-block;font-size:11px;font-weight:600;padding:2px 8px;border-radius:10px;white-space:nowrap;}
+.b-green{background:var(--green-l);color:var(--green);}
+.b-red{background:var(--red-l);color:var(--red);}
+.b-orange{background:var(--orange-l);color:var(--orange);}
+.b-blue{background:var(--blue-l);color:var(--blue);}
+.b-grey{background:#f3f4f6;color:var(--text2);}
+
+/* Banner */
+.banner{display:flex;gap:14px;align-items:center;justify-content:space-between;border-radius:var(--radius-sm);padding:12px 16px;margin-bottom:18px;font-size:13px;}
+.banner.warn{background:var(--orange-l);border:1px solid var(--orange-m);color:#9a3412;}
+.banner.info{background:var(--blue-l);border:1px solid var(--blue-m);color:#1e40af;}
+@media(max-width:600px){.banner{flex-direction:column;align-items:flex-start;}}
+
+/* KPI */
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:18px;}
+.kpi{background:#fff;border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;}
+.kpi .v{font-family:'DM Mono';font-size:24px;font-weight:600;color:var(--anth);line-height:1.1;}
+.kpi .v.red{color:var(--red);}
+.kpi .l{font-size:12px;color:var(--text2);margin-top:4px;}
+.issues{list-style:none;}
+.issues li{display:flex;justify-content:space-between;gap:10px;padding:8px 0 8px 12px;border-bottom:1px solid var(--border);border-left:3px solid var(--orange);margin-bottom:6px;}
+.issues li.error{border-left-color:var(--red);}
+.ok-line{color:var(--green);font-weight:600;}
+
+/* Tables */
+.tbl-wrap{overflow-x:auto;background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);}
+table.tbl{width:100%;border-collapse:collapse;font-size:13px;}
+.tbl th{text-align:left;font-size:12px;font-weight:600;color:var(--text2);padding:10px 12px;border-bottom:1px solid var(--border);background:#fafafb;white-space:nowrap;}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--border);vertical-align:top;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr.click{cursor:pointer;}
+.tbl tr.click:hover td{background:#fafafb;}
+.tbl .num{font-family:'DM Mono';font-size:12.5px;white-space:nowrap;}
+.tbl .wrap{max-width:360px;word-break:break-word;}
+
+/* Rules: each rule reads as a sentence */
+.rules{display:flex;flex-direction:column;gap:12px;}
+.rule{background:#fff;border:1px solid var(--border);border-left:5px solid var(--anth);border-radius:10px;padding:14px 16px 12px;box-shadow:var(--shadow);}
+.rule.cond{border-left-color:var(--red);}
+.rule.off{opacity:.55;}
+.rule-top{display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.rule-top h3{font-size:14.5px;font-weight:700;color:var(--anth);}
+.rule-sentence{margin:6px 0 10px;color:var(--text2);font-size:13.5px;}
+.rule-sentence b{color:var(--anth);}
+.rule-row{display:flex;gap:10px;align-items:baseline;margin-bottom:6px;flex-wrap:wrap;}
+.rule-row .k{font-size:12px;font-weight:600;color:var(--text3);width:46px;flex-shrink:0;}
+.chip{display:inline-flex;align-items:center;gap:5px;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:2px 8px;font-size:12px;margin:0 4px 4px 0;}
+.chip b{font-family:'DM Mono';font-size:11.5px;color:var(--red);}
+.subject{font-family:'DM Mono';font-size:12.5px;background:var(--anth);color:#f3f4f6;border-radius:6px;padding:4px 9px;word-break:break-word;}
+.rule-actions{display:flex;gap:4px;justify-content:flex-end;margin-top:6px;}
+
+/* Switch */
+.switch{position:relative;display:inline-block;width:38px;height:22px;flex-shrink:0;}
+.switch input{opacity:0;width:0;height:0;}
+.switch span{position:absolute;inset:0;background:#d1d5db;border-radius:22px;transition:background .15s;}
+.switch span::before{content:'';position:absolute;width:16px;height:16px;left:3px;top:3px;background:#fff;border-radius:50%;transition:transform .15s;}
+.switch input:checked+span{background:var(--green);}
+.switch input:checked+span::before{transform:translateX(16px);}
+.switch input:focus-visible+span{outline:2px solid var(--red);outline-offset:2px;}
+
+/* Modal & drawer */
+.modal-back{position:fixed;inset:0;background:rgba(20,20,22,.55);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:40px 14px;overflow-y:auto;}
+.modal{background:#fff;border-radius:var(--radius);width:100%;max-width:560px;box-shadow:var(--shadow-lg);}
+.modal.wide{max-width:860px;}
+.modal-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid var(--border);}
+.modal-head h2{font-size:16px;font-weight:700;color:var(--anth);}
+.x{background:none;border:none;font-size:22px;line-height:1;color:var(--text3);padding:2px 6px;}
+.x:hover{color:var(--anth);}
+.modal-body{padding:18px 20px;display:flex;flex-direction:column;gap:14px;}
+.modal-err{color:var(--red);font-size:12.5px;padding:0 20px;min-height:4px;}
+.modal-foot{display:flex;justify-content:flex-end;gap:8px;padding:14px 20px;border-top:1px solid var(--border);}
+.check{display:flex;align-items:flex-start;gap:8px;font-size:13px;}
+.check input{margin-top:3px;accent-color:var(--red);}
+.cond-box{border:1px solid var(--border);border-radius:10px;padding:12px;background:#fafafb;display:flex;flex-direction:column;gap:10px;}
+.cond-head{display:grid;grid-template-columns:1fr 200px auto;gap:8px;align-items:end;}
+@media(max-width:600px){.cond-head{grid-template-columns:1fr;}}
+.vals{display:flex;flex-direction:column;gap:4px;max-height:200px;overflow-y:auto;background:#fff;border:1px solid var(--border);border-radius:8px;padding:8px;}
+.var-btns{display:flex;flex-wrap:wrap;gap:4px;}
+.var-btns button{font-family:'DM Mono';font-size:11px;border:1px solid var(--border);background:#fff;border-radius:5px;padding:2px 7px;color:var(--text2);}
+.var-btns button:hover{border-color:var(--red);color:var(--red);}
+.drawer-back{position:fixed;inset:0;background:rgba(20,20,22,.45);z-index:150;}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(640px,100%);background:#fff;z-index:160;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);}
+.drawer-head{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:12px;align-items:flex-start;border-top:4px solid var(--red);}
+.drawer-head h2{font-size:16px;font-weight:700;}
+.drawer-body{flex:1;overflow-y:auto;padding:16px 20px 30px;}
+.kv{display:grid;grid-template-columns:38% 1fr;gap:4px 14px;font-size:13px;margin-bottom:6px;}
+.kv dt{color:var(--text2);}
+.kv dd{white-space:pre-wrap;word-break:break-word;}
+.grp-title{font-weight:700;color:var(--anth);margin:16px 0 8px;padding-top:12px;border-top:1px solid var(--border);}
+.drawer-body>.grp-title:first-child{border-top:none;margin-top:0;padding-top:0;}
+.photos{display:flex;flex-wrap:wrap;gap:8px;}
+.photos img{width:120px;height:90px;object-fit:cover;border-radius:6px;border:1px solid var(--border);}
+
+/* Simulator */
+.sim{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:18px;align-items:start;}
+@media(max-width:980px){.sim{grid-template-columns:1fr;}}
+.sim-out{position:sticky;top:76px;}
+.sim-mail{border:1px solid var(--border);border-left:4px solid var(--green);border-radius:8px;padding:10px 12px;margin-bottom:8px;}
+.sim-mail.skip{border-left-color:var(--border2);color:var(--text3);}
+.sim-mail .n{font-weight:700;font-size:13px;margin-bottom:4px;}
+.sim-mail .to{font-size:12px;color:var(--text2);margin-top:4px;word-break:break-word;}
+.sim-grp{margin-bottom:14px;}
+.sim-grp h4{font-size:13px;font-weight:700;margin-bottom:8px;color:var(--anth);}
+.req{color:var(--red);}
+.help{font-size:11.5px;color:var(--text3);margin:2px 0 4px 24px;}
+
+/* Checkpoints */
+.code-cell{font-family:'DM Mono';font-size:13px;font-weight:600;letter-spacing:.5px;}
+.round-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;}
+.round-pill{border:1.5px solid var(--border);background:#fff;border-radius:20px;padding:6px 14px;font-weight:600;font-size:12.5px;color:var(--text2);}
+.round-pill.active{border-color:var(--red);color:var(--red);background:var(--red-l);}
+
+/* Toast */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:400;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;}
+.toast{background:var(--anth);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);max-width:min(90vw,520px);}
+.toast.err{background:var(--red);}
+.toast.ok{background:var(--green);}
+@media(prefers-reduced-motion:no-preference){.toast{animation:tin .18s ease-out;}@keyframes tin{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}}
+</style>
+</head>
+<body>
+
+<div id="login-screen" class="login-wrap" hidden>
+  <form class="login-box" onsubmit="doLogin(event)">
+    <div class="login-logo">
+      <div class="mark">RDZ</div>
+      <div><div class="login-brand">RDZ Security Management</div><div class="login-sub">Module administration</div></div>
+    </div>
+    <h1 class="login-title">Rapports</h1>
+    <p class="login-desc">Règles d’envoi automatique, destinataires, journal des envois et points de ronde. Accès réservé aux administrateurs et superviseurs.</p>
+    <label for="login-email">Email</label>
+    <input id="login-email" type="email" autocomplete="username" required>
+    <label for="login-pass">Mot de passe</label>
+    <input id="login-pass" type="password" autocomplete="current-password" required>
+    <button class="btn primary" id="login-btn" type="submit" style="width:100%;padding:12px;font-size:14px;">Se connecter</button>
+    <div class="login-err" id="login-err" role="alert"></div>
+    <div class="login-back"><a href="RDZ_index.html">Retour au portail RDZ</a></div>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="mark">RDZ</div>
+    <div><div class="tb-brand">Rapports RDZ</div><div class="tb-sub">Rapports et envois automatiques</div></div>
+    <div class="tb-spacer"></div>
+    <div class="sync"><span class="sync-dot" id="sync-dot"></span><span id="sync-label"></span></div>
+    <div class="tb-user" id="tb-user"></div>
+    <button class="tb-logout" onclick="doLogout()">Déconnexion</button>
+  </header>
+  <div class="shell">
+    <nav class="side" id="side" aria-label="Sections"></nav>
+    <main class="main" id="main"></main>
+  </div>
+</div>
+
+<div id="modal-root"></div>
+<div id="drawer-root"></div>
+<div id="toast" aria-live="polite"></div>
+
+<script>
+'use strict';
+// ════════════════════════════════════════════════════════
+//  CONFIG
+// ════════════════════════════════════════════════════════
+const SB_URL = 'https://trdhtlcenmjlcvzuplid.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
+const FN_URL = SB_URL + '/functions/v1/rpt-dispatch';
+const ADMIN_ROLES = ['admin', 'supervisor'];
+const LS_SESSION = 'rpt_session_v1', LS_CACHE = 'rpt_cache_v1', LS_DIRTY = 'rpt_dirty_v1';
+const TABLES = {sites:'rpt_sites', posts:'rpt_posts', forms:'rpt_forms', groups:'rpt_recipient_groups',
+                rules:'rpt_mail_rules', rounds:'rpt_rounds', checkpoints:'rpt_checkpoints'};
+const SYSTEM_VARS = ['Statut de soumission','Statut de démarrage','Poste de garde','Nom du formulaire',
+                     'N° de rapport','Date de début','Date de fin','Agent','Site'];
+const STATUS = {pending:['En cours','b-blue'], sent:['Envoyé','b-green'], failed:['Échec','b-red'],
+                test_redirected:['Test (redirigé)','b-orange'], suppressed:['Bloqué (mode test)','b-grey']};
+const FIELD_TYPES = ['date','time','select','text','textarea','number','checkbox','checkboxes','photo'];
+const VIEWS = [
+  ['dash','Vue d’ensemble'], ['reports','Rapports'], ['log','Journal des envois'], null,
+  ['rules','Règles d’envoi'], ['groups','Destinataires'], ['sim','Simulateur'], null,
+  ['points','Points de ronde'], ['sites','Sites et formulaires'], ['settings','Paramètres']
+];
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
+const S = {
+  session: null,
+  cfg: emptyCfg(),
+  settings: {},
+  view: 'dash',
+  reports: [],
+  logs: [],
+  ui: {
+    ruleFormId: null, simFormId: null, simData: {}, simTest: false,
+    pointSiteId: null, pointRound: 'all',
+    rep: {form:'', from: isoDay(-7), to: isoDay(0), tests: false, q: ''},
+    log: {status:'', days:'7', q: ''},
+    ruleDraft: null
+  }
+};
+function emptyCfg(){ return {sites:[], posts:[], forms:[], groups:[], rules:[], rounds:[], checkpoints:[]}; }
+
+// ════════════════════════════════════════════════════════
+//  HELPERS
+// ════════════════════════════════════════════════════════
+function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+function uid(){ return crypto.randomUUID(); }
+function isoDay(offset){ const d = new Date(); d.setDate(d.getDate() + offset); return d.toLocaleDateString('sv-SE'); }
+function fmtDateTime(iso){
+  if(!iso) return '';
+  const d = new Date(iso); if(isNaN(d.getTime())) return '';
+  return new Intl.DateTimeFormat('fr-CH',{timeZone:'Europe/Zurich',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}).format(d).replace(',','');
+}
+function short(s, n){ s = String(s ?? ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+function bySort(a, b){ return (a.sort ?? 0) - (b.sort ?? 0) || String(a.name || a.label || '').localeCompare(String(b.name || b.label || ''), 'fr'); }
+const site  = id => S.cfg.sites.find(x => x.id === id);
+const post  = id => S.cfg.posts.find(x => x.id === id);
+const form  = id => S.cfg.forms.find(x => x.id === id);
+const group = id => S.cfg.groups.find(x => x.id === id);
+const round = id => S.cfg.rounds.find(x => x.id === id);
+function groupMap(){ return new Map(S.cfg.groups.map(g => [g.id, g])); }
+function formPath(f){ const p = post(f.post_id); const s = p && site(p.site_id); return [s?.code, p?.name].filter(Boolean).join(' – '); }
+
+function toast(msg, type){
+  const t = document.createElement('div');
+  t.className = 'toast ' + (type || '');
+  t.textContent = msg;
+  document.getElementById('toast').appendChild(t);
+  setTimeout(() => t.remove(), type === 'err' ? 6000 : 3200);
+}
+function setSync(state, label){
+  const d = document.getElementById('sync-dot'), l = document.getElementById('sync-label');
+  if(d) d.className = 'sync-dot ' + state;
+  if(l) l.textContent = label || '';
+}
+function offlineBox(msg){ return `<div class="empty"><p>${esc(msg)}</p></div>`; }
+
+// ── Shared rule logic (identical to the rpt-dispatch Edge Function) ──
+function fmtValue(v){
+  if(v === null || v === undefined || v === '') return '';
+  if(Array.isArray(v)) return v.map(fmtValue).filter(Boolean).join(', ');
+  if(typeof v === 'boolean') return v ? 'Oui' : 'Non';
+  if(typeof v === 'object') return String(v.label ?? v.name ?? v.path ?? '');
+  const s = String(v); const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : s;
+}
+function renderSubject(tpl, data, sys, sep){
+  const re = /\{([^{}]+)\}/g; let out = '', last = 0, prev = false, m;
+  while((m = re.exec(tpl))){
+    const literal = tpl.slice(last, m.index); const key = m[1].trim();
+    const val = data && Object.prototype.hasOwnProperty.call(data, key) ? fmtValue(data[key]) : (sys[key] ?? '');
+    if(literal){ out += literal; prev = false; }
+    if(val){ if(prev) out += sep; out += val; prev = true; }
+    last = re.lastIndex;
+  }
+  out += tpl.slice(last);
+  return out.replace(/\s+/g,' ').trim();
+}
+function condMatches(c, data){
+  const v = data?.[c.field]; const vals = (c.values || []).map(String);
+  switch(c.type){
+    case 'checked':
+      if(Array.isArray(v)) return vals.length ? v.map(String).some(x => vals.includes(x)) : v.length > 0;
+      return v === true || v === 'true' || v === 'Oui';
+    case 'equals':
+      if(Array.isArray(v)) return v.map(String).some(x => vals.includes(x));
+      return v !== undefined && v !== null && vals.includes(String(v));
+    case 'filled':
+      return !(v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0));
+    default: return false;
+  }
+}
+function ruleMatches(rule, data){
+  if(rule.trigger_mode === 'always') return true;
+  const conds = Array.isArray(rule.conditions) ? rule.conditions : [];
+  if(!conds.length) return false;
+  const res = conds.map(c => condMatches(c, data));
+  return rule.match_mode === 'all' ? res.every(Boolean) : res.some(Boolean);
+}
+function groupVisible(g, data){
+  if(!g.show_if) return true;
+  return condMatches({type:'equals', field:g.show_if.field, values:g.show_if.values}, data);
+}
+const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
+function isEmail(e){ return typeof e === 'string' && EMAIL_RE.test(e.trim()); }
+function splitEmails(s){ return String(s || '').split(/[\s,;]+/).map(x => x.trim().toLowerCase()).filter(Boolean); }
+function recipientsFor(rule, gmap){
+  const set = new Set();
+  for(const gid of rule.group_ids || []){ const g = gmap.get(gid); if(g && g.active !== false) for(const e of g.emails || []) if(isEmail(e)) set.add(e.trim().toLowerCase()); }
+  for(const e of rule.extra_emails || []) if(isEmail(e)) set.add(e.trim().toLowerCase());
+  return [...set];
+}
+function fieldsOf(f){
+  const out = [], seen = new Set();
+  for(const g of f?.schema?.groups || []) for(const fl of g.fields || []){ if(!seen.has(fl.key)){ seen.add(fl.key); out.push(fl); } }
+  return out;
+}
+
+// ════════════════════════════════════════════════════════
+//  SESSION & API
+// ════════════════════════════════════════════════════════
+class HttpError extends Error{ constructor(status, msg){ super(msg); this.status = status; } }
+function saveSession(){ if(S.session) localStorage.setItem(LS_SESSION, JSON.stringify(S.session)); else localStorage.removeItem(LS_SESSION); }
+async function refreshSession(){
+  if(!S.session?.refresh_token) return false;
+  try{
+    const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
+      method:'POST', headers:{'Content-Type':'application/json', apikey:SB_KEY},
+      body: JSON.stringify({refresh_token: S.session.refresh_token})
+    });
+    if(!r.ok) return false;
+    const d = await r.json();
+    Object.assign(S.session, {access_token:d.access_token, refresh_token:d.refresh_token,
+      expires_at: d.expires_at || Math.floor(Date.now()/1000) + (d.expires_in || 3600)});
+    saveSession();
+    return true;
+  }catch(_){ return false; }
+}
+async function ensureFresh(){
+  if(!S.session) throw new HttpError(401, 'Session expirée');
+  const now = Math.floor(Date.now()/1000);
+  if(S.session.expires_at && S.session.expires_at - now < 90 && navigator.onLine) await refreshSession();
+}
+function translateErr(status, m){
+  m = String(m || '');
+  if(status === 409 || /duplicate key/i.test(m)) return 'Cette valeur existe déjà (code ou nom en double).';
+  if(/foreign key/i.test(m)) return 'Impossible : des rapports sont liés à cet élément. Désactivez-le plutôt que de le supprimer.';
+  if(status === 403 || /row-level security/i.test(m)) return 'Action refusée : droits insuffisants.';
+  return m.slice(0, 220) || ('Erreur ' + status);
+}
+async function api(path, opts = {}, retried = false){
+  await ensureFresh();
+  let res;
+  try{
+    res = await fetch(`${SB_URL}/rest/v1/${path}`, {...opts, headers:{
+      apikey:SB_KEY, 'Content-Type':'application/json', Authorization:'Bearer ' + S.session.access_token, ...(opts.headers || {})}});
+  }catch(_){ throw new HttpError(0, 'Connexion impossible'); }
+  if(res.status === 401 && !retried){
+    if(await refreshSession()) return api(path, opts, true);
+    sessionExpired();
+    throw new HttpError(401, 'Session expirée');
+  }
+  const txt = await res.text();
+  if(!res.ok){
+    let m = txt; try{ const j = JSON.parse(txt); m = j.message || j.details || j.hint || txt; }catch(_){}
+    throw new HttpError(res.status, translateErr(res.status, m));
+  }
+  return txt ? JSON.parse(txt) : null;
+}
+async function callFn(body){
+  await ensureFresh();
+  let r;
+  try{
+    r = await fetch(FN_URL, {method:'POST', headers:{apikey:SB_KEY, Authorization:'Bearer ' + S.session.access_token, 'Content-Type':'application/json'}, body: JSON.stringify(body)});
+  }catch(_){ throw new Error('La fonction d’envoi rpt-dispatch est injoignable. Vérifiez la connexion et son déploiement.'); }
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(j.error || ('Erreur ' + r.status));
+  return j;
+}
+async function signedPhotoUrl(path){
+  await ensureFresh();
+  const clean = String(path).replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/');
+  const r = await fetch(`${SB_URL}/storage/v1/object/sign/rpt-photos/${clean}`, {
+    method:'POST', headers:{apikey:SB_KEY, Authorization:'Bearer ' + S.session.access_token, 'Content-Type':'application/json'},
+    body: JSON.stringify({expiresIn: 300})
+  });
+  if(!r.ok) return null;
+  const j = await r.json();
+  const s = j.signedURL || j.signedUrl;
+  return s ? `${SB_URL}/storage/v1${s}` : null;
+}
+let expiredShown = false;
+function sessionExpired(){
+  if(!expiredShown){ toast('Session expirée, reconnectez-vous.', 'err'); expiredShown = true; }
+  doLogout(true, true);
+}
+
+// ════════════════════════════════════════════════════════
+//  AUTH
+// ════════════════════════════════════════════════════════
+async function doLogin(ev){
+  ev && ev.preventDefault();
+  const email = document.getElementById('login-email').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  const err = document.getElementById('login-err'), btn = document.getElementById('login-btn');
+  err.textContent = '';
+  if(!email || !pass){ err.textContent = 'Email et mot de passe requis.'; return; }
+  btn.disabled = true; btn.textContent = 'Connexion…';
+  try{
+    const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+      method:'POST', headers:{'Content-Type':'application/json', apikey:SB_KEY}, body: JSON.stringify({email, password:pass})});
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error_description || d.msg || 'Email ou mot de passe incorrect.');
+    const pr = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${d.user.id}&select=full_name,role,active`, {
+      headers:{apikey:SB_KEY, Authorization:'Bearer ' + d.access_token}});
+    const ps = await pr.json(); const p = Array.isArray(ps) ? ps[0] : null;
+    if(!p || p.active === false || !ADMIN_ROLES.includes(p.role)) throw new Error('Accès réservé aux administrateurs et superviseurs.');
+    S.session = {access_token:d.access_token, refresh_token:d.refresh_token,
+      expires_at: d.expires_at || Math.floor(Date.now()/1000) + (d.expires_in || 3600),
+      user_id:d.user.id, email:d.user.email, full_name:p.full_name || d.user.email, role:p.role};
+    saveSession(); expiredShown = false;
+    document.getElementById('login-pass').value = '';
+    enterApp();
+  }catch(e){
+    err.textContent = e.message === 'Failed to fetch' ? 'Connexion impossible : vérifiez le réseau.' : e.message;
+  }finally{ btn.disabled = false; btn.textContent = 'Se connecter'; }
+}
+function doLogout(silent, keepLocal){
+  if(!silent && getDirty().length && !confirm('Des modifications ne sont pas encore synchronisées et seront perdues. Se déconnecter quand même ?')) return;
+  S.session = null; saveSession();
+  if(!keepLocal){ localStorage.removeItem(LS_CACHE); localStorage.removeItem(LS_DIRTY); S.cfg = emptyCfg(); S.settings = {}; }
+  S.reports = []; S.logs = [];
+  closeModal(); closeDrawer();
+  document.getElementById('app').hidden = true;
+  document.getElementById('login-screen').hidden = false;
+}
+async function verifyProfile(){
+  try{
+    const ps = await api(`profiles?id=eq.${S.session.user_id}&select=full_name,role,active`);
+    const p = ps && ps[0];
+    if(!p || p.active === false || !ADMIN_ROLES.includes(p.role)) return false;
+    S.session.role = p.role; S.session.full_name = p.full_name || S.session.email; saveSession();
+    return true;
+  }catch(e){ return e.status === 0; }
+}
+function enterApp(){
+  document.getElementById('login-screen').hidden = true;
+  document.getElementById('app').hidden = false;
+  document.getElementById('tb-user').textContent = S.session.full_name || S.session.email;
+  loadCache();
+  showView(S.view);
+  updateSyncBadge();
+  if(navigator.onLine) pushDirty().then(loadConfig);
+}
+async function boot(){
+  window.addEventListener('online', () => { updateSyncBadge(); if(S.session) pushDirty().then(loadConfig); });
+  window.addEventListener('offline', updateSyncBadge);
+  document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeModal(); closeDrawer(); } });
+  try{ S.session = JSON.parse(localStorage.getItem(LS_SESSION) || 'null'); }catch(_){ S.session = null; }
+  if(!S.session){ document.getElementById('login-screen').hidden = false; return; }
+  if(navigator.onLine && !(await verifyProfile())){ doLogout(true); return; }
+  if(S.session) enterApp();
+}
+
+// ════════════════════════════════════════════════════════
+//  CONFIG CACHE + OFFLINE QUEUE (dirty → pushDirty)
+// ════════════════════════════════════════════════════════
+function saveCache(){ localStorage.setItem(LS_CACHE, JSON.stringify({cfg:S.cfg, settings:S.settings, at:Date.now()})); }
+function loadCache(){
+  try{ const c = JSON.parse(localStorage.getItem(LS_CACHE) || 'null'); if(c){ S.cfg = {...emptyCfg(), ...c.cfg}; S.settings = c.settings || {}; } }catch(_){}
+}
+function getDirty(){ try{ return JSON.parse(localStorage.getItem(LS_DIRTY) || '[]'); }catch(_){ return []; } }
+function setDirty(q){ localStorage.setItem(LS_DIRTY, JSON.stringify(q)); updateSyncBadge(); }
+function kindOf(table){ return Object.keys(TABLES).find(k => TABLES[k] === table); }
+function applyItem(it){
+  if(it.table === 'rpt_settings'){ if(it.op === 'upsert') S.settings[it.row.key] = it.row.value; return; }
+  const list = S.cfg[kindOf(it.table)]; if(!list) return;
+  if(it.op === 'upsert'){
+    const i = list.findIndex(x => x.id === it.row.id);
+    if(i >= 0) list[i] = {...list[i], ...it.row}; else list.push({...it.row});
+  }else{
+    const i = list.findIndex(x => x.id === it.id); if(i >= 0) list.splice(i, 1);
+  }
+}
+function cleanRow(row){ const r = {...row}; delete r.created_at; delete r.updated_at; return r; }
+function updateSyncBadge(){
+  const n = getDirty().length;
+  if(!navigator.onLine) setSync('error', n ? `Hors ligne – ${n} modif. en attente` : 'Hors ligne');
+  else if(n) setSync('pending', `${n} modif. en attente`);
+  else setSync('ok', 'Synchronisé');
+}
+let pushing = false;
+async function pushDirty(){
+  if(pushing || !navigator.onLine || !S.session) return;
+  pushing = true; let reload = false;
+  try{
+    let q = getDirty();
+    while(q.length){
+      const it = q[0];
+      try{
+        if(it.op === 'upsert'){
+          const conflict = it.table === 'rpt_settings' ? 'key' : 'id';
+          await api(`${it.table}?on_conflict=${conflict}`, {method:'POST',
+            headers:{Prefer:'resolution=merge-duplicates,return=minimal'}, body: JSON.stringify(cleanRow(it.row))});
+        }else{
+          await api(`${it.table}?id=eq.${encodeURIComponent(it.id)}`, {method:'DELETE', headers:{Prefer:'return=minimal'}});
+        }
+      }catch(e){
+        if(e.status === 0 || e.status === 401) break;
+        toast('Modification refusée : ' + e.message, 'err');
+        reload = true;
+      }
+      q.shift(); setDirty(q);
+    }
+  }finally{ pushing = false; updateSyncBadge(); }
+  if(reload) await loadConfig();
+}
+function saveRow(kind, row){
+  const it = {table:TABLES[kind], op:'upsert', row};
+  applyItem(it); saveCache();
+  const q = getDirty(); q.push(it); setDirty(q);
+  pushDirty();
+}
+function deleteRow(kind, id){
+  const it = {table:TABLES[kind], op:'delete', id};
+  applyItem(it); saveCache();
+  const q = getDirty(); q.push(it); setDirty(q);
+  pushDirty();
+}
+function saveSetting(key, value){
+  const it = {table:'rpt_settings', op:'upsert', row:{key, value}};
+  applyItem(it); saveCache();
+  const q = getDirty(); q.push(it); setDirty(q);
+  pushDirty();
+}
+async function loadConfig(){
+  if(!S.session || !navigator.onLine) return;
+  setSync('pending', 'Synchronisation…');
+  try{
+    const [sites, posts, forms, groups, rules, rounds, checkpoints, settings] = await Promise.all([
+      api('rpt_sites?select=*&order=name'), api('rpt_posts?select=*&order=sort,name'),
+      api('rpt_forms?select=*&order=sort,name'), api('rpt_recipient_groups?select=*&order=code'),
+      api('rpt_mail_rules?select=*&order=sort,name'), api('rpt_rounds?select=*&order=name'),
+      api('rpt_checkpoints?select=*&order=sort,label'), api('rpt_settings?select=key,value')]);
+    S.cfg = {sites, posts, forms, groups, rules, rounds, checkpoints};
+    S.settings = Object.fromEntries((settings || []).map(r => [r.key, r.value ?? '']));
+    getDirty().forEach(applyItem);
+    saveCache(); updateSyncBadge();
+    if(!document.querySelector('.modal')) render();
+  }catch(e){
+    if(e.status === 0) updateSyncBadge();
+    else if(e.status !== 401){ setSync('error', 'Erreur de synchronisation'); toast(e.message, 'err'); }
+  }
+}
+
+// ════════════════════════════════════════════════════════
+//  NAVIGATION & RENDER
+// ════════════════════════════════════════════════════════
+function renderNav(){
+  const fails = S.logs.filter(l => l.status === 'failed').length;
+  document.getElementById('side').innerHTML = VIEWS.map(v => v === null ? '<div class="sep"></div>' :
+    `<button class="${S.view === v[0] ? 'active' : ''}" onclick="showView('${v[0]}')" ${S.view === v[0] ? 'aria-current="page"' : ''}>
+      <span>${v[1]}</span>${v[0] === 'log' && fails ? `<span class="count">${fails}</span>` : ''}</button>`).join('');
+  const act = document.querySelector('.side button.active');
+  if(act && window.innerWidth <= 860) act.scrollIntoView({block:'nearest', inline:'center'});
+}
+const RENDER = {};
+const AFTER = {};
+function render(){
+  renderNav();
+  document.getElementById('main').innerHTML = RENDER[S.view]();
+  if(AFTER[S.view]) AFTER[S.view]();
+}
+function showView(v){
+  S.view = v; closeDrawer();
+  render();
+  window.scrollTo(0, 0);
+}
+
+// ════════════════════════════════════════════════════════
+//  MODAL / DRAWER
+// ════════════════════════════════════════════════════════
+let modalSave = null;
+function openModal({title, body, onSave, saveLabel = 'Enregistrer', wide = false}){
+  modalSave = onSave;
+  document.getElementById('modal-root').innerHTML = `
+  <div class="modal-back" onclick="if(event.target===this)closeModal()">
+    <div class="modal ${wide ? 'wide' : ''}" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head"><h2 id="modal-title">${esc(title)}</h2><button class="x" onclick="closeModal()" aria-label="Fermer">×</button></div>
+      <div class="modal-body" id="modal-body">${body}</div>
+      <div class="modal-err" id="modal-err" role="alert"></div>
+      <div class="modal-foot">
+        <button class="btn ghost" onclick="closeModal()">Annuler</button>
+        ${onSave ? `<button class="btn primary" id="modal-save" onclick="runModalSave()">${esc(saveLabel)}</button>` : ''}
+      </div>
+    </div>
+  </div>`;
+  const first = document.querySelector('#modal-body input:not([type=checkbox]):not([readonly]), #modal-body select, #modal-body textarea');
+  if(first) first.focus();
+}
+async function runModalSave(){
+  const btn = document.getElementById('modal-save');
+  try{
+    btn.disabled = true;
+    const r = await modalSave();
+    if(r !== false){ closeModal(); render(); }
+  }catch(e){ modalErr(e.message); }
+  finally{ if(document.getElementById('modal-save')) document.getElementById('modal-save').disabled = false; }
+}
+function modalErr(m){ const e = document.getElementById('modal-err'); if(e) e.textContent = m; }
+function closeModal(){ document.getElementById('modal-root').innerHTML = ''; modalSave = null; }
+function closeDrawer(){ document.getElementById('drawer-root').innerHTML = ''; }
+function val(id){ const el = document.getElementById(id); if(!el) return ''; return el.type === 'checkbox' ? el.checked : el.value.trim(); }
+function fld(id, label, input, hint){ return `<label class="field" for="${id}"><span>${esc(label)}${hint ? ` <small>${esc(hint)}</small>` : ''}</span>${input}</label>`; }
+function inp(id, value, attrs = ''){ const cls = /\bclass=/.test(attrs) ? '' : 'class="inp" '; return `<input ${cls}id="${id}" value="${esc(value ?? '')}" ${attrs}>`; }
+function chk(id, label, checked){ return `<label class="check"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''}> <span>${esc(label)}</span></label>`; }
+function sel(id, options, value, attrs = ''){
+  return `<select class="inp" id="${id}" ${attrs}>${options.map(o => `<option value="${esc(o[0])}" ${String(o[0]) === String(value ?? '') ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select>`;
+}
+function formOptions(){
+  const out = [];
+  for(const s of [...S.cfg.sites].sort(bySort)){
+    const posts = S.cfg.posts.filter(p => p.site_id === s.id).sort(bySort);
+    const items = [];
+    for(const p of posts) for(const f of S.cfg.forms.filter(f => f.post_id === p.id).sort(bySort))
+      items.push(`<option value="${f.id}" __SEL_${f.id}__>${esc(p.name)} – ${esc(f.name)}${f.active ? '' : ' (inactif)'}</option>`);
+    if(items.length) out.push(`<optgroup label="${esc(s.name)}">${items.join('')}</optgroup>`);
+  }
+  return out.join('');
+}
+function formSelect(id, value, onchange, withAll){
+  let html = formOptions().replace(/__SEL_([0-9a-f-]+)__/g, (_, fid) => fid === value ? 'selected' : '');
+  if(withAll) html = `<option value="" ${value ? '' : 'selected'}>Tous les formulaires</option>` + html;
+  return `<select class="inp" id="${id}" onchange="${onchange}">${html}</select>`;
+}
+
+// ════════════════════════════════════════════════════════
+//  VIEW: OVERVIEW
+// ════════════════════════════════════════════════════════
+function configIssues(){
+  const out = [], st = S.settings, gm = groupMap();
+  const testOn = st.test_mode !== 'false';
+  if(!st.sender) out.push({level:'error', text:'Aucun expéditeur défini : aucun mail ne peut partir.', view:'settings'});
+  if(testOn && !splitEmails(st.test_recipients).some(isEmail)) out.push({level:'error', text:'Mode test actif sans adresse de test : les mails sont bloqués.', view:'settings'});
+  if(!splitEmails(st.alert_email).some(isEmail)) out.push({level:'warn', text:'Aucune adresse d’alerte : un échec d’envoi ne sera signalé que dans le journal.', view:'settings'});
+  if(/\[[^\]]*compl[ée]ter[^\]]*\]/i.test(st.lpd_footer || '')) out.push({level:'warn', text:'La mention LPD contient encore des éléments à compléter.', view:'settings'});
+  for(const g of S.cfg.groups) if(g.active !== false && !(g.emails || []).some(isEmail)) out.push({level:'warn', text:`Le groupe « ${g.name} » n’a aucune adresse valide.`, view:'groups'});
+  for(const r of S.cfg.rules){
+    if(!r.active) continue;
+    const f = form(r.form_id);
+    if(!recipientsFor(r, gm).length) out.push({level:'error', text:`La règle « ${r.name} » (${f?.name || '?'}) n’a aucun destinataire.`, view:'rules'});
+  }
+  for(const f of S.cfg.forms) if(f.active && !S.cfg.rules.some(r => r.form_id === f.id && r.active)) out.push({level:'warn', text:`Le formulaire « ${f.name} » n’envoie aucun mail.`, view:'rules'});
+  return out;
+}
+RENDER.dash = () => {
+  const issues = configIssues();
+  const testOn = S.settings.test_mode !== 'false';
+  return `<div class="page-head"><h1>Vue d’ensemble</h1><p class="sub">Rapports reçus et mails envoyés automatiquement sur les sept derniers jours.</p></div>
+  ${testOn ? `<div class="banner warn"><div><b>Mode test actif.</b> Tous les mails partent vers les adresses de test, avec [TEST] dans l’objet. Désactivez-le seulement après la recette signée par le RSS.</div><button class="btn sm" onclick="showView('settings')">Ouvrir les paramètres</button></div>` : ''}
+  <div class="kpis" id="dash-kpis">${navigator.onLine ? '<div class="muted">Chargement…</div>' : '<div class="muted">Hors ligne : les chiffres s’afficheront au retour de la connexion.</div>'}</div>
+  <div class="grid2">
+    <section class="panel"><h2>Points à vérifier</h2>
+      ${issues.length ? '<ul class="issues">' + issues.map(i => `<li class="${i.level}"><span>${esc(i.text)}</span><button class="link" onclick="showView('${i.view}')">Corriger</button></li>`).join('') + '</ul>' : '<p class="ok-line">Configuration complète.</p>'}
+    </section>
+    <section class="panel"><h2>Derniers échecs d’envoi</h2><div id="dash-fails"><p class="muted">${navigator.onLine ? 'Chargement…' : 'Disponible en ligne.'}</p></div></section>
+  </div>`;
+};
+AFTER.dash = async () => {
+  if(!navigator.onLine) return;
+  const since = new Date(Date.now() - 7 * 864e5).toISOString();
+  try{
+    const [reps, logs] = await Promise.all([
+      api(`rpt_reports?select=id,submitted_at,is_test&status=eq.submitted&submitted_at=gte.${since}&limit=10000`),
+      api(`rpt_mail_log?select=id,status,created_at,subject,error,report_id,rule_id,rule_name&created_at=gte.${since}&order=created_at.desc&limit=10000`)]);
+    S.logs = logs; renderNav();
+    const d1 = Date.now() - 864e5;
+    const real = reps.filter(r => !r.is_test);
+    const k = [
+      [real.filter(r => new Date(r.submitted_at) > d1).length, 'Rapports – 24 h'],
+      [real.length, 'Rapports – 7 jours'],
+      [logs.filter(l => ['sent','test_redirected'].includes(l.status) && new Date(l.created_at) > d1).length, 'Mails envoyés – 24 h'],
+      [logs.filter(l => l.status === 'failed').length, 'Échecs – 7 jours', true]];
+    const el = document.getElementById('dash-kpis');
+    if(el) el.innerHTML = k.map(x => `<div class="kpi"><div class="v ${x[2] && x[0] ? 'red' : ''}">${x[0]}</div><div class="l">${x[1]}</div></div>`).join('');
+    const fails = logs.filter(l => l.status === 'failed').slice(0, 8);
+    const fe = document.getElementById('dash-fails');
+    if(fe) fe.innerHTML = fails.length ? fails.map(l => `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+        <div style="font-weight:600">${esc(l.rule_name || 'Envoi')}</div>
+        <div class="muted" style="font-size:12px">${esc(fmtDateTime(l.created_at))} – ${esc(short(l.error || '', 120))}</div>
+        ${l.report_id && l.rule_id ? `<button class="btn sm" style="margin-top:6px" onclick="retryLog('${l.id}')">Relancer</button>` : ''}</div>`).join('')
+      : '<p class="ok-line">Aucun échec sur sept jours.</p>';
+  }catch(e){ if(e.status !== 401) toast(e.message, 'err'); }
+};
+
+// ════════════════════════════════════════════════════════
+//  VIEW: REPORTS
+// ════════════════════════════════════════════════════════
+RENDER.reports = () => {
+  const f = S.ui.rep;
+  return `<div class="page-head"><h1>Rapports</h1><p class="sub">Rapports soumis par les agents. Ils ne sont jamais stockés sur cet appareil et sont effacés automatiquement à la fin de leur durée de conservation.</p></div>
+  <div class="toolbar">
+    <label class="field grow" style="min-width:220px"><span>Formulaire</span>${formSelect('rf-form', f.form, 'S.ui.rep.form=this.value;loadReports()', true)}</label>
+    <label class="field"><span>Du</span><input class="inp" type="date" value="${esc(f.from)}" onchange="S.ui.rep.from=this.value;loadReports()"></label>
+    <label class="field"><span>Au</span><input class="inp" type="date" value="${esc(f.to)}" onchange="S.ui.rep.to=this.value;loadReports()"></label>
+    <label class="field"><span>Rechercher</span><input class="inp" placeholder="N°, agent, texte…" value="${esc(f.q)}" oninput="S.ui.rep.q=this.value;drawReports()"></label>
+    <label class="check" style="margin-bottom:9px"><input type="checkbox" ${f.tests ? 'checked' : ''} onchange="S.ui.rep.tests=this.checked;loadReports()"> <span>Inclure les tests</span></label>
+  </div>
+  <div id="rep-list"><p class="muted">Chargement…</p></div>`;
+};
+AFTER.reports = () => loadReports();
+async function loadReports(){
+  const el = document.getElementById('rep-list'); if(!el) return;
+  if(!navigator.onLine){ el.innerHTML = offlineBox('Hors ligne. Les rapports contiennent des données sensibles et ne sont consultables qu’en ligne.'); return; }
+  const f = S.ui.rep;
+  let q = 'rpt_reports?select=id,report_no,form_id,site_id,post_id,agent_name,is_test,submitted_at,data&status=eq.submitted&order=submitted_at.desc&limit=300';
+  if(f.form) q += '&form_id=eq.' + f.form;
+  if(f.from) q += '&submitted_at=gte.' + encodeURIComponent(new Date(f.from + 'T00:00:00').toISOString());
+  if(f.to){ const d = new Date(f.to + 'T00:00:00'); d.setDate(d.getDate() + 1); q += '&submitted_at=lt.' + encodeURIComponent(d.toISOString()); }
+  if(!f.tests) q += '&is_test=eq.false';
+  try{ S.reports = await api(q); drawReports(); }
+  catch(e){ if(e.status !== 401) el.innerHTML = offlineBox(e.message); }
+}
+function reportSummary(r){
+  const d = r.data || {};
+  return [d["Type d'action"], d["Nature d'activité"]].filter(Boolean).join(' – ') || fmtValue(Object.values(d).find(v => typeof v === 'string' && v.length > 3)) || '';
+}
+function drawReports(){
+  const el = document.getElementById('rep-list'); if(!el) return;
+  const q = S.ui.rep.q.toLowerCase();
+  const rows = S.reports.filter(r => !q || String(r.report_no).includes(q) || (r.agent_name || '').toLowerCase().includes(q) || JSON.stringify(r.data || {}).toLowerCase().includes(q));
+  if(!rows.length){ el.innerHTML = offlineBox('Aucun rapport sur cette période.'); return; }
+  el.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>N°</th><th>Soumis le</th><th>Formulaire</th><th>Résumé</th><th>Agent</th></tr></thead><tbody>
+  ${rows.map(r => `<tr class="click" tabindex="0" onclick="openReport('${r.id}')" onkeydown="if(event.key==='Enter')openReport('${r.id}')">
+    <td class="num">${esc(r.report_no)}</td><td class="num">${esc(fmtDateTime(r.submitted_at))}</td>
+    <td>${esc(form(r.form_id)?.name || '—')} ${r.is_test ? '<span class="badge b-orange">Test</span>' : ''}</td>
+    <td class="wrap">${esc(short(reportSummary(r), 110))}</td><td>${esc(r.agent_name || '—')}</td></tr>`).join('')}
+  </tbody></table></div><p class="muted" style="margin-top:8px;font-size:12px">${rows.length} rapport(s)${S.reports.length >= 300 ? ' – affichage limité aux 300 plus récents, affinez les filtres.' : ''}</p>`;
+}
+async function openReport(id){
+  const r = S.reports.find(x => x.id === id); if(!r) return;
+  const f = form(r.form_id), data = r.data || {};
+  const photos = [];
+  const body = (f?.schema?.groups || []).filter(g => groupVisible(g, data)).map(g => {
+    const items = (g.fields || []).map(fl => {
+      const v = data[fl.key];
+      if(fl.type === 'photo'){
+        const paths = [].concat(v || []).map(p => typeof p === 'object' ? p.path : p).filter(Boolean);
+        if(!paths.length) return '';
+        const ids = paths.map(p => { const pid = 'ph-' + photos.length; photos.push([pid, p]); return `<a id="${pid}" target="_blank" rel="noopener" class="muted">Chargement…</a>`; });
+        return `<dt>${esc(fl.key)}</dt><dd><div class="photos">${ids.join('')}</div></dd>`;
+      }
+      const t = fmtValue(v); return t ? `<dt>${esc(fl.key)}</dt><dd>${esc(t)}</dd>` : '';
+    }).join('');
+    return items ? `<div class="grp-title">${esc(g.title)}</div><dl class="kv">${items}</dl>` : '';
+  }).join('');
+  document.getElementById('drawer-root').innerHTML = `
+  <div class="drawer-back" onclick="closeDrawer()"></div>
+  <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dr-title">
+    <div class="drawer-head"><div><div class="muted" style="font-size:12px">${esc(formPath(f || {}))}</div>
+      <h2 id="dr-title">${esc(f?.name || 'Rapport')} – n° ${esc(r.report_no)} ${r.is_test ? '<span class="badge b-orange">Test</span>' : ''}</h2>
+      <div class="muted" style="font-size:12.5px">${esc(r.agent_name || 'Agent')} – ${esc(fmtDateTime(r.submitted_at))}</div></div>
+      <button class="x" onclick="closeDrawer()" aria-label="Fermer">×</button></div>
+    <div class="drawer-body">${body || '<p class="muted">Rapport vide.</p>'}
+      <div class="grp-title">Mails envoyés pour ce rapport</div><div id="dr-logs"><p class="muted">Chargement…</p></div>
+      <div style="margin-top:12px"><button class="btn sm" onclick="redispatch('${r.id}')">Relancer les envois manquants</button>
+      <p class="muted" style="font-size:12px;margin-top:6px">Les mails déjà partis ne sont jamais renvoyés en double.</p></div>
+    </div>
+  </aside>`;
+  api('rpt_audit_log', {method:'POST', headers:{Prefer:'return=minimal'}, body: JSON.stringify({user_id:S.session.user_id, action:'view', table_name:'rpt_reports', row_id:r.id})}).catch(() => {});
+  loadReportLogs(r.id);
+  for(const [pid, path] of photos){
+    signedPhotoUrl(path).then(url => {
+      const a = document.getElementById(pid); if(!a) return;
+      if(url){ a.href = url; a.className = ''; a.innerHTML = `<img src="${esc(url)}" alt="Photo du rapport">`; }
+      else a.textContent = 'Photo indisponible';
+    });
+  }
+}
+async function loadReportLogs(reportId){
+  const el = document.getElementById('dr-logs'); if(!el) return;
+  try{
+    const logs = await api(`rpt_mail_log?report_id=eq.${reportId}&select=*&order=created_at`);
+    el.innerHTML = logs.length ? logs.map(l => `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(l.rule_name || 'Envoi')}</b>${statusBadge(l.status)}</div>
+      <div class="subject" style="margin:6px 0;display:inline-block">${esc(l.subject || '')}</div>
+      <div class="muted" style="font-size:12px">${esc((l.recipients || []).join(', '))}</div>
+      ${l.error ? `<div style="color:var(--red);font-size:12px">${esc(l.error)}</div>` : ''}</div>`).join('')
+      : '<p class="muted">Aucun mail pour ce rapport.</p>';
+  }catch(e){ el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; }
+}
+async function redispatch(reportId){
+  try{ await callFn({action:'dispatch', report_id:reportId}); toast('Envois vérifiés.', 'ok'); loadReportLogs(reportId); }
+  catch(e){ toast(e.message, 'err'); }
+}
+function statusBadge(s){ const x = STATUS[s] || [s, 'b-grey']; return `<span class="badge ${x[1]}">${esc(x[0])}</span>`; }
+
+// ════════════════════════════════════════════════════════
+//  VIEW: SEND LOG
+// ════════════════════════════════════════════════════════
+RENDER.log = () => {
+  const f = S.ui.log;
+  return `<div class="page-head"><h1>Journal des envois</h1><p class="sub">Chaque mail parti, redirigé ou en échec. Un envoi en échec peut être relancé sans risque de doublon.</p></div>
+  <div class="toolbar">
+    <label class="field"><span>Statut</span>${sel('lg-status', [['','Tous'],['failed','Échecs'],['sent','Envoyés'],['test_redirected','Tests redirigés'],['suppressed','Bloqués'],['pending','En cours']], f.status, 'onchange="S.ui.log.status=this.value;loadLogs()"')}</label>
+    <label class="field"><span>Période</span>${sel('lg-days', [['1','24 heures'],['7','7 jours'],['30','30 jours'],['90','90 jours']], f.days, 'onchange="S.ui.log.days=this.value;loadLogs()"')}</label>
+    <label class="field grow"><span>Rechercher</span><input class="inp" placeholder="Objet, destinataire, règle…" value="${esc(f.q)}" oninput="S.ui.log.q=this.value;drawLogs()"></label>
+    <button class="btn" onclick="loadLogs()">Actualiser</button>
+  </div><div id="log-list"><p class="muted">Chargement…</p></div>`;
+};
+AFTER.log = () => loadLogs();
+async function loadLogs(){
+  const el = document.getElementById('log-list'); if(!el) return;
+  if(!navigator.onLine){ el.innerHTML = offlineBox('Hors ligne. Le journal est consultable en ligne.'); return; }
+  const f = S.ui.log;
+  const since = new Date(Date.now() - parseInt(f.days, 10) * 864e5).toISOString();
+  let q = `rpt_mail_log?select=*,report:rpt_reports(report_no)&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=1000`;
+  if(f.status) q += '&status=eq.' + f.status;
+  try{ S.logs = await api(q); renderNav(); drawLogs(); }
+  catch(e){ if(e.status !== 401) el.innerHTML = offlineBox(e.message); }
+}
+function drawLogs(){
+  const el = document.getElementById('log-list'); if(!el) return;
+  const q = S.ui.log.q.toLowerCase();
+  const rows = S.logs.filter(l => !q || [l.subject, l.rule_name, (l.recipients || []).join(' '), l.error].join(' ').toLowerCase().includes(q));
+  if(!rows.length){ el.innerHTML = offlineBox('Aucun envoi sur cette période.'); return; }
+  el.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Date</th><th>Rapport</th><th>Règle</th><th>Objet</th><th>Destinataires</th><th>Statut</th><th></th></tr></thead><tbody>
+  ${rows.map(l => `<tr><td class="num">${esc(fmtDateTime(l.created_at))}</td><td class="num">${l.report ? esc(l.report.report_no) : '—'}</td>
+    <td>${esc(l.rule_name || '—')}</td><td class="wrap">${esc(l.subject || '')}${l.error ? `<div style="color:var(--red);font-size:12px;margin-top:4px">${esc(l.error)}</div>` : ''}</td>
+    <td class="wrap" style="font-size:12px">${esc((l.recipients || []).join(', '))}</td><td>${statusBadge(l.status)}</td>
+    <td>${l.status === 'failed' && l.report_id && l.rule_id ? `<button class="btn sm" onclick="retryLog('${l.id}')">Relancer</button>` : ''}</td></tr>`).join('')}
+  </tbody></table></div>`;
+}
+async function retryLog(id){
+  try{ const r = await callFn({action:'retry', log_id:id}); const st = r.results?.[0]?.status; toast(st === 'failed' ? 'Nouvel échec, voir le journal.' : 'Envoi relancé.', st === 'failed' ? 'err' : 'ok'); }
+  catch(e){ toast(e.message, 'err'); }
+  if(S.view === 'log') loadLogs(); else if(S.view === 'dash') AFTER.dash();
+}
+
+// ════════════════════════════════════════════════════════
+//  VIEW: RULES
+// ════════════════════════════════════════════════════════
+function condText(c){
+  const v = (c.values || []).map(x => `« ${esc(short(x, 70))} »`).join(' ou ');
+  if(c.type === 'checked') return v ? `<b>${v}</b> est coché` : `<b>« ${esc(c.field)} »</b> est coché`;
+  if(c.type === 'equals') return `<b>« ${esc(c.field)} »</b> vaut ${v}`;
+  if(c.type === 'filled') return `<b>« ${esc(c.field)} »</b> est renseigné`;
+  return 'condition inconnue';
+}
+function ruleSentence(r){
+  if(r.trigger_mode === 'always') return 'Part à <b>chaque rapport</b> soumis.';
+  const parts = (r.conditions || []).map(condText);
+  return parts.length ? 'Part si ' + parts.join(r.match_mode === 'all' ? ' <i>et</i> ' : ' <i>ou</i> ') + '.' : 'Aucune condition : cette règle ne part jamais.';
+}
+RENDER.rules = () => {
+  const forms = S.cfg.forms;
+  const head = `<div class="page-head"><h1>Règles d’envoi</h1><p class="sub">Chaque règle produit son propre mail, dès que l’agent soumet le rapport. L’agent ne choisit jamais les destinataires : ils découlent de ses réponses.</p></div>`;
+  if(!forms.length) return head + `<div class="empty"><p>Aucun formulaire pour l’instant.</p><button class="btn primary" onclick="showView('sites')">Créer un formulaire</button></div>`;
+  if(!form(S.ui.ruleFormId)) S.ui.ruleFormId = forms[0].id;
+  const fm = form(S.ui.ruleFormId), gm = groupMap();
+  const rules = S.cfg.rules.filter(r => r.form_id === fm.id).sort(bySort);
+  return head + `<div class="toolbar"><label class="field grow" style="min-width:240px"><span>Formulaire</span>${formSelect('ru-form', fm.id, 'S.ui.ruleFormId=this.value;render()')}</label>
+    <button class="btn" onclick="S.ui.simFormId='${fm.id}';showView('sim')">Tester dans le simulateur</button>
+    <button class="btn primary" onclick="editRule(null)">Ajouter une règle</button></div>
+  ${rules.length ? `<div class="rules">${rules.map(r => {
+    const to = recipientsFor(r, gm);
+    return `<article class="rule ${r.trigger_mode === 'always' ? '' : 'cond'} ${r.active ? '' : 'off'}">
+      <div class="rule-top"><h3>${esc(r.name)}</h3>
+        <label class="switch" title="${r.active ? 'Active' : 'Inactive'}"><input type="checkbox" aria-label="Activer la règle" ${r.active ? 'checked' : ''} onchange="toggleRule('${r.id}',this.checked)"><span></span></label></div>
+      <p class="rule-sentence">${ruleSentence(r)}</p>
+      <div class="rule-row"><span class="k">À</span><div>${(r.group_ids || []).map(id => { const g = gm.get(id); return g ? `<span class="chip" title="${esc((g.emails || []).join(', '))}"><b>${esc(g.code)}</b>${esc(g.name)}</span>` : '<span class="chip">Groupe supprimé</span>'; }).join('')}
+        ${(r.extra_emails || []).map(e => `<span class="chip">${esc(e)}</span>`).join('')}
+        ${to.length ? `<span class="muted" style="font-size:12px">${to.length} adresse(s)</span>` : '<span class="badge b-red">Aucun destinataire</span>'}</div></div>
+      <div class="rule-row"><span class="k">Objet</span><span class="subject">${esc(r.subject_template)}</span></div>
+      <div class="rule-actions"><button class="btn sm ghost" onclick="editRule('${r.id}')">Modifier</button>
+        <button class="btn sm ghost" onclick="duplicateRule('${r.id}')">Dupliquer</button>
+        <button class="btn sm ghost danger" onclick="removeRule('${r.id}')">Supprimer</button></div>
+    </article>`; }).join('')}</div>`
+  : `<div class="empty"><p>Ce formulaire n’envoie encore aucun mail.</p><button class="btn primary" onclick="editRule(null)">Ajouter une règle</button></div>`}`;
+};
+function toggleRule(id, on){ const r = S.cfg.rules.find(x => x.id === id); if(!r) return; saveRow('rules', {...r, active:on}); render(); }
+function removeRule(id){
+  const r = S.cfg.rules.find(x => x.id === id); if(!r) return;
+  if(!confirm(`Supprimer la règle « ${r.name} » ? Les mails correspondants ne partiront plus.`)) return;
+  deleteRow('rules', id); render(); toast('Règle supprimée.');
+}
+function duplicateRule(id){
+  const r = S.cfg.rules.find(x => x.id === id); if(!r) return;
+  let name = r.name + ' (copie)', n = 2;
+  while(S.cfg.rules.some(x => x.form_id === r.form_id && x.name === name)) name = `${r.name} (copie ${n++})`;
+  saveRow('rules', {...JSON.parse(JSON.stringify(r)), id:uid(), name, active:false, sort:(r.sort || 0) + 1});
+  render(); toast('Règle dupliquée (inactive).');
+}
+function editRule(id){
+  const fm = form(S.ui.ruleFormId); if(!fm) return;
+  const src = id ? S.cfg.rules.find(x => x.id === id) : null;
+  const maxSort = Math.max(0, ...S.cfg.rules.filter(r => r.form_id === fm.id).map(r => r.sort || 0));
+  S.ui.ruleDraft = src ? JSON.parse(JSON.stringify(src)) : {id:uid(), form_id:fm.id, name:'', trigger_mode:'conditions', match_mode:'any',
+    conditions:[{type:'equals', field:'', values:[]}], group_ids:[], extra_emails:[], subject_template:'', sort:maxSort + 10, active:true, _new:true};
+  if(src) S.ui.ruleDraft._new = false;
+  openModal({title: src ? 'Modifier la règle' : 'Nouvelle règle', body: ruleEditorHtml(), wide:true, onSave: saveRuleDraft});
+}
+function ruleEditorHtml(){
+  const d = S.ui.ruleDraft, fm = form(d.form_id), fields = fieldsOf(fm);
+  const fieldOpts = [['', 'Choisir un champ…'], ...fields.filter(f => f.type !== 'photo').map(f => [f.key, f.key])];
+  const conds = d.conditions.map((c, i) => {
+    const fl = fields.find(f => f.key === c.field);
+    const types = !fl ? [['equals','vaut']] : fl.type === 'checkboxes' ? [['checked','est coché'],['filled','au moins une case cochée']]
+      : fl.type === 'checkbox' ? [['checked','est coché']] : [['equals','vaut'],['filled','est renseigné']];
+    let values = '';
+    if(c.type !== 'filled' && fl && fl.type !== 'checkbox'){
+      if(fl.options && fl.options.length){
+        values = `<div class="vals">${fl.options.map(o => `<label class="check"><input type="checkbox" data-v="${esc(o)}" ${(c.values || []).includes(o) ? 'checked' : ''} onchange="rdCondVal(${i},this.dataset.v,this.checked)"> <span>${esc(o)}</span></label>`).join('')}</div>`;
+      }else{
+        values = fld(`rd-cv-${i}`, 'Valeurs (une par ligne)', `<textarea class="inp" id="rd-cv-${i}" rows="2" oninput="rdCondText(${i},this.value)">${esc((c.values || []).join('\n'))}</textarea>`);
+      }
+    }
+    return `<div class="cond-box"><div class="cond-head">
+      ${fld(`rd-cf-${i}`, 'Champ', sel(`rd-cf-${i}`, fieldOpts, c.field, `onchange="rdCondField(${i},this.value)"`))}
+      ${fld(`rd-ct-${i}`, 'Condition', sel(`rd-ct-${i}`, types, c.type, `onchange="rdCondType(${i},this.value)"`))}
+      <button class="btn sm ghost danger" onclick="rdCondRemove(${i})">Retirer</button></div>${values}</div>`;
+  }).join('');
+  const vars = [...fields.filter(f => f.type !== 'photo').map(f => f.key), ...SYSTEM_VARS];
+  return `
+  <div class="grid-form">
+    ${fld('rd-name', 'Nom de la règle', inp('rd-name', d.name, 'oninput="S.ui.ruleDraft.name=this.value" maxlength="120"'))}
+    ${fld('rd-sort', 'Ordre', inp('rd-sort', d.sort, 'type="number" oninput="S.ui.ruleDraft.sort=parseInt(this.value,10)||0"'))}
+  </div>
+  ${chk('rd-active', 'Règle active', d.active).replace('<input', '<input onchange="S.ui.ruleDraft.active=this.checked"')}
+  <div class="field"><span>Quand ce mail part-il ?</span>
+    <label class="check"><input type="radio" name="rd-mode" ${d.trigger_mode === 'always' ? 'checked' : ''} onchange="rdMode('always')"> <span>À chaque rapport soumis</span></label>
+    <label class="check"><input type="radio" name="rd-mode" ${d.trigger_mode === 'conditions' ? 'checked' : ''} onchange="rdMode('conditions')"> <span>Selon les réponses de l’agent</span></label>
+  </div>
+  ${d.trigger_mode === 'conditions' ? `
+    ${d.conditions.length > 1 ? fld('rd-match', 'Combinaison', sel('rd-match', [['any','Au moins une condition (ou)'],['all','Toutes les conditions (et)']], d.match_mode, 'onchange="S.ui.ruleDraft.match_mode=this.value"')) : ''}
+    ${conds}<div><button class="btn sm" onclick="rdCondAdd()">Ajouter une condition</button></div>` : ''}
+  <div class="field"><span>Destinataires</span><div class="vals" style="max-height:220px">
+    ${S.cfg.groups.slice().sort((a, b) => a.code.localeCompare(b.code)).map(g => `<label class="check"><input type="checkbox" ${d.group_ids.includes(g.id) ? 'checked' : ''} onchange="rdGroup('${g.id}',this.checked)"> <span><b class="mono" style="color:var(--red)">${esc(g.code)}</b> ${esc(g.name)} <span class="muted">(${(g.emails || []).length})</span></span></label>`).join('') || '<span class="muted">Aucun groupe. Créez-en dans Destinataires.</span>'}
+  </div></div>
+  ${fld('rd-extra', 'Adresses supplémentaires', `<textarea class="inp" id="rd-extra" rows="2" placeholder="Une adresse par ligne" oninput="S.ui.ruleDraft.extra_emails=splitEmails(this.value)">${esc(d.extra_emails.join('\n'))}</textarea>`, 'à éviter : préférez un groupe')}
+  ${fld('rd-subject', 'Objet du mail', inp('rd-subject', d.subject_template, 'class="inp mono" oninput="S.ui.ruleDraft.subject_template=this.value"'), 'les {champs} sont remplacés par les réponses')}
+  <div class="var-btns" aria-label="Insérer un champ">${vars.map(v => `<button type="button" data-v="${esc(v)}" onclick="rdInsertVar(this.dataset.v)">{${esc(v)}}</button>`).join('')}</div>`;
+}
+function rdRerender(){ const b = document.getElementById('modal-body'); if(b){ b.innerHTML = ruleEditorHtml(); } }
+function rdMode(m){ S.ui.ruleDraft.trigger_mode = m; if(m === 'conditions' && !S.ui.ruleDraft.conditions.length) S.ui.ruleDraft.conditions.push({type:'equals', field:'', values:[]}); rdRerender(); }
+function rdCondAdd(){ S.ui.ruleDraft.conditions.push({type:'equals', field:'', values:[]}); rdRerender(); }
+function rdCondRemove(i){ S.ui.ruleDraft.conditions.splice(i, 1); rdRerender(); }
+function rdCondField(i, field){
+  const fl = fieldsOf(form(S.ui.ruleDraft.form_id)).find(f => f.key === field);
+  const type = !fl ? 'equals' : (fl.type === 'checkboxes' || fl.type === 'checkbox') ? 'checked' : 'equals';
+  S.ui.ruleDraft.conditions[i] = {type, field, values:[]}; rdRerender();
+}
+function rdCondType(i, t){ S.ui.ruleDraft.conditions[i].type = t; if(t === 'filled') S.ui.ruleDraft.conditions[i].values = []; rdRerender(); }
+function rdCondVal(i, v, on){ const c = S.ui.ruleDraft.conditions[i]; c.values = (c.values || []).filter(x => x !== v); if(on) c.values.push(v); }
+function rdCondText(i, t){ S.ui.ruleDraft.conditions[i].values = t.split('\n').map(x => x.trim()).filter(Boolean); }
+function rdGroup(id, on){ const d = S.ui.ruleDraft; d.group_ids = d.group_ids.filter(x => x !== id); if(on) d.group_ids.push(id); }
+function rdInsertVar(v){
+  const el = document.getElementById('rd-subject'); if(!el) return;
+  const ins = `{${v}}`, s = el.selectionStart ?? el.value.length, e = el.selectionEnd ?? el.value.length;
+  el.value = el.value.slice(0, s) + ins + el.value.slice(e);
+  S.ui.ruleDraft.subject_template = el.value;
+  el.focus(); el.setSelectionRange(s + ins.length, s + ins.length);
+}
+function saveRuleDraft(){
+  const d = S.ui.ruleDraft;
+  d.name = (d.name || '').trim(); d.subject_template = (d.subject_template || '').trim();
+  if(!d.name) throw new Error('Donnez un nom à la règle.');
+  if(S.cfg.rules.some(r => r.form_id === d.form_id && r.name === d.name && r.id !== d.id)) throw new Error('Une règle porte déjà ce nom pour ce formulaire.');
+  if(!d.subject_template) throw new Error('L’objet du mail est obligatoire.');
+  const badExtra = d.extra_emails.filter(e => !isEmail(e));
+  if(badExtra.length) throw new Error('Adresse invalide : ' + badExtra.join(', '));
+  if(d.trigger_mode === 'conditions'){
+    d.conditions = d.conditions.filter(c => c.field);
+    if(!d.conditions.length) throw new Error('Ajoutez au moins une condition, ou choisissez « À chaque rapport ».');
+    const empty = d.conditions.find(c => c.type !== 'filled' && c.type !== 'checked' && !(c.values || []).length);
+    if(empty) throw new Error(`Choisissez au moins une valeur pour « ${empty.field} ».`);
+  }else d.conditions = [];
+  if(!d.group_ids.length && !d.extra_emails.length) throw new Error('Choisissez au moins un destinataire.');
+  const row = {...d}; delete row._new;
+  saveRow('rules', row);
+  toast(d._new ? 'Règle créée.' : 'Règle enregistrée.', 'ok');
+}
+
+// ════════════════════════════════════════════════════════
+//  VIEW: RECIPIENT GROUPS
+// ════════════════════════════════════════════════════════
+RENDER.groups = () => {
+  const groups = S.cfg.groups.slice().sort((a, b) => a.code.localeCompare(b.code));
+  return `<div class="page-head"><h1>Destinataires</h1><p class="sub">Un changement de personne se fait une seule fois ici, et s’applique à toutes les règles qui utilisent le groupe.</p></div>
+  <div class="toolbar"><div class="grow"></div><button class="btn primary" onclick="editGroup(null)">Ajouter un groupe</button></div>
+  ${groups.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Code</th><th>Groupe</th><th>Adresses</th><th>Utilisé par</th><th></th></tr></thead><tbody>
+  ${groups.map(g => { const used = S.cfg.rules.filter(r => (r.group_ids || []).includes(g.id)).length;
+    const bad = (g.emails || []).filter(e => !isEmail(e));
+    return `<tr><td class="num" style="color:var(--red);font-weight:600">${esc(g.code)}</td>
+      <td>${esc(g.name)} ${g.active === false ? '<span class="badge b-grey">Inactif</span>' : ''}</td>
+      <td class="wrap" style="font-size:12.5px">${(g.emails || []).map(e => esc(e)).join('<br>') || '<span class="badge b-red">Aucune adresse</span>'}${bad.length ? '<br><span class="badge b-red">Adresse invalide</span>' : ''}</td>
+      <td>${used} règle(s)</td>
+      <td style="white-space:nowrap"><button class="btn sm ghost" onclick="editGroup('${g.id}')">Modifier</button><button class="btn sm ghost danger" onclick="removeGroup('${g.id}')">Supprimer</button></td></tr>`; }).join('')}
+  </tbody></table></div>` : `<div class="empty"><p>Aucun groupe de destinataires.</p><button class="btn primary" onclick="editGroup(null)">Ajouter un groupe</button></div>`}`;
+};
+function editGroup(id){
+  const g = id ? group(id) : {id:uid(), code:'', name:'', emails:[], active:true};
+  openModal({title: id ? 'Modifier le groupe' : 'Nouveau groupe', body: `
+    <div class="grid-form">${fld('g-code', 'Code', inp('g-code', g.code, 'class="inp mono" maxlength="20" placeholder="ex. ENC"'))}${fld('g-name', 'Nom', inp('g-name', g.name, 'maxlength="80"'))}</div>
+    ${fld('g-emails', 'Adresses', `<textarea class="inp" id="g-emails" rows="5" placeholder="Une adresse par ligne">${esc((g.emails || []).join('\n'))}</textarea>`)}
+    ${chk('g-active', 'Groupe actif', g.active !== false)}`,
+    onSave: () => {
+      const code = val('g-code').toUpperCase(), name = val('g-name');
+      const emails = [...new Set(splitEmails(val('g-emails')))];
+      if(!code || !name) throw new Error('Code et nom sont obligatoires.');
+      if(S.cfg.groups.some(x => x.code === code && x.id !== g.id)) throw new Error('Ce code est déjà utilisé.');
+      const bad = emails.filter(e => !isEmail(e));
+      if(bad.length) throw new Error('Adresse invalide : ' + bad.join(', '));
+      saveRow('groups', {...g, code, name, emails, active: val('g-active')});
+      toast('Groupe enregistré.', 'ok');
+    }});
+}
+function removeGroup(id){
+  const g = group(id); if(!g) return;
+  const used = S.cfg.rules.filter(r => (r.group_ids || []).includes(id));
+  if(used.length){ alert(`Ce groupe est utilisé par ${used.length} règle(s) : ${used.map(r => r.name).join(', ')}.\nRetirez-le de ces règles ou désactivez-le.`); return; }
+  if(!confirm(`Supprimer le groupe « ${g.name} » ?`)) return;
+  deleteRow('groups', id); render();
+}
+
+// ════════════════════════════════════════════════════════
+//  VIEW: SIMULATOR (no mail is sent)
+// ════════════════════════════════════════════════════════
+RENDER.sim = () => {
+  const forms = S.cfg.forms;
+  const head = `<div class="page-head"><h1>Simulateur</h1><p class="sub">Remplissez un rapport fictif : vous voyez immédiatement quels mails partiraient, à qui et avec quel objet. Rien n’est envoyé ni enregistré.</p></div>`;
+  if(!forms.length) return head + offlineBox('Aucun formulaire configuré.');
+  if(!form(S.ui.simFormId)){ S.ui.simFormId = forms[0].id; S.ui.simData = {}; }
+  return head + `<div class="toolbar"><label class="field grow" style="min-width:240px"><span>Formulaire</span>${formSelect('sim-form-sel', S.ui.simFormId, 'S.ui.simFormId=this.value;S.ui.simData={};render()')}</label>
+    <label class="check" style="margin-bottom:9px"><input type="checkbox" ${S.ui.simTest ? 'checked' : ''} onchange="S.ui.simTest=this.checked;drawSimOut()"> <span>Rapport marqué TEST</span></label>
+    <button class="btn" onclick="S.ui.simData={};render()">Vider</button></div>
+  <div class="sim"><section class="panel" id="sim-form"></section><section class="panel sim-out" id="sim-out"></section></div>`;
+};
+AFTER.sim = () => { drawSimForm(); drawSimOut(); };
+function effectiveData(fm, data){
+  const out = {};
+  for(const g of fm?.schema?.groups || []) if(groupVisible(g, data)) for(const f of g.fields || []) if(data[f.key] !== undefined) out[f.key] = data[f.key];
+  return out;
+}
+function simInput(f, v){
+  const k = esc(f.key);
+  switch(f.type){
+    case 'select': return `<select class="inp" data-k="${k}" onchange="simSet(this.dataset.k,this.value,true)"><option value="">—</option>${(f.options || []).map(o => `<option ${v === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
+    case 'checkboxes': return `<div class="vals">${(f.options || []).map(o => `<label class="check"><input type="checkbox" data-k="${k}" data-v="${esc(o)}" ${(v || []).includes(o) ? 'checked' : ''} onchange="simToggle(this.dataset.k,this.dataset.v,this.checked)"> <span>${esc(o)}</span></label>${f.help && f.help[o] ? `<div class="help">${esc(f.help[o])}</div>` : ''}`).join('')}</div>`;
+    case 'checkbox': return `<label class="check"><input type="checkbox" data-k="${k}" ${v === true ? 'checked' : ''} onchange="simSet(this.dataset.k,this.checked,true)"> <span>Oui</span></label>`;
+    case 'textarea': return `<textarea class="inp" rows="2" data-k="${k}" oninput="simSet(this.dataset.k,this.value,false)">${esc(v || '')}</textarea>`;
+    case 'photo': return `<span class="muted" style="font-size:12px">Photo : non simulée</span>`;
+    case 'date': case 'time': case 'number': return `<input class="inp" type="${f.type}" data-k="${k}" value="${esc(v || '')}" oninput="simSet(this.dataset.k,this.value,false)">`;
+    default: return `<input class="inp" data-k="${k}" value="${esc(v || '')}" oninput="simSet(this.dataset.k,this.value,false)">`;
+  }
+}
+function drawSimForm(){
+  const el = document.getElementById('sim-form'), fm = form(S.ui.simFormId); if(!el || !fm) return;
+  const data = S.ui.simData;
+  if(data.Date === undefined && fieldsOf(fm).some(f => f.key === 'Date')) data.Date = isoDay(0);
+  const groups = (fm.schema?.groups || []).filter(g => groupVisible(g, data));
+  el.innerHTML = `<h2>Rapport fictif</h2>` + (groups.length ? groups.map(g => `<div class="sim-grp"><h4>${esc(g.title)}</h4>
+    ${(g.fields || []).map(f => `<div class="field" style="margin-bottom:10px"><span>${esc(f.key)}${f.required ? ' <span class="req">*</span>' : ''}</span>${simInput(f, data[f.key])}</div>`).join('')}</div>`).join('')
+    : '<p class="muted">Ce formulaire n’a pas encore de champs. Définissez sa structure dans Sites et formulaires.</p>');
+}
+function simSet(k, v, rerender){ S.ui.simData[k] = v; if(rerender) drawSimForm(); drawSimOut(); }
+function simToggle(k, v, on){ const a = (S.ui.simData[k] || []).filter(x => x !== v); if(on) a.push(v); S.ui.simData[k] = a; drawSimForm(); drawSimOut(); }
+function drawSimOut(){
+  const el = document.getElementById('sim-out'), fm = form(S.ui.simFormId); if(!el || !fm) return;
+  const data = effectiveData(fm, S.ui.simData), gm = groupMap(), p = post(fm.post_id);
+  const sys = {'Statut de soumission':'Soumis','Statut de démarrage':'Démarré','Poste de garde':p?.name || '','Nom du formulaire':fm.name,
+    'N° de rapport':'0000','Date de début':fmtDateTime(new Date().toISOString()),'Date de fin':fmtDateTime(new Date().toISOString()),
+    'Agent':S.session?.full_name || 'Agent','Site':site(p?.site_id)?.name || ''};
+  const sep = S.settings.subject_separator ?? ' - ';
+  const testMode = S.ui.simTest || S.settings.test_mode !== 'false';
+  const testTo = splitEmails(S.settings.test_recipients).filter(isEmail);
+  const rules = S.cfg.rules.filter(r => r.form_id === fm.id && r.active).sort(bySort);
+  const hit = rules.filter(r => ruleMatches(r, data)), miss = rules.filter(r => !ruleMatches(r, data));
+  const missing = (fm.schema?.groups || []).filter(g => groupVisible(g, S.ui.simData)).flatMap(g => (g.fields || []))
+    .filter(f => f.required && f.type !== 'photo' && !condMatches({type:'filled', field:f.key}, S.ui.simData)).map(f => f.key);
+  el.innerHTML = `<h2>${hit.length} mail(s) partiraient</h2>
+    ${testMode ? `<div class="banner warn" style="margin-bottom:12px"><div>Mode test : ces mails iraient à ${testTo.length ? esc(testTo.join(', ')) : '<b>aucune adresse de test</b> (ils seraient bloqués)'}, pas aux destinataires ci-dessous.</div></div>` : ''}
+    ${missing.length ? `<div class="banner info" style="margin-bottom:12px"><div>L’agent ne pourrait pas encore soumettre : ${missing.map(esc).join(', ')}.</div></div>` : ''}
+    ${hit.map(r => { const to = recipientsFor(r, gm); const subj = (testMode ? '[TEST] ' : '') + (renderSubject(r.subject_template, data, sys, sep) || fm.name);
+      return `<div class="sim-mail"><div class="n">${esc(r.name)}</div><span class="subject">${esc(subj)}</span><div class="to">À : ${to.length ? esc(to.join(', ')) : '<span class="badge b-red">aucun destinataire</span>'}</div></div>`; }).join('')}
+    ${miss.length ? `<h3 style="margin:14px 0 8px;font-size:13px;color:var(--text2)">Ne partiraient pas</h3>${miss.map(r => `<div class="sim-mail skip"><div class="n">${esc(r.name)}</div><div style="font-size:12px">${ruleSentence(r)}</div></div>`).join('')}` : ''}`;
+}
+
+// ════════════════════════════════════════════════════════
+//  VIEW: CHECKPOINTS (QR / NFC)
+// ════════════════════════════════════════════════════════
+function randCode(n){ const a = new Uint32Array(n); crypto.getRandomValues(a); return Array.from(a, x => CODE_ALPHABET[x % CODE_ALPHABET.length]).join(''); }
+function newCodes(){
+  let code, shortCode;
+  do{ code = 'RDZCP-' + randCode(12); }while(S.cfg.checkpoints.some(c => c.code === code));
+  do{ shortCode = randCode(6); }while(S.cfg.checkpoints.some(c => c.short_code === shortCode));
+  return {code, short_code:shortCode};
+}
+RENDER.points = () => {
+  const head = `<div class="page-head"><h1>Points de ronde</h1><p class="sub">Chaque point a un QR code à coller sur place et un code court de secours. Les puces NFC déjà posées peuvent être associées au même point.</p></div>`;
+  const sites = S.cfg.sites.slice().sort(bySort);
+  if(!sites.length) return head + `<div class="empty"><p>Créez d’abord un site.</p><button class="btn primary" onclick="showView('sites')">Ouvrir Sites et formulaires</button></div>`;
+  if(!site(S.ui.pointSiteId)) S.ui.pointSiteId = sites[0].id;
+  const sid = S.ui.pointSiteId;
+  const rounds = S.cfg.rounds.filter(r => r.site_id === sid).sort(bySort);
+  if(S.ui.pointRound !== 'all' && S.ui.pointRound !== 'none' && !round(S.ui.pointRound)) S.ui.pointRound = 'all';
+  const cps = visibleCheckpoints();
+  return head + `<div class="toolbar"><label class="field" style="min-width:220px"><span>Site</span>${sel('pt-site', sites.map(s => [s.id, s.name]), sid, 'onchange="S.ui.pointSiteId=this.value;S.ui.pointRound=\'all\';render()"')}</label>
+    <div class="grow"></div><button class="btn" onclick="editRound(null)">Ajouter une ronde</button></div>
+  <div class="round-list">
+    <button class="round-pill ${S.ui.pointRound === 'all' ? 'active' : ''}" onclick="S.ui.pointRound='all';render()">Tous les points</button>
+    ${rounds.map(r => `<button class="round-pill ${S.ui.pointRound === r.id ? 'active' : ''}" onclick="S.ui.pointRound='${r.id}';render()">${esc(r.name)}${r.active ? '' : ' (inactive)'}</button>`).join('')}
+    <button class="round-pill ${S.ui.pointRound === 'none' ? 'active' : ''}" onclick="S.ui.pointRound='none';render()">Hors ronde</button>
+  </div>
+  ${round(S.ui.pointRound) ? roundPanel(round(S.ui.pointRound)) : ''}
+  <div class="toolbar"><div class="grow muted">${cps.length} point(s)</div>
+    <button class="btn" ${cps.length ? '' : 'disabled'} onclick="printLabels()">Imprimer les étiquettes</button>
+    <button class="btn primary" onclick="editCheckpoint(null)">Ajouter un point</button></div>
+  ${cps.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Ordre</th><th>Point</th><th>Contrôle attendu</th><th>Code court</th><th>Puce NFC</th><th></th></tr></thead><tbody>
+  ${cps.map((c, i) => `<tr><td style="white-space:nowrap"><span class="num">${i + 1}</span>
+      <button class="btn sm ghost" aria-label="Monter" ${i === 0 ? 'disabled' : ''} onclick="moveCheckpoint('${c.id}',-1)">↑</button><button class="btn sm ghost" aria-label="Descendre" ${i === cps.length - 1 ? 'disabled' : ''} onclick="moveCheckpoint('${c.id}',1)">↓</button></td>
+    <td><b>${esc(c.label)}</b> ${c.active ? '' : '<span class="badge b-grey">Inactif</span>'}<div class="muted" style="font-size:12px">${esc(round(c.round_id)?.name || 'Hors ronde')}${c.post_id ? ' – ' + esc(post(c.post_id)?.name || '') : ''}</div></td>
+    <td class="wrap">${esc(c.expected_check || '')}</td><td class="code-cell">${esc(c.short_code)}</td><td class="num">${esc(c.nfc_uid || '—')}</td>
+    <td style="white-space:nowrap"><button class="btn sm ghost" onclick="editCheckpoint('${c.id}')">Modifier</button><button class="btn sm ghost danger" onclick="removeCheckpoint('${c.id}')">Supprimer</button></td></tr>`).join('')}
+  </tbody></table></div>` : `<div class="empty"><p>Aucun point pour ce filtre.</p><button class="btn primary" onclick="editCheckpoint(null)">Ajouter un point</button></div>`}`;
+};
+function visibleCheckpoints(){
+  const sid = S.ui.pointSiteId, r = S.ui.pointRound;
+  return S.cfg.checkpoints.filter(c => c.site_id === sid && (r === 'all' || (r === 'none' ? !c.round_id : c.round_id === r))).sort(bySort);
+}
+function roundPanel(r){
+  const t = x => x ? String(x).slice(0, 5) : '—';
+  return `<div class="panel"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <div><h3>${esc(r.name)}</h3><p class="muted" style="font-size:12.5px;margin-top:4px">Départ ${t(r.start_time)} – plage ${t(r.window_start)} à ${t(r.window_end)} – durée prévue ${r.duration_min ?? '—'} min – tolérance ${r.tolerance_min ?? 0} min – ${r.enforce_order ? 'ordre imposé' : 'ordre libre'}${r.post_id ? ' – ' + esc(post(r.post_id)?.name || '') : ''}</p></div>
+    <div><button class="btn sm" onclick="editRound('${r.id}')">Modifier la ronde</button> <button class="btn sm ghost danger" onclick="removeRound('${r.id}')">Supprimer</button></div></div></div>`;
+}
+function postOptions(siteId){ return [['', 'Aucun poste'], ...S.cfg.posts.filter(p => p.site_id === siteId).sort(bySort).map(p => [p.id, p.name])]; }
+function editRound(id){
+  const sid = S.ui.pointSiteId;
+  const r = id ? round(id) : {id:uid(), site_id:sid, post_id:null, name:'', start_time:null, window_start:null, window_end:null, duration_min:null, tolerance_min:10, enforce_order:true, active:true};
+  const t = x => x ? String(x).slice(0, 5) : '';
+  openModal({title: id ? 'Modifier la ronde' : 'Nouvelle ronde', body: `
+    ${fld('rn-name', 'Nom', inp('rn-name', r.name, 'maxlength="80" placeholder="ex. Ronde EPI – Bâtiment B1"'))}
+    ${fld('rn-post', 'Poste', sel('rn-post', postOptions(r.site_id), r.post_id))}
+    <div class="grid-form">
+      ${fld('rn-start', 'Heure de départ', inp('rn-start', t(r.start_time), 'type="time"'))}
+      ${fld('rn-ws', 'Plage : début', inp('rn-ws', t(r.window_start), 'type="time"'))}
+      ${fld('rn-we', 'Plage : fin', inp('rn-we', t(r.window_end), 'type="time"'))}
+      ${fld('rn-dur', 'Durée prévue (min)', inp('rn-dur', r.duration_min ?? '', 'type="number" min="1"'))}
+      ${fld('rn-tol', 'Tolérance (min)', inp('rn-tol', r.tolerance_min ?? 10, 'type="number" min="0"'))}
+    </div>
+    ${chk('rn-order', 'Ordre de passage imposé', r.enforce_order)}${chk('rn-active', 'Ronde active', r.active)}`,
+    onSave: () => {
+      const name = val('rn-name'); if(!name) throw new Error('Le nom est obligatoire.');
+      const num = x => x === '' ? null : parseInt(x, 10);
+      saveRow('rounds', {...r, name, post_id: val('rn-post') || null, start_time: val('rn-start') || null, window_start: val('rn-ws') || null,
+        window_end: val('rn-we') || null, duration_min: num(val('rn-dur')), tolerance_min: num(val('rn-tol')) ?? 0,
+        enforce_order: val('rn-order'), active: val('rn-active')});
+      if(!id) S.ui.pointRound = r.id;
+      toast('Ronde enregistrée.', 'ok');
+    }});
+}
+function removeRound(id){
+  const r = round(id); if(!r) return;
+  const n = S.cfg.checkpoints.filter(c => c.round_id === id).length;
+  if(!confirm(`Supprimer la ronde « ${r.name} » ?${n ? ` Ses ${n} point(s) seront conservés, hors ronde.` : ''}`)) return;
+  for(const c of S.cfg.checkpoints.filter(c => c.round_id === id)) saveRow('checkpoints', {...c, round_id:null});
+  deleteRow('rounds', id); S.ui.pointRound = 'all'; render();
+}
+function editCheckpoint(id){
+  const sid = S.ui.pointSiteId;
+  const pre = round(S.ui.pointRound);
+  const maxSort = Math.max(0, ...S.cfg.checkpoints.filter(c => c.site_id === sid).map(c => c.sort || 0));
+  const c = id ? S.cfg.checkpoints.find(x => x.id === id) : {id:uid(), site_id:sid, post_id:pre?.post_id || null, round_id:pre?.id || null, ...newCodes(),
+    nfc_uid:null, label:'', expected_check:'', sort:maxSort + 10, active:true};
+  const roundOpts = [['', 'Hors ronde'], ...S.cfg.rounds.filter(r => r.site_id === sid).sort(bySort).map(r => [r.id, r.name])];
+  openModal({title: id ? 'Modifier le point' : 'Nouveau point de ronde', body: `
+    ${fld('cp-label', 'Emplacement', inp('cp-label', c.label, 'maxlength="140" placeholder="ex. RI entrée ambulance"'))}
+    ${fld('cp-check', 'Contrôle attendu', `<textarea class="inp" id="cp-check" rows="2" placeholder="ex. Matériel incendie, aucun point chaud">${esc(c.expected_check || '')}</textarea>`)}
+    <div class="grid-form">${fld('cp-round', 'Ronde', sel('cp-round', roundOpts, c.round_id))}${fld('cp-post', 'Poste', sel('cp-post', postOptions(sid), c.post_id))}</div>
+    ${fld('cp-nfc', 'Puce NFC associée', `<div style="display:flex;gap:8px">${inp('cp-nfc', c.nfc_uid || '', 'class="inp mono" placeholder="ex. 04562BD22F4C80"')}<button type="button" class="btn" onclick="readNfcInto('cp-nfc')">Lire la puce</button></div>`, 'facultatif, Chrome Android')}
+    <div class="panel" style="margin:0;padding:12px 14px;background:#fafafb;box-shadow:none">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+        <div><div class="muted" style="font-size:12px">Code court de secours</div><div class="code-cell" id="cp-short" style="font-size:18px">${esc(c.short_code)}</div><div class="muted mono" id="cp-code" style="font-size:11px">${esc(c.code)}</div></div>
+        ${id ? `<button type="button" class="btn sm ghost danger" onclick="regenCodes()">Générer un nouveau code</button>` : ''}
+      </div></div>
+    ${chk('cp-active', 'Point actif', c.active)}`,
+    onSave: () => {
+      const label = val('cp-label'); if(!label) throw new Error('L’emplacement est obligatoire.');
+      const nfc = val('cp-nfc').replace(/[:\s-]/g, '').toUpperCase() || null;
+      if(nfc && S.cfg.checkpoints.some(x => x.nfc_uid === nfc && x.id !== c.id)) throw new Error('Cette puce NFC est déjà associée à un autre point.');
+      const codes = {code: document.getElementById('cp-code').textContent, short_code: document.getElementById('cp-short').textContent};
+      saveRow('checkpoints', {...c, ...codes, label, expected_check: val('cp-check') || null, round_id: val('cp-round') || null,
+        post_id: val('cp-post') || null, nfc_uid: nfc, active: val('cp-active')});
+      toast(codes.code !== c.code ? 'Point enregistré. Réimprimez son étiquette : l’ancienne n’est plus valable.' : 'Point enregistré.', 'ok');
+    }});
+}
+function regenCodes(){
+  if(!confirm('L’étiquette déjà collée ne fonctionnera plus. Générer un nouveau code ?')) return;
+  const n = newCodes();
+  document.getElementById('cp-code').textContent = n.code;
+  document.getElementById('cp-short').textContent = n.short_code;
+}
+function removeCheckpoint(id){
+  const c = S.cfg.checkpoints.find(x => x.id === id); if(!c) return;
+  if(!confirm(`Supprimer le point « ${c.label} » ? Son étiquette ne sera plus reconnue.`)) return;
+  deleteRow('checkpoints', id); render();
+}
+function moveCheckpoint(id, dir){
+  const list = visibleCheckpoints(); const i = list.findIndex(c => c.id === id); const j = i + dir;
+  if(i < 0 || j < 0 || j >= list.length) return;
+  list.forEach((c, k) => { c._s = (k + 1) * 10; });
+  [list[i]._s, list[j]._s] = [list[j]._s, list[i]._s];
+  for(const c of list){ const s = c._s; delete c._s; if(c.sort !== s) saveRow('checkpoints', {...c, sort:s}); }
+  render();
+}
+async function readNfcInto(inputId){
+  if(!('NDEFReader' in window)){ toast('La lecture NFC fonctionne uniquement avec Chrome sur Android.', 'err'); return; }
+  try{
+    const reader = new NDEFReader(), ctrl = new AbortController();
+    await reader.scan({signal:ctrl.signal});
+    toast('Approchez la puce du téléphone…');
+    reader.onreading = e => {
+      const el = document.getElementById(inputId);
+      if(el) el.value = String(e.serialNumber || '').replace(/:/g, '').toUpperCase();
+      ctrl.abort(); toast('Puce lue.', 'ok');
+    };
+    reader.onreadingerror = () => toast('Puce illisible, réessayez.', 'err');
+    setTimeout(() => ctrl.abort(), 20000);
+  }catch(e){ toast('Lecture NFC impossible : ' + e.message, 'err'); }
+}
+function printLabels(){
+  if(typeof qrcode !== 'function'){ toast('Le générateur de QR code n’est pas chargé. Reconnectez-vous à internet puis rechargez la page.', 'err'); return; }
+  const list = visibleCheckpoints().filter(c => c.active);
+  if(!list.length){ toast('Aucun point actif à imprimer.', 'err'); return; }
+  const s = site(S.ui.pointSiteId);
+  const labels = list.map(c => {
+    const q = qrcode(0, 'M'); q.addData(c.code); q.make();
+    return `<div class="lbl"><div class="qr">${q.createSvgTag(4, 2)}</div><div class="t">
+      <div class="s">RDZ Security – ${esc(s?.name || '')}</div><div class="n">${esc(c.label)}</div>
+      <div class="r">${esc(round(c.round_id)?.name || '')}</div><div class="c">${esc(c.short_code)}</div></div></div>`;
+  }).join('');
+  const w = window.open('', '_blank');
+  if(!w){ toast('Autorisez les fenêtres pop-up pour imprimer les étiquettes.', 'err'); return; }
+  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Étiquettes – ${esc(s?.name || '')}</title>
+  <style>@page{size:A4;margin:10mm}body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#2d2d2d}
+  .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4mm}
+  .lbl{display:flex;gap:4mm;align-items:center;border:1px dashed #9ca3af;border-left:3mm solid #c0272d;border-radius:2mm;padding:3mm;height:42mm;page-break-inside:avoid}
+  .qr svg{width:34mm;height:34mm;display:block}.t{min-width:0}.s{font-size:8pt;color:#6b7280}
+  .n{font-size:11pt;font-weight:700;margin:1mm 0;line-height:1.2}.r{font-size:8pt;color:#6b7280}
+  .c{font-family:'Courier New',monospace;font-size:16pt;font-weight:700;letter-spacing:1px;margin-top:2mm}</style></head>
+  <body><div class="grid">${labels}</div><script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script></body></html>`);
+  w.document.close();
+}
+
+// ════════════════════════════════════════════════════════
+//  VIEW: SITES, POSTS, FORMS
+// ════════════════════════════════════════════════════════
+RENDER.sites = () => {
+  const sites = S.cfg.sites.slice().sort(bySort);
+  return `<div class="page-head"><h1>Sites et formulaires</h1><p class="sub">Un poste par bâtiment ou par lieu de garde. Chaque formulaire appartient à un poste : l’agent ne voit que les formulaires de son poste.</p></div>
+  <div class="toolbar"><div class="grow"></div><button class="btn primary" onclick="editSite(null)">Ajouter un site</button></div>
+  ${sites.length ? sites.map(s => {
+    const posts = S.cfg.posts.filter(p => p.site_id === s.id).sort(bySort);
+    return `<section class="panel"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
+      <div><h2 style="margin:0">${esc(s.name)} <span class="mono muted" style="font-size:12px">${esc(s.code)}</span> ${s.active ? '' : '<span class="badge b-grey">Inactif</span>'}</h2>${s.client ? `<div class="muted" style="font-size:12.5px">Client : ${esc(s.client)}</div>` : ''}</div>
+      <div><button class="btn sm" onclick="editSite('${s.id}')">Modifier</button> <button class="btn sm" onclick="editPost(null,'${s.id}')">Ajouter un poste</button></div></div>
+      ${posts.length ? posts.map(p => { const forms = S.cfg.forms.filter(f => f.post_id === p.id).sort(bySort);
+        return `<div style="border-top:1px solid var(--border);padding:10px 0">
+          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><b>${esc(p.name)}</b> <span class="mono muted" style="font-size:12px">${esc(p.code)}</span> ${p.active ? '' : '<span class="badge b-grey">Inactif</span>'}</div>
+            <div><button class="btn sm ghost" onclick="editPost('${p.id}')">Modifier le poste</button><button class="btn sm ghost" onclick="editForm(null,'${p.id}')">Ajouter un formulaire</button></div></div>
+          ${forms.map(f => `<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:6px 0 6px 14px;border-left:2px solid var(--border);margin:6px 0 0 4px">
+            <div>${esc(f.name)} ${f.active ? '' : '<span class="badge b-grey">Inactif</span>'}<div class="muted" style="font-size:12px">${esc(f.code)} – ${fieldsOf(f).length} champ(s) – ${S.cfg.rules.filter(r => r.form_id === f.id && r.active).length} règle(s) active(s) – conservation ${f.retention_days} j</div></div>
+            <div><button class="btn sm ghost" onclick="editForm('${f.id}')">Modifier</button><button class="btn sm ghost" onclick="editSchema('${f.id}')">Structure</button><button class="btn sm ghost" onclick="S.ui.ruleFormId='${f.id}';showView('rules')">Règles</button></div></div>`).join('')}
+        </div>`; }).join('') : '<p class="muted">Aucun poste.</p>'}
+    </section>`; }).join('') : `<div class="empty"><p>Aucun site.</p><button class="btn primary" onclick="editSite(null)">Ajouter un site</button></div>`}`;
+};
+function editSite(id){
+  const s = id ? site(id) : {id:uid(), code:'', name:'', client:'', active:true};
+  openModal({title: id ? 'Modifier le site' : 'Nouveau site', body: `
+    <div class="grid-form">${fld('st-code', 'Code', inp('st-code', s.code, 'class="inp mono" maxlength="20" placeholder="ex. ERGON"'))}${fld('st-name', 'Nom', inp('st-name', s.name, 'maxlength="100"'))}</div>
+    ${fld('st-client', 'Client', inp('st-client', s.client || '', 'maxlength="100"'))}${chk('st-active', 'Site actif', s.active)}`,
+    onSave: () => {
+      const code = val('st-code').toUpperCase(), name = val('st-name');
+      if(!code || !name) throw new Error('Code et nom sont obligatoires.');
+      if(S.cfg.sites.some(x => x.code === code && x.id !== s.id)) throw new Error('Ce code de site existe déjà.');
+      saveRow('sites', {...s, code, name, client: val('st-client') || null, active: val('st-active')});
+      toast('Site enregistré.', 'ok');
+    }});
+}
+function editPost(id, siteId){
+  const p = id ? post(id) : {id:uid(), site_id:siteId, code:'', name:'', sort:(S.cfg.posts.filter(x => x.site_id === siteId).length + 1) * 10, active:true};
+  openModal({title: id ? 'Modifier le poste' : 'Nouveau poste', body: `
+    <div class="grid-form">${fld('ps-code', 'Code', inp('ps-code', p.code, 'class="inp mono" maxlength="20" placeholder="ex. B12"'))}${fld('ps-name', 'Nom', inp('ps-name', p.name, 'maxlength="100"'))}${fld('ps-sort', 'Ordre', inp('ps-sort', p.sort, 'type="number"'))}</div>
+    ${chk('ps-active', 'Poste actif', p.active)}`,
+    onSave: () => {
+      const code = val('ps-code').toUpperCase(), name = val('ps-name');
+      if(!code || !name) throw new Error('Code et nom sont obligatoires.');
+      if(S.cfg.posts.some(x => x.site_id === p.site_id && x.code === code && x.id !== p.id)) throw new Error('Ce code de poste existe déjà sur ce site.');
+      saveRow('posts', {...p, code, name, sort: parseInt(val('ps-sort'), 10) || 0, active: val('ps-active')});
+      toast('Poste enregistré.', 'ok');
+    }});
+}
+function editForm(id, postId){
+  const f = id ? form(id) : {id:uid(), post_id:postId, code:'', name:'', category:'', priority:'', instructions:'', schema:{groups:[]}, retention_days:365, sort:100, active:true};
+  openModal({title: id ? 'Modifier le formulaire' : 'Nouveau formulaire', body: `
+    <div class="grid-form">${fld('fm-name', 'Nom', inp('fm-name', f.name, 'maxlength="120"'))}${fld('fm-code', 'Code', inp('fm-code', f.code, 'class="inp mono" maxlength="40" placeholder="ex. HDLT-B12-SITE"'))}</div>
+    <div class="grid-form">${fld('fm-cat', 'Catégorie', inp('fm-cat', f.category || ''))}${fld('fm-prio', 'Priorité', sel('fm-prio', [['', '—'], ['basse', 'Basse'], ['normale', 'Normale'], ['haute', 'Haute']], f.priority || ''))}
+      ${fld('fm-ret', 'Conservation (jours)', inp('fm-ret', f.retention_days, 'type="number" min="1" max="3650"'))}${fld('fm-sort', 'Ordre', inp('fm-sort', f.sort, 'type="number"'))}</div>
+    ${fld('fm-instr', 'Consigne affichée à l’agent', `<textarea class="inp" id="fm-instr" rows="3">${esc(f.instructions || '')}</textarea>`)}
+    ${chk('fm-active', 'Formulaire actif', f.active)}`,
+    onSave: () => {
+      const name = val('fm-name'), code = val('fm-code').toUpperCase();
+      const ret = parseInt(val('fm-ret'), 10);
+      if(!name || !code) throw new Error('Nom et code sont obligatoires.');
+      if(S.cfg.forms.some(x => x.code === code && x.id !== f.id)) throw new Error('Ce code de formulaire existe déjà.');
+      if(!(ret >= 1 && ret <= 3650)) throw new Error('La conservation doit être comprise entre 1 et 3650 jours.');
+      saveRow('forms', {...f, name, code, category: val('fm-cat') || null, priority: val('fm-prio') || null, retention_days: ret,
+        sort: parseInt(val('fm-sort'), 10) || 0, instructions: val('fm-instr') || null, active: val('fm-active')});
+      toast('Formulaire enregistré.', 'ok');
+    }});
+}
+function validateSchema(sc){
+  if(!sc || !Array.isArray(sc.groups)) throw new Error('La structure doit contenir une liste « groups ».');
+  sc.groups.forEach((g, gi) => {
+    if(!g.title) throw new Error(`Groupe ${gi + 1} : titre manquant.`);
+    if(!Array.isArray(g.fields)) throw new Error(`Groupe « ${g.title} » : liste « fields » manquante.`);
+    if(g.show_if && (!g.show_if.field || !Array.isArray(g.show_if.values))) throw new Error(`Groupe « ${g.title} » : show_if doit avoir « field » et « values ».`);
+    g.fields.forEach(f => {
+      if(!f.key) throw new Error(`Groupe « ${g.title} » : un champ n’a pas de « key ».`);
+      if(!FIELD_TYPES.includes(f.type)) throw new Error(`Champ « ${f.key} » : type inconnu (${f.type}). Types possibles : ${FIELD_TYPES.join(', ')}.`);
+      if(['select', 'checkboxes'].includes(f.type) && !Array.isArray(f.options)) throw new Error(`Champ « ${f.key} » : liste « options » manquante.`);
+    });
+  });
+}
+function editSchema(id){
+  const f = form(id); if(!f) return;
+  openModal({title: 'Structure – ' + f.name, wide:true, body: `
+    <p class="muted" style="font-size:12.5px">Groupes de champs, dans l’ordre où l’agent les voit. Les libellés (« key ») servent aussi dans les objets de mail : les renommer casse les règles qui les utilisent. Types : ${FIELD_TYPES.join(', ')}. Un groupe peut s’afficher sous condition avec « show_if ».</p>
+    <textarea class="inp mono" id="sc-json" rows="22" spellcheck="false">${esc(JSON.stringify(f.schema || {groups:[]}, null, 2))}</textarea>`,
+    onSave: () => {
+      let sc;
+      try{ sc = JSON.parse(document.getElementById('sc-json').value); }catch(e){ throw new Error('JSON invalide : ' + e.message); }
+      validateSchema(sc);
+      const keys = new Set(sc.groups.flatMap(g => g.fields.map(x => x.key)));
+      const broken = S.cfg.rules.filter(r => r.form_id === f.id).flatMap(r => (r.conditions || []).filter(c => !keys.has(c.field)).map(c => `${r.name} (${c.field})`));
+      if(broken.length && !confirm('Ces conditions de règles utilisent un champ qui n’existe plus :\n' + broken.join('\n') + '\n\nEnregistrer quand même ?')) return false;
+      saveRow('forms', {...f, schema: sc});
+      toast('Structure enregistrée.', 'ok');
+    }});
+}
+
+// ════════════════════════════════════════════════════════
+//  VIEW: SETTINGS
+// ════════════════════════════════════════════════════════
+RENDER.settings = () => {
+  const st = S.settings, testOn = st.test_mode !== 'false';
+  return `<div class="page-head"><h1>Paramètres</h1><p class="sub">Expéditeur, mode test, alertes et mention de protection des données ajoutée à chaque mail.</p></div>
+  <section class="panel"><h2>Mode test</h2>
+    <label class="check" style="font-size:14px"><input type="checkbox" id="st-test" ${testOn ? 'checked' : ''}> <span><b>Mode test actif</b> : tous les mails partent vers les adresses de test, avec [TEST] dans l’objet. Les destinataires réels sont indiqués dans le mail.</span></label>
+    <div style="margin-top:12px">${fld('st-testto', 'Adresses de test', inp('st-testto', st.test_recipients || '', 'placeholder="ex. guillaume@rdz-security-management.ch"'), 'séparées par des virgules')}</div>
+  </section>
+  <section class="panel"><h2>Expéditeur et alertes</h2><div class="grid-form">
+    ${fld('st-sender', 'Expéditeur', inp('st-sender', st.sender || '', 'placeholder="Nom <adresse@domaine>"'), 'domaine vérifié dans Resend')}
+    ${fld('st-reply', 'Adresse de réponse', inp('st-reply', st.reply_to || ''))}
+    ${fld('st-alert', 'Alerte en cas d’échec', inp('st-alert', st.alert_email || ''), 'séparées par des virgules')}
+    ${fld('st-sep', 'Séparateur entre deux champs dans l’objet', inp('st-sep', st.subject_separator ?? ' - ', 'class="inp mono"'))}
+    ${fld('st-days', 'Validité des liens photo (jours)', inp('st-days', st.photo_link_days || '7', 'type="number" min="1" max="30"'))}
+  </div></section>
+  <section class="panel"><h2>Mention protection des données (LPD)</h2>
+    <textarea class="inp" id="st-lpd" rows="6">${esc(st.lpd_footer || '')}</textarea>
+    <p class="muted" style="font-size:12px;margin-top:6px">Ajoutée telle quelle en pied de chaque mail. Les éléments entre crochets restent à compléter avec l’hôpital.</p>
+  </section>
+  <div style="display:flex;justify-content:flex-end;margin-bottom:18px"><button class="btn primary" onclick="saveSettings()">Enregistrer les paramètres</button></div>
+  <section class="panel"><h2>Vérifier l’envoi</h2><p class="muted" style="margin-bottom:10px">Envoie un mail simple avec l’expéditeur enregistré, pour contrôler la configuration Resend.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">${inp('st-testmail', S.session?.email || '', 'type="email" style="max-width:320px"')}<button class="btn" onclick="sendTestMail()">Envoyer un mail de test</button></div></section>
+  <section class="panel"><h2>Historique des modifications</h2><div id="audit"><p class="muted">${navigator.onLine ? 'Chargement…' : 'Disponible en ligne.'}</p></div></section>`;
+};
+AFTER.settings = async () => {
+  if(!navigator.onLine) return;
+  try{
+    const rows = await api('rpt_audit_log?select=at,user_id,action,table_name,row_id&table_name=neq.rpt_reports&order=at.desc&limit=40');
+    const ids = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
+    const names = ids.length ? Object.fromEntries((await api(`profiles?id=in.(${ids.join(',')})&select=id,full_name`)).map(p => [p.id, p.full_name])) : {};
+    const T = {rpt_sites:'Site', rpt_posts:'Poste', rpt_forms:'Formulaire', rpt_recipient_groups:'Groupe', rpt_mail_rules:'Règle', rpt_rounds:'Ronde', rpt_checkpoints:'Point de ronde', rpt_settings:'Paramètre'};
+    const A = {insert:'création', update:'modification', delete:'suppression'};
+    const el = document.getElementById('audit');
+    if(el) el.innerHTML = rows.length ? `<div class="tbl-wrap" style="box-shadow:none"><table class="tbl"><thead><tr><th>Date</th><th>Par</th><th>Action</th><th>Élément</th></tr></thead><tbody>
+      ${rows.map(r => `<tr><td class="num">${esc(fmtDateTime(r.at))}</td><td>${esc(names[r.user_id] || (r.user_id ? 'Utilisateur' : 'Système'))}</td><td>${esc(A[r.action] || r.action)}</td><td>${esc(T[r.table_name] || r.table_name)} <span class="muted mono" style="font-size:11px">${esc(short(r.row_id, 14))}</span></td></tr>`).join('')}
+      </tbody></table></div>` : '<p class="muted">Aucune modification enregistrée.</p>';
+  }catch(e){ const el = document.getElementById('audit'); if(el && e.status !== 401) el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; }
+};
+function saveSettings(){
+  const testOn = val('st-test');
+  const testTo = splitEmails(val('st-testto')), alert = splitEmails(val('st-alert'));
+  const bad = [...testTo, ...alert].filter(e => !isEmail(e));
+  if(bad.length){ toast('Adresse invalide : ' + bad.join(', '), 'err'); return; }
+  const sender = val('st-sender');
+  if(sender && !/^[^<>]*<[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+>$|^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(sender)){ toast('Expéditeur invalide. Format attendu : Nom <adresse@domaine>.', 'err'); return; }
+  const reply = val('st-reply');
+  if(reply && !isEmail(reply)){ toast('Adresse de réponse invalide.', 'err'); return; }
+  const days = parseInt(val('st-days'), 10);
+  if(!(days >= 1 && days <= 30)){ toast('La validité des liens photo doit être comprise entre 1 et 30 jours.', 'err'); return; }
+  if(!testOn && S.settings.test_mode !== 'false' &&
+     !confirm('Désactiver le mode test ? Les mails partiront immédiatement aux vrais destinataires (hôpital, prestataires). Faites-le seulement après la recette signée par le RSS.')){ return; }
+  const sepEl = document.getElementById('st-sep');
+  const changes = {test_mode: testOn ? 'true' : 'false', test_recipients: testTo.join(', '), sender, reply_to: reply,
+    alert_email: alert.join(', '), subject_separator: sepEl ? sepEl.value : ' - ', photo_link_days: String(days), lpd_footer: val('st-lpd')};
+  for(const [k, v] of Object.entries(changes)) if((S.settings[k] ?? '') !== v) saveSetting(k, v);
+  toast('Paramètres enregistrés.', 'ok'); render();
+}
+async function sendTestMail(){
+  const to = val('st-testmail');
+  if(!isEmail(to)){ toast('Adresse de test invalide.', 'err'); return; }
+  if(getDirty().some(i => i.table === 'rpt_settings')){ toast('Enregistrez et synchronisez d’abord les paramètres.', 'err'); return; }
+  try{ await callFn({action:'test', to}); toast('Mail de test envoyé à ' + to + '.', 'ok'); }
+  catch(e){ toast('Échec : ' + e.message, 'err'); }
+}
+
+boot();
+</script>
+</body>
+</html>
