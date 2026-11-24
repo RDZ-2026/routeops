@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rapports_RDZ v2 — Rapports et envois automatiques</title>
+<title>Rapports_RDZ v3 — Hôpital de La Tour</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -245,9 +245,9 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px;}
   <form class="login-box" onsubmit="doLogin(event)">
     <div class="login-logo">
       <div class="mark">RDZ</div>
-      <div><div class="login-brand">RDZ Security Management</div><div class="login-sub">Module administration</div></div>
+      <div><div class="login-brand">RDZ Security Management</div><div class="login-sub">Hôpital de La Tour</div></div>
     </div>
-    <h1 class="login-title">Rapports</h1>
+    <h1 class="login-title">Rapports HDLT</h1>
     <p class="login-desc">Envois automatiques des rapports du journal de bord, destinataires, journal des envois et points de ronde. Accès réservé aux administrateurs et superviseurs.</p>
     <label for="login-email">Email</label>
     <input id="login-email" type="email" autocomplete="username" required>
@@ -262,7 +262,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px;}
 <div id="app" hidden>
   <header class="topbar">
     <div class="mark">RDZ</div>
-    <div><div class="tb-brand">Rapports RDZ</div><div class="tb-sub">Rapports et envois automatiques</div></div>
+    <div><div class="tb-brand">Rapports RDZ</div><div class="tb-sub" id="tb-sub">Hôpital de La Tour</div></div>
     <div class="tb-spacer"></div>
     <div class="sync"><span class="sync-dot" id="sync-dot"></span><span id="sync-label"></span></div>
     <div class="tb-user" id="tb-user"></div>
@@ -292,7 +292,7 @@ const FN_URL = SB_URL + '/functions/v1/rpt-dispatch';
 const ADMIN_ROLES = ['admin', 'supervisor'];
 const LS_SESSION = 'rpt_session_v1', LS_CACHE = 'rpt_cache_v2', LS_DIRTY = 'rpt_dirty_v2', LS_CAT = 'rpt_catalog_v2';
 const TABLES = {groups:'rpt_recipient_groups', rules:'rpt_mail_rules', rounds:'rpt_rounds', checkpoints:'rpt_checkpoints'};
-const SYSTEM_VARS = ['Site','Type de rapport','Agent','Date','Heure','Localisation','N° de rapport','Statut de soumission','Date de fin'];
+const SYSTEM_VARS = ['Site','Type de rapport','Agent','Date','Heure','Localisation','N° de rapport','Statut de soumission','Statut de démarrage','Date de début','Date de fin'];
 const STATUS = {pending:['En cours','b-blue'], sent:['Envoyé','b-green'], failed:['Échec','b-red'],
                 test_redirected:['Test (redirigé)','b-orange'], suppressed:['Bloqué (mode test)','b-grey']};
 const TYPE_LABELS = {texte:'Texte court', zone_texte:'Texte long', choix:'Choix', case:'Case à cocher', heure:'Horodatage'};
@@ -319,7 +319,7 @@ const S = {
   }
 };
 function emptyCfg(){ return {groups:[], rules:[], rounds:[], checkpoints:[]}; }
-function emptyCat(){ return {sites:[], types:[], champs:[], categories:[], loaded_at:null}; }
+function emptyCat(){ return {sites:[], types:[], champs:[], categories:[], site_lock:[], loaded_at:null}; }
 
 // ════════════════════════════════════════════════════════
 //  HELPERS
@@ -658,7 +658,7 @@ function renderNav(){
   const act = document.querySelector('.side button.active');
   if(act && window.innerWidth <= 860) act.scrollIntoView({block:'nearest', inline:'center'});
 }
-function render(){ renderNav(); document.getElementById('main').innerHTML = RENDER[S.view](); if(AFTER[S.view]) AFTER[S.view](); }
+function render(){ lockDefaults(); renderNav(); document.getElementById('main').innerHTML = RENDER[S.view](); if(AFTER[S.view]) AFTER[S.view](); }
 function showView(v){ S.view = v; closeDrawer(); render(); window.scrollTo(0, 0); }
 
 let modalSave = null;
@@ -701,7 +701,8 @@ function typeOptions(extraIds = []){
   });
   return [...S.cat.types.map(t => [t.id, `${t.icone ? t.icone + ' ' : ''}${t.nom}${t.actif === false ? ' (inactif)' : ''}`]), ...missing];
 }
-function siteOptions(allLabel){ return [['', allLabel], ...S.cat.sites.map(s => [s.id, s.nom])]; }
+function siteLocked(){ return (S.cat.site_lock || []).length === 1 && S.cat.sites.length === 1; }
+function siteOptions(allLabel){ return siteLocked() ? S.cat.sites.map(s => [s.id, s.nom]) : [['', allLabel], ...S.cat.sites.map(s => [s.id, s.nom])]; }
 function catalogNotice(){
   if(S.cat.loaded_at) return '';
   return `<div class="banner info"><div>Les types de rapports du créateur n’ont pas encore été chargés.</div><button class="btn sm" onclick="loadCatalog()">Charger</button></div>`;
@@ -968,7 +969,7 @@ function editRule(id){
   const tid = S.ui.ruleTypeId; if(!tid) return;
   const src = id ? S.cfg.rules.find(x => x.id === id) : null;
   const maxSort = Math.max(0, ...S.cfg.rules.filter(r => r.rapport_type_id === tid).map(r => r.sort || 0));
-  S.ui.ruleDraft = src ? JSON.parse(JSON.stringify(src)) : {id:uid(), rapport_type_id:tid, rapport_type_nom:typeById(tid)?.nom || '', site_id:null, site_nom:null,
+  S.ui.ruleDraft = src ? JSON.parse(JSON.stringify(src)) : {id:uid(), rapport_type_id:tid, rapport_type_nom:typeById(tid)?.nom || '', site_id: siteLocked() ? S.cat.sites[0].id : null, site_nom: siteLocked() ? S.cat.sites[0].nom : null,
     name:'', trigger_mode:'conditions', match_mode:'any', conditions:[{type:'checked', champ_id:'', libelle:'', values:[]}], group_ids:[], extra_emails:[],
     subject_template:'', sort:maxSort + 10, active:true};
   S.ui.ruleDraft._new = !src;
@@ -1142,6 +1143,7 @@ RENDER.sim = () => {
   <div class="sim"><section class="panel" id="sim-form"></section><section class="panel sim-out" id="sim-out"></section></div>`;
 };
 AFTER.sim = () => { drawSimForm(); drawSimOut(); };
+function lockDefaults(){ if(siteLocked()){ const id = S.cat.sites[0].id; if(!S.ui.simSiteId) S.ui.simSiteId = id; if(!S.ui.rep.site) S.ui.rep.site = id; if(!S.ui.pointSiteId) S.ui.pointSiteId = id; const t = document.getElementById('tb-sub'); if(t) t.textContent = S.cat.sites[0].nom; } }
 function simInput(c, v){
   const id = esc(c.id), o = champOptions(c);
   switch(c.type){
@@ -1183,7 +1185,7 @@ function drawSimOut(){
   const e = {id:'(référence)', site_nom: siteById(sid)?.nom || '', activite: typeById(tid)?.nom || '', agent_nom: S.session?.full_name || 'Agent',
     date_rapport: isoDay(0), heure_rapport: new Date().toLocaleTimeString('fr-CH', {hour:'2-digit', minute:'2-digit'}), localisation:'', created_at: now};
   const sys = {'Site':e.site_nom, 'Type de rapport':e.activite, 'Activité':e.activite, 'Agent':e.agent_nom, 'Date':fmtDate(e.date_rapport), 'Heure':e.heure_rapport,
-    'Localisation':'', 'N° de rapport':e.id, 'Statut de soumission':'Soumis', 'Date de fin':fmtDateTime(now)};
+    'Localisation':'', 'N° de rapport':e.id, 'Statut de soumission':'Soumis', 'Statut de démarrage':'Démarré', 'Date de début':`${fmtDate(e.date_rapport)} ${e.heure_rapport}`, 'Date de fin':fmtDateTime(now)};
   const sep = S.settings.subject_separator ?? ' - ', testMode = S.settings.test_mode !== 'false', testTo = splitEmails(S.settings.test_recipients).filter(isEmail);
   const rules = S.cfg.rules.filter(r => r.rapport_type_id === tid && r.active && (!r.site_id || r.site_id === sid)).sort(bySort);
   const otherSite = S.cfg.rules.filter(r => r.rapport_type_id === tid && r.active && r.site_id && r.site_id !== sid);
@@ -1368,6 +1370,7 @@ function printLabels(){
 RENDER.settings = () => {
   const st = S.settings, testOn = st.test_mode !== 'false';
   return `<div class="page-head"><h1>Paramètres</h1><p class="sub">Expéditeur, mode test, alertes et mention de protection des données ajoutée à chaque mail.</p></div>
+  ${(S.cat.site_lock || []).length ? `<div class="banner info"><div>Module dédié au site : <b>${esc(S.cat.sites.map(s => s.nom).join(', ') || '—')}</b>. Seuls les rapports, types de rapports et règles de ce site sont accessibles.</div></div>` : ''}
   <section class="panel"><h2>Mode test</h2>
     <label class="check" style="font-size:14px"><input type="checkbox" id="st-test" ${testOn ? 'checked' : ''}> <span><b>Mode test actif</b> : tous les mails partent vers les adresses de test, avec [TEST] dans l’objet. Les destinataires réels sont indiqués dans le mail.</span></label>
     <div style="margin-top:12px">${fld('st-testto', 'Adresses de test', inp('st-testto', st.test_recipients || '', 'placeholder="ex. g.girard@rdz-security-management.ch"'), 'séparées par des virgules')}</div>
