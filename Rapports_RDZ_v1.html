@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rapports_RDZ — Rapports et envois automatiques</title>
+<title>Rapports_RDZ v2 — Rapports et envois automatiques</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -228,6 +228,9 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px;}
 .round-pill{border:1.5px solid var(--border);background:#fff;border-radius:20px;padding:6px 14px;font-weight:600;font-size:12.5px;color:var(--text2);}
 .round-pill.active{border-color:var(--red);color:var(--red);background:var(--red-l);}
 
+.q-depth{border-left:2px solid var(--border);padding-left:12px;margin-left:6px;}
+.idbox{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--text3);}
+.idbox code{font-family:'DM Mono';background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:1px 6px;color:var(--text2);}
 /* Toast */
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);z-index:400;display:flex;flex-direction:column;gap:8px;align-items:center;pointer-events:none;}
 .toast{background:var(--anth);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;box-shadow:var(--shadow-lg);max-width:min(90vw,520px);}
@@ -245,7 +248,7 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px;}
       <div><div class="login-brand">RDZ Security Management</div><div class="login-sub">Module administration</div></div>
     </div>
     <h1 class="login-title">Rapports</h1>
-    <p class="login-desc">Règles d’envoi automatique, destinataires, journal des envois et points de ronde. Accès réservé aux administrateurs et superviseurs.</p>
+    <p class="login-desc">Envois automatiques des rapports du journal de bord, destinataires, journal des envois et points de ronde. Accès réservé aux administrateurs et superviseurs.</p>
     <label for="login-email">Email</label>
     <input id="login-email" type="email" autocomplete="username" required>
     <label for="login-pass">Mot de passe</label>
@@ -279,42 +282,44 @@ table.tbl{width:100%;border-collapse:collapse;font-size:13px;}
 'use strict';
 // ════════════════════════════════════════════════════════
 //  CONFIG
+//  Rules, recipients, send log, settings and checkpoints live in the
+//  RouteOps base. Report types, questions and filled reports live in the
+//  RDZ Agent base and are read through the rpt-dispatch function.
 // ════════════════════════════════════════════════════════
 const SB_URL = 'https://trdhtlcenmjlcvzuplid.supabase.co';
 const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRyZGh0bGNlbm1qbGN2enVwbGlkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY0NTE2NzQsImV4cCI6MjA5MjAyNzY3NH0.8r-ITHC-w28vQ4_FKI6Hbwg4AYVqYR0i-69_oHSD5DU';
 const FN_URL = SB_URL + '/functions/v1/rpt-dispatch';
 const ADMIN_ROLES = ['admin', 'supervisor'];
-const LS_SESSION = 'rpt_session_v1', LS_CACHE = 'rpt_cache_v1', LS_DIRTY = 'rpt_dirty_v1';
-const TABLES = {sites:'rpt_sites', posts:'rpt_posts', forms:'rpt_forms', groups:'rpt_recipient_groups',
-                rules:'rpt_mail_rules', rounds:'rpt_rounds', checkpoints:'rpt_checkpoints'};
-const SYSTEM_VARS = ['Statut de soumission','Statut de démarrage','Poste de garde','Nom du formulaire',
-                     'N° de rapport','Date de début','Date de fin','Agent','Site'];
+const LS_SESSION = 'rpt_session_v1', LS_CACHE = 'rpt_cache_v2', LS_DIRTY = 'rpt_dirty_v2', LS_CAT = 'rpt_catalog_v2';
+const TABLES = {groups:'rpt_recipient_groups', rules:'rpt_mail_rules', rounds:'rpt_rounds', checkpoints:'rpt_checkpoints'};
+const SYSTEM_VARS = ['Site','Type de rapport','Agent','Date','Heure','Localisation','N° de rapport','Statut de soumission','Date de fin'];
 const STATUS = {pending:['En cours','b-blue'], sent:['Envoyé','b-green'], failed:['Échec','b-red'],
                 test_redirected:['Test (redirigé)','b-orange'], suppressed:['Bloqué (mode test)','b-grey']};
-const FIELD_TYPES = ['date','time','select','text','textarea','number','checkbox','checkboxes','photo'];
+const TYPE_LABELS = {texte:'Texte court', zone_texte:'Texte long', choix:'Choix', case:'Case à cocher', heure:'Horodatage'};
 const VIEWS = [
   ['dash','Vue d’ensemble'], ['reports','Rapports'], ['log','Journal des envois'], null,
   ['rules','Règles d’envoi'], ['groups','Destinataires'], ['sim','Simulateur'], null,
-  ['points','Points de ronde'], ['sites','Sites et formulaires'], ['settings','Paramètres']
+  ['points','Points de ronde'], ['settings','Paramètres']
 ];
 const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 
 const S = {
   session: null,
   cfg: emptyCfg(),
+  cat: emptyCat(),
   settings: {},
   view: 'dash',
   reports: [],
   logs: [],
   ui: {
-    ruleFormId: null, simFormId: null, simData: {}, simTest: false,
+    ruleTypeId: null, simTypeId: null, simSiteId: '', simData: {}, ruleDraft: null,
     pointSiteId: null, pointRound: 'all',
-    rep: {form:'', from: isoDay(-7), to: isoDay(0), tests: false, q: ''},
-    log: {status:'', days:'7', q: ''},
-    ruleDraft: null
+    rep: {type:'', site:'', from: isoDay(-7), to: isoDay(0), q: ''},
+    log: {status:'', days:'7', q: ''}
   }
 };
-function emptyCfg(){ return {sites:[], posts:[], forms:[], groups:[], rules:[], rounds:[], checkpoints:[]}; }
+function emptyCfg(){ return {groups:[], rules:[], rounds:[], checkpoints:[]}; }
+function emptyCat(){ return {sites:[], types:[], champs:[], categories:[], loaded_at:null}; }
 
 // ════════════════════════════════════════════════════════
 //  HELPERS
@@ -322,6 +327,7 @@ function emptyCfg(){ return {sites:[], posts:[], forms:[], groups:[], rules:[], 
 function esc(s){ return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 function uid(){ return crypto.randomUUID(); }
 function isoDay(offset){ const d = new Date(); d.setDate(d.getDate() + offset); return d.toLocaleDateString('sv-SE'); }
+function fmtDate(s){ if(!s) return ''; const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s)); return m ? `${m[3]}.${m[2]}.${m[1]}` : String(s); }
 function fmtDateTime(iso){
   if(!iso) return '';
   const d = new Date(iso); if(isNaN(d.getTime())) return '';
@@ -329,13 +335,28 @@ function fmtDateTime(iso){
 }
 function short(s, n){ s = String(s ?? ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 function bySort(a, b){ return (a.sort ?? 0) - (b.sort ?? 0) || String(a.name || a.label || '').localeCompare(String(b.name || b.label || ''), 'fr'); }
-const site  = id => S.cfg.sites.find(x => x.id === id);
-const post  = id => S.cfg.posts.find(x => x.id === id);
-const form  = id => S.cfg.forms.find(x => x.id === id);
 const group = id => S.cfg.groups.find(x => x.id === id);
 const round = id => S.cfg.rounds.find(x => x.id === id);
+const typeById = id => S.cat.types.find(t => t.id === id);
+const siteById = id => S.cat.sites.find(s => s.id === id);
 function groupMap(){ return new Map(S.cfg.groups.map(g => [g.id, g])); }
-function formPath(f){ const p = post(f.post_id); const s = p && site(p.site_id); return [s?.code, p?.name].filter(Boolean).join(' – '); }
+function catName(id){ const c = S.cat.categories.find(x => x.id === id); return c ? c.libelle : 'Autres questions'; }
+function champOptions(c){
+  if(Array.isArray(c.options)) return c.options.map(String);
+  if(typeof c.options === 'string'){ try{ const x = JSON.parse(c.options); return Array.isArray(x) ? x.map(String) : []; }catch(_){ return []; } }
+  return [];
+}
+function champsFor(typeId, siteId){
+  return S.cat.champs.filter(c => c.rapport_type_id === typeId && c.actif !== false && (!c.site_id || !siteId || c.site_id === siteId));
+}
+function champTree(list){
+  const byParent = new Map(), ids = new Set(list.map(c => c.id)), out = [], seen = new Set();
+  for(const c of list){ const k = c.parent_id && ids.has(c.parent_id) ? c.parent_id : ''; if(!byParent.has(k)) byParent.set(k, []); byParent.get(k).push(c); }
+  for(const arr of byParent.values()) arr.sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
+  const walk = (pid, depth) => { for(const c of byParent.get(pid) || []){ if(seen.has(c.id)) continue; seen.add(c.id); out.push({c, depth}); walk(c.id, depth + 1); } };
+  walk('', 0);
+  return out;
+}
 
 function toast(msg, type){
   const t = document.createElement('div');
@@ -349,53 +370,58 @@ function setSync(state, label){
   if(d) d.className = 'sync-dot ' + state;
   if(l) l.textContent = label || '';
 }
-function offlineBox(msg){ return `<div class="empty"><p>${esc(msg)}</p></div>`; }
+function box(msg){ return `<div class="empty"><p>${esc(msg)}</p></div>`; }
 
-// ── Shared rule logic (identical to the rpt-dispatch Edge Function) ──
+// ── Shared rule logic (identical to the rpt-dispatch function) ──
 function fmtValue(v){
   if(v === null || v === undefined || v === '') return '';
   if(Array.isArray(v)) return v.map(fmtValue).filter(Boolean).join(', ');
   if(typeof v === 'boolean') return v ? 'Oui' : 'Non';
-  if(typeof v === 'object') return String(v.label ?? v.name ?? v.path ?? '');
-  const s = String(v); const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
-  return m ? `${m[3]}.${m[2]}.${m[1]}` : s;
+  if(typeof v === 'object') return String(v.label ?? v.name ?? '');
+  const s = String(v); return /^\d{4}-\d{2}-\d{2}$/.test(s) ? fmtDate(s) : s;
 }
-function renderSubject(tpl, data, sys, sep){
+function answersOf(list){
+  const byId = {}, byLabel = {};
+  for(const r of list){ if(!r || typeof r !== 'object') continue; if(r.champ_id) byId[String(r.champ_id)] = r.valeur; if(r.libelle) byLabel[String(r.libelle)] = r.valeur; }
+  return {byId, byLabel, list};
+}
+function answerOf(c, a){
+  if(c.champ_id && Object.prototype.hasOwnProperty.call(a.byId, c.champ_id)) return a.byId[c.champ_id];
+  if(c.libelle && Object.prototype.hasOwnProperty.call(a.byLabel, c.libelle)) return a.byLabel[c.libelle];
+  return undefined;
+}
+function condMatches(c, a){
+  const v = answerOf(c, a); const vals = (c.values || []).map(String);
+  switch(c.type){
+    case 'checked':
+      if(Array.isArray(v)) return vals.length ? v.map(String).some(x => vals.includes(x)) : v.length > 0;
+      return v === true || v === 'true' || v === 'oui' || v === 'Oui';
+    case 'equals':
+      if(Array.isArray(v)) return v.map(String).some(x => vals.includes(x));
+      return v !== undefined && v !== null && vals.includes(String(v));
+    case 'filled':
+      return !(v === undefined || v === null || v === '' || v === false || (Array.isArray(v) && v.length === 0));
+    default: return false;
+  }
+}
+function ruleMatches(rule, a){
+  if(rule.trigger_mode === 'always') return true;
+  const conds = Array.isArray(rule.conditions) ? rule.conditions : [];
+  if(!conds.length) return false;
+  const res = conds.map(c => condMatches(c, a));
+  return rule.match_mode === 'all' ? res.every(Boolean) : res.some(Boolean);
+}
+function renderSubject(tpl, a, sys, sep){
   const re = /\{([^{}]+)\}/g; let out = '', last = 0, prev = false, m;
   while((m = re.exec(tpl))){
     const literal = tpl.slice(last, m.index); const key = m[1].trim();
-    const val = data && Object.prototype.hasOwnProperty.call(data, key) ? fmtValue(data[key]) : (sys[key] ?? '');
+    const val = Object.prototype.hasOwnProperty.call(a.byLabel, key) ? fmtValue(a.byLabel[key]) : (sys[key] ?? '');
     if(literal){ out += literal; prev = false; }
     if(val){ if(prev) out += sep; out += val; prev = true; }
     last = re.lastIndex;
   }
   out += tpl.slice(last);
-  return out.replace(/\s+/g,' ').trim();
-}
-function condMatches(c, data){
-  const v = data?.[c.field]; const vals = (c.values || []).map(String);
-  switch(c.type){
-    case 'checked':
-      if(Array.isArray(v)) return vals.length ? v.map(String).some(x => vals.includes(x)) : v.length > 0;
-      return v === true || v === 'true' || v === 'Oui';
-    case 'equals':
-      if(Array.isArray(v)) return v.map(String).some(x => vals.includes(x));
-      return v !== undefined && v !== null && vals.includes(String(v));
-    case 'filled':
-      return !(v === undefined || v === null || v === '' || (Array.isArray(v) && v.length === 0));
-    default: return false;
-  }
-}
-function ruleMatches(rule, data){
-  if(rule.trigger_mode === 'always') return true;
-  const conds = Array.isArray(rule.conditions) ? rule.conditions : [];
-  if(!conds.length) return false;
-  const res = conds.map(c => condMatches(c, data));
-  return rule.match_mode === 'all' ? res.every(Boolean) : res.some(Boolean);
-}
-function groupVisible(g, data){
-  if(!g.show_if) return true;
-  return condMatches({type:'equals', field:g.show_if.field, values:g.show_if.values}, data);
+  return out.replace(/\s+/g, ' ').trim();
 }
 const EMAIL_RE = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/;
 function isEmail(e){ return typeof e === 'string' && EMAIL_RE.test(e.trim()); }
@@ -406,10 +432,11 @@ function recipientsFor(rule, gmap){
   for(const e of rule.extra_emails || []) if(isEmail(e)) set.add(e.trim().toLowerCase());
   return [...set];
 }
-function fieldsOf(f){
-  const out = [], seen = new Set();
-  for(const g of f?.schema?.groups || []) for(const fl of g.fields || []){ if(!seen.has(fl.key)){ seen.add(fl.key); out.push(fl); } }
-  return out;
+// A condition whose question no longer exists in the creator.
+function condBroken(c, typeId){
+  if(!S.cat.loaded_at) return false;
+  const champs = S.cat.champs.filter(x => x.rapport_type_id === typeId);
+  return !champs.some(x => x.id === c.champ_id) && !champs.some(x => x.libelle === c.libelle);
 }
 
 // ════════════════════════════════════════════════════════
@@ -420,16 +447,13 @@ function saveSession(){ if(S.session) localStorage.setItem(LS_SESSION, JSON.stri
 async function refreshSession(){
   if(!S.session?.refresh_token) return false;
   try{
-    const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {
-      method:'POST', headers:{'Content-Type':'application/json', apikey:SB_KEY},
-      body: JSON.stringify({refresh_token: S.session.refresh_token})
-    });
+    const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`, {method:'POST',
+      headers:{'Content-Type':'application/json', apikey:SB_KEY}, body: JSON.stringify({refresh_token: S.session.refresh_token})});
     if(!r.ok) return false;
     const d = await r.json();
     Object.assign(S.session, {access_token:d.access_token, refresh_token:d.refresh_token,
       expires_at: d.expires_at || Math.floor(Date.now()/1000) + (d.expires_in || 3600)});
-    saveSession();
-    return true;
+    saveSession(); return true;
   }catch(_){ return false; }
 }
 async function ensureFresh(){
@@ -440,7 +464,6 @@ async function ensureFresh(){
 function translateErr(status, m){
   m = String(m || '');
   if(status === 409 || /duplicate key/i.test(m)) return 'Cette valeur existe déjà (code ou nom en double).';
-  if(/foreign key/i.test(m)) return 'Impossible : des rapports sont liés à cet élément. Désactivez-le plutôt que de le supprimer.';
   if(status === 403 || /row-level security/i.test(m)) return 'Action refusée : droits insuffisants.';
   return m.slice(0, 220) || ('Erreur ' + status);
 }
@@ -453,8 +476,7 @@ async function api(path, opts = {}, retried = false){
   }catch(_){ throw new HttpError(0, 'Connexion impossible'); }
   if(res.status === 401 && !retried){
     if(await refreshSession()) return api(path, opts, true);
-    sessionExpired();
-    throw new HttpError(401, 'Session expirée');
+    sessionExpired(); throw new HttpError(401, 'Session expirée');
   }
   const txt = await res.text();
   if(!res.ok){
@@ -468,22 +490,10 @@ async function callFn(body){
   let r;
   try{
     r = await fetch(FN_URL, {method:'POST', headers:{apikey:SB_KEY, Authorization:'Bearer ' + S.session.access_token, 'Content-Type':'application/json'}, body: JSON.stringify(body)});
-  }catch(_){ throw new Error('La fonction d’envoi rpt-dispatch est injoignable. Vérifiez la connexion et son déploiement.'); }
+  }catch(_){ throw new HttpError(0, 'La fonction rpt-dispatch est injoignable. Vérifiez la connexion et son déploiement.'); }
   const j = await r.json().catch(() => ({}));
-  if(!r.ok) throw new Error(j.error || ('Erreur ' + r.status));
+  if(!r.ok) throw new HttpError(r.status, j.error || ('Erreur ' + r.status));
   return j;
-}
-async function signedPhotoUrl(path){
-  await ensureFresh();
-  const clean = String(path).replace(/^\/+/, '').split('/').map(encodeURIComponent).join('/');
-  const r = await fetch(`${SB_URL}/storage/v1/object/sign/rpt-photos/${clean}`, {
-    method:'POST', headers:{apikey:SB_KEY, Authorization:'Bearer ' + S.session.access_token, 'Content-Type':'application/json'},
-    body: JSON.stringify({expiresIn: 300})
-  });
-  if(!r.ok) return null;
-  const j = await r.json();
-  const s = j.signedURL || j.signedUrl;
-  return s ? `${SB_URL}/storage/v1${s}` : null;
 }
 let expiredShown = false;
 function sessionExpired(){
@@ -503,12 +513,11 @@ async function doLogin(ev){
   if(!email || !pass){ err.textContent = 'Email et mot de passe requis.'; return; }
   btn.disabled = true; btn.textContent = 'Connexion…';
   try{
-    const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
-      method:'POST', headers:{'Content-Type':'application/json', apikey:SB_KEY}, body: JSON.stringify({email, password:pass})});
+    const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {method:'POST',
+      headers:{'Content-Type':'application/json', apikey:SB_KEY}, body: JSON.stringify({email, password:pass})});
     const d = await r.json();
     if(!r.ok) throw new Error(d.error_description || d.msg || 'Email ou mot de passe incorrect.');
-    const pr = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${d.user.id}&select=full_name,role,active`, {
-      headers:{apikey:SB_KEY, Authorization:'Bearer ' + d.access_token}});
+    const pr = await fetch(`${SB_URL}/rest/v1/profiles?id=eq.${d.user.id}&select=full_name,role,active`, {headers:{apikey:SB_KEY, Authorization:'Bearer ' + d.access_token}});
     const ps = await pr.json(); const p = Array.isArray(ps) ? ps[0] : null;
     if(!p || p.active === false || !ADMIN_ROLES.includes(p.role)) throw new Error('Accès réservé aux administrateurs et superviseurs.');
     S.session = {access_token:d.access_token, refresh_token:d.refresh_token,
@@ -517,14 +526,13 @@ async function doLogin(ev){
     saveSession(); expiredShown = false;
     document.getElementById('login-pass').value = '';
     enterApp();
-  }catch(e){
-    err.textContent = e.message === 'Failed to fetch' ? 'Connexion impossible : vérifiez le réseau.' : e.message;
-  }finally{ btn.disabled = false; btn.textContent = 'Se connecter'; }
+  }catch(e){ err.textContent = e.message === 'Failed to fetch' ? 'Connexion impossible : vérifiez le réseau.' : e.message; }
+  finally{ btn.disabled = false; btn.textContent = 'Se connecter'; }
 }
 function doLogout(silent, keepLocal){
   if(!silent && getDirty().length && !confirm('Des modifications ne sont pas encore synchronisées et seront perdues. Se déconnecter quand même ?')) return;
   S.session = null; saveSession();
-  if(!keepLocal){ localStorage.removeItem(LS_CACHE); localStorage.removeItem(LS_DIRTY); S.cfg = emptyCfg(); S.settings = {}; }
+  if(!keepLocal){ [LS_CACHE, LS_DIRTY, LS_CAT].forEach(k => localStorage.removeItem(k)); S.cfg = emptyCfg(); S.cat = emptyCat(); S.settings = {}; }
   S.reports = []; S.logs = [];
   closeModal(); closeDrawer();
   document.getElementById('app').hidden = true;
@@ -546,7 +554,7 @@ function enterApp(){
   loadCache();
   showView(S.view);
   updateSyncBadge();
-  if(navigator.onLine) pushDirty().then(loadConfig);
+  if(navigator.onLine) pushDirty().then(() => Promise.all([loadConfig(), loadCatalog(true)]));
 }
 async function boot(){
   window.addEventListener('online', () => { updateSyncBadge(); if(S.session) pushDirty().then(loadConfig); });
@@ -559,11 +567,22 @@ async function boot(){
 }
 
 // ════════════════════════════════════════════════════════
-//  CONFIG CACHE + OFFLINE QUEUE (dirty → pushDirty)
+//  CACHE, CATALOG, OFFLINE QUEUE (dirty → pushDirty)
 // ════════════════════════════════════════════════════════
 function saveCache(){ localStorage.setItem(LS_CACHE, JSON.stringify({cfg:S.cfg, settings:S.settings, at:Date.now()})); }
 function loadCache(){
   try{ const c = JSON.parse(localStorage.getItem(LS_CACHE) || 'null'); if(c){ S.cfg = {...emptyCfg(), ...c.cfg}; S.settings = c.settings || {}; } }catch(_){}
+  try{ const k = JSON.parse(localStorage.getItem(LS_CAT) || 'null'); if(k) S.cat = {...emptyCat(), ...k}; }catch(_){}
+}
+async function loadCatalog(silent){
+  if(!S.session || !navigator.onLine) return;
+  try{
+    const c = await callFn({action:'catalog'});
+    S.cat = {...emptyCat(), ...c};
+    localStorage.setItem(LS_CAT, JSON.stringify(S.cat));
+    if(!document.querySelector('.modal')) render();
+    if(!silent) toast('Types de rapports actualisés.', 'ok');
+  }catch(e){ if(e.status !== 401) toast('Lecture du créateur de rapports impossible : ' + e.message, 'err'); }
 }
 function getDirty(){ try{ return JSON.parse(localStorage.getItem(LS_DIRTY) || '[]'); }catch(_){ return []; } }
 function setDirty(q){ localStorage.setItem(LS_DIRTY, JSON.stringify(q)); updateSyncBadge(); }
@@ -571,12 +590,8 @@ function kindOf(table){ return Object.keys(TABLES).find(k => TABLES[k] === table
 function applyItem(it){
   if(it.table === 'rpt_settings'){ if(it.op === 'upsert') S.settings[it.row.key] = it.row.value; return; }
   const list = S.cfg[kindOf(it.table)]; if(!list) return;
-  if(it.op === 'upsert'){
-    const i = list.findIndex(x => x.id === it.row.id);
-    if(i >= 0) list[i] = {...list[i], ...it.row}; else list.push({...it.row});
-  }else{
-    const i = list.findIndex(x => x.id === it.id); if(i >= 0) list.splice(i, 1);
-  }
+  if(it.op === 'upsert'){ const i = list.findIndex(x => x.id === it.row.id); if(i >= 0) list[i] = {...list[i], ...it.row}; else list.push({...it.row}); }
+  else{ const i = list.findIndex(x => x.id === it.id); if(i >= 0) list.splice(i, 1); }
 }
 function cleanRow(row){ const r = {...row}; delete r.created_at; delete r.updated_at; return r; }
 function updateSyncBadge(){
@@ -596,49 +611,31 @@ async function pushDirty(){
       try{
         if(it.op === 'upsert'){
           const conflict = it.table === 'rpt_settings' ? 'key' : 'id';
-          await api(`${it.table}?on_conflict=${conflict}`, {method:'POST',
-            headers:{Prefer:'resolution=merge-duplicates,return=minimal'}, body: JSON.stringify(cleanRow(it.row))});
+          await api(`${it.table}?on_conflict=${conflict}`, {method:'POST', headers:{Prefer:'resolution=merge-duplicates,return=minimal'}, body: JSON.stringify(cleanRow(it.row))});
         }else{
           await api(`${it.table}?id=eq.${encodeURIComponent(it.id)}`, {method:'DELETE', headers:{Prefer:'return=minimal'}});
         }
       }catch(e){
         if(e.status === 0 || e.status === 401) break;
-        toast('Modification refusée : ' + e.message, 'err');
-        reload = true;
+        toast('Modification refusée : ' + e.message, 'err'); reload = true;
       }
       q.shift(); setDirty(q);
     }
   }finally{ pushing = false; updateSyncBadge(); }
   if(reload) await loadConfig();
 }
-function saveRow(kind, row){
-  const it = {table:TABLES[kind], op:'upsert', row};
-  applyItem(it); saveCache();
-  const q = getDirty(); q.push(it); setDirty(q);
-  pushDirty();
-}
-function deleteRow(kind, id){
-  const it = {table:TABLES[kind], op:'delete', id};
-  applyItem(it); saveCache();
-  const q = getDirty(); q.push(it); setDirty(q);
-  pushDirty();
-}
-function saveSetting(key, value){
-  const it = {table:'rpt_settings', op:'upsert', row:{key, value}};
-  applyItem(it); saveCache();
-  const q = getDirty(); q.push(it); setDirty(q);
-  pushDirty();
-}
+function enqueue(it){ applyItem(it); saveCache(); const q = getDirty(); q.push(it); setDirty(q); pushDirty(); }
+function saveRow(kind, row){ enqueue({table:TABLES[kind], op:'upsert', row}); }
+function deleteRow(kind, id){ enqueue({table:TABLES[kind], op:'delete', id}); }
+function saveSetting(key, value){ enqueue({table:'rpt_settings', op:'upsert', row:{key, value}}); }
 async function loadConfig(){
   if(!S.session || !navigator.onLine) return;
   setSync('pending', 'Synchronisation…');
   try{
-    const [sites, posts, forms, groups, rules, rounds, checkpoints, settings] = await Promise.all([
-      api('rpt_sites?select=*&order=name'), api('rpt_posts?select=*&order=sort,name'),
-      api('rpt_forms?select=*&order=sort,name'), api('rpt_recipient_groups?select=*&order=code'),
-      api('rpt_mail_rules?select=*&order=sort,name'), api('rpt_rounds?select=*&order=name'),
-      api('rpt_checkpoints?select=*&order=sort,label'), api('rpt_settings?select=key,value')]);
-    S.cfg = {sites, posts, forms, groups, rules, rounds, checkpoints};
+    const [groups, rules, rounds, checkpoints, settings] = await Promise.all([
+      api('rpt_recipient_groups?select=*&order=code'), api('rpt_mail_rules?select=*&order=sort,name'),
+      api('rpt_rounds?select=*&order=name'), api('rpt_checkpoints?select=*&order=sort,label'), api('rpt_settings?select=key,value')]);
+    S.cfg = {groups, rules, rounds, checkpoints};
     S.settings = Object.fromEntries((settings || []).map(r => [r.key, r.value ?? '']));
     getDirty().forEach(applyItem);
     saveCache(); updateSyncBadge();
@@ -650,8 +647,9 @@ async function loadConfig(){
 }
 
 // ════════════════════════════════════════════════════════
-//  NAVIGATION & RENDER
+//  NAVIGATION, MODAL, DRAWER, FORM HELPERS
 // ════════════════════════════════════════════════════════
+const RENDER = {}, AFTER = {};
 function renderNav(){
   const fails = S.logs.filter(l => l.status === 'failed').length;
   document.getElementById('side').innerHTML = VIEWS.map(v => v === null ? '<div class="sep"></div>' :
@@ -660,22 +658,9 @@ function renderNav(){
   const act = document.querySelector('.side button.active');
   if(act && window.innerWidth <= 860) act.scrollIntoView({block:'nearest', inline:'center'});
 }
-const RENDER = {};
-const AFTER = {};
-function render(){
-  renderNav();
-  document.getElementById('main').innerHTML = RENDER[S.view]();
-  if(AFTER[S.view]) AFTER[S.view]();
-}
-function showView(v){
-  S.view = v; closeDrawer();
-  render();
-  window.scrollTo(0, 0);
-}
+function render(){ renderNav(); document.getElementById('main').innerHTML = RENDER[S.view](); if(AFTER[S.view]) AFTER[S.view](); }
+function showView(v){ S.view = v; closeDrawer(); render(); window.scrollTo(0, 0); }
 
-// ════════════════════════════════════════════════════════
-//  MODAL / DRAWER
-// ════════════════════════════════════════════════════════
 let modalSave = null;
 function openModal({title, body, onSave, saveLabel = 'Enregistrer', wide = false}){
   modalSave = onSave;
@@ -685,23 +670,18 @@ function openModal({title, body, onSave, saveLabel = 'Enregistrer', wide = false
       <div class="modal-head"><h2 id="modal-title">${esc(title)}</h2><button class="x" onclick="closeModal()" aria-label="Fermer">×</button></div>
       <div class="modal-body" id="modal-body">${body}</div>
       <div class="modal-err" id="modal-err" role="alert"></div>
-      <div class="modal-foot">
-        <button class="btn ghost" onclick="closeModal()">Annuler</button>
-        ${onSave ? `<button class="btn primary" id="modal-save" onclick="runModalSave()">${esc(saveLabel)}</button>` : ''}
-      </div>
+      <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Annuler</button>
+        ${onSave ? `<button class="btn primary" id="modal-save" onclick="runModalSave()">${esc(saveLabel)}</button>` : ''}</div>
     </div>
   </div>`;
-  const first = document.querySelector('#modal-body input:not([type=checkbox]):not([readonly]), #modal-body select, #modal-body textarea');
+  const first = document.querySelector('#modal-body input:not([type=checkbox]):not([type=radio]):not([readonly]), #modal-body select, #modal-body textarea');
   if(first) first.focus();
 }
 async function runModalSave(){
   const btn = document.getElementById('modal-save');
-  try{
-    btn.disabled = true;
-    const r = await modalSave();
-    if(r !== false){ closeModal(); render(); }
-  }catch(e){ modalErr(e.message); }
-  finally{ if(document.getElementById('modal-save')) document.getElementById('modal-save').disabled = false; }
+  try{ btn.disabled = true; const r = await modalSave(); if(r !== false){ closeModal(); render(); } }
+  catch(e){ modalErr(e.message); }
+  finally{ const b = document.getElementById('modal-save'); if(b) b.disabled = false; }
 }
 function modalErr(m){ const e = document.getElementById('modal-err'); if(e) e.textContent = m; }
 function closeModal(){ document.getElementById('modal-root').innerHTML = ''; modalSave = null; }
@@ -709,25 +689,22 @@ function closeDrawer(){ document.getElementById('drawer-root').innerHTML = ''; }
 function val(id){ const el = document.getElementById(id); if(!el) return ''; return el.type === 'checkbox' ? el.checked : el.value.trim(); }
 function fld(id, label, input, hint){ return `<label class="field" for="${id}"><span>${esc(label)}${hint ? ` <small>${esc(hint)}</small>` : ''}</span>${input}</label>`; }
 function inp(id, value, attrs = ''){ const cls = /\bclass=/.test(attrs) ? '' : 'class="inp" '; return `<input ${cls}id="${id}" value="${esc(value ?? '')}" ${attrs}>`; }
-function chk(id, label, checked){ return `<label class="check"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''}> <span>${esc(label)}</span></label>`; }
+function chk(id, label, checked, attrs = ''){ return `<label class="check"><input type="checkbox" id="${id}" ${checked ? 'checked' : ''} ${attrs}> <span>${esc(label)}</span></label>`; }
 function sel(id, options, value, attrs = ''){
   return `<select class="inp" id="${id}" ${attrs}>${options.map(o => `<option value="${esc(o[0])}" ${String(o[0]) === String(value ?? '') ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}</select>`;
 }
-function formOptions(){
-  const out = [];
-  for(const s of [...S.cfg.sites].sort(bySort)){
-    const posts = S.cfg.posts.filter(p => p.site_id === s.id).sort(bySort);
-    const items = [];
-    for(const p of posts) for(const f of S.cfg.forms.filter(f => f.post_id === p.id).sort(bySort))
-      items.push(`<option value="${f.id}" __SEL_${f.id}__>${esc(p.name)} – ${esc(f.name)}${f.active ? '' : ' (inactif)'}</option>`);
-    if(items.length) out.push(`<optgroup label="${esc(s.name)}">${items.join('')}</optgroup>`);
-  }
-  return out.join('');
+function typeOptions(extraIds = []){
+  const ids = new Set(S.cat.types.map(t => t.id));
+  const missing = [...new Set(extraIds)].filter(id => id && !ids.has(id)).map(id => {
+    const r = S.cfg.rules.find(x => x.rapport_type_id === id);
+    return [id, `${r?.rapport_type_nom || 'Type'} (introuvable dans le créateur)`];
+  });
+  return [...S.cat.types.map(t => [t.id, `${t.icone ? t.icone + ' ' : ''}${t.nom}${t.actif === false ? ' (inactif)' : ''}`]), ...missing];
 }
-function formSelect(id, value, onchange, withAll){
-  let html = formOptions().replace(/__SEL_([0-9a-f-]+)__/g, (_, fid) => fid === value ? 'selected' : '');
-  if(withAll) html = `<option value="" ${value ? '' : 'selected'}>Tous les formulaires</option>` + html;
-  return `<select class="inp" id="${id}" onchange="${onchange}">${html}</select>`;
+function siteOptions(allLabel){ return [['', allLabel], ...S.cat.sites.map(s => [s.id, s.nom])]; }
+function catalogNotice(){
+  if(S.cat.loaded_at) return '';
+  return `<div class="banner info"><div>Les types de rapports du créateur n’ont pas encore été chargés.</div><button class="btn sm" onclick="loadCatalog()">Charger</button></div>`;
 }
 
 // ════════════════════════════════════════════════════════
@@ -743,17 +720,22 @@ function configIssues(){
   for(const g of S.cfg.groups) if(g.active !== false && !(g.emails || []).some(isEmail)) out.push({level:'warn', text:`Le groupe « ${g.name} » n’a aucune adresse valide.`, view:'groups'});
   for(const r of S.cfg.rules){
     if(!r.active) continue;
-    const f = form(r.form_id);
-    if(!recipientsFor(r, gm).length) out.push({level:'error', text:`La règle « ${r.name} » (${f?.name || '?'}) n’a aucun destinataire.`, view:'rules'});
+    if(!recipientsFor(r, gm).length) out.push({level:'error', text:`La règle « ${r.name} » (${r.rapport_type_nom || '?'}) n’a aucun destinataire.`, view:'rules'});
+    if(S.cat.loaded_at){
+      const t = typeById(r.rapport_type_id);
+      if(!t) out.push({level:'error', text:`La règle « ${r.name} » vise un type de rapport supprimé du créateur.`, view:'rules'});
+      else if(t.actif === false) out.push({level:'warn', text:`La règle « ${r.name} » vise le type « ${t.nom} », inactif dans le créateur.`, view:'rules'});
+      if(r.trigger_mode === 'conditions' && (r.conditions || []).some(c => condBroken(c, r.rapport_type_id)))
+        out.push({level:'error', text:`La règle « ${r.name} » utilise une question qui n’existe plus dans le créateur.`, view:'rules'});
+    }
   }
-  for(const f of S.cfg.forms) if(f.active && !S.cfg.rules.some(r => r.form_id === f.id && r.active)) out.push({level:'warn', text:`Le formulaire « ${f.name} » n’envoie aucun mail.`, view:'rules'});
   return out;
 }
 RENDER.dash = () => {
-  const issues = configIssues();
-  const testOn = S.settings.test_mode !== 'false';
-  return `<div class="page-head"><h1>Vue d’ensemble</h1><p class="sub">Rapports reçus et mails envoyés automatiquement sur les sept derniers jours.</p></div>
-  ${testOn ? `<div class="banner warn"><div><b>Mode test actif.</b> Tous les mails partent vers les adresses de test, avec [TEST] dans l’objet. Désactivez-le seulement après la recette signée par le RSS.</div><button class="btn sm" onclick="showView('settings')">Ouvrir les paramètres</button></div>` : ''}
+  const issues = configIssues(), testOn = S.settings.test_mode !== 'false';
+  return `<div class="page-head"><h1>Vue d’ensemble</h1><p class="sub">Rapports clôturés par les agents et mails envoyés automatiquement, sur les sept derniers jours.</p></div>
+  ${testOn ? `<div class="banner warn"><div><b>Mode test actif.</b> Tous les mails partent vers les adresses de test, avec [TEST] dans l’objet. Désactivez-le seulement après la recette signée par le client.</div><button class="btn sm" onclick="showView('settings')">Ouvrir les paramètres</button></div>` : ''}
+  ${catalogNotice()}
   <div class="kpis" id="dash-kpis">${navigator.onLine ? '<div class="muted">Chargement…</div>' : '<div class="muted">Hors ligne : les chiffres s’afficheront au retour de la connexion.</div>'}</div>
   <div class="grid2">
     <section class="panel"><h2>Points à vérifier</h2>
@@ -766,15 +748,14 @@ AFTER.dash = async () => {
   if(!navigator.onLine) return;
   const since = new Date(Date.now() - 7 * 864e5).toISOString();
   try{
-    const [reps, logs] = await Promise.all([
-      api(`rpt_reports?select=id,submitted_at,is_test&status=eq.submitted&submitted_at=gte.${since}&limit=10000`),
-      api(`rpt_mail_log?select=id,status,created_at,subject,error,report_id,rule_id,rule_name&created_at=gte.${since}&order=created_at.desc&limit=10000`)]);
+    const [disp, logs] = await Promise.all([
+      api(`rpt_dispatched?select=report_id,dispatched_at,rules_matched&dispatched_at=gte.${since}&limit=10000`),
+      api(`rpt_mail_log?select=id,status,created_at,subject,error,report_id,rule_id,rule_name,site_nom&created_at=gte.${since}&order=created_at.desc&limit=10000`)]);
     S.logs = logs; renderNav();
     const d1 = Date.now() - 864e5;
-    const real = reps.filter(r => !r.is_test);
     const k = [
-      [real.filter(r => new Date(r.submitted_at) > d1).length, 'Rapports – 24 h'],
-      [real.length, 'Rapports – 7 jours'],
+      [disp.filter(r => new Date(r.dispatched_at) > d1).length, 'Rapports traités – 24 h'],
+      [disp.length, 'Rapports traités – 7 jours'],
       [logs.filter(l => ['sent','test_redirected'].includes(l.status) && new Date(l.created_at) > d1).length, 'Mails envoyés – 24 h'],
       [logs.filter(l => l.status === 'failed').length, 'Échecs – 7 jours', true]];
     const el = document.getElementById('dash-kpis');
@@ -782,7 +763,7 @@ AFTER.dash = async () => {
     const fails = logs.filter(l => l.status === 'failed').slice(0, 8);
     const fe = document.getElementById('dash-fails');
     if(fe) fe.innerHTML = fails.length ? fails.map(l => `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
-        <div style="font-weight:600">${esc(l.rule_name || 'Envoi')}</div>
+        <div style="font-weight:600">${esc(l.rule_name || 'Envoi')}${l.site_nom ? ` <span class="muted" style="font-weight:400">– ${esc(l.site_nom)}</span>` : ''}</div>
         <div class="muted" style="font-size:12px">${esc(fmtDateTime(l.created_at))} – ${esc(short(l.error || '', 120))}</div>
         ${l.report_id && l.rule_id ? `<button class="btn sm" style="margin-top:6px" onclick="retryLog('${l.id}')">Relancer</button>` : ''}</div>`).join('')
       : '<p class="ok-line">Aucun échec sur sept jours.</p>';
@@ -790,99 +771,89 @@ AFTER.dash = async () => {
 };
 
 // ════════════════════════════════════════════════════════
-//  VIEW: REPORTS
+//  VIEW: REPORTS (read from the RDZ Agent base)
 // ════════════════════════════════════════════════════════
 RENDER.reports = () => {
   const f = S.ui.rep;
-  return `<div class="page-head"><h1>Rapports</h1><p class="sub">Rapports soumis par les agents. Ils ne sont jamais stockés sur cet appareil et sont effacés automatiquement à la fin de leur durée de conservation.</p></div>
+  return `<div class="page-head"><h1>Rapports</h1><p class="sub">Rapports clôturés dans le journal de bord. Ils ne sont jamais stockés sur cet appareil ; chaque consultation est enregistrée.</p></div>
   <div class="toolbar">
-    <label class="field grow" style="min-width:220px"><span>Formulaire</span>${formSelect('rf-form', f.form, 'S.ui.rep.form=this.value;loadReports()', true)}</label>
+    <label class="field grow" style="min-width:200px"><span>Type de rapport</span>${sel('rf-type', [['','Tous les types'],['standard','Rapport standard'], ...typeOptions()], f.type, 'onchange="S.ui.rep.type=this.value;loadReports()"')}</label>
+    <label class="field" style="min-width:180px"><span>Site</span>${sel('rf-site', siteOptions('Tous les sites'), f.site, 'onchange="S.ui.rep.site=this.value;loadReports()"')}</label>
     <label class="field"><span>Du</span><input class="inp" type="date" value="${esc(f.from)}" onchange="S.ui.rep.from=this.value;loadReports()"></label>
     <label class="field"><span>Au</span><input class="inp" type="date" value="${esc(f.to)}" onchange="S.ui.rep.to=this.value;loadReports()"></label>
-    <label class="field"><span>Rechercher</span><input class="inp" placeholder="N°, agent, texte…" value="${esc(f.q)}" oninput="S.ui.rep.q=this.value;drawReports()"></label>
-    <label class="check" style="margin-bottom:9px"><input type="checkbox" ${f.tests ? 'checked' : ''} onchange="S.ui.rep.tests=this.checked;loadReports()"> <span>Inclure les tests</span></label>
-  </div>
-  <div id="rep-list"><p class="muted">Chargement…</p></div>`;
+    <label class="field"><span>Rechercher</span><input class="inp" placeholder="Agent, texte…" value="${esc(f.q)}" oninput="S.ui.rep.q=this.value;drawReports()"></label>
+  </div><div id="rep-list"><p class="muted">Chargement…</p></div>`;
 };
 AFTER.reports = () => loadReports();
 async function loadReports(){
   const el = document.getElementById('rep-list'); if(!el) return;
-  if(!navigator.onLine){ el.innerHTML = offlineBox('Hors ligne. Les rapports contiennent des données sensibles et ne sont consultables qu’en ligne.'); return; }
-  const f = S.ui.rep;
-  let q = 'rpt_reports?select=id,report_no,form_id,site_id,post_id,agent_name,is_test,submitted_at,data&status=eq.submitted&order=submitted_at.desc&limit=300';
-  if(f.form) q += '&form_id=eq.' + f.form;
-  if(f.from) q += '&submitted_at=gte.' + encodeURIComponent(new Date(f.from + 'T00:00:00').toISOString());
-  if(f.to){ const d = new Date(f.to + 'T00:00:00'); d.setDate(d.getDate() + 1); q += '&submitted_at=lt.' + encodeURIComponent(d.toISOString()); }
-  if(!f.tests) q += '&is_test=eq.false';
-  try{ S.reports = await api(q); drawReports(); }
-  catch(e){ if(e.status !== 401) el.innerHTML = offlineBox(e.message); }
-}
-function reportSummary(r){
-  const d = r.data || {};
-  return [d["Type d'action"], d["Nature d'activité"]].filter(Boolean).join(' – ') || fmtValue(Object.values(d).find(v => typeof v === 'string' && v.length > 3)) || '';
+  if(!navigator.onLine){ el.innerHTML = box('Hors ligne. Les rapports ne sont consultables qu’en ligne.'); return; }
+  const f = S.ui.rep, filters = {type_id: f.type || null, site_id: f.site || null};
+  if(f.from) filters.from = new Date(f.from + 'T00:00:00').toISOString();
+  if(f.to){ const d = new Date(f.to + 'T00:00:00'); d.setDate(d.getDate() + 1); filters.to = d.toISOString(); }
+  try{ S.reports = (await callFn({action:'reports', filters})).rows || []; drawReports(); }
+  catch(e){ if(e.status !== 401) el.innerHTML = box(e.message); }
 }
 function drawReports(){
   const el = document.getElementById('rep-list'); if(!el) return;
   const q = S.ui.rep.q.toLowerCase();
-  const rows = S.reports.filter(r => !q || String(r.report_no).includes(q) || (r.agent_name || '').toLowerCase().includes(q) || JSON.stringify(r.data || {}).toLowerCase().includes(q));
-  if(!rows.length){ el.innerHTML = offlineBox('Aucun rapport sur cette période.'); return; }
-  el.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>N°</th><th>Soumis le</th><th>Formulaire</th><th>Résumé</th><th>Agent</th></tr></thead><tbody>
-  ${rows.map(r => `<tr class="click" tabindex="0" onclick="openReport('${r.id}')" onkeydown="if(event.key==='Enter')openReport('${r.id}')">
-    <td class="num">${esc(r.report_no)}</td><td class="num">${esc(fmtDateTime(r.submitted_at))}</td>
-    <td>${esc(form(r.form_id)?.name || '—')} ${r.is_test ? '<span class="badge b-orange">Test</span>' : ''}</td>
-    <td class="wrap">${esc(short(reportSummary(r), 110))}</td><td>${esc(r.agent_name || '—')}</td></tr>`).join('')}
+  const rows = S.reports.filter(r => !q || [r.agent_nom, r.site_nom, r.activite, r.summary, r.localisation].join(' ').toLowerCase().includes(q));
+  if(!rows.length){ el.innerHTML = box('Aucun rapport sur cette période.'); return; }
+  el.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Clôturé le</th><th>Site</th><th>Rapport</th><th>Résumé</th><th>Agent</th></tr></thead><tbody>
+  ${rows.map(r => `<tr class="click" tabindex="0" data-id="${esc(r.id)}" onclick="openReport(this.dataset.id)" onkeydown="if(event.key==='Enter')openReport(this.dataset.id)">
+    <td class="num">${esc(fmtDateTime(r.created_at))}</td><td>${esc(r.site_nom || '—')}</td><td>${esc(r.activite || '—')}</td>
+    <td class="wrap">${esc(short(r.summary || r.localisation || '', 110))}</td><td>${esc(r.agent_nom || '—')}</td></tr>`).join('')}
   </tbody></table></div><p class="muted" style="margin-top:8px;font-size:12px">${rows.length} rapport(s)${S.reports.length >= 300 ? ' – affichage limité aux 300 plus récents, affinez les filtres.' : ''}</p>`;
 }
 async function openReport(id){
-  const r = S.reports.find(x => x.id === id); if(!r) return;
-  const f = form(r.form_id), data = r.data || {};
-  const photos = [];
-  const body = (f?.schema?.groups || []).filter(g => groupVisible(g, data)).map(g => {
-    const items = (g.fields || []).map(fl => {
-      const v = data[fl.key];
-      if(fl.type === 'photo'){
-        const paths = [].concat(v || []).map(p => typeof p === 'object' ? p.path : p).filter(Boolean);
-        if(!paths.length) return '';
-        const ids = paths.map(p => { const pid = 'ph-' + photos.length; photos.push([pid, p]); return `<a id="${pid}" target="_blank" rel="noopener" class="muted">Chargement…</a>`; });
-        return `<dt>${esc(fl.key)}</dt><dd><div class="photos">${ids.join('')}</div></dd>`;
-      }
-      const t = fmtValue(v); return t ? `<dt>${esc(fl.key)}</dt><dd>${esc(t)}</dd>` : '';
-    }).join('');
-    return items ? `<div class="grp-title">${esc(g.title)}</div><dl class="kv">${items}</dl>` : '';
+  document.getElementById('drawer-root').innerHTML = `<div class="drawer-back" onclick="closeDrawer()"></div>
+    <aside class="drawer" role="dialog" aria-modal="true" aria-label="Rapport"><div class="drawer-body"><p class="muted">Chargement…</p></div></aside>`;
+  let data;
+  try{ data = await callFn({action:'report', report_id:id}); }
+  catch(e){ closeDrawer(); toast(e.message, 'err'); return; }
+  const r = data.report, photos = data.photos || [];
+  let currentCat = null;
+  const answers = (r.reponses || []).map(x => {
+    const t = fmtValue(x?.valeur); if(!t) return '';
+    const cat = x.categorie || 'Autres questions';
+    const h = cat !== currentCat ? `</dl><div class="grp-title">${esc(cat)}</div><dl class="kv">` : '';
+    currentCat = cat;
+    return `${h}<dt>${esc(x.libelle)}</dt><dd>${esc(t)}</dd>`;
   }).join('');
+  const loc = [r.localisation, r.localisation_autre].filter(Boolean).join(' – ');
   document.getElementById('drawer-root').innerHTML = `
   <div class="drawer-back" onclick="closeDrawer()"></div>
   <aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dr-title">
-    <div class="drawer-head"><div><div class="muted" style="font-size:12px">${esc(formPath(f || {}))}</div>
-      <h2 id="dr-title">${esc(f?.name || 'Rapport')} – n° ${esc(r.report_no)} ${r.is_test ? '<span class="badge b-orange">Test</span>' : ''}</h2>
-      <div class="muted" style="font-size:12.5px">${esc(r.agent_name || 'Agent')} – ${esc(fmtDateTime(r.submitted_at))}</div></div>
+    <div class="drawer-head"><div><div class="muted" style="font-size:12px">${esc(r.site_nom || '')}</div>
+      <h2 id="dr-title">${esc(r.activite || 'Rapport')}</h2>
+      <div class="muted" style="font-size:12.5px">${esc(r.agent_nom || 'Agent')} – clôturé le ${esc(fmtDateTime(r.created_at))}</div></div>
       <button class="x" onclick="closeDrawer()" aria-label="Fermer">×</button></div>
-    <div class="drawer-body">${body || '<p class="muted">Rapport vide.</p>'}
+    <div class="drawer-body">
+      <dl class="kv"><dt>Date et heure</dt><dd>${esc([fmtDate(r.date_rapport), r.heure_rapport].filter(Boolean).join(' à '))}</dd>
+        ${loc ? `<dt>Localisation</dt><dd>${esc(loc)}</dd>` : ''}<dt>Référence</dt><dd class="mono" style="font-size:12px">${esc(r.id)}</dd></dl>
+      <dl class="kv">${answers}</dl>
+      ${r.situation ? `<div class="grp-title">Situation</div><p style="white-space:pre-wrap">${esc(r.situation)}</p>` : ''}
+      ${r.actions ? `<div class="grp-title">Actions</div><p style="white-space:pre-wrap">${esc(r.actions)}</p>` : ''}
+      ${photos.length ? `<div class="grp-title">Photos</div><div class="photos">${photos.map(p => p.url
+        ? `<a href="${esc(p.url)}" target="_blank" rel="noopener"><img src="${esc(p.url)}" alt="${esc(p.legende || 'Photo du rapport')}"></a>`
+        : '<span class="badge b-orange">Photo en cours d’envoi</span>').join('')}</div>` : ''}
       <div class="grp-title">Mails envoyés pour ce rapport</div><div id="dr-logs"><p class="muted">Chargement…</p></div>
-      <div style="margin-top:12px"><button class="btn sm" onclick="redispatch('${r.id}')">Relancer les envois manquants</button>
+      <div style="margin-top:12px"><button class="btn sm" data-id="${esc(r.id)}" onclick="redispatch(this.dataset.id)">Relancer les envois manquants</button>
       <p class="muted" style="font-size:12px;margin-top:6px">Les mails déjà partis ne sont jamais renvoyés en double.</p></div>
     </div>
   </aside>`;
-  api('rpt_audit_log', {method:'POST', headers:{Prefer:'return=minimal'}, body: JSON.stringify({user_id:S.session.user_id, action:'view', table_name:'rpt_reports', row_id:r.id})}).catch(() => {});
   loadReportLogs(r.id);
-  for(const [pid, path] of photos){
-    signedPhotoUrl(path).then(url => {
-      const a = document.getElementById(pid); if(!a) return;
-      if(url){ a.href = url; a.className = ''; a.innerHTML = `<img src="${esc(url)}" alt="Photo du rapport">`; }
-      else a.textContent = 'Photo indisponible';
-    });
-  }
 }
 async function loadReportLogs(reportId){
   const el = document.getElementById('dr-logs'); if(!el) return;
   try{
-    const logs = await api(`rpt_mail_log?report_id=eq.${reportId}&select=*&order=created_at`);
+    const logs = await api(`rpt_mail_log?report_id=eq.${encodeURIComponent(reportId)}&select=*&order=created_at`);
     el.innerHTML = logs.length ? logs.map(l => `<div style="padding:8px 0;border-bottom:1px solid var(--border)">
       <div style="display:flex;justify-content:space-between;gap:8px"><b>${esc(l.rule_name || 'Envoi')}</b>${statusBadge(l.status)}</div>
       <div class="subject" style="margin:6px 0;display:inline-block">${esc(l.subject || '')}</div>
       <div class="muted" style="font-size:12px">${esc((l.recipients || []).join(', '))}</div>
       ${l.error ? `<div style="color:var(--red);font-size:12px">${esc(l.error)}</div>` : ''}</div>`).join('')
-      : '<p class="muted">Aucun mail pour ce rapport.</p>';
+      : '<p class="muted">Aucun mail pour ce rapport (aucune règle ne correspond).</p>';
   }catch(e){ el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; }
 }
 async function redispatch(reportId){
@@ -900,29 +871,28 @@ RENDER.log = () => {
   <div class="toolbar">
     <label class="field"><span>Statut</span>${sel('lg-status', [['','Tous'],['failed','Échecs'],['sent','Envoyés'],['test_redirected','Tests redirigés'],['suppressed','Bloqués'],['pending','En cours']], f.status, 'onchange="S.ui.log.status=this.value;loadLogs()"')}</label>
     <label class="field"><span>Période</span>${sel('lg-days', [['1','24 heures'],['7','7 jours'],['30','30 jours'],['90','90 jours']], f.days, 'onchange="S.ui.log.days=this.value;loadLogs()"')}</label>
-    <label class="field grow"><span>Rechercher</span><input class="inp" placeholder="Objet, destinataire, règle…" value="${esc(f.q)}" oninput="S.ui.log.q=this.value;drawLogs()"></label>
+    <label class="field grow"><span>Rechercher</span><input class="inp" placeholder="Objet, site, destinataire…" value="${esc(f.q)}" oninput="S.ui.log.q=this.value;drawLogs()"></label>
     <button class="btn" onclick="loadLogs()">Actualiser</button>
   </div><div id="log-list"><p class="muted">Chargement…</p></div>`;
 };
 AFTER.log = () => loadLogs();
 async function loadLogs(){
   const el = document.getElementById('log-list'); if(!el) return;
-  if(!navigator.onLine){ el.innerHTML = offlineBox('Hors ligne. Le journal est consultable en ligne.'); return; }
-  const f = S.ui.log;
-  const since = new Date(Date.now() - parseInt(f.days, 10) * 864e5).toISOString();
-  let q = `rpt_mail_log?select=*,report:rpt_reports(report_no)&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=1000`;
+  if(!navigator.onLine){ el.innerHTML = box('Hors ligne. Le journal est consultable en ligne.'); return; }
+  const f = S.ui.log, since = new Date(Date.now() - parseInt(f.days, 10) * 864e5).toISOString();
+  let q = `rpt_mail_log?select=*&created_at=gte.${encodeURIComponent(since)}&order=created_at.desc&limit=1000`;
   if(f.status) q += '&status=eq.' + f.status;
   try{ S.logs = await api(q); renderNav(); drawLogs(); }
-  catch(e){ if(e.status !== 401) el.innerHTML = offlineBox(e.message); }
+  catch(e){ if(e.status !== 401) el.innerHTML = box(e.message); }
 }
 function drawLogs(){
   const el = document.getElementById('log-list'); if(!el) return;
   const q = S.ui.log.q.toLowerCase();
-  const rows = S.logs.filter(l => !q || [l.subject, l.rule_name, (l.recipients || []).join(' '), l.error].join(' ').toLowerCase().includes(q));
-  if(!rows.length){ el.innerHTML = offlineBox('Aucun envoi sur cette période.'); return; }
-  el.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Date</th><th>Rapport</th><th>Règle</th><th>Objet</th><th>Destinataires</th><th>Statut</th><th></th></tr></thead><tbody>
-  ${rows.map(l => `<tr><td class="num">${esc(fmtDateTime(l.created_at))}</td><td class="num">${l.report ? esc(l.report.report_no) : '—'}</td>
-    <td>${esc(l.rule_name || '—')}</td><td class="wrap">${esc(l.subject || '')}${l.error ? `<div style="color:var(--red);font-size:12px;margin-top:4px">${esc(l.error)}</div>` : ''}</td>
+  const rows = S.logs.filter(l => !q || [l.subject, l.rule_name, l.site_nom, l.activite, (l.recipients || []).join(' '), l.error].join(' ').toLowerCase().includes(q));
+  if(!rows.length){ el.innerHTML = box('Aucun envoi sur cette période.'); return; }
+  el.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Date</th><th>Site</th><th>Règle</th><th>Objet</th><th>Destinataires</th><th>Statut</th><th></th></tr></thead><tbody>
+  ${rows.map(l => `<tr><td class="num">${esc(fmtDateTime(l.created_at))}</td><td>${esc(l.site_nom || '—')}</td><td>${esc(l.rule_name || '—')}</td>
+    <td class="wrap">${l.report_id ? `<button class="link" style="font-weight:500;text-align:left" data-id="${esc(l.report_id)}" onclick="openReport(this.dataset.id)">${esc(l.subject || '')}</button>` : esc(l.subject || '')}${l.error ? `<div style="color:var(--red);font-size:12px;margin-top:4px">${esc(l.error)}</div>` : ''}</td>
     <td class="wrap" style="font-size:12px">${esc((l.recipients || []).join(', '))}</td><td>${statusBadge(l.status)}</td>
     <td>${l.status === 'failed' && l.report_id && l.rule_id ? `<button class="btn sm" onclick="retryLog('${l.id}')">Relancer</button>` : ''}</td></tr>`).join('')}
   </tbody></table></div>`;
@@ -938,32 +908,38 @@ async function retryLog(id){
 // ════════════════════════════════════════════════════════
 function condText(c){
   const v = (c.values || []).map(x => `« ${esc(short(x, 70))} »`).join(' ou ');
-  if(c.type === 'checked') return v ? `<b>${v}</b> est coché` : `<b>« ${esc(c.field)} »</b> est coché`;
-  if(c.type === 'equals') return `<b>« ${esc(c.field)} »</b> vaut ${v}`;
-  if(c.type === 'filled') return `<b>« ${esc(c.field)} »</b> est renseigné`;
+  const q = `« ${esc(short(c.libelle || '?', 80))} »`;
+  if(c.type === 'checked') return v ? `<b>${v}</b> est coché` : `<b>${q}</b> est coché`;
+  if(c.type === 'equals') return `<b>${q}</b> vaut ${v}`;
+  if(c.type === 'filled') return `<b>${q}</b> a une réponse`;
   return 'condition inconnue';
 }
 function ruleSentence(r){
-  if(r.trigger_mode === 'always') return 'Part à <b>chaque rapport</b> soumis.';
+  if(r.trigger_mode === 'always') return 'Part à <b>chaque rapport</b> clôturé.';
   const parts = (r.conditions || []).map(condText);
   return parts.length ? 'Part si ' + parts.join(r.match_mode === 'all' ? ' <i>et</i> ' : ' <i>ou</i> ') + '.' : 'Aucune condition : cette règle ne part jamais.';
 }
 RENDER.rules = () => {
-  const forms = S.cfg.forms;
-  const head = `<div class="page-head"><h1>Règles d’envoi</h1><p class="sub">Chaque règle produit son propre mail, dès que l’agent soumet le rapport. L’agent ne choisit jamais les destinataires : ils découlent de ses réponses.</p></div>`;
-  if(!forms.length) return head + `<div class="empty"><p>Aucun formulaire pour l’instant.</p><button class="btn primary" onclick="showView('sites')">Créer un formulaire</button></div>`;
-  if(!form(S.ui.ruleFormId)) S.ui.ruleFormId = forms[0].id;
-  const fm = form(S.ui.ruleFormId), gm = groupMap();
-  const rules = S.cfg.rules.filter(r => r.form_id === fm.id).sort(bySort);
-  return head + `<div class="toolbar"><label class="field grow" style="min-width:240px"><span>Formulaire</span>${formSelect('ru-form', fm.id, 'S.ui.ruleFormId=this.value;render()')}</label>
-    <button class="btn" onclick="S.ui.simFormId='${fm.id}';showView('sim')">Tester dans le simulateur</button>
+  const head = `<div class="page-head"><h1>Règles d’envoi</h1><p class="sub">Les types de rapports et leurs questions se créent dans le créateur de rapports RDZ_Agent. Ici, on décide seulement qui reçoit un mail, et quand.</p></div>`;
+  const opts = typeOptions(S.cfg.rules.map(r => r.rapport_type_id));
+  if(!opts.length) return head + catalogNotice() + box('Aucun type de rapport. Créez-en dans le créateur de rapports, puis actualisez.');
+  if(!opts.some(o => o[0] === S.ui.ruleTypeId)) S.ui.ruleTypeId = (opts.find(o => S.cfg.rules.some(r => r.rapport_type_id === o[0])) || opts[0])[0];
+  const tid = S.ui.ruleTypeId, gm = groupMap();
+  const rules = S.cfg.rules.filter(r => r.rapport_type_id === tid).sort(bySort);
+  return head + catalogNotice() + `<div class="toolbar">
+    <label class="field grow" style="min-width:240px"><span>Type de rapport</span>${sel('ru-type', opts, tid, 'onchange="S.ui.ruleTypeId=this.value;render()"')}</label>
+    <button class="btn" onclick="loadCatalog()">Actualiser les types</button>
+    <button class="btn" onclick="S.ui.simTypeId=S.ui.ruleTypeId;S.ui.simData={};showView('sim')">Tester dans le simulateur</button>
     <button class="btn primary" onclick="editRule(null)">Ajouter une règle</button></div>
+  <p class="idbox" style="margin:-8px 0 14px">Identifiant du type <code>${esc(tid)}</code> <button class="link" style="font-size:11.5px" onclick="copyText('${esc(tid)}')">Copier</button></p>
   ${rules.length ? `<div class="rules">${rules.map(r => {
     const to = recipientsFor(r, gm);
+    const broken = r.trigger_mode === 'conditions' && (r.conditions || []).some(c => condBroken(c, r.rapport_type_id));
     return `<article class="rule ${r.trigger_mode === 'always' ? '' : 'cond'} ${r.active ? '' : 'off'}">
       <div class="rule-top"><h3>${esc(r.name)}</h3>
         <label class="switch" title="${r.active ? 'Active' : 'Inactive'}"><input type="checkbox" aria-label="Activer la règle" ${r.active ? 'checked' : ''} onchange="toggleRule('${r.id}',this.checked)"><span></span></label></div>
-      <p class="rule-sentence">${ruleSentence(r)}</p>
+      <p class="rule-sentence">${ruleSentence(r)} ${broken ? '<span class="badge b-red">Question introuvable</span>' : ''}</p>
+      <div class="rule-row"><span class="k">Site</span><span class="chip">${esc(r.site_id ? (siteById(r.site_id)?.nom || r.site_nom || 'Site supprimé') : 'Tous les sites')}</span></div>
       <div class="rule-row"><span class="k">À</span><div>${(r.group_ids || []).map(id => { const g = gm.get(id); return g ? `<span class="chip" title="${esc((g.emails || []).join(', '))}"><b>${esc(g.code)}</b>${esc(g.name)}</span>` : '<span class="chip">Groupe supprimé</span>'; }).join('')}
         ${(r.extra_emails || []).map(e => `<span class="chip">${esc(e)}</span>`).join('')}
         ${to.length ? `<span class="muted" style="font-size:12px">${to.length} adresse(s)</span>` : '<span class="badge b-red">Aucun destinataire</span>'}</div></div>
@@ -972,8 +948,9 @@ RENDER.rules = () => {
         <button class="btn sm ghost" onclick="duplicateRule('${r.id}')">Dupliquer</button>
         <button class="btn sm ghost danger" onclick="removeRule('${r.id}')">Supprimer</button></div>
     </article>`; }).join('')}</div>`
-  : `<div class="empty"><p>Ce formulaire n’envoie encore aucun mail.</p><button class="btn primary" onclick="editRule(null)">Ajouter une règle</button></div>`}`;
+  : `<div class="empty"><p>Ce type de rapport n’envoie encore aucun mail.</p><button class="btn primary" onclick="editRule(null)">Ajouter une règle</button></div>`}`;
 };
+function copyText(t){ navigator.clipboard?.writeText(t).then(() => toast('Copié.', 'ok'), () => toast(t)); }
 function toggleRule(id, on){ const r = S.cfg.rules.find(x => x.id === id); if(!r) return; saveRow('rules', {...r, active:on}); render(); }
 function removeRule(id){
   const r = S.cfg.rules.find(x => x.id === id); if(!r) return;
@@ -983,70 +960,83 @@ function removeRule(id){
 function duplicateRule(id){
   const r = S.cfg.rules.find(x => x.id === id); if(!r) return;
   let name = r.name + ' (copie)', n = 2;
-  while(S.cfg.rules.some(x => x.form_id === r.form_id && x.name === name)) name = `${r.name} (copie ${n++})`;
+  while(S.cfg.rules.some(x => x.rapport_type_id === r.rapport_type_id && x.name === name)) name = `${r.name} (copie ${n++})`;
   saveRow('rules', {...JSON.parse(JSON.stringify(r)), id:uid(), name, active:false, sort:(r.sort || 0) + 1});
   render(); toast('Règle dupliquée (inactive).');
 }
 function editRule(id){
-  const fm = form(S.ui.ruleFormId); if(!fm) return;
+  const tid = S.ui.ruleTypeId; if(!tid) return;
   const src = id ? S.cfg.rules.find(x => x.id === id) : null;
-  const maxSort = Math.max(0, ...S.cfg.rules.filter(r => r.form_id === fm.id).map(r => r.sort || 0));
-  S.ui.ruleDraft = src ? JSON.parse(JSON.stringify(src)) : {id:uid(), form_id:fm.id, name:'', trigger_mode:'conditions', match_mode:'any',
-    conditions:[{type:'equals', field:'', values:[]}], group_ids:[], extra_emails:[], subject_template:'', sort:maxSort + 10, active:true, _new:true};
-  if(src) S.ui.ruleDraft._new = false;
+  const maxSort = Math.max(0, ...S.cfg.rules.filter(r => r.rapport_type_id === tid).map(r => r.sort || 0));
+  S.ui.ruleDraft = src ? JSON.parse(JSON.stringify(src)) : {id:uid(), rapport_type_id:tid, rapport_type_nom:typeById(tid)?.nom || '', site_id:null, site_nom:null,
+    name:'', trigger_mode:'conditions', match_mode:'any', conditions:[{type:'checked', champ_id:'', libelle:'', values:[]}], group_ids:[], extra_emails:[],
+    subject_template:'', sort:maxSort + 10, active:true};
+  S.ui.ruleDraft._new = !src;
   openModal({title: src ? 'Modifier la règle' : 'Nouvelle règle', body: ruleEditorHtml(), wide:true, onSave: saveRuleDraft});
 }
+function condTypesFor(c){
+  if(!c) return [['filled','a une réponse']];
+  const opts = champOptions(c);
+  if(c.type === 'case') return opts.length ? [['checked','case cochée'],['filled','au moins une case cochée']] : [['checked','est coché']];
+  if(c.type === 'choix') return [['equals','vaut'],['filled','a une réponse']];
+  return [['filled','a une réponse'],['equals','vaut exactement']];
+}
 function ruleEditorHtml(){
-  const d = S.ui.ruleDraft, fm = form(d.form_id), fields = fieldsOf(fm);
-  const fieldOpts = [['', 'Choisir un champ…'], ...fields.filter(f => f.type !== 'photo').map(f => [f.key, f.key])];
+  const d = S.ui.ruleDraft, champs = champTree(champsFor(d.rapport_type_id, d.site_id));
+  const byId = new Map(champs.map(x => [x.c.id, x.c]));
+  const champOpts = [['', 'Choisir une question…'], ...champs.map(x => [x.c.id, `${'— '.repeat(x.depth)}${x.c.libelle} (${TYPE_LABELS[x.c.type] || x.c.type})`])];
   const conds = d.conditions.map((c, i) => {
-    const fl = fields.find(f => f.key === c.field);
-    const types = !fl ? [['equals','vaut']] : fl.type === 'checkboxes' ? [['checked','est coché'],['filled','au moins une case cochée']]
-      : fl.type === 'checkbox' ? [['checked','est coché']] : [['equals','vaut'],['filled','est renseigné']];
+    let fl = byId.get(c.champ_id) || champs.map(x => x.c).find(x => x.libelle === c.libelle);
+    const opts = [...champOpts];
+    if(c.champ_id && !fl) opts.push([c.champ_id, `${c.libelle} (question introuvable)`]);
+    const types = condTypesFor(fl);
     let values = '';
-    if(c.type !== 'filled' && fl && fl.type !== 'checkbox'){
-      if(fl.options && fl.options.length){
-        values = `<div class="vals">${fl.options.map(o => `<label class="check"><input type="checkbox" data-v="${esc(o)}" ${(c.values || []).includes(o) ? 'checked' : ''} onchange="rdCondVal(${i},this.dataset.v,this.checked)"> <span>${esc(o)}</span></label>`).join('')}</div>`;
-      }else{
-        values = fld(`rd-cv-${i}`, 'Valeurs (une par ligne)', `<textarea class="inp" id="rd-cv-${i}" rows="2" oninput="rdCondText(${i},this.value)">${esc((c.values || []).join('\n'))}</textarea>`);
-      }
+    if(fl && c.type !== 'filled' && !(fl.type === 'case' && !champOptions(fl).length)){
+      const o = champOptions(fl);
+      values = o.length
+        ? `<div class="vals">${o.map(v => `<label class="check"><input type="checkbox" data-v="${esc(v)}" ${(c.values || []).includes(v) ? 'checked' : ''} onchange="rdCondVal(${i},this.dataset.v,this.checked)"> <span>${esc(v)}</span></label>`).join('')}</div>`
+        : fld(`rd-cv-${i}`, 'Valeurs acceptées (une par ligne)', `<textarea class="inp" id="rd-cv-${i}" rows="2" oninput="rdCondText(${i},this.value)">${esc((c.values || []).join('\n'))}</textarea>`);
     }
     return `<div class="cond-box"><div class="cond-head">
-      ${fld(`rd-cf-${i}`, 'Champ', sel(`rd-cf-${i}`, fieldOpts, c.field, `onchange="rdCondField(${i},this.value)"`))}
+      ${fld(`rd-cf-${i}`, 'Question', sel(`rd-cf-${i}`, opts, fl ? fl.id : c.champ_id, `onchange="rdCondField(${i},this.value)"`))}
       ${fld(`rd-ct-${i}`, 'Condition', sel(`rd-ct-${i}`, types, c.type, `onchange="rdCondType(${i},this.value)"`))}
       <button class="btn sm ghost danger" onclick="rdCondRemove(${i})">Retirer</button></div>${values}</div>`;
   }).join('');
-  const vars = [...fields.filter(f => f.type !== 'photo').map(f => f.key), ...SYSTEM_VARS];
+  const vars = [...new Set([...champs.map(x => x.c.libelle), ...SYSTEM_VARS])];
   return `
+  <p class="muted" style="font-size:12.5px">Type de rapport : <b>${esc(typeById(d.rapport_type_id)?.nom || d.rapport_type_nom || '?')}</b></p>
   <div class="grid-form">
     ${fld('rd-name', 'Nom de la règle', inp('rd-name', d.name, 'oninput="S.ui.ruleDraft.name=this.value" maxlength="120"'))}
+    ${fld('rd-site', 'Site', sel('rd-site', siteOptions('Tous les sites'), d.site_id || '', 'onchange="rdSite(this.value)"'), 'où ce type est utilisé')}
     ${fld('rd-sort', 'Ordre', inp('rd-sort', d.sort, 'type="number" oninput="S.ui.ruleDraft.sort=parseInt(this.value,10)||0"'))}
   </div>
-  ${chk('rd-active', 'Règle active', d.active).replace('<input', '<input onchange="S.ui.ruleDraft.active=this.checked"')}
+  ${chk('rd-active', 'Règle active', d.active, 'onchange="S.ui.ruleDraft.active=this.checked"')}
   <div class="field"><span>Quand ce mail part-il ?</span>
-    <label class="check"><input type="radio" name="rd-mode" ${d.trigger_mode === 'always' ? 'checked' : ''} onchange="rdMode('always')"> <span>À chaque rapport soumis</span></label>
+    <label class="check"><input type="radio" name="rd-mode" ${d.trigger_mode === 'always' ? 'checked' : ''} onchange="rdMode('always')"> <span>À chaque rapport clôturé</span></label>
     <label class="check"><input type="radio" name="rd-mode" ${d.trigger_mode === 'conditions' ? 'checked' : ''} onchange="rdMode('conditions')"> <span>Selon les réponses de l’agent</span></label>
   </div>
   ${d.trigger_mode === 'conditions' ? `
     ${d.conditions.length > 1 ? fld('rd-match', 'Combinaison', sel('rd-match', [['any','Au moins une condition (ou)'],['all','Toutes les conditions (et)']], d.match_mode, 'onchange="S.ui.ruleDraft.match_mode=this.value"')) : ''}
-    ${conds}<div><button class="btn sm" onclick="rdCondAdd()">Ajouter une condition</button></div>` : ''}
+    ${champs.length ? conds : '<p class="muted">Ce type de rapport n’a encore aucune question dans le créateur.</p>'}
+    <div><button class="btn sm" onclick="rdCondAdd()">Ajouter une condition</button></div>` : ''}
   <div class="field"><span>Destinataires</span><div class="vals" style="max-height:220px">
     ${S.cfg.groups.slice().sort((a, b) => a.code.localeCompare(b.code)).map(g => `<label class="check"><input type="checkbox" ${d.group_ids.includes(g.id) ? 'checked' : ''} onchange="rdGroup('${g.id}',this.checked)"> <span><b class="mono" style="color:var(--red)">${esc(g.code)}</b> ${esc(g.name)} <span class="muted">(${(g.emails || []).length})</span></span></label>`).join('') || '<span class="muted">Aucun groupe. Créez-en dans Destinataires.</span>'}
   </div></div>
   ${fld('rd-extra', 'Adresses supplémentaires', `<textarea class="inp" id="rd-extra" rows="2" placeholder="Une adresse par ligne" oninput="S.ui.ruleDraft.extra_emails=splitEmails(this.value)">${esc(d.extra_emails.join('\n'))}</textarea>`, 'à éviter : préférez un groupe')}
-  ${fld('rd-subject', 'Objet du mail', inp('rd-subject', d.subject_template, 'class="inp mono" oninput="S.ui.ruleDraft.subject_template=this.value"'), 'les {champs} sont remplacés par les réponses')}
-  <div class="var-btns" aria-label="Insérer un champ">${vars.map(v => `<button type="button" data-v="${esc(v)}" onclick="rdInsertVar(this.dataset.v)">{${esc(v)}}</button>`).join('')}</div>`;
+  ${fld('rd-subject', 'Objet du mail', inp('rd-subject', d.subject_template, 'class="inp mono" oninput="S.ui.ruleDraft.subject_template=this.value"'), 'les {libellés} sont remplacés par les réponses')}
+  <div class="var-btns" aria-label="Insérer une réponse">${vars.map(v => `<button type="button" data-v="${esc(v)}" onclick="rdInsertVar(this.dataset.v)">{${esc(v)}}</button>`).join('')}</div>`;
 }
-function rdRerender(){ const b = document.getElementById('modal-body'); if(b){ b.innerHTML = ruleEditorHtml(); } }
-function rdMode(m){ S.ui.ruleDraft.trigger_mode = m; if(m === 'conditions' && !S.ui.ruleDraft.conditions.length) S.ui.ruleDraft.conditions.push({type:'equals', field:'', values:[]}); rdRerender(); }
-function rdCondAdd(){ S.ui.ruleDraft.conditions.push({type:'equals', field:'', values:[]}); rdRerender(); }
+function rdRerender(){ const b = document.getElementById('modal-body'); if(b) b.innerHTML = ruleEditorHtml(); }
+function rdSite(v){ const d = S.ui.ruleDraft; d.site_id = v || null; d.site_nom = v ? (siteById(v)?.nom || null) : null; rdRerender(); }
+function rdMode(m){ const d = S.ui.ruleDraft; d.trigger_mode = m; if(m === 'conditions' && !d.conditions.length) d.conditions.push({type:'checked', champ_id:'', libelle:'', values:[]}); rdRerender(); }
+function rdCondAdd(){ S.ui.ruleDraft.conditions.push({type:'checked', champ_id:'', libelle:'', values:[]}); rdRerender(); }
 function rdCondRemove(i){ S.ui.ruleDraft.conditions.splice(i, 1); rdRerender(); }
-function rdCondField(i, field){
-  const fl = fieldsOf(form(S.ui.ruleDraft.form_id)).find(f => f.key === field);
-  const type = !fl ? 'equals' : (fl.type === 'checkboxes' || fl.type === 'checkbox') ? 'checked' : 'equals';
-  S.ui.ruleDraft.conditions[i] = {type, field, values:[]}; rdRerender();
+function rdCondField(i, id){
+  const fl = S.cat.champs.find(c => c.id === id);
+  S.ui.ruleDraft.conditions[i] = {type: condTypesFor(fl)[0][0], champ_id:id, libelle: fl ? fl.libelle : '', values:[]};
+  rdRerender();
 }
-function rdCondType(i, t){ S.ui.ruleDraft.conditions[i].type = t; if(t === 'filled') S.ui.ruleDraft.conditions[i].values = []; rdRerender(); }
+function rdCondType(i, t){ const c = S.ui.ruleDraft.conditions[i]; c.type = t; if(t === 'filled') c.values = []; rdRerender(); }
 function rdCondVal(i, v, on){ const c = S.ui.ruleDraft.conditions[i]; c.values = (c.values || []).filter(x => x !== v); if(on) c.values.push(v); }
 function rdCondText(i, t){ S.ui.ruleDraft.conditions[i].values = t.split('\n').map(x => x.trim()).filter(Boolean); }
 function rdGroup(id, on){ const d = S.ui.ruleDraft; d.group_ids = d.group_ids.filter(x => x !== id); if(on) d.group_ids.push(id); }
@@ -1061,20 +1051,24 @@ function saveRuleDraft(){
   const d = S.ui.ruleDraft;
   d.name = (d.name || '').trim(); d.subject_template = (d.subject_template || '').trim();
   if(!d.name) throw new Error('Donnez un nom à la règle.');
-  if(S.cfg.rules.some(r => r.form_id === d.form_id && r.name === d.name && r.id !== d.id)) throw new Error('Une règle porte déjà ce nom pour ce formulaire.');
+  if(S.cfg.rules.some(r => r.rapport_type_id === d.rapport_type_id && r.name === d.name && r.id !== d.id)) throw new Error('Une règle porte déjà ce nom pour ce type de rapport.');
   if(!d.subject_template) throw new Error('L’objet du mail est obligatoire.');
-  const badExtra = d.extra_emails.filter(e => !isEmail(e));
-  if(badExtra.length) throw new Error('Adresse invalide : ' + badExtra.join(', '));
+  const bad = d.extra_emails.filter(e => !isEmail(e));
+  if(bad.length) throw new Error('Adresse invalide : ' + bad.join(', '));
   if(d.trigger_mode === 'conditions'){
-    d.conditions = d.conditions.filter(c => c.field);
-    if(!d.conditions.length) throw new Error('Ajoutez au moins une condition, ou choisissez « À chaque rapport ».');
-    const empty = d.conditions.find(c => c.type !== 'filled' && c.type !== 'checked' && !(c.values || []).length);
-    if(empty) throw new Error(`Choisissez au moins une valeur pour « ${empty.field} ».`);
+    d.conditions = d.conditions.filter(c => c.champ_id || c.libelle);
+    if(!d.conditions.length) throw new Error('Ajoutez au moins une condition, ou choisissez « À chaque rapport clôturé ».');
+    for(const c of d.conditions){
+      const fl = S.cat.champs.find(x => x.id === c.champ_id);
+      if(fl) c.libelle = fl.libelle;
+      if(c.type === 'equals' && !(c.values || []).length) throw new Error(`Choisissez au moins une valeur pour « ${c.libelle} ».`);
+    }
   }else d.conditions = [];
   if(!d.group_ids.length && !d.extra_emails.length) throw new Error('Choisissez au moins un destinataire.');
-  const row = {...d}; delete row._new;
+  d.rapport_type_nom = typeById(d.rapport_type_id)?.nom || d.rapport_type_nom;
+  const isNew = d._new; const row = {...d}; delete row._new;
   saveRow('rules', row);
-  toast(d._new ? 'Règle créée.' : 'Règle enregistrée.', 'ok');
+  toast(isNew ? 'Règle créée.' : 'Règle enregistrée.', 'ok');
 }
 
 // ════════════════════════════════════════════════════════
@@ -1085,8 +1079,7 @@ RENDER.groups = () => {
   return `<div class="page-head"><h1>Destinataires</h1><p class="sub">Un changement de personne se fait une seule fois ici, et s’applique à toutes les règles qui utilisent le groupe.</p></div>
   <div class="toolbar"><div class="grow"></div><button class="btn primary" onclick="editGroup(null)">Ajouter un groupe</button></div>
   ${groups.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Code</th><th>Groupe</th><th>Adresses</th><th>Utilisé par</th><th></th></tr></thead><tbody>
-  ${groups.map(g => { const used = S.cfg.rules.filter(r => (r.group_ids || []).includes(g.id)).length;
-    const bad = (g.emails || []).filter(e => !isEmail(e));
+  ${groups.map(g => { const used = S.cfg.rules.filter(r => (r.group_ids || []).includes(g.id)).length; const bad = (g.emails || []).filter(e => !isEmail(e));
     return `<tr><td class="num" style="color:var(--red);font-weight:600">${esc(g.code)}</td>
       <td>${esc(g.name)} ${g.active === false ? '<span class="badge b-grey">Inactif</span>' : ''}</td>
       <td class="wrap" style="font-size:12.5px">${(g.emails || []).map(e => esc(e)).join('<br>') || '<span class="badge b-red">Aucune adresse</span>'}${bad.length ? '<br><span class="badge b-red">Adresse invalide</span>' : ''}</td>
@@ -1101,12 +1094,10 @@ function editGroup(id){
     ${fld('g-emails', 'Adresses', `<textarea class="inp" id="g-emails" rows="5" placeholder="Une adresse par ligne">${esc((g.emails || []).join('\n'))}</textarea>`)}
     ${chk('g-active', 'Groupe actif', g.active !== false)}`,
     onSave: () => {
-      const code = val('g-code').toUpperCase(), name = val('g-name');
-      const emails = [...new Set(splitEmails(val('g-emails')))];
+      const code = val('g-code').toUpperCase(), name = val('g-name'), emails = [...new Set(splitEmails(val('g-emails')))];
       if(!code || !name) throw new Error('Code et nom sont obligatoires.');
       if(S.cfg.groups.some(x => x.code === code && x.id !== g.id)) throw new Error('Ce code est déjà utilisé.');
-      const bad = emails.filter(e => !isEmail(e));
-      if(bad.length) throw new Error('Adresse invalide : ' + bad.join(', '));
+      const bad = emails.filter(e => !isEmail(e)); if(bad.length) throw new Error('Adresse invalide : ' + bad.join(', '));
       saveRow('groups', {...g, code, name, emails, active: val('g-active')});
       toast('Groupe enregistré.', 'ok');
     }});
@@ -1122,64 +1113,91 @@ function removeGroup(id){
 // ════════════════════════════════════════════════════════
 //  VIEW: SIMULATOR (no mail is sent)
 // ════════════════════════════════════════════════════════
+function champVisible(c, data, byId, guard = 0){
+  if(!c.parent_id) return true;
+  const p = byId.get(c.parent_id); if(!p || guard > 20) return true;
+  if(!champVisible(p, data, byId, guard + 1)) return false;
+  const v = data[p.id], cond = String(c.condition_valeur || '').trim(), popts = champOptions(p);
+  if(p.type === 'case' && !popts.length) return cond === 'non' ? v !== true : v === true;
+  if(!cond) return !(v === undefined || v === null || v === '' || v === false || (Array.isArray(v) && !v.length));
+  if(Array.isArray(v)) return v.includes(cond);
+  return String(v ?? '') === cond;
+}
+function defaultValue(c){ if(c.type === 'case') return champOptions(c).length ? [] : false; if(c.type === 'heure') return null; return ''; }
+function simAnswers(typeId, siteId){
+  const list = champsFor(typeId, siteId), byId = new Map(list.map(c => [c.id, c])), data = S.ui.simData;
+  return champTree(list).filter(x => champVisible(x.c, data, byId)).map(x => ({
+    champ_id:x.c.id, libelle:x.c.libelle, type:x.c.type, categorie: catName(x.c.categorie_id),
+    valeur: data[x.c.id] !== undefined ? data[x.c.id] : defaultValue(x.c)}));
+}
 RENDER.sim = () => {
-  const forms = S.cfg.forms;
-  const head = `<div class="page-head"><h1>Simulateur</h1><p class="sub">Remplissez un rapport fictif : vous voyez immédiatement quels mails partiraient, à qui et avec quel objet. Rien n’est envoyé ni enregistré.</p></div>`;
-  if(!forms.length) return head + offlineBox('Aucun formulaire configuré.');
-  if(!form(S.ui.simFormId)){ S.ui.simFormId = forms[0].id; S.ui.simData = {}; }
-  return head + `<div class="toolbar"><label class="field grow" style="min-width:240px"><span>Formulaire</span>${formSelect('sim-form-sel', S.ui.simFormId, 'S.ui.simFormId=this.value;S.ui.simData={};render()')}</label>
-    <label class="check" style="margin-bottom:9px"><input type="checkbox" ${S.ui.simTest ? 'checked' : ''} onchange="S.ui.simTest=this.checked;drawSimOut()"> <span>Rapport marqué TEST</span></label>
+  const head = `<div class="page-head"><h1>Simulateur</h1><p class="sub">Remplissez un rapport fictif, comme l’agent dans le journal de bord : vous voyez immédiatement quels mails partiraient, à qui et avec quel objet. Rien n’est envoyé ni enregistré.</p></div>`;
+  const opts = typeOptions();
+  if(!opts.length) return head + catalogNotice() + box('Aucun type de rapport chargé.');
+  if(!opts.some(o => o[0] === S.ui.simTypeId)){ S.ui.simTypeId = opts[0][0]; S.ui.simData = {}; }
+  return head + `<div class="toolbar">
+    <label class="field grow" style="min-width:220px"><span>Type de rapport</span>${sel('sim-type', opts, S.ui.simTypeId, 'onchange="S.ui.simTypeId=this.value;S.ui.simData={};render()"')}</label>
+    <label class="field" style="min-width:180px"><span>Site</span>${sel('sim-site', siteOptions('Choisir un site…'), S.ui.simSiteId, 'onchange="S.ui.simSiteId=this.value;render()"')}</label>
     <button class="btn" onclick="S.ui.simData={};render()">Vider</button></div>
   <div class="sim"><section class="panel" id="sim-form"></section><section class="panel sim-out" id="sim-out"></section></div>`;
 };
 AFTER.sim = () => { drawSimForm(); drawSimOut(); };
-function effectiveData(fm, data){
-  const out = {};
-  for(const g of fm?.schema?.groups || []) if(groupVisible(g, data)) for(const f of g.fields || []) if(data[f.key] !== undefined) out[f.key] = data[f.key];
-  return out;
-}
-function simInput(f, v){
-  const k = esc(f.key);
-  switch(f.type){
-    case 'select': return `<select class="inp" data-k="${k}" onchange="simSet(this.dataset.k,this.value,true)"><option value="">—</option>${(f.options || []).map(o => `<option ${v === o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select>`;
-    case 'checkboxes': return `<div class="vals">${(f.options || []).map(o => `<label class="check"><input type="checkbox" data-k="${k}" data-v="${esc(o)}" ${(v || []).includes(o) ? 'checked' : ''} onchange="simToggle(this.dataset.k,this.dataset.v,this.checked)"> <span>${esc(o)}</span></label>${f.help && f.help[o] ? `<div class="help">${esc(f.help[o])}</div>` : ''}`).join('')}</div>`;
-    case 'checkbox': return `<label class="check"><input type="checkbox" data-k="${k}" ${v === true ? 'checked' : ''} onchange="simSet(this.dataset.k,this.checked,true)"> <span>Oui</span></label>`;
-    case 'textarea': return `<textarea class="inp" rows="2" data-k="${k}" oninput="simSet(this.dataset.k,this.value,false)">${esc(v || '')}</textarea>`;
-    case 'photo': return `<span class="muted" style="font-size:12px">Photo : non simulée</span>`;
-    case 'date': case 'time': case 'number': return `<input class="inp" type="${f.type}" data-k="${k}" value="${esc(v || '')}" oninput="simSet(this.dataset.k,this.value,false)">`;
-    default: return `<input class="inp" data-k="${k}" value="${esc(v || '')}" oninput="simSet(this.dataset.k,this.value,false)">`;
+function simInput(c, v){
+  const id = esc(c.id), o = champOptions(c);
+  switch(c.type){
+    case 'choix': return `<select class="inp" data-k="${id}" onchange="simSet(this.dataset.k,this.value,true)"><option value="">—</option>${o.map(x => `<option ${v === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`;
+    case 'case':
+      if(o.length) return `<div class="vals">${o.map(x => `<label class="check"><input type="checkbox" data-k="${id}" data-v="${esc(x)}" ${(v || []).includes(x) ? 'checked' : ''} onchange="simToggle(this.dataset.k,this.dataset.v,this.checked)"> <span>${esc(x)}</span></label>`).join('')}</div>`;
+      return `<label class="check"><input type="checkbox" data-k="${id}" ${v === true ? 'checked' : ''} onchange="simSet(this.dataset.k,this.checked,true)"> <span>Oui</span></label>`;
+    case 'zone_texte': return `<textarea class="inp" rows="2" data-k="${id}" oninput="simSet(this.dataset.k,this.value,false)">${esc(v || '')}</textarea>`;
+    case 'heure': return `<input class="inp" type="time" data-k="${id}" value="${esc(v || '')}" oninput="simSet(this.dataset.k,this.value||null,true)">`;
+    default: return `<input class="inp" data-k="${id}" value="${esc(v || '')}" oninput="simSet(this.dataset.k,this.value,true)">`;
   }
 }
 function drawSimForm(){
-  const el = document.getElementById('sim-form'), fm = form(S.ui.simFormId); if(!el || !fm) return;
-  const data = S.ui.simData;
-  if(data.Date === undefined && fieldsOf(fm).some(f => f.key === 'Date')) data.Date = isoDay(0);
-  const groups = (fm.schema?.groups || []).filter(g => groupVisible(g, data));
-  el.innerHTML = `<h2>Rapport fictif</h2>` + (groups.length ? groups.map(g => `<div class="sim-grp"><h4>${esc(g.title)}</h4>
-    ${(g.fields || []).map(f => `<div class="field" style="margin-bottom:10px"><span>${esc(f.key)}${f.required ? ' <span class="req">*</span>' : ''}</span>${simInput(f, data[f.key])}</div>`).join('')}</div>`).join('')
-    : '<p class="muted">Ce formulaire n’a pas encore de champs. Définissez sa structure dans Sites et formulaires.</p>');
+  const el = document.getElementById('sim-form'); if(!el) return;
+  const list = champsFor(S.ui.simTypeId, S.ui.simSiteId || null), byId = new Map(list.map(c => [c.id, c])), data = S.ui.simData;
+  const items = champTree(list).filter(x => champVisible(x.c, data, byId));
+  let currentCat = null;
+  el.innerHTML = `<h2>Rapport fictif</h2>` + (items.length ? items.map(x => {
+    const cat = x.depth ? null : catName(x.c.categorie_id);
+    const h = cat && cat !== currentCat ? `<h4 style="font-size:13px;font-weight:700;margin:14px 0 8px;color:var(--anth)">${esc(cat)}</h4>` : '';
+    if(cat) currentCat = cat;
+    return `${h}<div class="field ${x.depth ? 'q-depth' : ''}" style="margin-bottom:10px"><span>${esc(x.c.libelle)}${x.c.obligatoire ? ' <span class="req">*</span>' : ''}</span>${simInput(x.c, data[x.c.id])}</div>`;
+  }).join('') : '<p class="muted">Ce type de rapport n’a encore aucune question dans le créateur.</p>');
 }
-function simSet(k, v, rerender){ S.ui.simData[k] = v; if(rerender) drawSimForm(); drawSimOut(); }
+function simSet(k, v, rerender){
+  S.ui.simData[k] = v;
+  if(rerender){
+    const act = document.activeElement, key = act?.dataset?.k, pos = act?.selectionStart;
+    drawSimForm();
+    if(key && act.tagName === 'INPUT' && act.type !== 'checkbox'){ const n = document.querySelector(`#sim-form [data-k="${CSS.escape(key)}"]`); if(n){ n.focus(); if(pos != null && n.setSelectionRange && n.type === 'text') n.setSelectionRange(pos, pos); } }
+  }
+  drawSimOut();
+}
 function simToggle(k, v, on){ const a = (S.ui.simData[k] || []).filter(x => x !== v); if(on) a.push(v); S.ui.simData[k] = a; drawSimForm(); drawSimOut(); }
 function drawSimOut(){
-  const el = document.getElementById('sim-out'), fm = form(S.ui.simFormId); if(!el || !fm) return;
-  const data = effectiveData(fm, S.ui.simData), gm = groupMap(), p = post(fm.post_id);
-  const sys = {'Statut de soumission':'Soumis','Statut de démarrage':'Démarré','Poste de garde':p?.name || '','Nom du formulaire':fm.name,
-    'N° de rapport':'0000','Date de début':fmtDateTime(new Date().toISOString()),'Date de fin':fmtDateTime(new Date().toISOString()),
-    'Agent':S.session?.full_name || 'Agent','Site':site(p?.site_id)?.name || ''};
-  const sep = S.settings.subject_separator ?? ' - ';
-  const testMode = S.ui.simTest || S.settings.test_mode !== 'false';
-  const testTo = splitEmails(S.settings.test_recipients).filter(isEmail);
-  const rules = S.cfg.rules.filter(r => r.form_id === fm.id && r.active).sort(bySort);
-  const hit = rules.filter(r => ruleMatches(r, data)), miss = rules.filter(r => !ruleMatches(r, data));
-  const missing = (fm.schema?.groups || []).filter(g => groupVisible(g, S.ui.simData)).flatMap(g => (g.fields || []))
-    .filter(f => f.required && f.type !== 'photo' && !condMatches({type:'filled', field:f.key}, S.ui.simData)).map(f => f.key);
+  const el = document.getElementById('sim-out'); if(!el) return;
+  const tid = S.ui.simTypeId, sid = S.ui.simSiteId || null;
+  const list = simAnswers(tid, sid), a = answersOf(list), gm = groupMap(), now = new Date().toISOString();
+  const e = {id:'(référence)', site_nom: siteById(sid)?.nom || '', activite: typeById(tid)?.nom || '', agent_nom: S.session?.full_name || 'Agent',
+    date_rapport: isoDay(0), heure_rapport: new Date().toLocaleTimeString('fr-CH', {hour:'2-digit', minute:'2-digit'}), localisation:'', created_at: now};
+  const sys = {'Site':e.site_nom, 'Type de rapport':e.activite, 'Activité':e.activite, 'Agent':e.agent_nom, 'Date':fmtDate(e.date_rapport), 'Heure':e.heure_rapport,
+    'Localisation':'', 'N° de rapport':e.id, 'Statut de soumission':'Soumis', 'Date de fin':fmtDateTime(now)};
+  const sep = S.settings.subject_separator ?? ' - ', testMode = S.settings.test_mode !== 'false', testTo = splitEmails(S.settings.test_recipients).filter(isEmail);
+  const rules = S.cfg.rules.filter(r => r.rapport_type_id === tid && r.active && (!r.site_id || r.site_id === sid)).sort(bySort);
+  const otherSite = S.cfg.rules.filter(r => r.rapport_type_id === tid && r.active && r.site_id && r.site_id !== sid);
+  const hit = rules.filter(r => ruleMatches(r, a)), miss = rules.filter(r => !ruleMatches(r, a));
+  const byId = new Map(champsFor(tid, sid).map(c => [c.id, c]));
+  const missing = list.filter(x => byId.get(x.champ_id)?.obligatoire && !condMatches({type:'filled', champ_id:x.champ_id}, a)).map(x => x.libelle);
   el.innerHTML = `<h2>${hit.length} mail(s) partiraient</h2>
+    ${!sid ? `<div class="banner info" style="margin-bottom:12px"><div>Choisissez un site pour inclure les règles propres à un site.</div></div>` : ''}
     ${testMode ? `<div class="banner warn" style="margin-bottom:12px"><div>Mode test : ces mails iraient à ${testTo.length ? esc(testTo.join(', ')) : '<b>aucune adresse de test</b> (ils seraient bloqués)'}, pas aux destinataires ci-dessous.</div></div>` : ''}
-    ${missing.length ? `<div class="banner info" style="margin-bottom:12px"><div>L’agent ne pourrait pas encore soumettre : ${missing.map(esc).join(', ')}.</div></div>` : ''}
-    ${hit.map(r => { const to = recipientsFor(r, gm); const subj = (testMode ? '[TEST] ' : '') + (renderSubject(r.subject_template, data, sys, sep) || fm.name);
+    ${missing.length ? `<div class="banner info" style="margin-bottom:12px"><div>Questions obligatoires sans réponse : ${missing.map(esc).join(', ')}.</div></div>` : ''}
+    ${hit.map(r => { const to = recipientsFor(r, gm); const subj = (testMode ? '[TEST] ' : '') + (renderSubject(r.subject_template, a, sys, sep) || e.activite);
       return `<div class="sim-mail"><div class="n">${esc(r.name)}</div><span class="subject">${esc(subj)}</span><div class="to">À : ${to.length ? esc(to.join(', ')) : '<span class="badge b-red">aucun destinataire</span>'}</div></div>`; }).join('')}
-    ${miss.length ? `<h3 style="margin:14px 0 8px;font-size:13px;color:var(--text2)">Ne partiraient pas</h3>${miss.map(r => `<div class="sim-mail skip"><div class="n">${esc(r.name)}</div><div style="font-size:12px">${ruleSentence(r)}</div></div>`).join('')}` : ''}`;
+    ${miss.length ? `<h3 style="margin:14px 0 8px;font-size:13px;color:var(--text2)">Ne partiraient pas</h3>${miss.map(r => `<div class="sim-mail skip"><div class="n">${esc(r.name)}</div><div style="font-size:12px">${ruleSentence(r)}</div></div>`).join('')}` : ''}
+    ${otherSite.length ? `<p class="muted" style="font-size:12px;margin-top:10px">${otherSite.length} règle(s) réservée(s) à un autre site ne sont pas prises en compte.</p>` : ''}`;
 }
 
 // ════════════════════════════════════════════════════════
@@ -1192,16 +1210,20 @@ function newCodes(){
   do{ shortCode = randCode(6); }while(S.cfg.checkpoints.some(c => c.short_code === shortCode));
   return {code, short_code:shortCode};
 }
+function pointSites(){
+  const list = S.cat.sites.map(s => ({id:s.id, nom:s.nom}));
+  for(const r of [...S.cfg.rounds, ...S.cfg.checkpoints]) if(r.site_id && !list.some(s => s.id === r.site_id)) list.push({id:r.site_id, nom:r.site_nom || 'Site'});
+  return list.sort((a, b) => a.nom.localeCompare(b.nom, 'fr'));
+}
 RENDER.points = () => {
   const head = `<div class="page-head"><h1>Points de ronde</h1><p class="sub">Chaque point a un QR code à coller sur place et un code court de secours. Les puces NFC déjà posées peuvent être associées au même point.</p></div>`;
-  const sites = S.cfg.sites.slice().sort(bySort);
-  if(!sites.length) return head + `<div class="empty"><p>Créez d’abord un site.</p><button class="btn primary" onclick="showView('sites')">Ouvrir Sites et formulaires</button></div>`;
-  if(!site(S.ui.pointSiteId)) S.ui.pointSiteId = sites[0].id;
-  const sid = S.ui.pointSiteId;
-  const rounds = S.cfg.rounds.filter(r => r.site_id === sid).sort(bySort);
+  const sites = pointSites();
+  if(!sites.length) return head + catalogNotice() + box('Aucun site chargé depuis RDZ Agent.');
+  if(!sites.some(s => s.id === S.ui.pointSiteId)) S.ui.pointSiteId = sites[0].id;
+  const sid = S.ui.pointSiteId, rounds = S.cfg.rounds.filter(r => r.site_id === sid).sort(bySort);
   if(S.ui.pointRound !== 'all' && S.ui.pointRound !== 'none' && !round(S.ui.pointRound)) S.ui.pointRound = 'all';
   const cps = visibleCheckpoints();
-  return head + `<div class="toolbar"><label class="field" style="min-width:220px"><span>Site</span>${sel('pt-site', sites.map(s => [s.id, s.name]), sid, 'onchange="S.ui.pointSiteId=this.value;S.ui.pointRound=\'all\';render()"')}</label>
+  return head + `<div class="toolbar"><label class="field" style="min-width:220px"><span>Site</span>${sel('pt-site', sites.map(s => [s.id, s.nom]), sid, 'onchange="S.ui.pointSiteId=this.value;S.ui.pointRound=\'all\';render()"')}</label>
     <div class="grow"></div><button class="btn" onclick="editRound(null)">Ajouter une ronde</button></div>
   <div class="round-list">
     <button class="round-pill ${S.ui.pointRound === 'all' ? 'active' : ''}" onclick="S.ui.pointRound='all';render()">Tous les points</button>
@@ -1215,7 +1237,7 @@ RENDER.points = () => {
   ${cps.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Ordre</th><th>Point</th><th>Contrôle attendu</th><th>Code court</th><th>Puce NFC</th><th></th></tr></thead><tbody>
   ${cps.map((c, i) => `<tr><td style="white-space:nowrap"><span class="num">${i + 1}</span>
       <button class="btn sm ghost" aria-label="Monter" ${i === 0 ? 'disabled' : ''} onclick="moveCheckpoint('${c.id}',-1)">↑</button><button class="btn sm ghost" aria-label="Descendre" ${i === cps.length - 1 ? 'disabled' : ''} onclick="moveCheckpoint('${c.id}',1)">↓</button></td>
-    <td><b>${esc(c.label)}</b> ${c.active ? '' : '<span class="badge b-grey">Inactif</span>'}<div class="muted" style="font-size:12px">${esc(round(c.round_id)?.name || 'Hors ronde')}${c.post_id ? ' – ' + esc(post(c.post_id)?.name || '') : ''}</div></td>
+    <td><b>${esc(c.label)}</b> ${c.active ? '' : '<span class="badge b-grey">Inactif</span>'}<div class="muted" style="font-size:12px">${esc(round(c.round_id)?.name || 'Hors ronde')}</div></td>
     <td class="wrap">${esc(c.expected_check || '')}</td><td class="code-cell">${esc(c.short_code)}</td><td class="num">${esc(c.nfc_uid || '—')}</td>
     <td style="white-space:nowrap"><button class="btn sm ghost" onclick="editCheckpoint('${c.id}')">Modifier</button><button class="btn sm ghost danger" onclick="removeCheckpoint('${c.id}')">Supprimer</button></td></tr>`).join('')}
   </tbody></table></div>` : `<div class="empty"><p>Aucun point pour ce filtre.</p><button class="btn primary" onclick="editCheckpoint(null)">Ajouter un point</button></div>`}`;
@@ -1227,17 +1249,15 @@ function visibleCheckpoints(){
 function roundPanel(r){
   const t = x => x ? String(x).slice(0, 5) : '—';
   return `<div class="panel"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap">
-    <div><h3>${esc(r.name)}</h3><p class="muted" style="font-size:12.5px;margin-top:4px">Départ ${t(r.start_time)} – plage ${t(r.window_start)} à ${t(r.window_end)} – durée prévue ${r.duration_min ?? '—'} min – tolérance ${r.tolerance_min ?? 0} min – ${r.enforce_order ? 'ordre imposé' : 'ordre libre'}${r.post_id ? ' – ' + esc(post(r.post_id)?.name || '') : ''}</p></div>
+    <div><h3>${esc(r.name)}</h3><p class="muted" style="font-size:12.5px;margin-top:4px">Départ ${t(r.start_time)} – plage ${t(r.window_start)} à ${t(r.window_end)} – durée prévue ${r.duration_min ?? '—'} min – tolérance ${r.tolerance_min ?? 0} min – ${r.enforce_order ? 'ordre imposé' : 'ordre libre'}</p></div>
     <div><button class="btn sm" onclick="editRound('${r.id}')">Modifier la ronde</button> <button class="btn sm ghost danger" onclick="removeRound('${r.id}')">Supprimer</button></div></div></div>`;
 }
-function postOptions(siteId){ return [['', 'Aucun poste'], ...S.cfg.posts.filter(p => p.site_id === siteId).sort(bySort).map(p => [p.id, p.name])]; }
+function currentSiteName(){ return pointSites().find(s => s.id === S.ui.pointSiteId)?.nom || ''; }
 function editRound(id){
-  const sid = S.ui.pointSiteId;
-  const r = id ? round(id) : {id:uid(), site_id:sid, post_id:null, name:'', start_time:null, window_start:null, window_end:null, duration_min:null, tolerance_min:10, enforce_order:true, active:true};
+  const r = id ? round(id) : {id:uid(), site_id:S.ui.pointSiteId, site_nom:currentSiteName(), name:'', start_time:null, window_start:null, window_end:null, duration_min:null, tolerance_min:10, enforce_order:true, active:true};
   const t = x => x ? String(x).slice(0, 5) : '';
   openModal({title: id ? 'Modifier la ronde' : 'Nouvelle ronde', body: `
     ${fld('rn-name', 'Nom', inp('rn-name', r.name, 'maxlength="80" placeholder="ex. Ronde EPI – Bâtiment B1"'))}
-    ${fld('rn-post', 'Poste', sel('rn-post', postOptions(r.site_id), r.post_id))}
     <div class="grid-form">
       ${fld('rn-start', 'Heure de départ', inp('rn-start', t(r.start_time), 'type="time"'))}
       ${fld('rn-ws', 'Plage : début', inp('rn-ws', t(r.window_start), 'type="time"'))}
@@ -1249,9 +1269,8 @@ function editRound(id){
     onSave: () => {
       const name = val('rn-name'); if(!name) throw new Error('Le nom est obligatoire.');
       const num = x => x === '' ? null : parseInt(x, 10);
-      saveRow('rounds', {...r, name, post_id: val('rn-post') || null, start_time: val('rn-start') || null, window_start: val('rn-ws') || null,
-        window_end: val('rn-we') || null, duration_min: num(val('rn-dur')), tolerance_min: num(val('rn-tol')) ?? 0,
-        enforce_order: val('rn-order'), active: val('rn-active')});
+      saveRow('rounds', {...r, name, start_time: val('rn-start') || null, window_start: val('rn-ws') || null, window_end: val('rn-we') || null,
+        duration_min: num(val('rn-dur')), tolerance_min: num(val('rn-tol')) ?? 0, enforce_order: val('rn-order'), active: val('rn-active')});
       if(!id) S.ui.pointRound = r.id;
       toast('Ronde enregistrée.', 'ok');
     }});
@@ -1264,16 +1283,15 @@ function removeRound(id){
   deleteRow('rounds', id); S.ui.pointRound = 'all'; render();
 }
 function editCheckpoint(id){
-  const sid = S.ui.pointSiteId;
-  const pre = round(S.ui.pointRound);
+  const sid = S.ui.pointSiteId, pre = round(S.ui.pointRound);
   const maxSort = Math.max(0, ...S.cfg.checkpoints.filter(c => c.site_id === sid).map(c => c.sort || 0));
-  const c = id ? S.cfg.checkpoints.find(x => x.id === id) : {id:uid(), site_id:sid, post_id:pre?.post_id || null, round_id:pre?.id || null, ...newCodes(),
+  const c = id ? S.cfg.checkpoints.find(x => x.id === id) : {id:uid(), site_id:sid, site_nom:currentSiteName(), round_id:pre?.id || null, ...newCodes(),
     nfc_uid:null, label:'', expected_check:'', sort:maxSort + 10, active:true};
   const roundOpts = [['', 'Hors ronde'], ...S.cfg.rounds.filter(r => r.site_id === sid).sort(bySort).map(r => [r.id, r.name])];
   openModal({title: id ? 'Modifier le point' : 'Nouveau point de ronde', body: `
     ${fld('cp-label', 'Emplacement', inp('cp-label', c.label, 'maxlength="140" placeholder="ex. RI entrée ambulance"'))}
     ${fld('cp-check', 'Contrôle attendu', `<textarea class="inp" id="cp-check" rows="2" placeholder="ex. Matériel incendie, aucun point chaud">${esc(c.expected_check || '')}</textarea>`)}
-    <div class="grid-form">${fld('cp-round', 'Ronde', sel('cp-round', roundOpts, c.round_id))}${fld('cp-post', 'Poste', sel('cp-post', postOptions(sid), c.post_id))}</div>
+    ${fld('cp-round', 'Ronde', sel('cp-round', roundOpts, c.round_id))}
     ${fld('cp-nfc', 'Puce NFC associée', `<div style="display:flex;gap:8px">${inp('cp-nfc', c.nfc_uid || '', 'class="inp mono" placeholder="ex. 04562BD22F4C80"')}<button type="button" class="btn" onclick="readNfcInto('cp-nfc')">Lire la puce</button></div>`, 'facultatif, Chrome Android')}
     <div class="panel" style="margin:0;padding:12px 14px;background:#fafafb;box-shadow:none">
       <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
@@ -1286,8 +1304,7 @@ function editCheckpoint(id){
       const nfc = val('cp-nfc').replace(/[:\s-]/g, '').toUpperCase() || null;
       if(nfc && S.cfg.checkpoints.some(x => x.nfc_uid === nfc && x.id !== c.id)) throw new Error('Cette puce NFC est déjà associée à un autre point.');
       const codes = {code: document.getElementById('cp-code').textContent, short_code: document.getElementById('cp-short').textContent};
-      saveRow('checkpoints', {...c, ...codes, label, expected_check: val('cp-check') || null, round_id: val('cp-round') || null,
-        post_id: val('cp-post') || null, nfc_uid: nfc, active: val('cp-active')});
+      saveRow('checkpoints', {...c, ...codes, label, expected_check: val('cp-check') || null, round_id: val('cp-round') || null, nfc_uid: nfc, active: val('cp-active')});
       toast(codes.code !== c.code ? 'Point enregistré. Réimprimez son étiquette : l’ancienne n’est plus valable.' : 'Point enregistré.', 'ok');
     }});
 }
@@ -1303,11 +1320,11 @@ function removeCheckpoint(id){
   deleteRow('checkpoints', id); render();
 }
 function moveCheckpoint(id, dir){
-  const list = visibleCheckpoints(); const i = list.findIndex(c => c.id === id); const j = i + dir;
+  const list = visibleCheckpoints(), i = list.findIndex(c => c.id === id), j = i + dir;
   if(i < 0 || j < 0 || j >= list.length) return;
-  list.forEach((c, k) => { c._s = (k + 1) * 10; });
-  [list[i]._s, list[j]._s] = [list[j]._s, list[i]._s];
-  for(const c of list){ const s = c._s; delete c._s; if(c.sort !== s) saveRow('checkpoints', {...c, sort:s}); }
+  const order = list.map((c, k) => (k + 1) * 10);
+  [order[i], order[j]] = [order[j], order[i]];
+  list.forEach((c, k) => { if(c.sort !== order[k]) saveRow('checkpoints', {...c, sort:order[k]}); });
   render();
 }
 async function readNfcInto(inputId){
@@ -1316,11 +1333,7 @@ async function readNfcInto(inputId){
     const reader = new NDEFReader(), ctrl = new AbortController();
     await reader.scan({signal:ctrl.signal});
     toast('Approchez la puce du téléphone…');
-    reader.onreading = e => {
-      const el = document.getElementById(inputId);
-      if(el) el.value = String(e.serialNumber || '').replace(/:/g, '').toUpperCase();
-      ctrl.abort(); toast('Puce lue.', 'ok');
-    };
+    reader.onreading = e => { const el = document.getElementById(inputId); if(el) el.value = String(e.serialNumber || '').replace(/:/g, '').toUpperCase(); ctrl.abort(); toast('Puce lue.', 'ok'); };
     reader.onreadingerror = () => toast('Puce illisible, réessayez.', 'err');
     setTimeout(() => ctrl.abort(), 20000);
   }catch(e){ toast('Lecture NFC impossible : ' + e.message, 'err'); }
@@ -1329,16 +1342,16 @@ function printLabels(){
   if(typeof qrcode !== 'function'){ toast('Le générateur de QR code n’est pas chargé. Reconnectez-vous à internet puis rechargez la page.', 'err'); return; }
   const list = visibleCheckpoints().filter(c => c.active);
   if(!list.length){ toast('Aucun point actif à imprimer.', 'err'); return; }
-  const s = site(S.ui.pointSiteId);
+  const siteName = currentSiteName();
   const labels = list.map(c => {
     const q = qrcode(0, 'M'); q.addData(c.code); q.make();
     return `<div class="lbl"><div class="qr">${q.createSvgTag(4, 2)}</div><div class="t">
-      <div class="s">RDZ Security – ${esc(s?.name || '')}</div><div class="n">${esc(c.label)}</div>
+      <div class="s">RDZ Security – ${esc(siteName)}</div><div class="n">${esc(c.label)}</div>
       <div class="r">${esc(round(c.round_id)?.name || '')}</div><div class="c">${esc(c.short_code)}</div></div></div>`;
   }).join('');
   const w = window.open('', '_blank');
   if(!w){ toast('Autorisez les fenêtres pop-up pour imprimer les étiquettes.', 'err'); return; }
-  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Étiquettes – ${esc(s?.name || '')}</title>
+  w.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Étiquettes – ${esc(siteName)}</title>
   <style>@page{size:A4;margin:10mm}body{font-family:Arial,Helvetica,sans-serif;margin:0;color:#2d2d2d}
   .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:4mm}
   .lbl{display:flex;gap:4mm;align-items:center;border:1px dashed #9ca3af;border-left:3mm solid #c0272d;border-radius:2mm;padding:3mm;height:42mm;page-break-inside:avoid}
@@ -1350,103 +1363,6 @@ function printLabels(){
 }
 
 // ════════════════════════════════════════════════════════
-//  VIEW: SITES, POSTS, FORMS
-// ════════════════════════════════════════════════════════
-RENDER.sites = () => {
-  const sites = S.cfg.sites.slice().sort(bySort);
-  return `<div class="page-head"><h1>Sites et formulaires</h1><p class="sub">Un poste par bâtiment ou par lieu de garde. Chaque formulaire appartient à un poste : l’agent ne voit que les formulaires de son poste.</p></div>
-  <div class="toolbar"><div class="grow"></div><button class="btn primary" onclick="editSite(null)">Ajouter un site</button></div>
-  ${sites.length ? sites.map(s => {
-    const posts = S.cfg.posts.filter(p => p.site_id === s.id).sort(bySort);
-    return `<section class="panel"><div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:12px">
-      <div><h2 style="margin:0">${esc(s.name)} <span class="mono muted" style="font-size:12px">${esc(s.code)}</span> ${s.active ? '' : '<span class="badge b-grey">Inactif</span>'}</h2>${s.client ? `<div class="muted" style="font-size:12.5px">Client : ${esc(s.client)}</div>` : ''}</div>
-      <div><button class="btn sm" onclick="editSite('${s.id}')">Modifier</button> <button class="btn sm" onclick="editPost(null,'${s.id}')">Ajouter un poste</button></div></div>
-      ${posts.length ? posts.map(p => { const forms = S.cfg.forms.filter(f => f.post_id === p.id).sort(bySort);
-        return `<div style="border-top:1px solid var(--border);padding:10px 0">
-          <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap"><div><b>${esc(p.name)}</b> <span class="mono muted" style="font-size:12px">${esc(p.code)}</span> ${p.active ? '' : '<span class="badge b-grey">Inactif</span>'}</div>
-            <div><button class="btn sm ghost" onclick="editPost('${p.id}')">Modifier le poste</button><button class="btn sm ghost" onclick="editForm(null,'${p.id}')">Ajouter un formulaire</button></div></div>
-          ${forms.map(f => `<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:6px 0 6px 14px;border-left:2px solid var(--border);margin:6px 0 0 4px">
-            <div>${esc(f.name)} ${f.active ? '' : '<span class="badge b-grey">Inactif</span>'}<div class="muted" style="font-size:12px">${esc(f.code)} – ${fieldsOf(f).length} champ(s) – ${S.cfg.rules.filter(r => r.form_id === f.id && r.active).length} règle(s) active(s) – conservation ${f.retention_days} j</div></div>
-            <div><button class="btn sm ghost" onclick="editForm('${f.id}')">Modifier</button><button class="btn sm ghost" onclick="editSchema('${f.id}')">Structure</button><button class="btn sm ghost" onclick="S.ui.ruleFormId='${f.id}';showView('rules')">Règles</button></div></div>`).join('')}
-        </div>`; }).join('') : '<p class="muted">Aucun poste.</p>'}
-    </section>`; }).join('') : `<div class="empty"><p>Aucun site.</p><button class="btn primary" onclick="editSite(null)">Ajouter un site</button></div>`}`;
-};
-function editSite(id){
-  const s = id ? site(id) : {id:uid(), code:'', name:'', client:'', active:true};
-  openModal({title: id ? 'Modifier le site' : 'Nouveau site', body: `
-    <div class="grid-form">${fld('st-code', 'Code', inp('st-code', s.code, 'class="inp mono" maxlength="20" placeholder="ex. ERGON"'))}${fld('st-name', 'Nom', inp('st-name', s.name, 'maxlength="100"'))}</div>
-    ${fld('st-client', 'Client', inp('st-client', s.client || '', 'maxlength="100"'))}${chk('st-active', 'Site actif', s.active)}`,
-    onSave: () => {
-      const code = val('st-code').toUpperCase(), name = val('st-name');
-      if(!code || !name) throw new Error('Code et nom sont obligatoires.');
-      if(S.cfg.sites.some(x => x.code === code && x.id !== s.id)) throw new Error('Ce code de site existe déjà.');
-      saveRow('sites', {...s, code, name, client: val('st-client') || null, active: val('st-active')});
-      toast('Site enregistré.', 'ok');
-    }});
-}
-function editPost(id, siteId){
-  const p = id ? post(id) : {id:uid(), site_id:siteId, code:'', name:'', sort:(S.cfg.posts.filter(x => x.site_id === siteId).length + 1) * 10, active:true};
-  openModal({title: id ? 'Modifier le poste' : 'Nouveau poste', body: `
-    <div class="grid-form">${fld('ps-code', 'Code', inp('ps-code', p.code, 'class="inp mono" maxlength="20" placeholder="ex. B12"'))}${fld('ps-name', 'Nom', inp('ps-name', p.name, 'maxlength="100"'))}${fld('ps-sort', 'Ordre', inp('ps-sort', p.sort, 'type="number"'))}</div>
-    ${chk('ps-active', 'Poste actif', p.active)}`,
-    onSave: () => {
-      const code = val('ps-code').toUpperCase(), name = val('ps-name');
-      if(!code || !name) throw new Error('Code et nom sont obligatoires.');
-      if(S.cfg.posts.some(x => x.site_id === p.site_id && x.code === code && x.id !== p.id)) throw new Error('Ce code de poste existe déjà sur ce site.');
-      saveRow('posts', {...p, code, name, sort: parseInt(val('ps-sort'), 10) || 0, active: val('ps-active')});
-      toast('Poste enregistré.', 'ok');
-    }});
-}
-function editForm(id, postId){
-  const f = id ? form(id) : {id:uid(), post_id:postId, code:'', name:'', category:'', priority:'', instructions:'', schema:{groups:[]}, retention_days:365, sort:100, active:true};
-  openModal({title: id ? 'Modifier le formulaire' : 'Nouveau formulaire', body: `
-    <div class="grid-form">${fld('fm-name', 'Nom', inp('fm-name', f.name, 'maxlength="120"'))}${fld('fm-code', 'Code', inp('fm-code', f.code, 'class="inp mono" maxlength="40" placeholder="ex. HDLT-B12-SITE"'))}</div>
-    <div class="grid-form">${fld('fm-cat', 'Catégorie', inp('fm-cat', f.category || ''))}${fld('fm-prio', 'Priorité', sel('fm-prio', [['', '—'], ['basse', 'Basse'], ['normale', 'Normale'], ['haute', 'Haute']], f.priority || ''))}
-      ${fld('fm-ret', 'Conservation (jours)', inp('fm-ret', f.retention_days, 'type="number" min="1" max="3650"'))}${fld('fm-sort', 'Ordre', inp('fm-sort', f.sort, 'type="number"'))}</div>
-    ${fld('fm-instr', 'Consigne affichée à l’agent', `<textarea class="inp" id="fm-instr" rows="3">${esc(f.instructions || '')}</textarea>`)}
-    ${chk('fm-active', 'Formulaire actif', f.active)}`,
-    onSave: () => {
-      const name = val('fm-name'), code = val('fm-code').toUpperCase();
-      const ret = parseInt(val('fm-ret'), 10);
-      if(!name || !code) throw new Error('Nom et code sont obligatoires.');
-      if(S.cfg.forms.some(x => x.code === code && x.id !== f.id)) throw new Error('Ce code de formulaire existe déjà.');
-      if(!(ret >= 1 && ret <= 3650)) throw new Error('La conservation doit être comprise entre 1 et 3650 jours.');
-      saveRow('forms', {...f, name, code, category: val('fm-cat') || null, priority: val('fm-prio') || null, retention_days: ret,
-        sort: parseInt(val('fm-sort'), 10) || 0, instructions: val('fm-instr') || null, active: val('fm-active')});
-      toast('Formulaire enregistré.', 'ok');
-    }});
-}
-function validateSchema(sc){
-  if(!sc || !Array.isArray(sc.groups)) throw new Error('La structure doit contenir une liste « groups ».');
-  sc.groups.forEach((g, gi) => {
-    if(!g.title) throw new Error(`Groupe ${gi + 1} : titre manquant.`);
-    if(!Array.isArray(g.fields)) throw new Error(`Groupe « ${g.title} » : liste « fields » manquante.`);
-    if(g.show_if && (!g.show_if.field || !Array.isArray(g.show_if.values))) throw new Error(`Groupe « ${g.title} » : show_if doit avoir « field » et « values ».`);
-    g.fields.forEach(f => {
-      if(!f.key) throw new Error(`Groupe « ${g.title} » : un champ n’a pas de « key ».`);
-      if(!FIELD_TYPES.includes(f.type)) throw new Error(`Champ « ${f.key} » : type inconnu (${f.type}). Types possibles : ${FIELD_TYPES.join(', ')}.`);
-      if(['select', 'checkboxes'].includes(f.type) && !Array.isArray(f.options)) throw new Error(`Champ « ${f.key} » : liste « options » manquante.`);
-    });
-  });
-}
-function editSchema(id){
-  const f = form(id); if(!f) return;
-  openModal({title: 'Structure – ' + f.name, wide:true, body: `
-    <p class="muted" style="font-size:12.5px">Groupes de champs, dans l’ordre où l’agent les voit. Les libellés (« key ») servent aussi dans les objets de mail : les renommer casse les règles qui les utilisent. Types : ${FIELD_TYPES.join(', ')}. Un groupe peut s’afficher sous condition avec « show_if ».</p>
-    <textarea class="inp mono" id="sc-json" rows="22" spellcheck="false">${esc(JSON.stringify(f.schema || {groups:[]}, null, 2))}</textarea>`,
-    onSave: () => {
-      let sc;
-      try{ sc = JSON.parse(document.getElementById('sc-json').value); }catch(e){ throw new Error('JSON invalide : ' + e.message); }
-      validateSchema(sc);
-      const keys = new Set(sc.groups.flatMap(g => g.fields.map(x => x.key)));
-      const broken = S.cfg.rules.filter(r => r.form_id === f.id).flatMap(r => (r.conditions || []).filter(c => !keys.has(c.field)).map(c => `${r.name} (${c.field})`));
-      if(broken.length && !confirm('Ces conditions de règles utilisent un champ qui n’existe plus :\n' + broken.join('\n') + '\n\nEnregistrer quand même ?')) return false;
-      saveRow('forms', {...f, schema: sc});
-      toast('Structure enregistrée.', 'ok');
-    }});
-}
-
-// ════════════════════════════════════════════════════════
 //  VIEW: SETTINGS
 // ════════════════════════════════════════════════════════
 RENDER.settings = () => {
@@ -1454,18 +1370,18 @@ RENDER.settings = () => {
   return `<div class="page-head"><h1>Paramètres</h1><p class="sub">Expéditeur, mode test, alertes et mention de protection des données ajoutée à chaque mail.</p></div>
   <section class="panel"><h2>Mode test</h2>
     <label class="check" style="font-size:14px"><input type="checkbox" id="st-test" ${testOn ? 'checked' : ''}> <span><b>Mode test actif</b> : tous les mails partent vers les adresses de test, avec [TEST] dans l’objet. Les destinataires réels sont indiqués dans le mail.</span></label>
-    <div style="margin-top:12px">${fld('st-testto', 'Adresses de test', inp('st-testto', st.test_recipients || '', 'placeholder="ex. guillaume@rdz-security-management.ch"'), 'séparées par des virgules')}</div>
+    <div style="margin-top:12px">${fld('st-testto', 'Adresses de test', inp('st-testto', st.test_recipients || '', 'placeholder="ex. g.girard@rdz-security-management.ch"'), 'séparées par des virgules')}</div>
   </section>
   <section class="panel"><h2>Expéditeur et alertes</h2><div class="grid-form">
     ${fld('st-sender', 'Expéditeur', inp('st-sender', st.sender || '', 'placeholder="Nom <adresse@domaine>"'), 'domaine vérifié dans Resend')}
     ${fld('st-reply', 'Adresse de réponse', inp('st-reply', st.reply_to || ''))}
     ${fld('st-alert', 'Alerte en cas d’échec', inp('st-alert', st.alert_email || ''), 'séparées par des virgules')}
-    ${fld('st-sep', 'Séparateur entre deux champs dans l’objet', inp('st-sep', st.subject_separator ?? ' - ', 'class="inp mono"'))}
-    ${fld('st-days', 'Validité des liens photo (jours)', inp('st-days', st.photo_link_days || '7', 'type="number" min="1" max="30"'))}
-  </div></section>
+    ${fld('st-sep', 'Séparateur entre deux réponses dans l’objet', inp('st-sep', st.subject_separator ?? ' - ', 'class="inp mono"'))}
+  </div>
+  <div style="margin-top:14px">${fld('st-photo', 'Texte quand les photos ne sont pas encore arrivées', inp('st-photo', st.photo_note || ''))}</div></section>
   <section class="panel"><h2>Mention protection des données (LPD)</h2>
     <textarea class="inp" id="st-lpd" rows="6">${esc(st.lpd_footer || '')}</textarea>
-    <p class="muted" style="font-size:12px;margin-top:6px">Ajoutée telle quelle en pied de chaque mail. Les éléments entre crochets restent à compléter avec l’hôpital.</p>
+    <p class="muted" style="font-size:12px;margin-top:6px">Ajoutée telle quelle en pied de chaque mail.</p>
   </section>
   <div style="display:flex;justify-content:flex-end;margin-bottom:18px"><button class="btn primary" onclick="saveSettings()">Enregistrer les paramètres</button></div>
   <section class="panel"><h2>Vérifier l’envoi</h2><p class="muted" style="margin-bottom:10px">Envoie un mail simple avec l’expéditeur enregistré, pour contrôler la configuration Resend.</p>
@@ -1475,11 +1391,11 @@ RENDER.settings = () => {
 AFTER.settings = async () => {
   if(!navigator.onLine) return;
   try{
-    const rows = await api('rpt_audit_log?select=at,user_id,action,table_name,row_id&table_name=neq.rpt_reports&order=at.desc&limit=40');
+    const rows = await api('rpt_audit_log?select=at,user_id,action,table_name,row_id&order=at.desc&limit=40');
     const ids = [...new Set(rows.map(r => r.user_id).filter(Boolean))];
     const names = ids.length ? Object.fromEntries((await api(`profiles?id=in.(${ids.join(',')})&select=id,full_name`)).map(p => [p.id, p.full_name])) : {};
-    const T = {rpt_sites:'Site', rpt_posts:'Poste', rpt_forms:'Formulaire', rpt_recipient_groups:'Groupe', rpt_mail_rules:'Règle', rpt_rounds:'Ronde', rpt_checkpoints:'Point de ronde', rpt_settings:'Paramètre'};
-    const A = {insert:'création', update:'modification', delete:'suppression'};
+    const T = {rpt_recipient_groups:'Groupe', rpt_mail_rules:'Règle', rpt_rounds:'Ronde', rpt_checkpoints:'Point de ronde', rpt_settings:'Paramètre', journal_entrees:'Rapport'};
+    const A = {insert:'création', update:'modification', delete:'suppression', view:'consultation'};
     const el = document.getElementById('audit');
     if(el) el.innerHTML = rows.length ? `<div class="tbl-wrap" style="box-shadow:none"><table class="tbl"><thead><tr><th>Date</th><th>Par</th><th>Action</th><th>Élément</th></tr></thead><tbody>
       ${rows.map(r => `<tr><td class="num">${esc(fmtDateTime(r.at))}</td><td>${esc(names[r.user_id] || (r.user_id ? 'Utilisateur' : 'Système'))}</td><td>${esc(A[r.action] || r.action)}</td><td>${esc(T[r.table_name] || r.table_name)} <span class="muted mono" style="font-size:11px">${esc(short(r.row_id, 14))}</span></td></tr>`).join('')}
@@ -1487,21 +1403,18 @@ AFTER.settings = async () => {
   }catch(e){ const el = document.getElementById('audit'); if(el && e.status !== 401) el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; }
 };
 function saveSettings(){
-  const testOn = val('st-test');
-  const testTo = splitEmails(val('st-testto')), alert = splitEmails(val('st-alert'));
+  const testOn = val('st-test'), testTo = splitEmails(val('st-testto')), alert = splitEmails(val('st-alert'));
   const bad = [...testTo, ...alert].filter(e => !isEmail(e));
   if(bad.length){ toast('Adresse invalide : ' + bad.join(', '), 'err'); return; }
   const sender = val('st-sender');
   if(sender && !/^[^<>]*<[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+>$|^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(sender)){ toast('Expéditeur invalide. Format attendu : Nom <adresse@domaine>.', 'err'); return; }
   const reply = val('st-reply');
   if(reply && !isEmail(reply)){ toast('Adresse de réponse invalide.', 'err'); return; }
-  const days = parseInt(val('st-days'), 10);
-  if(!(days >= 1 && days <= 30)){ toast('La validité des liens photo doit être comprise entre 1 et 30 jours.', 'err'); return; }
   if(!testOn && S.settings.test_mode !== 'false' &&
-     !confirm('Désactiver le mode test ? Les mails partiront immédiatement aux vrais destinataires (hôpital, prestataires). Faites-le seulement après la recette signée par le RSS.')){ return; }
+     !confirm('Désactiver le mode test ? Les mails partiront immédiatement aux vrais destinataires (clients, prestataires). Faites-le seulement après la recette signée par le client.')) return;
   const sepEl = document.getElementById('st-sep');
   const changes = {test_mode: testOn ? 'true' : 'false', test_recipients: testTo.join(', '), sender, reply_to: reply,
-    alert_email: alert.join(', '), subject_separator: sepEl ? sepEl.value : ' - ', photo_link_days: String(days), lpd_footer: val('st-lpd')};
+    alert_email: alert.join(', '), subject_separator: sepEl ? sepEl.value : ' - ', photo_note: val('st-photo'), lpd_footer: val('st-lpd')};
   for(const [k, v] of Object.entries(changes)) if((S.settings[k] ?? '') !== v) saveSetting(k, v);
   toast('Paramètres enregistrés.', 'ok'); render();
 }
