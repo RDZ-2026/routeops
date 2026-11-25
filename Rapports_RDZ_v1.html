@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rapports_RDZ v3 — Hôpital de La Tour</title>
+<title>Rapports_RDZ v4 — Hôpital de La Tour</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -295,7 +295,7 @@ const TABLES = {groups:'rpt_recipient_groups', rules:'rpt_mail_rules', rounds:'r
 const SYSTEM_VARS = ['Site','Type de rapport','Agent','Date','Heure','Localisation','N° de rapport','Statut de soumission','Statut de démarrage','Date de début','Date de fin'];
 const STATUS = {pending:['En cours','b-blue'], sent:['Envoyé','b-green'], failed:['Échec','b-red'],
                 test_redirected:['Test (redirigé)','b-orange'], suppressed:['Bloqué (mode test)','b-grey']};
-const TYPE_LABELS = {texte:'Texte court', zone_texte:'Texte long', choix:'Choix', case:'Case à cocher', heure:'Horodatage'};
+const TYPE_LABELS = {texte:'Texte court', zone_texte:'Texte long', choix:'Choix', case:'Case à cocher', heure:'Horodatage', photo:'Photo', date:'Date', nombre:'Nombre'};
 const VIEWS = [
   ['dash','Vue d’ensemble'], ['reports','Rapports'], ['log','Journal des envois'], null,
   ['rules','Règles d’envoi'], ['groups','Destinataires'], ['sim','Simulateur'], null,
@@ -381,9 +381,19 @@ function fmtValue(v){
   const s = String(v); return /^\d{4}-\d{2}-\d{2}$/.test(s) ? fmtDate(s) : s;
 }
 function answersOf(list){
-  const byId = {}, byLabel = {};
-  for(const r of list){ if(!r || typeof r !== 'object') continue; if(r.champ_id) byId[String(r.champ_id)] = r.valeur; if(r.libelle) byLabel[String(r.libelle)] = r.valeur; }
-  return {byId, byLabel, list};
+  const byId = {}, byLabel = {}, itemByLabel = {};
+  for(const r of list){ if(!r || typeof r !== 'object') continue; if(r.champ_id) byId[String(r.champ_id)] = r.valeur; if(r.libelle){ byLabel[String(r.libelle)] = r.valeur; itemByLabel[String(r.libelle)] = r; } }
+  return {byId, byLabel, itemByLabel, list};
+}
+function answerText(r){
+  if(!r) return '';
+  if(r.type === 'photo'){ const n = Array.isArray(r.valeur) ? r.valeur.length : 0; return n ? `${n} photo(s)` : ''; }
+  return fmtValue(r.valeur);
+}
+function toNum(x){
+  if(x === null || x === undefined || x === '') return null;
+  if(typeof x === 'number') return isFinite(x) ? x : null;
+  const n = Number(String(x).replace(',', '.')); return isFinite(n) ? n : null;
 }
 function answerOf(c, a){
   if(c.champ_id && Object.prototype.hasOwnProperty.call(a.byId, c.champ_id)) return a.byId[c.champ_id];
@@ -398,7 +408,10 @@ function condMatches(c, a){
       return v === true || v === 'true' || v === 'oui' || v === 'Oui';
     case 'equals':
       if(Array.isArray(v)) return v.map(String).some(x => vals.includes(x));
+      if(typeof v === 'number') return vals.some(x => toNum(x) === v);
       return v !== undefined && v !== null && vals.includes(String(v));
+    case 'gt': { const n = toNum(v), w = toNum(vals[0]); return n !== null && w !== null && n > w; }
+    case 'lt': { const n = toNum(v), w = toNum(vals[0]); return n !== null && w !== null && n < w; }
     case 'filled':
       return !(v === undefined || v === null || v === '' || v === false || (Array.isArray(v) && v.length === 0));
     default: return false;
@@ -415,7 +428,7 @@ function renderSubject(tpl, a, sys, sep){
   const re = /\{([^{}]+)\}/g; let out = '', last = 0, prev = false, m;
   while((m = re.exec(tpl))){
     const literal = tpl.slice(last, m.index); const key = m[1].trim();
-    const val = Object.prototype.hasOwnProperty.call(a.byLabel, key) ? fmtValue(a.byLabel[key]) : (sys[key] ?? '');
+    const val = Object.prototype.hasOwnProperty.call(a.itemByLabel, key) ? answerText(a.itemByLabel[key]) : (sys[key] ?? '');
     if(literal){ out += literal; prev = false; }
     if(val){ if(prev) out += sep; out += val; prev = true; }
     last = re.lastIndex;
@@ -913,6 +926,8 @@ function condText(c){
   if(c.type === 'checked') return v ? `<b>${v}</b> est coché` : `<b>${q}</b> est coché`;
   if(c.type === 'equals') return `<b>${q}</b> vaut ${v}`;
   if(c.type === 'filled') return `<b>${q}</b> a une réponse`;
+  if(c.type === 'gt') return `<b>${q}</b> est supérieur à ${esc((c.values || [])[0] ?? '?')}`;
+  if(c.type === 'lt') return `<b>${q}</b> est inférieur à ${esc((c.values || [])[0] ?? '?')}`;
   return 'condition inconnue';
 }
 function ruleSentence(r){
@@ -980,6 +995,9 @@ function condTypesFor(c){
   const opts = champOptions(c);
   if(c.type === 'case') return opts.length ? [['checked','case cochée'],['filled','au moins une case cochée']] : [['checked','est coché']];
   if(c.type === 'choix') return [['equals','vaut'],['filled','a une réponse']];
+  if(c.type === 'photo') return [['filled','au moins une photo']];
+  if(c.type === 'nombre') return [['gt','est supérieur à'],['lt','est inférieur à'],['equals','vaut exactement'],['filled','a une réponse']];
+  if(c.type === 'date') return [['filled','a une réponse'],['equals','vaut exactement (AAAA-MM-JJ)']];
   return [['filled','a une réponse'],['equals','vaut exactement']];
 }
 function ruleEditorHtml(){
@@ -992,7 +1010,9 @@ function ruleEditorHtml(){
     if(c.champ_id && !fl) opts.push([c.champ_id, `${c.libelle} (question introuvable)`]);
     const types = condTypesFor(fl);
     let values = '';
-    if(fl && c.type !== 'filled' && !(fl.type === 'case' && !champOptions(fl).length)){
+    if(fl && (c.type === 'gt' || c.type === 'lt')){
+      values = fld(`rd-cv-${i}`, 'Valeur', `<input class="inp" id="rd-cv-${i}" inputmode="decimal" value="${esc((c.values || [])[0] ?? '')}" oninput="rdCondText(${i},this.value)">`, fl.valeur_min != null || fl.valeur_max != null ? `plage normale ${fl.valeur_min ?? '…'} à ${fl.valeur_max ?? '…'}` : '');
+    }else if(fl && c.type !== 'filled' && !(fl.type === 'case' && !champOptions(fl).length)){
       const o = champOptions(fl);
       values = o.length
         ? `<div class="vals">${o.map(v => `<label class="check"><input type="checkbox" data-v="${esc(v)}" ${(c.values || []).includes(v) ? 'checked' : ''} onchange="rdCondVal(${i},this.dataset.v,this.checked)"> <span>${esc(v)}</span></label>`).join('')}</div>`
@@ -1063,6 +1083,7 @@ function saveRuleDraft(){
       const fl = S.cat.champs.find(x => x.id === c.champ_id);
       if(fl) c.libelle = fl.libelle;
       if(c.type === 'equals' && !(c.values || []).length) throw new Error(`Choisissez au moins une valeur pour « ${c.libelle} ».`);
+      if((c.type === 'gt' || c.type === 'lt') && toNum((c.values || [])[0]) === null) throw new Error(`Indiquez un nombre pour « ${c.libelle} ».`);
     }
   }else d.conditions = [];
   if(!d.group_ids.length && !d.extra_emails.length) throw new Error('Choisissez au moins un destinataire.');
@@ -1114,22 +1135,58 @@ function removeGroup(id){
 // ════════════════════════════════════════════════════════
 //  VIEW: SIMULATOR (no mail is sent)
 // ════════════════════════════════════════════════════════
-function champVisible(c, data, byId, guard = 0){
-  if(!c.parent_id) return true;
-  const p = byId.get(c.parent_id); if(!p || guard > 20) return true;
-  if(!champVisible(p, data, byId, guard + 1)) return false;
-  const v = data[p.id], cond = String(c.condition_valeur || '').trim(), popts = champOptions(p);
-  if(p.type === 'case' && !popts.length) return cond === 'non' ? v !== true : v === true;
-  if(!cond) return !(v === undefined || v === null || v === '' || v === false || (Array.isArray(v) && !v.length));
-  if(Array.isArray(v)) return v.includes(cond);
-  return String(v ?? '') === cond;
+// Mirror of conditionMet / isVisible in RDZ_Agent application/rapport-type-agent.html (v3).
+function simVal(c){ const v = S.ui.simData[c.id]; return v !== undefined ? v : defaultValue(c); }
+function condsOf(c){
+  let x = c.conditions;
+  if(typeof x === 'string'){ try{ x = JSON.parse(x); }catch(_){ x = null; } }
+  return x && Array.isArray(x.regles) ? x : null;
 }
-function defaultValue(c){ if(c.type === 'case') return champOptions(c).length ? [] : false; if(c.type === 'heure') return null; return ''; }
+function condMet(p, cv){
+  const val = simVal(p);
+  if(p.type === 'case'){
+    if(Array.isArray(val)){ if(!cv) return val.length > 0; return val.includes(cv); }
+    const want = (cv || 'oui').toLowerCase(); return want === 'non' ? !val : !!val;
+  }
+  if(p.type === 'choix'){ if(!cv) return !!val; return val === cv; }
+  if(p.type === 'photo') return Array.isArray(val) && val.length > 0;
+  if(p.type === 'nombre' && cv != null && cv !== ''){ const w = toNum(cv); return val != null && w != null && toNum(val) === w; }
+  if(cv) return String(val == null ? '' : val) === cv;
+  return !(val === undefined || val === null || val === '' || (Array.isArray(val) && !val.length));
+}
+function champVisible(c, data, byId, stack = new Set()){
+  if(stack.has(c.id)) return false;
+  stack.add(c.id);
+  try{
+    const parent = c.parent_id ? byId.get(c.parent_id) : null;
+    if(parent && !champVisible(parent, data, byId, stack)) return false;
+    const cs = condsOf(c);
+    if(cs && cs.regles.length){
+      const actives = cs.regles.filter(r => r && byId.get(r.champ_id));
+      if(!actives.length) return true;
+      const ok = r => { const t = byId.get(r.champ_id); return champVisible(t, data, byId, stack) && condMet(t, r.valeur == null ? null : String(r.valeur)); };
+      return cs.mode === 'ou' ? actives.some(ok) : actives.every(ok);
+    }
+    if(parent) return condMet(parent, c.condition_valeur);
+    return true;
+  }finally{ stack.delete(c.id); }
+}
+// Same order and category labels as the agent form (children take their root's category).
+function simOrdered(typeId, list){
+  const byId = new Map(list.map(c => [c.id, c])), cats = S.cat.categories.filter(k => k.rapport_type_id === typeId && k.actif !== false).sort((a, b) => (a.ordre || 0) - (b.ordre || 0));
+  const catIds = new Set(cats.map(k => k.id)), children = {}, rootsByCat = {}, out = [];
+  const sorted = list.slice().sort((a, b) => (a.ordre ?? 0) - (b.ordre ?? 0));
+  sorted.forEach(c => { if(c.parent_id) (children[c.parent_id] = children[c.parent_id] || []).push(c); });
+  sorted.filter(c => !c.parent_id).forEach(c => { const k = c.categorie_id && catIds.has(c.categorie_id) ? c.categorie_id : '__none'; (rootsByCat[k] = rootsByCat[k] || []).push(c); });
+  const walk = (c, label, depth) => { if(!champVisible(c, S.ui.simData, byId)) return; out.push({c, label, depth}); (children[c.id] || []).forEach(x => walk(x, label, depth + 1)); };
+  cats.forEach(k => (rootsByCat[k.id] || []).forEach(c => walk(c, k.libelle, 0)));
+  (rootsByCat['__none'] || []).forEach(c => walk(c, 'Autres questions', 0));
+  return out;
+}
+function defaultValue(c){ if(c.type === 'case') return champOptions(c).length ? [] : false; if(c.type === 'photo') return []; if(['heure','date','nombre'].includes(c.type)) return null; return ''; }
 function simAnswers(typeId, siteId){
-  const list = champsFor(typeId, siteId), byId = new Map(list.map(c => [c.id, c])), data = S.ui.simData;
-  return champTree(list).filter(x => champVisible(x.c, data, byId)).map(x => ({
-    champ_id:x.c.id, libelle:x.c.libelle, type:x.c.type, categorie: catName(x.c.categorie_id),
-    valeur: data[x.c.id] !== undefined ? data[x.c.id] : defaultValue(x.c)}));
+  return simOrdered(typeId, champsFor(typeId, siteId)).map(x => ({
+    champ_id:x.c.id, libelle:x.c.libelle, type:x.c.type, categorie: x.label, valeur: simVal(x.c)}));
 }
 RENDER.sim = () => {
   const head = `<div class="page-head"><h1>Simulateur</h1><p class="sub">Remplissez un rapport fictif, comme l’agent dans le journal de bord : vous voyez immédiatement quels mails partiraient, à qui et avec quel objet. Rien n’est envoyé ni enregistré.</p></div>`;
@@ -1153,18 +1210,23 @@ function simInput(c, v){
       return `<label class="check"><input type="checkbox" data-k="${id}" ${v === true ? 'checked' : ''} onchange="simSet(this.dataset.k,this.checked,true)"> <span>Oui</span></label>`;
     case 'zone_texte': return `<textarea class="inp" rows="2" data-k="${id}" oninput="simSet(this.dataset.k,this.value,false)">${esc(v || '')}</textarea>`;
     case 'heure': return `<input class="inp" type="time" data-k="${id}" value="${esc(v || '')}" oninput="simSet(this.dataset.k,this.value||null,true)">`;
+    case 'date': return `<input class="inp" type="date" data-k="${id}" value="${esc(v || '')}" oninput="simSet(this.dataset.k,this.value||null,true)">`;
+    case 'photo': return `<label class="check"><input type="checkbox" data-k="${id}" ${Array.isArray(v) && v.length ? 'checked' : ''} onchange="simSet(this.dataset.k,this.checked?['photo-simulee']:[],true)"> <span>Photo prise (simulée)</span></label>`;
+    case 'nombre': {
+      const n = toNum(v), out = n !== null && ((c.valeur_min != null && n < Number(c.valeur_min)) || (c.valeur_max != null && n > Number(c.valeur_max)));
+      return `<input class="inp" inputmode="decimal" data-k="${id}" value="${esc(v ?? '')}" oninput="simSet(this.dataset.k,toNum(this.value),true)">${out ? `<small style="color:var(--orange)">Hors plage normale (${esc(c.valeur_min ?? '…')} à ${esc(c.valeur_max ?? '…')})</small>` : ''}`;
+    }
     default: return `<input class="inp" data-k="${id}" value="${esc(v || '')}" oninput="simSet(this.dataset.k,this.value,true)">`;
   }
 }
 function drawSimForm(){
   const el = document.getElementById('sim-form'); if(!el) return;
-  const list = champsFor(S.ui.simTypeId, S.ui.simSiteId || null), byId = new Map(list.map(c => [c.id, c])), data = S.ui.simData;
-  const items = champTree(list).filter(x => champVisible(x.c, data, byId));
+  const data = S.ui.simData;
+  const items = simOrdered(S.ui.simTypeId, champsFor(S.ui.simTypeId, S.ui.simSiteId || null));
   let currentCat = null;
   el.innerHTML = `<h2>Rapport fictif</h2>` + (items.length ? items.map(x => {
-    const cat = x.depth ? null : catName(x.c.categorie_id);
-    const h = cat && cat !== currentCat ? `<h4 style="font-size:13px;font-weight:700;margin:14px 0 8px;color:var(--anth)">${esc(cat)}</h4>` : '';
-    if(cat) currentCat = cat;
+    const h = x.label !== currentCat ? `<h4 style="font-size:13px;font-weight:700;margin:14px 0 8px;color:var(--anth)">${esc(x.label)}</h4>` : '';
+    currentCat = x.label;
     return `${h}<div class="field ${x.depth ? 'q-depth' : ''}" style="margin-bottom:10px"><span>${esc(x.c.libelle)}${x.c.obligatoire ? ' <span class="req">*</span>' : ''}</span>${simInput(x.c, data[x.c.id])}</div>`;
   }).join('') : '<p class="muted">Ce type de rapport n’a encore aucune question dans le créateur.</p>');
 }
