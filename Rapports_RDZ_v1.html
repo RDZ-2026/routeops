@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rapports_RDZ v4 — Hôpital de La Tour</title>
+<title>Rapports_RDZ v5 — Hôpital de La Tour</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -852,7 +852,7 @@ async function openReport(id){
         ? `<a href="${esc(p.url)}" target="_blank" rel="noopener"><img src="${esc(p.url)}" alt="${esc(p.legende || 'Photo du rapport')}"></a>`
         : '<span class="badge b-orange">Photo en cours d’envoi</span>').join('')}</div>` : ''}
       <div class="grp-title">Mails envoyés pour ce rapport</div><div id="dr-logs"><p class="muted">Chargement…</p></div>
-      <div style="margin-top:12px"><button class="btn sm" data-id="${esc(r.id)}" onclick="redispatch(this.dataset.id)">Relancer les envois manquants</button>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap"><button class="btn sm primary" data-id="${esc(r.id)}" onclick="downloadPdf(this.dataset.id, this)">Télécharger le PDF</button><button class="btn sm" data-id="${esc(r.id)}" onclick="redispatch(this.dataset.id)">Relancer les envois manquants</button></div><div>
       <p class="muted" style="font-size:12px;margin-top:6px">Les mails déjà partis ne sont jamais renvoyés en double.</p></div>
     </div>
   </aside>`;
@@ -869,6 +869,19 @@ async function loadReportLogs(reportId){
       ${l.error ? `<div style="color:var(--red);font-size:12px">${esc(l.error)}</div>` : ''}</div>`).join('')
       : '<p class="muted">Aucun mail pour ce rapport (aucune règle ne correspond).</p>';
   }catch(e){ el.innerHTML = `<p class="muted">${esc(e.message)}</p>`; }
+}
+async function downloadPdf(reportId, btn){
+  if(btn){ btn.disabled = true; btn.textContent = 'Génération…'; }
+  try{
+    const r = await callFn({action:'pdf', report_id:reportId});
+    const bin = atob(r.base64), bytes = new Uint8Array(bin.length);
+    for(let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const url = URL.createObjectURL(new Blob([bytes], {type:'application/pdf'}));
+    const a = document.createElement('a'); a.href = url; a.download = r.filename || 'rapport.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  }catch(e){ toast('PDF impossible : ' + e.message, 'err'); }
+  finally{ if(btn){ btn.disabled = false; btn.textContent = 'Télécharger le PDF'; } }
 }
 async function redispatch(reportId){
   try{ await callFn({action:'dispatch', report_id:reportId}); toast('Envois vérifiés.', 'ok'); loadReportLogs(reportId); }
@@ -1443,7 +1456,8 @@ RENDER.settings = () => {
     ${fld('st-alert', 'Alerte en cas d’échec', inp('st-alert', st.alert_email || ''), 'séparées par des virgules')}
     ${fld('st-sep', 'Séparateur entre deux réponses dans l’objet', inp('st-sep', st.subject_separator ?? ' - ', 'class="inp mono"'))}
   </div>
-  <div style="margin-top:14px">${fld('st-photo', 'Texte quand les photos ne sont pas encore arrivées', inp('st-photo', st.photo_note || ''))}</div></section>
+  <div style="margin-top:14px">${fld('st-photo', 'Texte quand les photos ne sont pas encore arrivées', inp('st-photo', st.photo_note || ''))}</div>
+  <div style="margin-top:14px"><label class="check"><input type="checkbox" id="st-pdf" ${st.pdf_attachment !== 'false' ? 'checked' : ''}> <span><b>Rapport en PDF joint</b> : le mail contient un résumé et le rapport complet en pièce jointe (même présentation que les rapports de site RDZ). Décoché, le rapport complet est dans le corps du mail.</span></label></div></section>
   <section class="panel"><h2>Mention protection des données (LPD)</h2>
     <textarea class="inp" id="st-lpd" rows="6">${esc(st.lpd_footer || '')}</textarea>
     <p class="muted" style="font-size:12px;margin-top:6px">Ajoutée telle quelle en pied de chaque mail.</p>
@@ -1479,7 +1493,7 @@ function saveSettings(){
      !confirm('Désactiver le mode test ? Les mails partiront immédiatement aux vrais destinataires (clients, prestataires). Faites-le seulement après la recette signée par le client.')) return;
   const sepEl = document.getElementById('st-sep');
   const changes = {test_mode: testOn ? 'true' : 'false', test_recipients: testTo.join(', '), sender, reply_to: reply,
-    alert_email: alert.join(', '), subject_separator: sepEl ? sepEl.value : ' - ', photo_note: val('st-photo'), lpd_footer: val('st-lpd')};
+    alert_email: alert.join(', '), subject_separator: sepEl ? sepEl.value : ' - ', photo_note: val('st-photo'), pdf_attachment: val('st-pdf') ? 'true' : 'false', lpd_footer: val('st-lpd')};
   for(const [k, v] of Object.entries(changes)) if((S.settings[k] ?? '') !== v) saveSetting(k, v);
   toast('Paramètres enregistrés.', 'ok'); render();
 }
