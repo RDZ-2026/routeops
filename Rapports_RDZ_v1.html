@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rapports_RDZ v5 — Hôpital de La Tour</title>
+<title>Rapports_RDZ v6 — Hôpital de La Tour</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -747,7 +747,7 @@ function configIssues(){
 }
 RENDER.dash = () => {
   const issues = configIssues(), testOn = S.settings.test_mode !== 'false';
-  return `<div class="page-head"><h1>Vue d’ensemble</h1><p class="sub">Rapports clôturés par les agents et mails envoyés automatiquement, sur les sept derniers jours.</p></div>
+  return `<div class="page-head"><h1>Vue d’ensemble</h1><p class="sub">Rapports clôturés par les agents sur le site et mails envoyés automatiquement, sur les sept derniers jours.</p></div>
   ${testOn ? `<div class="banner warn"><div><b>Mode test actif.</b> Tous les mails partent vers les adresses de test, avec [TEST] dans l’objet. Désactivez-le seulement après la recette signée par le client.</div><button class="btn sm" onclick="showView('settings')">Ouvrir les paramètres</button></div>` : ''}
   ${catalogNotice()}
   <div class="kpis" id="dash-kpis">${navigator.onLine ? '<div class="muted">Chargement…</div>' : '<div class="muted">Hors ligne : les chiffres s’afficheront au retour de la connexion.</div>'}</div>
@@ -762,14 +762,17 @@ AFTER.dash = async () => {
   if(!navigator.onLine) return;
   const since = new Date(Date.now() - 7 * 864e5).toISOString();
   try{
-    const [disp, logs] = await Promise.all([
-      api(`rpt_dispatched?select=report_id,dispatched_at,rules_matched&dispatched_at=gte.${since}&limit=10000`),
+    let [disp, logs] = await Promise.all([
+      api(`rpt_dispatched?select=report_id,dispatched_at,rules_matched,site_nom&dispatched_at=gte.${since}&limit=10000`),
       api(`rpt_mail_log?select=id,status,created_at,subject,error,report_id,rule_id,rule_name,site_nom&created_at=gte.${since}&order=created_at.desc&limit=10000`)]);
     S.logs = logs; renderNav();
+    // Only the reports of the module's site(s) (older entries may include other sites).
+    const names = new Set(S.cat.sites.map(s => s.nom));
+    if(names.size) disp = disp.filter(r => names.has(r.site_nom));
     const d1 = Date.now() - 864e5;
     const k = [
-      [disp.filter(r => new Date(r.dispatched_at) > d1).length, 'Rapports traités – 24 h'],
-      [disp.length, 'Rapports traités – 7 jours'],
+      [disp.filter(r => new Date(r.dispatched_at) > d1).length, 'Rapports reçus – 24 h'],
+      [disp.length, 'Rapports reçus – 7 jours'],
       [logs.filter(l => ['sent','test_redirected'].includes(l.status) && new Date(l.created_at) > d1).length, 'Mails envoyés – 24 h'],
       [logs.filter(l => l.status === 'failed').length, 'Échecs – 7 jours', true]];
     const el = document.getElementById('dash-kpis');
@@ -1321,7 +1324,9 @@ RENDER.points = () => {
 };
 function visibleCheckpoints(){
   const sid = S.ui.pointSiteId, r = S.ui.pointRound;
-  return S.cfg.checkpoints.filter(c => c.site_id === sid && (r === 'all' || (r === 'none' ? !c.round_id : c.round_id === r))).sort(bySort);
+  const rname = c => c.round_id ? (round(c.round_id)?.name || '') : '\uffff';
+  return S.cfg.checkpoints.filter(c => c.site_id === sid && (r === 'all' || (r === 'none' ? !c.round_id : c.round_id === r)))
+    .sort((a, b) => rname(a).localeCompare(rname(b), 'fr') || bySort(a, b));
 }
 function roundPanel(r){
   const t = x => x ? String(x).slice(0, 5) : '—';
