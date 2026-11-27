@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Rapports_RDZ v6 — Hôpital de La Tour</title>
+<title>Rapports_RDZ v7 — Hôpital de La Tour</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400&family=DM+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
@@ -1463,6 +1463,15 @@ RENDER.settings = () => {
   </div>
   <div style="margin-top:14px">${fld('st-photo', 'Texte quand les photos ne sont pas encore arrivées', inp('st-photo', st.photo_note || ''))}</div>
   <div style="margin-top:14px"><label class="check"><input type="checkbox" id="st-pdf" ${st.pdf_attachment !== 'false' ? 'checked' : ''}> <span><b>Rapport en PDF joint</b> : le mail contient un résumé et le rapport complet en pièce jointe (même présentation que les rapports de site RDZ). Décoché, le rapport complet est dans le corps du mail.</span></label></div></section>
+  <section class="panel"><h2>Texte du mail</h2>
+    <p class="muted" style="font-size:12.5px;margin-bottom:12px">Message qui accompagne le PDF joint. Les {champs} sont remplacés comme dans les objets, par exemple {Site}, {Type de rapport}, {Date}, {Agent}, ou le libellé d'une question. Laissez un champ vide pour reprendre le texte par défaut.</p>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${fld('st-mg', 'Salutation', inp('st-mg', st.mail_greeting || '', 'placeholder="Bonjour,"'))}
+      ${fld('st-mi', 'Introduction', `<textarea class="inp" id="st-mi" rows="2" placeholder="Veuillez trouver ci-joint notre rapport « {Type de rapport} » concernant le site {Site}.">${esc(st.mail_intro || '')}</textarea>`)}
+      ${fld('st-mc', 'Formule de fin', `<textarea class="inp" id="st-mc" rows="3" placeholder="Nous restons à votre disposition pour toute question.&#10;&#10;Meilleures salutations,">${esc(st.mail_closing || '')}</textarea>`)}
+      ${fld('st-ms', 'Signature', `<textarea class="inp" id="st-ms" rows="3" placeholder="RDZ Security Management SA&#10;Quai du Seujet 22, 1201 Genève&#10;+41 22 552 26 99">${esc(st.mail_signature || '')}</textarea>`)}
+    </div>
+  </section>
   <section class="panel"><h2>Mention protection des données (LPD)</h2>
     <textarea class="inp" id="st-lpd" rows="6">${esc(st.lpd_footer || '')}</textarea>
     <p class="muted" style="font-size:12px;margin-top:6px">Ajoutée telle quelle en pied de chaque mail.</p>
@@ -1498,7 +1507,8 @@ function saveSettings(){
      !confirm('Désactiver le mode test ? Les mails partiront immédiatement aux vrais destinataires (clients, prestataires). Faites-le seulement après la recette signée par le client.')) return;
   const sepEl = document.getElementById('st-sep');
   const changes = {test_mode: testOn ? 'true' : 'false', test_recipients: testTo.join(', '), sender, reply_to: reply,
-    alert_email: alert.join(', '), subject_separator: sepEl ? sepEl.value : ' - ', photo_note: val('st-photo'), pdf_attachment: val('st-pdf') ? 'true' : 'false', lpd_footer: val('st-lpd')};
+    alert_email: alert.join(', '), subject_separator: sepEl ? sepEl.value : ' - ', photo_note: val('st-photo'), pdf_attachment: val('st-pdf') ? 'true' : 'false', lpd_footer: val('st-lpd'),
+    mail_greeting: val('st-mg'), mail_intro: val('st-mi'), mail_closing: val('st-mc'), mail_signature: val('st-ms')};
   for(const [k, v] of Object.entries(changes)) if((S.settings[k] ?? '') !== v) saveSetting(k, v);
   toast('Paramètres enregistrés.', 'ok'); render();
 }
